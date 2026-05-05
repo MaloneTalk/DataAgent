@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.malone.mapper.DatasourceMapper">
+
+    <resultMap id="BaseResultMap" type="com.malone.entity.Datasource">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="type" property="type"/>
+        <result column="host" property="host"/>
+        <result column="port" property="port"/>
+        <result column="database_name" property="databaseName"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="connection_url" property="connectionUrl"/>
+        <result column="status" property="status"/>
+        <result column="test_status" property="testStatus"/>
+        <result column="description" property="description"/>
+        <result column="creator_id" property="creatorId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM datasource ORDER BY create_time DESC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM datasource WHERE id = #{id}
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM datasource WHERE status = #{status} ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByType" resultMap="BaseResultMap">
+        SELECT * FROM datasource WHERE type = #{type} ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.malone.entity.Datasource" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO datasource (
+            name, type, host, port, database_name, username, password,
+            connection_url, status, test_status, description, creator_id,
+            create_time, update_time
+        ) VALUES (
+            #{name}, #{type}, #{host}, #{port}, #{databaseName}, #{username}, #{password},
+            #{connectionUrl}, #{status}, #{testStatus}, #{description}, #{creatorId},
+            #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.malone.entity.Datasource">
+        UPDATE datasource
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="type != null">type = #{type},</if>
+            <if test="host != null">host = #{host},</if>
+            <if test="port != null">port = #{port},</if>
+            <if test="databaseName != null">database_name = #{databaseName},</if>
+            <if test="username != null">username = #{username},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="connectionUrl != null">connection_url = #{connectionUrl},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="testStatus != null">test_status = #{testStatus},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM datasource WHERE id = #{id}
+    </delete>
+
+</mapper>
