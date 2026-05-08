@@ -9,11 +9,10 @@ import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.service.DatasourceService;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Component
 public class ExecuteSqlTool {
@@ -28,9 +27,15 @@ public class ExecuteSqlTool {
         this.sqlExecutor = sqlExecutor;
     }
 
-    @Tool(name = "execute_sql", description = "Execute SELECT SQL query on the target datasource and return the query result. Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or other modification operations.")
+    @Tool(
+            name = "execute_sql",
+            description =
+                    "Execute SELECT SQL query on the target datasource and return the query result."
+                        + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
+                        + " other modification operations.")
     public String executeSql(
-            @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute") String sql) {
+            @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
+                    String sql) {
         List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
 
         if (activeDataSources.isEmpty()) {
@@ -38,7 +43,8 @@ public class ExecuteSqlTool {
         }
 
         if (activeDataSources.size() > 1) {
-            logger.warn("Found {} active data sources, using the first one.", activeDataSources.size());
+            logger.warn(
+                    "Found {} active data sources, using the first one.", activeDataSources.size());
         }
 
         Datasource datasource = activeDataSources.get(0);
@@ -68,7 +74,11 @@ public class ExecuteSqlTool {
         sb.append("Columns: ").append(result.getColumns()).append("\n");
 
         for (int i = 0; i < result.getRows().size(); i++) {
-            sb.append("Row ").append(i + 1).append(": ").append(result.getRows().get(i)).append("\n");
+            sb.append("Row ")
+                    .append(i + 1)
+                    .append(": ")
+                    .append(result.getRows().get(i))
+                    .append("\n");
         }
 
         return sb.toString();

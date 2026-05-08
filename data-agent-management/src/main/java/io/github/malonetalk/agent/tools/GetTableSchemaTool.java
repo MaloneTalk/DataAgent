@@ -8,11 +8,10 @@ import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.service.DatasourceService;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Component
 public class GetTableSchemaTool {
@@ -27,9 +26,16 @@ public class GetTableSchemaTool {
         this.schemaReader = schemaReader;
     }
 
-    @Tool(name = "get_table_schema", description = "Get the schema information of the specified table, including column name, data type, whether it is primary key, whether it allows null, default value and column comments. This tool should be called to understand the table structure before generating SQL.")
+    @Tool(
+            name = "get_table_schema",
+            description =
+                    "Get the schema information of the specified table, including column name, data"
+                        + " type, whether it is primary key, whether it allows null, default value"
+                        + " and column comments. This tool should be called to understand the table"
+                        + " structure before generating SQL.")
     public String getTableSchema(
-            @ToolParam(name = "table_name", description = "The table name to query schema for") String tableName) {
+            @ToolParam(name = "table_name", description = "The table name to query schema for")
+                    String tableName) {
         List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
 
         if (activeDataSources.isEmpty()) {
@@ -37,7 +43,8 @@ public class GetTableSchemaTool {
         }
 
         if (activeDataSources.size() > 1) {
-            logger.warn("Found {} active data sources, using the first one.", activeDataSources.size());
+            logger.warn(
+                    "Found {} active data sources, using the first one.", activeDataSources.size());
         }
 
         Datasource datasource = activeDataSources.get(0);

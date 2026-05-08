@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -22,12 +21,13 @@ public class SqlExecutor {
     private static final int MAX_ROWS = 200;
     private static final int QUERY_TIMEOUT_SECONDS = 30;
 
-    private static final Pattern SELECT_PATTERN = Pattern.compile(
-            "^\\s*SELECT\\s", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SELECT_PATTERN =
+            Pattern.compile("^\\s*SELECT\\s", Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern FORBIDDEN_PATTERN = Pattern.compile(
-            ";\\s*(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\\s",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern FORBIDDEN_PATTERN =
+            Pattern.compile(
+                    ";\\s*(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\\s",
+                    Pattern.CASE_INSENSITIVE);
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
@@ -58,13 +58,15 @@ public class SqlExecutor {
         }
 
         if (FORBIDDEN_PATTERN.matcher(sql).find()) {
-            throw new SqlSecurityException("SQL contains forbidden statements. Only SELECT is allowed.");
+            throw new SqlSecurityException(
+                    "SQL contains forbidden statements. Only SELECT is allowed.");
         }
     }
 
     private QueryResult doExecute(Connection conn, String sql) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(sql,
-                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+        try (PreparedStatement stmt =
+                conn.prepareStatement(
+                        sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
 
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             stmt.setFetchSize(MAX_ROWS);

@@ -102,7 +102,8 @@ public class AgentService {
     private ReActAgent createAgent() {
         return ReActAgent.builder()
                 .name("DataAgent")
-                .sysPrompt("""
+                .sysPrompt(
+                        """
                         你是一个数据助手，可以帮助用户查询数据库中的数据。请按以下步骤操作：
                         1. 使用 get_tables 工具获取可用的数据库表信息
                         2. 根据用户问题，选择相关的表，使用 get_table_schema 工具获取表结构（列名、类型、主键等）

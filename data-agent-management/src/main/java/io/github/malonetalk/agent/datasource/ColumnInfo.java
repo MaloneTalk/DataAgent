@@ -10,8 +10,14 @@ public class ColumnInfo {
     private final boolean primaryKey;
     private final String remarks;
 
-    public ColumnInfo(String columnName, String typeName, int columnSize, boolean nullable,
-            String defaultValue, boolean primaryKey, String remarks) {
+    public ColumnInfo(
+            String columnName,
+            String typeName,
+            int columnSize,
+            boolean nullable,
+            String defaultValue,
+            boolean primaryKey,
+            String remarks) {
         this.columnName = columnName;
         this.typeName = typeName;
         this.columnSize = columnSize;

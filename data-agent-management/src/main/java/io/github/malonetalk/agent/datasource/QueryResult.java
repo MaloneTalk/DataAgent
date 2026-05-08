@@ -12,7 +12,11 @@ public class QueryResult {
     private final int totalRows;
     private final boolean truncated;
 
-    public QueryResult(List<String> columns, List<Map<String, Object>> rows, int totalRows, boolean truncated) {
+    public QueryResult(
+            List<String> columns,
+            List<Map<String, Object>> rows,
+            int totalRows,
+            boolean truncated) {
         this.columns = columns;
         this.rows = rows;
         this.totalRows = totalRows;

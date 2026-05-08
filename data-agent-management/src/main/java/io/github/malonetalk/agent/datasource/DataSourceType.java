@@ -4,19 +4,9 @@ import java.util.Arrays;
 import java.util.Optional;
 
 public enum DataSourceType {
-
-    MYSQL(
-            "mysql",
-            "com.mysql.cj.jdbc.Driver",
-            "jdbc:mysql://"),
-    POSTGRESQL(
-            "postgresql",
-            "org.postgresql.Driver",
-            "jdbc:postgresql://"),
-    ORACLE(
-            "oracle",
-            "oracle.jdbc.OracleDriver",
-            "jdbc:oracle:thin:@");
+    MYSQL("mysql", "com.mysql.cj.jdbc.Driver", "jdbc:mysql://"),
+    POSTGRESQL("postgresql", "org.postgresql.Driver", "jdbc:postgresql://"),
+    ORACLE("oracle", "oracle.jdbc.OracleDriver", "jdbc:oracle:thin:@");
 
     private final String code;
     private final String driverClassName;

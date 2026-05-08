@@ -32,7 +32,8 @@ public class SchemaReader {
             return getColumns(conn, tableName, primaryKeys);
         } catch (SQLException e) {
             logger.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
-            throw new SchemaReadException("Failed to read schema for table " + tableName + ": " + e.getMessage(), e);
+            throw new SchemaReadException(
+                    "Failed to read schema for table " + tableName + ": " + e.getMessage(), e);
         }
     }
 
@@ -40,7 +41,8 @@ public class SchemaReader {
         Set<String> pkColumns = new HashSet<>();
         DatabaseMetaData metaData = conn.getMetaData();
 
-        try (ResultSet rs = metaData.getPrimaryKeys(conn.getCatalog(), conn.getSchema(), tableName)) {
+        try (ResultSet rs =
+                metaData.getPrimaryKeys(conn.getCatalog(), conn.getSchema(), tableName)) {
             while (rs.next()) {
                 pkColumns.add(rs.getString("COLUMN_NAME"));
             }
@@ -54,7 +56,8 @@ public class SchemaReader {
         List<ColumnInfo> columns = new ArrayList<>();
         DatabaseMetaData metaData = conn.getMetaData();
 
-        try (ResultSet rs = metaData.getColumns(conn.getCatalog(), conn.getSchema(), tableName, null)) {
+        try (ResultSet rs =
+                metaData.getColumns(conn.getCatalog(), conn.getSchema(), tableName, null)) {
             while (rs.next()) {
                 String columnName = rs.getString("COLUMN_NAME");
                 String typeName = rs.getString("TYPE_NAME");
@@ -65,8 +68,15 @@ public class SchemaReader {
                 String remarks = rs.getString("REMARKS");
                 boolean isPk = primaryKeys.contains(columnName);
 
-                columns.add(new ColumnInfo(columnName, typeName, columnSize, nullable,
-                        defaultValue, isPk, remarks));
+                columns.add(
+                        new ColumnInfo(
+                                columnName,
+                                typeName,
+                                columnSize,
+                                nullable,
+                                defaultValue,
+                                isPk,
+                                remarks));
             }
         }
 
