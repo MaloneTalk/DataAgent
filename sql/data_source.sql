@@ -16,3 +16,20 @@ CREATE TABLE IF NOT EXISTS `datasource` (
     `update_time` DATETIME DEFAULT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据源表';
+
+
+
+CREATE TABLE IF NOT EXISTS `table_info` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `table_name` VARCHAR(255) NOT NULL COMMENT '表名',
+    `table_description` VARCHAR(500) DEFAULT NULL COMMENT '表描述',
+    `domain` VARCHAR(255) DEFAULT NULL COMMENT '域',
+    `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
+    `is_active` TINYINT(1) DEFAULT 1 COMMENT '是否激活',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_datasource_id` (`datasource_id`),
+    KEY `idx_is_active` (`is_active`),
+    KEY `idx_datasource_active` (`datasource_id`, `is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='表信息表';

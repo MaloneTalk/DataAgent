@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.malone.mapper.TableInfoMapper">
+
+    <resultMap id="BaseResultMap" type="com.malone.entity.TableInfo">
+        <id column="id" property="id"/>
+        <result column="table_name" property="tableName"/>
+        <result column="table_description" property="tableDescription"/>
+        <result column="domain" property="domain"/>
+        <result column="datasource_id" property="datasourceId"/>
+        <result column="is_active" property="isActive"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM table_info ORDER BY create_time DESC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM table_info WHERE id = #{id}
+    </select>
+
+    <select id="selectByDatasourceId" resultMap="BaseResultMap">
+        SELECT * FROM table_info WHERE datasource_id = #{datasourceId} ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByIsActive" resultMap="BaseResultMap">
+        SELECT * FROM table_info WHERE is_active = #{isActive} ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByDatasourceIdAndIsActive" resultMap="BaseResultMap">
+        SELECT * FROM table_info WHERE datasource_id = #{datasourceId} AND is_active = #{isActive} ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.malone.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO table_info (
+            table_name, table_description, domain, datasource_id, is_active,
+            create_time, update_time
+        ) VALUES (
+            #{tableName}, #{tableDescription}, #{domain}, #{datasourceId}, #{isActive},
+            #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.malone.entity.TableInfo">
+        UPDATE table_info
+        <set>
+            <if test="tableName != null">table_name = #{tableName},</if>
+            <if test="tableDescription != null">table_description = #{tableDescription},</if>
+            <if test="domain != null">domain = #{domain},</if>
+            <if test="datasourceId != null">datasource_id = #{datasourceId},</if>
+            <if test="isActive != null">is_active = #{isActive},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM table_info WHERE id = #{id}
+    </delete>
+
+</mapper>
