@@ -96,18 +96,21 @@
                             <formatJavadoc>false</formatJavadoc>
                         </googleJavaFormat>
                     </java>
-                    <format>
-                        <includes>
-                            <include>.gitattributes</include>
-                            <include>.gitignore</include>
-                        </includes>
-                        <trimTrailingWhitespace/>
-                        <endWithNewline/>
-                        <indent>
-                            <tabs>true</tabs>
-                            <spacesPerTab>4</spacesPerTab>
-                        </indent>
-                    </format>
+                    <formats>
+                        <format>
+                            <includes>
+                                <include>.gitattributes</include>
+                                <include>.gitignore</include>
+                            </includes>
+                            <trimTrailingWhitespace/>
+                            <endWithNewline/>
+                            <indent>
+                                <tabs>true</tabs>
+                                <spacesPerTab>4</spacesPerTab>
+                            </indent>
+                        </format>
+                    </formats>
+
                 </configuration>
             </plugin>
         </plugins>
