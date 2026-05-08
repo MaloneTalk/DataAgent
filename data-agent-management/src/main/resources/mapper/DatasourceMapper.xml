@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.malone.mapper.DatasourceMapper">
+<mapper namespace="io.github.malonetalk.mapper.DatasourceMapper">
 
-    <resultMap id="BaseResultMap" type="com.malone.entity.Datasource">
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.Datasource">
         <id column="id" property="id"/>
         <result column="name" property="name"/>
         <result column="type" property="type"/>
@@ -36,7 +36,7 @@
         SELECT * FROM datasource WHERE type = #{type} ORDER BY create_time DESC
     </select>
 
-    <insert id="insert" parameterType="com.malone.entity.Datasource" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="io.github.malonetalk.entity.Datasource" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO datasource (
             name, type, host, port, database_name, username, password,
             connection_url, status, test_status, description, creator_id,
@@ -48,7 +48,7 @@
         )
     </insert>
 
-    <update id="update" parameterType="com.malone.entity.Datasource">
+    <update id="update" parameterType="io.github.malonetalk.entity.Datasource">
         UPDATE datasource
         <set>
             <if test="name != null">name = #{name},</if>

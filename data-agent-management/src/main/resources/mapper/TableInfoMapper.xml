@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.malone.mapper.TableInfoMapper">
+<mapper namespace="io.github.malonetalk.mapper.TableInfoMapper">
 
-    <resultMap id="BaseResultMap" type="com.malone.entity.TableInfo">
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.TableInfo">
         <id column="id" property="id"/>
         <result column="table_name" property="tableName"/>
         <result column="table_description" property="tableDescription"/>
@@ -33,7 +33,7 @@
         SELECT * FROM table_info WHERE datasource_id = #{datasourceId} AND is_active = #{isActive} ORDER BY create_time DESC
     </select>
 
-    <insert id="insert" parameterType="com.malone.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="io.github.malonetalk.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO table_info (
             table_name, table_description, domain, datasource_id, is_active,
             create_time, update_time
@@ -43,7 +43,7 @@
         )
     </insert>
 
-    <update id="update" parameterType="com.malone.entity.TableInfo">
+    <update id="update" parameterType="io.github.malonetalk.entity.TableInfo">
         UPDATE table_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
