@@ -8,6 +8,7 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.tool.Toolkit;
+import io.github.malonetalk.agent.tools.ExecuteSqlTool;
 import io.github.malonetalk.agent.tools.GetTablesTool;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
@@ -27,13 +28,18 @@ public class AgentService {
     private Toolkit toolkit;
 
     private final GetTablesTool getTablesTool;
+    private final ExecuteSqlTool executeSqlTool;
 
     private final DataSource dataSource;
 
     public AgentService(
-            ModelFactory modelFactory, GetTablesTool getTablesTool, DataSource dataSource) {
+            ModelFactory modelFactory,
+            GetTablesTool getTablesTool,
+            ExecuteSqlTool executeSqlTool,
+            DataSource dataSource) {
         this.modelFactory = modelFactory;
         this.getTablesTool = getTablesTool;
+        this.executeSqlTool = executeSqlTool;
         this.dataSource = dataSource;
     }
 
@@ -41,6 +47,7 @@ public class AgentService {
     public void init() {
         this.toolkit = new Toolkit();
         this.toolkit.registerTool(getTablesTool);
+        this.toolkit.registerTool(executeSqlTool);
     }
 
     private Session getOrCreateSession(String sessionId) {
@@ -90,7 +97,14 @@ public class AgentService {
     private ReActAgent createAgent() {
         return ReActAgent.builder()
                 .name("DataAgent")
-                .sysPrompt("你是一个数据助手，可以帮助用户查询数据库表信息。请使用提供的工具来获取数据。")
+                .sysPrompt("""
+                        You are a data assistant that helps users query data from databases. Please follow these steps:
+                        1. Use the get_tables tool to get available database table information
+                        2. Analyze which tables need to be queried based on user questions and generate appropriate SELECT SQL statements
+                        3. Use the execute_sql tool to execute the SQL query
+                        4. Answer the user question based on the query results
+                        Note: Only SELECT queries are supported, modification operations are not allowed.
+                        """)
                 .model(modelFactory.createModel())
                 .toolkit(toolkit)
                 .memory(new InMemoryMemory())
