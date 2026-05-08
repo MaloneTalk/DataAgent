@@ -36,8 +36,7 @@ public class AgentController {
             message = "";
         }
         
-        return agentService.chatStream(sessionId, message)
-                .map(data -> "data: " + data + "\n\n");
+        return agentService.chatStream(sessionId, message);
     }
 
     @DeleteMapping("/session/{sessionId}")

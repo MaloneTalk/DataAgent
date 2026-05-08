@@ -75,7 +75,7 @@ public class AgentService {
         StreamOptions streamOptions = StreamOptions.builder()
                 .eventTypes(EventType.REASONING, EventType.TOOL_RESULT)
                 .incremental(true)
-                .includeReasoningResult(false)
+                .includeReasoningResult(true)
                 .build();
 
         return agent.stream(userMsg, streamOptions)
