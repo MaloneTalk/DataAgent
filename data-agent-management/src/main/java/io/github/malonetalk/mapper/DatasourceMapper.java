@@ -1,10 +1,9 @@
 package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.entity.Datasource;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
 
 @Mapper
 public interface DatasourceMapper {

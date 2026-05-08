@@ -12,7 +12,7 @@
     </parent>
 
     <groupId>com.malone</groupId>
-    <artifactId>data-agent-management</artifactId>
+    <artifactId>data-agent-backend</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
@@ -25,6 +25,8 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <agentscope.version>1.0.11</agentscope.version>
+        <spotless.version>3.4.0</spotless.version>
+        <google-java-format.version>1.28.0</google-java-format.version>
     </properties>
 
     <dependencies>
@@ -68,6 +70,45 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>verify</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <java>
+                        <removeUnusedImports/>
+                        <forbidWildcardImports/>
+                        <formatAnnotations/>
+                        <importOrder/>
+                        <googleJavaFormat>
+                            <version>${google-java-format.version}</version>
+                            <style>AOSP</style>
+                            <reflowLongStrings>true</reflowLongStrings>
+                            <formatJavadoc>false</formatJavadoc>
+                        </googleJavaFormat>
+                    </java>
+                    <format>
+                        <includes>
+                            <include>.gitattributes</include>
+                            <include>.gitignore</include>
+                        </includes>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                        <indent>
+                            <tabs>true</tabs>
+                            <spacesPerTab>4</spacesPerTab>
+                        </indent>
+                    </format>
+                </configuration>
             </plugin>
         </plugins>
     </build>

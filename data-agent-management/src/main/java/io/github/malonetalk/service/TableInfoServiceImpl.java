@@ -2,10 +2,9 @@ package io.github.malonetalk.service;
 
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.TableInfoMapper;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.stereotype.Service;
 
 @Service
 public class TableInfoServiceImpl implements TableInfoService {

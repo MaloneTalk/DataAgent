@@ -1,7 +1,6 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.entity.TableInfo;
-
 import java.util.List;
 
 public interface TableInfoService {

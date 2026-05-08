@@ -1,7 +1,6 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.entity.Datasource;
-
 import java.util.List;
 
 public interface DatasourceService {

@@ -1,7 +1,10 @@
 package io.github.malonetalk.agent;
 
-import io.agentscope.core.model.*;
-
+import io.agentscope.core.model.AnthropicChatModel;
+import io.agentscope.core.model.DashScopeChatModel;
+import io.agentscope.core.model.Model;
+import io.agentscope.core.model.OllamaChatModel;
+import io.agentscope.core.model.OpenAIChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -20,8 +23,7 @@ public class ModelFactory {
     @Value("${agentscope.model.base-url:}")
     private String baseUrl;
 
-    public ModelFactory() {
-    }
+    public ModelFactory() {}
 
     public ModelFactory(String provider, String apiKey, String modelName, String baseUrl) {
         this.provider = provider;
@@ -40,30 +42,23 @@ public class ModelFactory {
 
     public Model createModel(String apiKey, String modelName, String baseUrl) {
         return switch (provider.toLowerCase()) {
-            case "dashscope" -> DashScopeChatModel.builder()
-                    .apiKey(apiKey)
-                    .modelName(modelName)
-                    .stream(true)
-                    .build();
+            case "dashscope" ->
+                    DashScopeChatModel.builder().apiKey(apiKey).modelName(modelName).stream(true)
+                            .build();
             case "openai" -> {
-                OpenAIChatModel.Builder builder = OpenAIChatModel.builder()
-                        .apiKey(apiKey)
-                        .modelName(modelName)
-                        .stream(true);
+                OpenAIChatModel.Builder builder =
+                        OpenAIChatModel.builder().apiKey(apiKey).modelName(modelName).stream(true);
                 if (baseUrl != null && !baseUrl.isEmpty()) {
                     builder.baseUrl(baseUrl);
                 }
                 yield builder.build();
             }
-            case "anthropic" -> AnthropicChatModel.builder()
-                    .apiKey(apiKey)
-                    .modelName(modelName)
-                    .stream(true)
-                    .build();
+            case "anthropic" ->
+                    AnthropicChatModel.builder().apiKey(apiKey).modelName(modelName).stream(true)
+                            .build();
 
             case "ollama" -> {
-                OllamaChatModel.Builder builder = OllamaChatModel.builder()
-                        .modelName(modelName);
+                OllamaChatModel.Builder builder = OllamaChatModel.builder().modelName(modelName);
                 if (baseUrl != null && !baseUrl.isEmpty()) {
                     builder.baseUrl(baseUrl);
                 } else {
@@ -71,7 +66,8 @@ public class ModelFactory {
                 }
                 yield builder.build();
             }
-            default -> throw new IllegalArgumentException("Unsupported model provider: " + provider);
+            default ->
+                    throw new IllegalArgumentException("Unsupported model provider: " + provider);
         };
     }
 

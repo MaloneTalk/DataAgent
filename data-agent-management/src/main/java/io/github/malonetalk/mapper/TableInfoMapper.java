@@ -1,10 +1,9 @@
 package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.entity.TableInfo;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
 
 @Mapper
 public interface TableInfoMapper {
@@ -23,5 +22,6 @@ public interface TableInfoMapper {
 
     List<TableInfo> selectByIsActive(@Param("isActive") Boolean isActive);
 
-    List<TableInfo> selectByDatasourceIdAndIsActive(@Param("datasourceId") Integer datasourceId, @Param("isActive") Boolean isActive);
+    List<TableInfo> selectByDatasourceIdAndIsActive(
+            @Param("datasourceId") Integer datasourceId, @Param("isActive") Boolean isActive);
 }

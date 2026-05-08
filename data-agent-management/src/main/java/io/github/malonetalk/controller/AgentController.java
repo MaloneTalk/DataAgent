@@ -5,7 +5,12 @@ import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ChatRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 @RestController
@@ -30,12 +35,12 @@ public class AgentController {
         if (sessionId == null || sessionId.isEmpty()) {
             sessionId = "default";
         }
-        
+
         String message = request.message();
         if (message == null) {
             message = "";
         }
-        
+
         return agentService.chatStream(sessionId, message);
     }
 

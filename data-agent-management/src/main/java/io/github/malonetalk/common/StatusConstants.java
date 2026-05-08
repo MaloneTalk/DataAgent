@@ -9,6 +9,5 @@ public class StatusConstants {
     public static final String TEST_FAILED = "failed";
     public static final String TEST_UNTESTED = "untested";
 
-    private StatusConstants() {
-    }
+    private StatusConstants() {}
 }

@@ -1,7 +1,5 @@
 package io.github.malonetalk.agent;
 
-import io.github.malonetalk.agent.tools.GetTablesTool;
-import io.github.malonetalk.utils.MsgUtils;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.EventType;
 import io.agentscope.core.agent.StreamOptions;
@@ -10,6 +8,8 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.tool.Toolkit;
+import io.github.malonetalk.agent.tools.GetTablesTool;
+import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -28,8 +28,10 @@ public class AgentService {
 
     private final GetTablesTool getTablesTool;
 
-    private  final  DataSource dataSource;
-    public AgentService(ModelFactory modelFactory, GetTablesTool getTablesTool, DataSource dataSource) {
+    private final DataSource dataSource;
+
+    public AgentService(
+            ModelFactory modelFactory, GetTablesTool getTablesTool, DataSource dataSource) {
         this.modelFactory = modelFactory;
         this.getTablesTool = getTablesTool;
         this.dataSource = dataSource;
@@ -42,7 +44,9 @@ public class AgentService {
     }
 
     private Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(sessionId, k -> new MysqlSession(dataSource,"data_agent","agentscope_sessions",false));
+        return sessionCache.computeIfAbsent(
+                sessionId,
+                k -> new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false));
     }
 
     public String chat(String sessionId, String userInput) {
@@ -51,9 +55,7 @@ public class AgentService {
         Session session = getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
 
-        Msg userMsg = Msg.builder()
-                .textContent(userInput)
-                .build();
+        Msg userMsg = Msg.builder().textContent(userInput).build();
 
         Msg response = agent.call(userMsg).block();
 
@@ -68,15 +70,15 @@ public class AgentService {
         Session session = getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
 
-        Msg userMsg = Msg.builder()
-                .textContent(userInput)
-                .build();
+        Msg userMsg = Msg.builder().textContent(userInput).build();
 
-        StreamOptions streamOptions = StreamOptions.builder()
-                .eventTypes(EventType.REASONING, EventType.TOOL_RESULT)
-                .incremental(true)
-                .includeReasoningResult(true)
-                .build();
+        // TODO 各种信息块的类型区分，以返回给前端方便按不同的UI渲染
+        StreamOptions streamOptions =
+                StreamOptions.builder()
+                        .eventTypes(EventType.REASONING, EventType.TOOL_RESULT)
+                        .incremental(true)
+                        .includeReasoningResult(false)
+                        .build();
 
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
