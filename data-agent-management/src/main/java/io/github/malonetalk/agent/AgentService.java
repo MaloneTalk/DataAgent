@@ -9,6 +9,7 @@ import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.tool.Toolkit;
 import io.github.malonetalk.agent.tools.ExecuteSqlTool;
+import io.github.malonetalk.agent.tools.GetTableSchemaTool;
 import io.github.malonetalk.agent.tools.GetTablesTool;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
@@ -28,6 +29,7 @@ public class AgentService {
     private Toolkit toolkit;
 
     private final GetTablesTool getTablesTool;
+    private final GetTableSchemaTool getTableSchemaTool;
     private final ExecuteSqlTool executeSqlTool;
 
     private final DataSource dataSource;
@@ -35,10 +37,12 @@ public class AgentService {
     public AgentService(
             ModelFactory modelFactory,
             GetTablesTool getTablesTool,
+            GetTableSchemaTool getTableSchemaTool,
             ExecuteSqlTool executeSqlTool,
             DataSource dataSource) {
         this.modelFactory = modelFactory;
         this.getTablesTool = getTablesTool;
+        this.getTableSchemaTool = getTableSchemaTool;
         this.executeSqlTool = executeSqlTool;
         this.dataSource = dataSource;
     }
@@ -47,6 +51,7 @@ public class AgentService {
     public void init() {
         this.toolkit = new Toolkit();
         this.toolkit.registerTool(getTablesTool);
+        this.toolkit.registerTool(getTableSchemaTool);
         this.toolkit.registerTool(executeSqlTool);
     }
 
@@ -98,12 +103,13 @@ public class AgentService {
         return ReActAgent.builder()
                 .name("DataAgent")
                 .sysPrompt("""
-                        You are a data assistant that helps users query data from databases. Please follow these steps:
-                        1. Use the get_tables tool to get available database table information
-                        2. Analyze which tables need to be queried based on user questions and generate appropriate SELECT SQL statements
-                        3. Use the execute_sql tool to execute the SQL query
-                        4. Answer the user question based on the query results
-                        Note: Only SELECT queries are supported, modification operations are not allowed.
+                        你是一个数据助手，可以帮助用户查询数据库中的数据。请按以下步骤操作：
+                        1. 使用 get_tables 工具获取可用的数据库表信息
+                        2. 根据用户问题，选择相关的表，使用 get_table_schema 工具获取表结构（列名、类型、主键等）
+                        3. 根据表结构信息，生成合适的 SELECT SQL 语句
+                        4. 使用 execute_sql 工具执行 SQL 查询
+                        5. 根据查询结果回答用户问题
+                        注意：仅支持 SELECT 查询，不支持修改操作。生成SQL时请务必先查看表结构，确保列名和类型正确。
                         """)
                 .model(modelFactory.createModel())
                 .toolkit(toolkit)
