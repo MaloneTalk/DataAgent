@@ -17,33 +17,22 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.entity.ColumnSemanticInfo;
 import java.util.List;
 
-public interface TableInfoService {
+public interface ColumnSemanticInfoService {
 
-    List<TableInfo> findAll();
+    List<ColumnSemanticInfo> findByDatasourceIdAndTableName(Integer datasourceId, String tableName);
 
-    TableInfo findById(Integer id);
+    ColumnSemanticInfo findByDatasourceIdAndTableNameAndColumnName(
+            Integer datasourceId, String tableName, String columnName);
 
-    boolean save(TableInfo tableInfo);
+    boolean save(ColumnSemanticInfo columnSemanticInfo);
 
-    boolean update(TableInfo tableInfo);
-
-    boolean deleteById(Integer id);
+    boolean update(ColumnSemanticInfo columnSemanticInfo);
 
     int deleteByDatasourceId(Integer datasourceId);
 
-    boolean deleteByDatasourceIdAndTableName(Integer datasourceId, String tableName);
-
-    List<TableInfo> findByDatasourceId(Integer datasourceId);
-
-    TableInfo findByDatasourceIdAndTableName(Integer datasourceId, String tableName);
-
-    List<TableInfo> findByIsActive(Boolean isActive);
-
-    List<TableInfo> findByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive);
-
-    List<TableInfo> findByDatasourceIdAndIsActiveAndIsVisible(
-            Integer datasourceId, Boolean isActive, Boolean isVisible);
+    boolean deleteByDatasourceIdAndTableNameAndColumnName(
+            Integer datasourceId, String tableName, String columnName);
 }

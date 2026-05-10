@@ -15,10 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.impl;
 
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.service.TableInfoService;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,12 @@ public class TableInfoServiceImpl implements TableInfoService {
 
     @Override
     public boolean save(TableInfo tableInfo) {
+        if (tableInfo.getIsActive() == null) {
+            tableInfo.setIsActive(true);
+        }
+        if (tableInfo.getIsVisible() == null) {
+            tableInfo.setIsVisible(true);
+        }
         tableInfo.setCreateTime(LocalDateTime.now());
         tableInfo.setUpdateTime(LocalDateTime.now());
         return tableInfoMapper.insert(tableInfo) > 0;
@@ -61,8 +68,23 @@ public class TableInfoServiceImpl implements TableInfoService {
     }
 
     @Override
+    public int deleteByDatasourceId(Integer datasourceId) {
+        return tableInfoMapper.deleteByDatasourceId(datasourceId);
+    }
+
+    @Override
+    public boolean deleteByDatasourceIdAndTableName(Integer datasourceId, String tableName) {
+        return tableInfoMapper.deleteByDatasourceIdAndTableName(datasourceId, tableName) > 0;
+    }
+
+    @Override
     public List<TableInfo> findByDatasourceId(Integer datasourceId) {
         return tableInfoMapper.selectByDatasourceId(datasourceId);
+    }
+
+    @Override
+    public TableInfo findByDatasourceIdAndTableName(Integer datasourceId, String tableName) {
+        return tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
     }
 
     @Override
@@ -73,5 +95,12 @@ public class TableInfoServiceImpl implements TableInfoService {
     @Override
     public List<TableInfo> findByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive) {
         return tableInfoMapper.selectByDatasourceIdAndIsActive(datasourceId, isActive);
+    }
+
+    @Override
+    public List<TableInfo> findByDatasourceIdAndIsActiveAndIsVisible(
+            Integer datasourceId, Boolean isActive, Boolean isVisible) {
+        return tableInfoMapper.selectByDatasourceIdAndIsActiveAndIsVisible(
+                datasourceId, isActive, isVisible);
     }
 }

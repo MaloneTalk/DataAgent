@@ -18,6 +18,7 @@
 package io.github.malonetalk.agent.datasource;
 
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.TableInfo;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -51,6 +52,26 @@ public class SchemaReader {
             logger.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
             throw new SchemaReadException(
                     "Failed to read schema for table " + tableName + ": " + e.getMessage(), e);
+        }
+    }
+
+    public List<TableInfo> getTables(Datasource datasource) {
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+
+        try (Connection conn = ds.getConnection()) {
+            return getTables(conn, datasource);
+        } catch (SQLException e) {
+            logger.error(
+                    "Failed to read tables for datasource {}: {}",
+                    datasource.getId(),
+                    e.getMessage(),
+                    e);
+            throw new SchemaReadException(
+                    "Failed to read tables for datasource "
+                            + datasource.getId()
+                            + ": "
+                            + e.getMessage(),
+                    e);
         }
     }
 
@@ -98,6 +119,27 @@ public class SchemaReader {
         }
 
         return columns;
+    }
+
+    private List<TableInfo> getTables(Connection conn, Datasource datasource) throws SQLException {
+        List<TableInfo> tables = new ArrayList<>();
+        DatabaseMetaData metaData = conn.getMetaData();
+
+        try (ResultSet rs =
+                metaData.getTables(
+                        conn.getCatalog(), conn.getSchema(), "%", new String[] {"TABLE"})) {
+            while (rs.next()) {
+                TableInfo tableInfo = new TableInfo();
+                tableInfo.setTableName(rs.getString("TABLE_NAME"));
+                tableInfo.setTableDescription(rs.getString("REMARKS"));
+                tableInfo.setDatasourceId(datasource.getId());
+                tableInfo.setIsActive(true);
+                tableInfo.setIsVisible(true);
+                tables.add(tableInfo);
+            }
+        }
+
+        return tables;
     }
 
     public static class SchemaReadException extends RuntimeException {

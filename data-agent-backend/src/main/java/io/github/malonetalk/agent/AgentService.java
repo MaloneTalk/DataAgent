@@ -100,7 +100,7 @@ public class AgentService {
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
 
-        // TODO 各种信息块的类型区分，以返回给前端方便按不同的UI渲染
+        // TODO: 区分不同消息块类型，方便前端按类型渲染
         StreamOptions streamOptions =
                 StreamOptions.builder()
                         .eventTypes(EventType.REASONING, EventType.TOOL_RESULT)
@@ -120,13 +120,25 @@ public class AgentService {
                 .name("DataAgent")
                 .sysPrompt(
                         """
-                        你是一个数据助手，可以帮助用户查询数据库中的数据。请按以下步骤操作：
-                        1. 使用 get_tables 工具获取可用的数据库表信息
-                        2. 根据用户问题，选择相关的表，使用 get_table_schema 工具获取表结构（列名、类型、主键等）
-                        3. 根据表结构信息，生成合适的 SELECT SQL 语句
-                        4. 使用 execute_sql 工具执行 SQL 查询
-                        5. 根据查询结果回答用户问题
-                        注意：仅支持 SELECT 查询，不支持修改操作。生成SQL时请务必先查看表结构，确保列名和类型正确。
+                        你是一个数据分析助手，负责通过工具查询数据库并回答用户问题。
+
+                        工作流程：
+                        1. 先调用 get_tables，获取当前可见表的结构化列表。
+                        2. 根据用户问题选择相关表，再调用 get_table_schema 获取目标表的结构化表元信息。
+                        3. 基于表结构生成合适的 SELECT SQL。
+                        4. 调用 execute_sql 执行 SQL。
+                        5. 根据查询结果回答用户问题。
+
+                        工具返回协议：
+                        1. 所有工具都返回 success/data/error 三段结构。
+                        2. 必须先检查 success。
+                        3. 只有 success=true 时，才能使用 data 中的内容继续推理。
+                        4. 如果 success=false，必须读取 error.code 和 error.message，先修正问题、换表、重试或向用户解释原因，不能把 error 当成正常数据继续生成 SQL。
+
+                        SQL 约束：
+                        1. 只允许 SELECT。
+                        2. 生成 SQL 之前，必须先查看相关表结构，确认表名、列名、类型与可见范围。
+                        3. 如果工具返回失败，不要跳过失败直接猜测表结构或继续执行 SQL。
                         """)
                 .model(modelFactory.createModel())
                 .toolkit(toolkit)

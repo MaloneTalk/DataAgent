@@ -24,6 +24,7 @@ import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.common.StatusConstants;
+import io.github.malonetalk.dto.tool.ToolResult;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
@@ -47,16 +48,18 @@ public class ExecuteSqlTool {
     @Tool(
             name = "execute_sql",
             description =
-                    "Execute SELECT SQL query on the target datasource and return the query result."
-                        + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
-                        + " other modification operations.")
-    public String executeSql(
+                    "Execute a SELECT SQL query on the target datasource and return structured"
+                            + " result data. Returns a success/data/error wrapper. Only supports"
+                            + " SELECT queries, does not support INSERT/UPDATE/DELETE or other"
+                            + " modification operations.")
+    public ToolResult<QueryResult> executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
         List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
 
         if (activeDataSources.isEmpty()) {
-            return "No active datasource available, cannot execute SQL.";
+            return ToolResult.error(
+                    "NO_ACTIVE_DATASOURCE", "No active datasource available, cannot execute SQL.");
         }
 
         if (activeDataSources.size() > 1) {
@@ -67,37 +70,16 @@ public class ExecuteSqlTool {
         Datasource datasource = activeDataSources.get(0);
 
         try {
-            QueryResult result = sqlExecutor.execute(datasource, sql);
-            return formatResult(result);
+            return ToolResult.success(sqlExecutor.execute(datasource, sql));
+        } catch (IllegalArgumentException e) {
+            return ToolResult.error("INVALID_SQL_ARGUMENT", e.getMessage());
         } catch (SqlSecurityException e) {
-            return "SQL execution denied: " + e.getMessage();
+            return ToolResult.error("SQL_SECURITY_ERROR", e.getMessage());
         } catch (SqlExecutionException e) {
-            return "SQL execution failed: " + e.getMessage();
+            return ToolResult.error("SQL_EXECUTION_ERROR", e.getMessage());
+        } catch (RuntimeException e) {
+            logger.error("Unexpected SQL tool failure: {}", e.getMessage(), e);
+            return ToolResult.error("EXECUTE_SQL_INTERNAL_ERROR", e.getMessage());
         }
-    }
-
-    private String formatResult(QueryResult result) {
-        if (result.getRows().isEmpty()) {
-            return "Query result is empty.";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("Query result (total ").append(result.getTotalRows()).append(" rows)");
-        if (result.isTruncated()) {
-            sb.append(", truncated to show first ").append(result.getRows().size()).append(" rows");
-        }
-        sb.append(":\n");
-
-        sb.append("Columns: ").append(result.getColumns()).append("\n");
-
-        for (int i = 0; i < result.getRows().size(); i++) {
-            sb.append("Row ")
-                    .append(i + 1)
-                    .append(": ")
-                    .append(result.getRows().get(i))
-                    .append("\n");
-        }
-
-        return sb.toString();
     }
 }

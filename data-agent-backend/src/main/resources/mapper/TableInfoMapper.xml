@@ -9,6 +9,7 @@
         <result column="domain" property="domain"/>
         <result column="datasource_id" property="datasourceId"/>
         <result column="is_active" property="isActive"/>
+        <result column="is_visible" property="isVisible"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
@@ -25,6 +26,10 @@
         SELECT * FROM table_info WHERE datasource_id = #{datasourceId} ORDER BY create_time DESC
     </select>
 
+    <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
+        SELECT * FROM table_info WHERE datasource_id = #{datasourceId} AND table_name = #{tableName} LIMIT 1
+    </select>
+
     <select id="selectByIsActive" resultMap="BaseResultMap">
         SELECT * FROM table_info WHERE is_active = #{isActive} ORDER BY create_time DESC
     </select>
@@ -33,12 +38,20 @@
         SELECT * FROM table_info WHERE datasource_id = #{datasourceId} AND is_active = #{isActive} ORDER BY create_time DESC
     </select>
 
+    <select id="selectByDatasourceIdAndIsActiveAndIsVisible" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND is_active = #{isActive}
+          AND is_visible = #{isVisible}
+        ORDER BY create_time DESC
+    </select>
+
     <insert id="insert" parameterType="io.github.malonetalk.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO table_info (
-            table_name, table_description, domain, datasource_id, is_active,
+            table_name, table_description, domain, datasource_id, is_active, is_visible,
             create_time, update_time
         ) VALUES (
-            #{tableName}, #{tableDescription}, #{domain}, #{datasourceId}, #{isActive},
+            #{tableName}, #{tableDescription}, #{domain}, #{datasourceId}, #{isActive}, #{isVisible},
             #{createTime}, #{updateTime}
         )
     </insert>
@@ -51,6 +64,7 @@
             <if test="domain != null">domain = #{domain},</if>
             <if test="datasourceId != null">datasource_id = #{datasourceId},</if>
             <if test="isActive != null">is_active = #{isActive},</if>
+            <if test="isVisible != null">is_visible = #{isVisible},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
@@ -58,6 +72,16 @@
 
     <delete id="deleteById">
         DELETE FROM table_info WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByDatasourceId">
+        DELETE FROM table_info WHERE datasource_id = #{datasourceId}
+    </delete>
+
+    <delete id="deleteByDatasourceIdAndTableName">
+        DELETE FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND table_name = #{tableName}
     </delete>
 
 </mapper>

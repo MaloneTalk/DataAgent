@@ -18,12 +18,9 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
-import io.github.malonetalk.common.StatusConstants;
-import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.service.DatasourceService;
-import io.github.malonetalk.service.TableInfoService;
-import java.util.Collections;
+import io.github.malonetalk.dto.tool.ToolResult;
+import io.github.malonetalk.dto.toolresponse.TableSemanticPrompt;
+import io.github.malonetalk.service.SemanticSchemaService;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,30 +31,23 @@ public class GetTablesTool {
 
     private static final Logger logger = LoggerFactory.getLogger(GetTablesTool.class);
 
-    private final DatasourceService dataSourceService;
-    private final TableInfoService tableInfoService;
+    private final SemanticSchemaService semanticSchemaService;
 
-    public GetTablesTool(DatasourceService dataSourceService, TableInfoService tableInfoService) {
-        this.dataSourceService = dataSourceService;
-        this.tableInfoService = tableInfoService;
+    public GetTablesTool(SemanticSchemaService semanticSchemaService) {
+        this.semanticSchemaService = semanticSchemaService;
     }
 
-    @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
-    public List<TableInfo> getTables() {
-        List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
-
-        if (activeDataSources.isEmpty()) {
-            return Collections.emptyList();
+    @Tool(
+            name = "get_tables",
+            description =
+                    "Get visible tables as structured data. Returns a success/data/error wrapper,"
+                            + " and data contains table items with name, domain, description.")
+    public ToolResult<List<TableSemanticPrompt>> getTables() {
+        try {
+            return ToolResult.success(semanticSchemaService.getVisibleTablePrompts());
+        } catch (RuntimeException e) {
+            logger.error("Failed to get visible tables: {}", e.getMessage(), e);
+            return ToolResult.error("GET_TABLES_ERROR", e.getMessage());
         }
-
-        if (activeDataSources.size() > 1) {
-            logger.warn(
-                    "Found {} active data sources, using the first one. This may cause data"
-                            + " inconsistency.",
-                    activeDataSources.size());
-        }
-
-        Datasource dataSource = activeDataSources.get(0);
-        return tableInfoService.findByDatasourceId(dataSource.getId());
     }
 }

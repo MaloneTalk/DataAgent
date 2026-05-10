@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.ColumnSemanticInfoMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.ColumnSemanticInfo">
+        <id column="id" property="id"/>
+        <result column="datasource_id" property="datasourceId"/>
+        <result column="table_name" property="tableName"/>
+        <result column="column_name" property="columnName"/>
+        <result column="column_description" property="columnDescription"/>
+        <result column="is_active" property="isActive"/>
+        <result column="is_visible" property="isVisible"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
+        SELECT * FROM column_info
+        WHERE datasource_id = #{datasourceId}
+          AND table_name = #{tableName}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByDatasourceIdAndTableNameAndColumnName" resultMap="BaseResultMap">
+        SELECT * FROM column_info
+        WHERE datasource_id = #{datasourceId}
+          AND table_name = #{tableName}
+          AND column_name = #{columnName}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnSemanticInfo" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO column_info (
+            datasource_id, table_name, column_name, column_description,
+            is_active, is_visible, create_time, update_time
+        ) VALUES (
+            #{datasourceId}, #{tableName}, #{columnName}, #{columnDescription},
+            #{isActive}, #{isVisible}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update" parameterType="io.github.malonetalk.entity.ColumnSemanticInfo">
+        UPDATE column_info
+        <set>
+            <if test="columnDescription != null">column_description = #{columnDescription},</if>
+            <if test="isActive != null">is_active = #{isActive},</if>
+            <if test="isVisible != null">is_visible = #{isVisible},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByDatasourceId">
+        DELETE FROM column_info WHERE datasource_id = #{datasourceId}
+    </delete>
+
+    <delete id="deleteByDatasourceIdAndTableNameAndColumnName">
+        DELETE FROM column_info
+        WHERE datasource_id = #{datasourceId}
+          AND table_name = #{tableName}
+          AND column_name = #{columnName}
+    </delete>
+</mapper>

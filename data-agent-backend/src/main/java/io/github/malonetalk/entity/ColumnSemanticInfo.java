@@ -19,13 +19,13 @@ package io.github.malonetalk.entity;
 
 import java.time.LocalDateTime;
 
-public class TableInfo {
+public class ColumnSemanticInfo {
 
     private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
     private Integer datasourceId;
+    private String tableName;
+    private String columnName;
+    private String columnDescription;
     private Boolean isActive;
     private Boolean isVisible;
     private LocalDateTime createTime;
@@ -39,6 +39,14 @@ public class TableInfo {
         this.id = id;
     }
 
+    public Integer getDatasourceId() {
+        return datasourceId;
+    }
+
+    public void setDatasourceId(Integer datasourceId) {
+        this.datasourceId = datasourceId;
+    }
+
     public String getTableName() {
         return tableName;
     }
@@ -47,28 +55,20 @@ public class TableInfo {
         this.tableName = tableName;
     }
 
-    public String getTableDescription() {
-        return tableDescription;
+    public String getColumnName() {
+        return columnName;
     }
 
-    public void setTableDescription(String tableDescription) {
-        this.tableDescription = tableDescription;
+    public void setColumnName(String columnName) {
+        this.columnName = columnName;
     }
 
-    public String getDomain() {
-        return domain;
+    public String getColumnDescription() {
+        return columnDescription;
     }
 
-    public void setDomain(String domain) {
-        this.domain = domain;
-    }
-
-    public Integer getDatasourceId() {
-        return datasourceId;
-    }
-
-    public void setDatasourceId(Integer datasourceId) {
-        this.datasourceId = datasourceId;
+    public void setColumnDescription(String columnDescription) {
+        this.columnDescription = columnDescription;
     }
 
     public Boolean getIsActive() {

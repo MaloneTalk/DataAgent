@@ -17,41 +17,30 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.entity.ColumnSemanticInfo;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
-public interface TableInfoMapper {
+public interface ColumnSemanticInfoMapper {
 
-    List<TableInfo> selectAll();
+    List<ColumnSemanticInfo> selectByDatasourceIdAndTableName(
+            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
-    TableInfo selectById(@Param("id") Integer id);
+    ColumnSemanticInfo selectByDatasourceIdAndTableNameAndColumnName(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableName") String tableName,
+            @Param("columnName") String columnName);
 
-    int insert(TableInfo tableInfo);
+    int insert(ColumnSemanticInfo columnSemanticInfo);
 
-    int update(TableInfo tableInfo);
-
-    int deleteById(@Param("id") Integer id);
+    int update(ColumnSemanticInfo columnSemanticInfo);
 
     int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
-    int deleteByDatasourceIdAndTableName(
-            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
-
-    List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
-
-    TableInfo selectByDatasourceIdAndTableName(
-            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
-
-    List<TableInfo> selectByIsActive(@Param("isActive") Boolean isActive);
-
-    List<TableInfo> selectByDatasourceIdAndIsActive(
-            @Param("datasourceId") Integer datasourceId, @Param("isActive") Boolean isActive);
-
-    List<TableInfo> selectByDatasourceIdAndIsActiveAndIsVisible(
+    int deleteByDatasourceIdAndTableNameAndColumnName(
             @Param("datasourceId") Integer datasourceId,
-            @Param("isActive") Boolean isActive,
-            @Param("isVisible") Boolean isVisible);
+            @Param("tableName") String tableName,
+            @Param("columnName") String columnName);
 }

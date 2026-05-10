@@ -15,21 +15,32 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.impl;
 
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.mapper.DatasourceMapper;
+import io.github.malonetalk.service.ColumnSemanticInfoService;
+import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.TableInfoService;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DatasourceServiceImpl implements DatasourceService {
 
     private final DatasourceMapper dataSourceMapper;
+    private final TableInfoService tableInfoService;
+    private final ColumnSemanticInfoService columnSemanticInfoService;
 
-    public DatasourceServiceImpl(DatasourceMapper dataSourceMapper) {
+    public DatasourceServiceImpl(
+            DatasourceMapper dataSourceMapper,
+            TableInfoService tableInfoService,
+            ColumnSemanticInfoService columnSemanticInfoService) {
         this.dataSourceMapper = dataSourceMapper;
+        this.tableInfoService = tableInfoService;
+        this.columnSemanticInfoService = columnSemanticInfoService;
     }
 
     @Override
@@ -56,7 +67,10 @@ public class DatasourceServiceImpl implements DatasourceService {
     }
 
     @Override
+    @Transactional
     public boolean deleteById(Integer id) {
+        columnSemanticInfoService.deleteByDatasourceId(id);
+        tableInfoService.deleteByDatasourceId(id);
         return dataSourceMapper.deleteById(id) > 0;
     }
 

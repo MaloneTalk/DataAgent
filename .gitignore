@@ -75,3 +75,8 @@ log/
 *.tmp
 *.bak
 *.cache
+
+# AI
+.claude
+.spec-workflow
+
