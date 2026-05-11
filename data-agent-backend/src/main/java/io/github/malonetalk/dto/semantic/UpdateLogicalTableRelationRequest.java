@@ -17,13 +17,15 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.dto.toolresponse.ColumnSemanticPrompt;
-import io.github.malonetalk.dto.toolresponse.TableRelationToolResponse;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.List;
 
-public record TableSchemaSemanticPrompt(
-        String name,
-        String domain,
-        String description,
-        PageResponse<ColumnSemanticPrompt> columns,
-        PageResponse<TableRelationToolResponse> relations) {}
+public record UpdateLogicalTableRelationRequest(
+        @NotEmpty(message = "sourceColumnNames 不能为空") List<String> sourceColumnNames,
+        @NotBlank(message = "targetTableName 不能为空") String targetTableName,
+        @NotEmpty(message = "targetColumnNames 不能为空") List<String> targetColumnNames,
+        @Size(max = 1000, message = "description 长度不能超过 1000") String description,
+        @NotNull(message = "enabled 不能为空") Boolean enabled) {}

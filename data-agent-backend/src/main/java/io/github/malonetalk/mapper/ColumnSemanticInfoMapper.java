@@ -25,6 +25,8 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface ColumnSemanticInfoMapper {
 
+    List<ColumnSemanticInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
+
     List<ColumnSemanticInfo> selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
@@ -43,4 +45,7 @@ public interface ColumnSemanticInfoMapper {
             @Param("datasourceId") Integer datasourceId,
             @Param("tableName") String tableName,
             @Param("columnName") String columnName);
+
+    int deleteByDatasourceIdAndIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 }

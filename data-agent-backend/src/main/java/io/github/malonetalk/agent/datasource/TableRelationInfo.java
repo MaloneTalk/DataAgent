@@ -15,15 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.semantic;
+package io.github.malonetalk.agent.datasource;
 
-import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.dto.toolresponse.ColumnSemanticPrompt;
-import io.github.malonetalk.dto.toolresponse.TableRelationToolResponse;
+import java.util.List;
 
-public record TableSchemaSemanticPrompt(
-        String name,
-        String domain,
-        String description,
-        PageResponse<ColumnSemanticPrompt> columns,
-        PageResponse<TableRelationToolResponse> relations) {}
+public record TableRelationInfo(
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        String relationType,
+        String description) {}

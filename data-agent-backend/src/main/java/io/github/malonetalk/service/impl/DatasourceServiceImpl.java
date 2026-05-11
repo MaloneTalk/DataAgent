@@ -21,6 +21,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.service.ColumnSemanticInfoService;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.LogicalTableRelationService;
 import io.github.malonetalk.service.TableInfoService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,14 +34,17 @@ public class DatasourceServiceImpl implements DatasourceService {
     private final DatasourceMapper dataSourceMapper;
     private final TableInfoService tableInfoService;
     private final ColumnSemanticInfoService columnSemanticInfoService;
+    private final LogicalTableRelationService logicalTableRelationService;
 
     public DatasourceServiceImpl(
             DatasourceMapper dataSourceMapper,
             TableInfoService tableInfoService,
-            ColumnSemanticInfoService columnSemanticInfoService) {
+            ColumnSemanticInfoService columnSemanticInfoService,
+            LogicalTableRelationService logicalTableRelationService) {
         this.dataSourceMapper = dataSourceMapper;
         this.tableInfoService = tableInfoService;
         this.columnSemanticInfoService = columnSemanticInfoService;
+        this.logicalTableRelationService = logicalTableRelationService;
     }
 
     @Override
@@ -69,6 +73,7 @@ public class DatasourceServiceImpl implements DatasourceService {
     @Override
     @Transactional
     public boolean deleteById(Integer id) {
+        logicalTableRelationService.deleteByDatasourceId(id);
         columnSemanticInfoService.deleteByDatasourceId(id);
         tableInfoService.deleteByDatasourceId(id);
         return dataSourceMapper.deleteById(id) > 0;

@@ -17,13 +17,5 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.dto.toolresponse.ColumnSemanticPrompt;
-import io.github.malonetalk.dto.toolresponse.TableRelationToolResponse;
-
-public record TableSchemaSemanticPrompt(
-        String name,
-        String domain,
-        String description,
-        PageResponse<ColumnSemanticPrompt> columns,
-        PageResponse<TableRelationToolResponse> relations) {}
+public record RelationCandidateColumnResponse(
+        String columnName, String description, String typeName, Boolean primaryKey) {}

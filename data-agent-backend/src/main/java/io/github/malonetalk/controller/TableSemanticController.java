@@ -18,11 +18,13 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.dto.pagination.PageRequest;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.BatchResetTableSemanticRequest;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
 import io.github.malonetalk.service.SemanticSchemaService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -42,13 +44,17 @@ public class TableSemanticController {
     }
 
     @GetMapping("/tables")
-    public Result<List<TableSemanticResponse>> findAllTables(
-            @RequestParam(required = false) Integer datasourceId) {
-        List<TableSemanticResponse> list =
-                datasourceId == null
-                        ? semanticSchemaService.getAllTables()
-                        : semanticSchemaService.getAllTables(datasourceId);
-        return Result.success(list);
+    public Result<PageResponse<TableSemanticResponse>> findAllTables(
+            @RequestParam(required = false) Integer datasourceId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        try {
+            return Result.success(
+                    semanticSchemaService.getTablePage(
+                            datasourceId, PageRequest.of(page, pageSize)));
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     @PutMapping("/tables")
@@ -63,5 +69,17 @@ public class TableSemanticController {
             @RequestParam Integer datasourceId, @RequestParam String tableName) {
         boolean success = semanticSchemaService.resetTableSemantic(datasourceId, tableName);
         return success ? Result.success(true) : Result.error("Failed to reset table semantic");
+    }
+
+    @DeleteMapping("/tables/batch")
+    public Result<Integer> resetTableSemantics(
+            @Valid @RequestBody BatchResetTableSemanticRequest request) {
+        try {
+            return Result.success(
+                    semanticSchemaService.resetTableSemantics(
+                            request.datasourceId(), request.tableNames()));
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        }
     }
 }

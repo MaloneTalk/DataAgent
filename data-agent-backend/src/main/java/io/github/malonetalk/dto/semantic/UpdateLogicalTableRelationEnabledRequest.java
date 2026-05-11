@@ -17,13 +17,7 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.dto.toolresponse.ColumnSemanticPrompt;
-import io.github.malonetalk.dto.toolresponse.TableRelationToolResponse;
+import jakarta.validation.constraints.NotNull;
 
-public record TableSchemaSemanticPrompt(
-        String name,
-        String domain,
-        String description,
-        PageResponse<ColumnSemanticPrompt> columns,
-        PageResponse<TableRelationToolResponse> relations) {}
+public record UpdateLogicalTableRelationEnabledRequest(
+        @NotNull(message = "enabled 不能为空") Boolean enabled) {}

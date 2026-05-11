@@ -18,10 +18,12 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.dto.pagination.PageRequest;
+import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.tool.ToolResult;
 import io.github.malonetalk.dto.toolresponse.TableSemanticPrompt;
 import io.github.malonetalk.service.SemanticSchemaService;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -41,10 +43,21 @@ public class GetTablesTool {
             name = "get_tables",
             description =
                     "Get visible tables as structured data. Returns a success/data/error wrapper,"
-                            + " and data contains table items with name, domain, description.")
-    public ToolResult<List<TableSemanticPrompt>> getTables() {
+                            + " and data contains paged table items with name, domain,"
+                            + " description, total count, and page metadata.")
+    public ToolResult<PageResponse<TableSemanticPrompt>> getTables(
+            @ToolParam(name = "page", description = "Optional page number, defaults to 1")
+                    Integer page,
+            @ToolParam(
+                            name = "page_size",
+                            description = "Optional page size, defaults to 20 and max is 100")
+                    Integer pageSize) {
         try {
-            return ToolResult.success(semanticSchemaService.getVisibleTablePrompts());
+            return ToolResult.success(
+                    semanticSchemaService.getVisibleTablePromptPage(
+                            PageRequest.of(page, pageSize)));
+        } catch (IllegalArgumentException e) {
+            return ToolResult.error("INVALID_PAGINATION_ARGUMENT", e.getMessage());
         } catch (RuntimeException e) {
             logger.error("Failed to get visible tables: {}", e.getMessage(), e);
             return ToolResult.error("GET_TABLES_ERROR", e.getMessage());

@@ -22,6 +22,8 @@ import java.util.List;
 
 public interface ColumnSemanticInfoService {
 
+    List<ColumnSemanticInfo> findByDatasourceId(Integer datasourceId);
+
     List<ColumnSemanticInfo> findByDatasourceIdAndTableName(Integer datasourceId, String tableName);
 
     ColumnSemanticInfo findByDatasourceIdAndTableNameAndColumnName(
@@ -35,4 +37,6 @@ public interface ColumnSemanticInfoService {
 
     boolean deleteByDatasourceIdAndTableNameAndColumnName(
             Integer datasourceId, String tableName, String columnName);
+
+    int deleteByDatasourceIdAndIds(Integer datasourceId, List<Integer> ids);
 }

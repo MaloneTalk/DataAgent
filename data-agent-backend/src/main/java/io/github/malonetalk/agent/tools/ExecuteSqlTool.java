@@ -23,11 +23,9 @@ import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
-import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.dto.tool.ToolResult;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.service.DatasourceService;
-import java.util.List;
+import io.github.malonetalk.service.ActiveDatasourceSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -37,11 +35,12 @@ public class ExecuteSqlTool {
 
     private static final Logger logger = LoggerFactory.getLogger(ExecuteSqlTool.class);
 
-    private final DatasourceService dataSourceService;
+    private final ActiveDatasourceSupport activeDatasourceSupport;
     private final SqlExecutor sqlExecutor;
 
-    public ExecuteSqlTool(DatasourceService dataSourceService, SqlExecutor sqlExecutor) {
-        this.dataSourceService = dataSourceService;
+    public ExecuteSqlTool(
+            ActiveDatasourceSupport activeDatasourceSupport, SqlExecutor sqlExecutor) {
+        this.activeDatasourceSupport = activeDatasourceSupport;
         this.sqlExecutor = sqlExecutor;
     }
 
@@ -55,19 +54,11 @@ public class ExecuteSqlTool {
     public ToolResult<QueryResult> executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
-        List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
-
-        if (activeDataSources.isEmpty()) {
+        Datasource datasource = activeDatasourceSupport.getActiveDatasource();
+        if (datasource == null) {
             return ToolResult.error(
                     "NO_ACTIVE_DATASOURCE", "No active datasource available, cannot execute SQL.");
         }
-
-        if (activeDataSources.size() > 1) {
-            logger.warn(
-                    "Found {} active data sources, using the first one.", activeDataSources.size());
-        }
-
-        Datasource datasource = activeDataSources.get(0);
 
         try {
             return ToolResult.success(sqlExecutor.execute(datasource, sql));

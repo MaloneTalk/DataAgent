@@ -50,3 +50,24 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     UNIQUE KEY `uk_datasource_table_column` (`datasource_id`, `table_name`, `column_name`),
     KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_active`, `is_visible`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='列语义信息表';
+
+CREATE TABLE IF NOT EXISTS `logical_table_relation` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
+    `source_table_name` VARCHAR(255) NOT NULL COMMENT '源表名',
+    `source_column_names_json` TEXT NOT NULL COMMENT '源列名JSON',
+    `source_column_signature` VARCHAR(500) NOT NULL COMMENT '源列签名',
+    `target_table_name` VARCHAR(255) NOT NULL COMMENT '目标表名',
+    `target_column_names_json` TEXT NOT NULL COMMENT '目标列名JSON',
+    `target_column_signature` VARCHAR(500) NOT NULL COMMENT '目标列签名',
+    `relation_type` VARCHAR(64) NOT NULL COMMENT '关系类型',
+    `description` VARCHAR(1000) DEFAULT NULL COMMENT '关系描述',
+    `is_enabled` TINYINT(1) DEFAULT 1 COMMENT '是否启用',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_relation_source_signature`
+            (`datasource_id`, `source_table_name`, `source_column_signature`),
+    KEY `idx_relation_source_table` (`datasource_id`, `source_table_name`),
+    KEY `idx_relation_source_enabled` (`datasource_id`, `source_table_name`, `is_enabled`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表';

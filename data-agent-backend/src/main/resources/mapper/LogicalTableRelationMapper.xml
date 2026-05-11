@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.LogicalTableRelationMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.LogicalTableRelation">
+        <id column="id" property="id"/>
+        <result column="datasource_id" property="datasourceId"/>
+        <result column="source_table_name" property="sourceTableName"/>
+        <result column="source_column_names_json" property="sourceColumnNamesJson"/>
+        <result column="source_column_signature" property="sourceColumnSignature"/>
+        <result column="target_table_name" property="targetTableName"/>
+        <result column="target_column_names_json" property="targetColumnNamesJson"/>
+        <result column="target_column_signature" property="targetColumnSignature"/>
+        <result column="relation_type" property="relationType"/>
+        <result column="description" property="description"/>
+        <result column="is_enabled" property="isEnabled"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM logical_table_relation WHERE id = #{id}
+    </select>
+
+    <select id="selectByDatasourceId" resultMap="BaseResultMap">
+        SELECT * FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
+        SELECT * FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="countByDatasourceIdAndSourceTable" resultType="long">
+        SELECT COUNT(1) FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+    </select>
+
+    <select id="selectPageByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
+        SELECT * FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectEnabledByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
+        SELECT * FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND is_enabled = 1
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectByUniqueSourceKey" resultMap="BaseResultMap">
+        SELECT * FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_column_signature = #{sourceColumnSignature}
+        ORDER BY update_time DESC, create_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.LogicalTableRelation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO logical_table_relation (
+            datasource_id, source_table_name, source_column_names_json, source_column_signature,
+            target_table_name, target_column_names_json, target_column_signature, relation_type,
+            description, is_enabled, create_time, update_time
+        ) VALUES (
+            #{datasourceId}, #{sourceTableName}, #{sourceColumnNamesJson}, #{sourceColumnSignature},
+            #{targetTableName}, #{targetColumnNamesJson}, #{targetColumnSignature}, #{relationType},
+            #{description}, #{isEnabled}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update" parameterType="io.github.malonetalk.entity.LogicalTableRelation">
+        UPDATE logical_table_relation
+        <set>
+            <if test="sourceTableName != null">source_table_name = #{sourceTableName},</if>
+            <if test="sourceColumnNamesJson != null">source_column_names_json = #{sourceColumnNamesJson},</if>
+            <if test="sourceColumnSignature != null">source_column_signature = #{sourceColumnSignature},</if>
+            <if test="targetTableName != null">target_table_name = #{targetTableName},</if>
+            <if test="targetColumnNamesJson != null">target_column_names_json = #{targetColumnNamesJson},</if>
+            <if test="targetColumnSignature != null">target_column_signature = #{targetColumnSignature},</if>
+            <if test="relationType != null">relation_type = #{relationType},</if>
+            description = #{description},
+            <if test="isEnabled != null">is_enabled = #{isEnabled},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateEnabled">
+        UPDATE logical_table_relation
+        SET is_enabled = #{isEnabled},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+          AND datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM logical_table_relation
+        WHERE id = #{id}
+          AND datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+    </delete>
+
+    <delete id="deleteByIdsAndSourceTable">
+        DELETE FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByIds">
+        DELETE FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByDatasourceId">
+        DELETE FROM logical_table_relation WHERE datasource_id = #{datasourceId}
+    </delete>
+</mapper>

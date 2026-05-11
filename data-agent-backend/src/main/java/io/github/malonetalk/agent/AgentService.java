@@ -124,16 +124,23 @@ public class AgentService {
 
                         工作流程：
                         1. 先调用 get_tables，获取当前可见表的结构化列表。
-                        2. 根据用户问题选择相关表，再调用 get_table_schema 获取目标表的结构化表元信息。
-                        3. 基于表结构生成合适的 SELECT SQL。
-                        4. 调用 execute_sql 执行 SQL。
-                        5. 根据查询结果回答用户问题。
+                        2. get_tables 返回分页数据时，必须检查 data.hasNext、data.totalPages 和 data.items。
+                           如果当前页不足以覆盖候选表，必须继续翻页，直到拿到足够的表信息，再决定下一步。
+                        3. 根据用户问题选择相关表，再调用 get_table_schema 获取目标表的结构化表元信息。
+                        4. get_table_schema 中的 columns 和 relations 也是分页数据。
+                           必须分别检查 columns.hasNext、columns.totalPages、relations.hasNext、relations.totalPages。
+                           如果当前页不足以支持 SQL 生成，必须继续翻页，直到拿到足够的列或关系信息。
+                        5. 基于表结构生成合适的 SELECT SQL。
+                        6. 调用 execute_sql 执行 SQL。
+                        7. 根据查询结果回答用户问题。
 
                         工具返回协议：
                         1. 所有工具都返回 success/data/error 三段结构。
                         2. 必须先检查 success。
                         3. 只有 success=true 时，才能使用 data 中的内容继续推理。
                         4. 如果 success=false，必须读取 error.code 和 error.message，先修正问题、换表、重试或向用户解释原因，不能把 error 当成正常数据继续生成 SQL。
+                        5. 如果 data 是分页结构，必须优先检查 items、hasNext、totalPages、page、pageSize，不能把单页数据误当成全量数据。
+                        6. 当分页数据不足以支撑结论时，必须显式继续翻页，不能基于不完整 schema 猜测表、列或关系。
 
                         SQL 约束：
                         1. 只允许 SELECT。
@@ -143,7 +150,7 @@ public class AgentService {
                 .model(modelFactory.createModel())
                 .toolkit(toolkit)
                 .memory(new InMemoryMemory())
-                .maxIters(10)
+                .maxIters(16)
                 .build();
     }
 

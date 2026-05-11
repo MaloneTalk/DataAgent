@@ -40,6 +40,11 @@ public class ColumnSemanticInfoServiceImpl implements ColumnSemanticInfoService 
     }
 
     @Override
+    public List<ColumnSemanticInfo> findByDatasourceId(Integer datasourceId) {
+        return columnSemanticInfoMapper.selectByDatasourceId(datasourceId);
+    }
+
+    @Override
     public ColumnSemanticInfo findByDatasourceIdAndTableNameAndColumnName(
             Integer datasourceId, String tableName, String columnName) {
         return columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
@@ -70,5 +75,13 @@ public class ColumnSemanticInfoServiceImpl implements ColumnSemanticInfoService 
         return columnSemanticInfoMapper.deleteByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName)
                 > 0;
+    }
+
+    @Override
+    public int deleteByDatasourceIdAndIds(Integer datasourceId, List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        return columnSemanticInfoMapper.deleteByDatasourceIdAndIds(datasourceId, ids);
     }
 }

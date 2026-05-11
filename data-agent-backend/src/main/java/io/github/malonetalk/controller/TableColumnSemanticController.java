@@ -18,11 +18,13 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.dto.pagination.PageRequest;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.BatchResetColumnSemanticRequest;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.service.SemanticSchemaService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,11 +45,18 @@ public class TableColumnSemanticController {
     }
 
     @GetMapping
-    public Result<List<ColumnSemanticResponse>> findAllColumns(
-            @PathVariable String tableName, @RequestParam Integer datasourceId) {
-        List<ColumnSemanticResponse> list =
-                semanticSchemaService.getAllColumns(datasourceId, tableName);
-        return Result.success(list);
+    public Result<PageResponse<ColumnSemanticResponse>> findAllColumns(
+            @PathVariable String tableName,
+            @RequestParam Integer datasourceId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        try {
+            return Result.success(
+                    semanticSchemaService.getColumnPage(
+                            datasourceId, tableName, PageRequest.of(page, pageSize)));
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     @PutMapping
@@ -68,5 +77,18 @@ public class TableColumnSemanticController {
         boolean success =
                 semanticSchemaService.resetColumnSemantic(datasourceId, tableName, columnName);
         return success ? Result.success(true) : Result.error("Failed to reset column semantic");
+    }
+
+    @DeleteMapping("/batch")
+    public Result<Integer> resetColumnSemantics(
+            @PathVariable String tableName,
+            @Valid @RequestBody BatchResetColumnSemanticRequest request) {
+        try {
+            return Result.success(
+                    semanticSchemaService.resetColumnSemantics(
+                            request.datasourceId(), tableName, request.columnNames()));
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        }
     }
 }

@@ -17,13 +17,20 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.dto.toolresponse.ColumnSemanticPrompt;
-import io.github.malonetalk.dto.toolresponse.TableRelationToolResponse;
+import java.time.LocalDateTime;
+import java.util.List;
 
-public record TableSchemaSemanticPrompt(
-        String name,
-        String domain,
+public record LogicalTableRelationResponse(
+        Integer id,
+        Integer datasourceId,
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        String relationType,
         String description,
-        PageResponse<ColumnSemanticPrompt> columns,
-        PageResponse<TableRelationToolResponse> relations) {}
+        Boolean enabled,
+        Boolean effective,
+        String invalidReason,
+        LocalDateTime createTime,
+        LocalDateTime updateTime) {}

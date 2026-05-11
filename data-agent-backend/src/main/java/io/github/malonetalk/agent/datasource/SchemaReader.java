@@ -24,8 +24,12 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +75,20 @@ public class SchemaReader {
                             + datasource.getId()
                             + ": "
                             + e.getMessage(),
+                    e);
+        }
+    }
+
+    public List<TableRelationInfo> getImportedRelations(Datasource datasource, String tableName) {
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+
+        try (Connection conn = ds.getConnection()) {
+            return getImportedRelations(conn, tableName);
+        } catch (SQLException e) {
+            logger.error(
+                    "Failed to read imported keys for table {}: {}", tableName, e.getMessage(), e);
+            throw new SchemaReadException(
+                    "Failed to read imported keys for table " + tableName + ": " + e.getMessage(),
                     e);
         }
     }
@@ -141,6 +159,105 @@ public class SchemaReader {
 
         return tables;
     }
+
+    private List<TableRelationInfo> getImportedRelations(Connection conn, String tableName)
+            throws SQLException {
+        DatabaseMetaData metaData = conn.getMetaData();
+        Map<String, ImportedKeyAggregate> aggregates = new LinkedHashMap<>();
+        int unnamedRelationSequence = 0;
+        String previousUnnamedKey = null;
+
+        try (ResultSet rs =
+                metaData.getImportedKeys(conn.getCatalog(), conn.getSchema(), tableName)) {
+            while (rs.next()) {
+                String fkName = rs.getString("FK_NAME");
+                String fkTableName = rs.getString("FKTABLE_NAME");
+                String pkTableName = rs.getString("PKTABLE_NAME");
+                short keySeq = rs.getShort("KEY_SEQ");
+                String aggregateKey;
+                if (fkName != null && !fkName.isBlank()) {
+                    aggregateKey = "named:" + fkName.trim();
+                } else {
+                    if (keySeq <= 1 || previousUnnamedKey == null) {
+                        unnamedRelationSequence++;
+                        previousUnnamedKey =
+                                "unnamed:"
+                                        + Objects.toString(fkTableName, "")
+                                        + "->"
+                                        + Objects.toString(pkTableName, "")
+                                        + "#"
+                                        + unnamedRelationSequence;
+                    }
+                    aggregateKey = previousUnnamedKey;
+                }
+
+                ImportedKeyAggregate aggregate =
+                        aggregates.computeIfAbsent(
+                                aggregateKey,
+                                key ->
+                                        new ImportedKeyAggregate(
+                                                fkTableName,
+                                                pkTableName,
+                                                "foreign_key",
+                                                buildPhysicalRelationDescription(fkName)));
+                aggregate.addColumnPair(
+                        keySeq, rs.getString("FKCOLUMN_NAME"), rs.getString("PKCOLUMN_NAME"));
+            }
+        }
+
+        return aggregates.values().stream().map(ImportedKeyAggregate::toRelationInfo).toList();
+    }
+
+    private String buildPhysicalRelationDescription(String fkName) {
+        if (fkName == null || fkName.isBlank()) {
+            return "Physical foreign key discovered from JDBC metadata.";
+        }
+        return "Physical foreign key discovered from JDBC metadata: " + fkName.trim();
+    }
+
+    private static class ImportedKeyAggregate {
+        private final String sourceTableName;
+        private final String targetTableName;
+        private final String relationType;
+        private final String description;
+        private final List<ImportedKeyColumnPair> columnPairs = new ArrayList<>();
+
+        private ImportedKeyAggregate(
+                String sourceTableName,
+                String targetTableName,
+                String relationType,
+                String description) {
+            this.sourceTableName = sourceTableName;
+            this.targetTableName = targetTableName;
+            this.relationType = relationType;
+            this.description = description;
+        }
+
+        private void addColumnPair(short keySeq, String sourceColumnName, String targetColumnName) {
+            columnPairs.add(new ImportedKeyColumnPair(keySeq, sourceColumnName, targetColumnName));
+        }
+
+        private TableRelationInfo toRelationInfo() {
+            List<ImportedKeyColumnPair> sortedPairs =
+                    columnPairs.stream()
+                            .sorted(Comparator.comparingInt(ImportedKeyColumnPair::keySeq))
+                            .toList();
+            List<String> sourceColumnNames =
+                    sortedPairs.stream().map(ImportedKeyColumnPair::sourceColumnName).toList();
+            List<String> targetColumnNames =
+                    sortedPairs.stream().map(ImportedKeyColumnPair::targetColumnName).toList();
+            return new TableRelationInfo(
+                    sourceTableName,
+                    sourceColumnNames,
+                    targetTableName,
+                    targetColumnNames,
+                    relationType,
+                    description);
+        }
+    }
+
+    private record ImportedKeyColumnPair(
+            short keySeq, String sourceColumnName, String targetColumnName) {}
 
     public static class SchemaReadException extends RuntimeException {
         public SchemaReadException(String message, Throwable cause) {

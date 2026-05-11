@@ -40,6 +40,9 @@ public interface TableInfoMapper {
     int deleteByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
+    int deleteByDatasourceIdAndIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
+
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
     TableInfo selectByDatasourceIdAndTableName(

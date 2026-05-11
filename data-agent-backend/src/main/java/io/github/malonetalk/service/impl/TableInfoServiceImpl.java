@@ -78,6 +78,14 @@ public class TableInfoServiceImpl implements TableInfoService {
     }
 
     @Override
+    public int deleteByDatasourceIdAndIds(Integer datasourceId, List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        return tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, ids);
+    }
+
+    @Override
     public List<TableInfo> findByDatasourceId(Integer datasourceId) {
         return tableInfoMapper.selectByDatasourceId(datasourceId);
     }

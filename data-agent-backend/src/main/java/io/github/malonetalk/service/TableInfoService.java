@@ -36,6 +36,8 @@ public interface TableInfoService {
 
     boolean deleteByDatasourceIdAndTableName(Integer datasourceId, String tableName);
 
+    int deleteByDatasourceIdAndIds(Integer datasourceId, List<Integer> ids);
+
     List<TableInfo> findByDatasourceId(Integer datasourceId);
 
     TableInfo findByDatasourceIdAndTableName(Integer datasourceId, String tableName);
