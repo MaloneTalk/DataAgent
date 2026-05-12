@@ -60,15 +60,15 @@ public class TableSemanticController {
     @PutMapping("/tables")
     public Result<Boolean> updateTableSemantic(
             @Valid @RequestBody TableSemanticUpdateRequest request) {
-        boolean success = semanticSchemaService.updateTableSemantic(request);
-        return success ? Result.success(true) : Result.error("Failed to update table semantic");
+        semanticSchemaService.updateTableSemantic(request);
+        return Result.success(true);
     }
 
     @DeleteMapping("/tables")
     public Result<Boolean> resetTableSemantic(
             @RequestParam Integer datasourceId, @RequestParam String tableName) {
-        boolean success = semanticSchemaService.resetTableSemantic(datasourceId, tableName);
-        return success ? Result.success(true) : Result.error("Failed to reset table semantic");
+        semanticSchemaService.resetTableSemantic(datasourceId, tableName);
+        return Result.success(true);
     }
 
     @DeleteMapping("/tables/batch")

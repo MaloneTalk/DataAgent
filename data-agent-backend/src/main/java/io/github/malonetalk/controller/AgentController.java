@@ -48,17 +48,7 @@ public class AgentController {
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chatStream(@Valid @RequestBody ChatRequest request) {
-        String sessionId = request.sessionId();
-        if (sessionId == null || sessionId.isEmpty()) {
-            sessionId = "default";
-        }
-
-        String message = request.message();
-        if (message == null) {
-            message = "";
-        }
-
-        return agentService.chatStream(sessionId, message);
+        return agentService.chatStream(request.sessionId(), request.message());
     }
 
     @DeleteMapping("/session/{sessionId}")

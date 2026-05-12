@@ -18,8 +18,11 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.dto.datasource.DatasourceCreateRequest;
+import io.github.malonetalk.dto.datasource.DatasourceUpdateRequest;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.service.DatasourceService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,13 +60,15 @@ public class DatasourceController {
     }
 
     @PostMapping
-    public Result<Boolean> save(@RequestBody Datasource dataSource) {
+    public Result<Boolean> save(@Valid @RequestBody DatasourceCreateRequest request) {
+        Datasource dataSource = toDatasource(request);
         boolean success = dataSourceService.save(dataSource);
         return success ? Result.success(true) : Result.error("Failed to save");
     }
 
     @PutMapping
-    public Result<Boolean> update(@RequestBody Datasource dataSource) {
+    public Result<Boolean> update(@Valid @RequestBody DatasourceUpdateRequest request) {
+        Datasource dataSource = toDatasource(request);
         boolean success = dataSourceService.update(dataSource);
         return success ? Result.success(true) : Result.error("Failed to update");
     }
@@ -84,5 +89,37 @@ public class DatasourceController {
     public Result<List<Datasource>> findByType(@PathVariable String type) {
         List<Datasource> list = dataSourceService.findByType(type);
         return Result.success(list);
+    }
+
+    private Datasource toDatasource(DatasourceCreateRequest request) {
+        Datasource datasource = new Datasource();
+        datasource.setName(request.name());
+        datasource.setType(request.type());
+        datasource.setHost(request.host());
+        datasource.setPort(request.port());
+        datasource.setDatabaseName(request.databaseName());
+        datasource.setUsername(request.username());
+        datasource.setPassword(request.password());
+        datasource.setConnectionUrl(request.connectionUrl());
+        datasource.setStatus(request.status());
+        datasource.setDescription(request.description());
+        return datasource;
+    }
+
+    private Datasource toDatasource(DatasourceUpdateRequest request) {
+        Datasource datasource = toDatasource(
+                new DatasourceCreateRequest(
+                        request.name(),
+                        request.type(),
+                        request.host(),
+                        request.port(),
+                        request.databaseName(),
+                        request.username(),
+                        request.password(),
+                        request.connectionUrl(),
+                        request.status(),
+                        request.description()));
+        datasource.setId(request.id());
+        return datasource;
     }
 }

@@ -40,24 +40,11 @@ public class ModelFactory {
     @Value("${agentscope.model.base-url:}")
     private String baseUrl;
 
-    public ModelFactory() {}
-
-    public ModelFactory(String provider, String apiKey, String modelName, String baseUrl) {
-        this.provider = provider;
-        this.apiKey = apiKey;
-        this.modelName = modelName;
-        this.baseUrl = baseUrl;
-    }
-
     public Model createModel() {
-        return createModel(apiKey, modelName);
-    }
-
-    public Model createModel(String apiKey, String modelName) {
         return createModel(apiKey, modelName, baseUrl);
     }
 
-    public Model createModel(String apiKey, String modelName, String baseUrl) {
+    private Model createModel(String apiKey, String modelName, String baseUrl) {
         return switch (provider.toLowerCase()) {
             case "dashscope" ->
                     DashScopeChatModel.builder().apiKey(apiKey).modelName(modelName).stream(true)
@@ -86,13 +73,5 @@ public class ModelFactory {
             default ->
                     throw new IllegalArgumentException("Unsupported model provider: " + provider);
         };
-    }
-
-    public String getProvider() {
-        return provider;
-    }
-
-    public String getModelName() {
-        return modelName;
     }
 }

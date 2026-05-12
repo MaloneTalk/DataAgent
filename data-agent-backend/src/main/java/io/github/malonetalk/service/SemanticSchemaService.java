@@ -163,17 +163,13 @@ public class SemanticSchemaService {
                                         snapshot.physicalTable(), snapshot.semanticTable())));
     }
 
-    public boolean updateTableSemantic(TableSemanticUpdateRequest request) {
-        Datasource datasource = datasourceService.findById(request.datasourceId());
-        if (datasource == null) {
-            return false;
-        }
+    public void updateTableSemantic(TableSemanticUpdateRequest request) {
+        Datasource datasource =
+                requireSemanticDatasource(
+                        request.datasourceId(), "Cannot update table semantic because datasource does not exist: ");
 
         TableMergeSnapshot tableSnapshot =
-                requirePhysicalTableSnapshot(datasource, request.tableName());
-        if (tableSnapshot == null) {
-            return false;
-        }
+                requirePhysicalTableSnapshotOrThrow(datasource, request.tableName());
         String canonicalTableName = resolveCanonicalTableName(tableSnapshot);
 
         TableInfo tableInfo =
@@ -187,7 +183,10 @@ public class SemanticSchemaService {
                 tableInfo.setDomain(request.domain());
             }
             tableInfo.setIsVisible(request.isVisible());
-            return tableInfoService.update(tableInfo);
+            ensureSemanticWriteSuccess(
+                    tableInfoService.update(tableInfo),
+                    "Failed to update table semantic metadata for table " + canonicalTableName + ".");
+            return;
         }
 
         TableInfo semanticTable = new TableInfo();
@@ -197,28 +196,30 @@ public class SemanticSchemaService {
         semanticTable.setDatasourceId(request.datasourceId());
         semanticTable.setIsActive(true);
         semanticTable.setIsVisible(request.isVisible());
-        return tableInfoService.save(semanticTable);
+        ensureSemanticWriteSuccess(
+                tableInfoService.save(semanticTable),
+                "Failed to save table semantic metadata for table " + canonicalTableName + ".");
     }
 
-    public boolean resetTableSemantic(Integer datasourceId, String tableName) {
-        Datasource datasource = datasourceService.findById(datasourceId);
-        if (datasource == null) {
-            return false;
-        }
-        TableMergeSnapshot tableSnapshot = requirePhysicalTableSnapshot(datasource, tableName);
-        if (tableSnapshot == null) {
-            return false;
-        }
+    public void resetTableSemantic(Integer datasourceId, String tableName) {
+        Datasource datasource =
+                requireSemanticDatasource(
+                        datasourceId, "Cannot reset table semantic because datasource does not exist: ");
+        TableMergeSnapshot tableSnapshot = requirePhysicalTableSnapshotOrThrow(datasource, tableName);
+        String canonicalTableName = resolveCanonicalTableName(tableSnapshot);
         List<Integer> matchedIds =
-                findMatchingSemanticTables(datasourceId, resolveCanonicalTableName(tableSnapshot))
+                findMatchingSemanticTables(datasourceId, canonicalTableName)
                         .stream()
                         .map(TableInfo::getId)
                         .distinct()
                         .toList();
         if (matchedIds.isEmpty()) {
-            return false;
+            throw new SemanticSchemaException(
+                    "No semantic metadata found for table " + canonicalTableName + ".");
         }
-        return tableInfoService.deleteByDatasourceIdAndIds(datasourceId, matchedIds) > 0;
+        ensureSemanticWriteSuccess(
+                tableInfoService.deleteByDatasourceIdAndIds(datasourceId, matchedIds) > 0,
+                "Failed to reset table semantic metadata for table " + canonicalTableName + ".");
     }
 
     public int resetTableSemantics(Integer datasourceId, List<String> tableNames) {
@@ -264,25 +265,19 @@ public class SemanticSchemaService {
                 this::mapColumnResponse);
     }
 
-    public boolean updateColumnSemantic(
+    public void updateColumnSemantic(
             Integer datasourceId, String tableName, ColumnSemanticUpdateRequest request) {
-        Datasource datasource = datasourceService.findById(datasourceId);
-        if (datasource == null) {
-            return false;
-        }
+        Datasource datasource =
+                requireSemanticDatasource(
+                        datasourceId, "Cannot update column semantic because datasource does not exist: ");
         VisibilityContext visibilityContext =
                 semanticVisibilitySupport.createVisibilityContext(datasource);
         TableMergeSnapshot tableSnapshot =
-                requirePhysicalTableSnapshot(visibilityContext, tableName);
-        if (tableSnapshot == null) {
-            return false;
-        }
+                requirePhysicalTableSnapshotOrThrow(visibilityContext, tableName);
         String canonicalTableName = resolveCanonicalTableName(tableSnapshot);
         ColumnMergeSnapshot columnSnapshot =
-                visibilityContext.findMergedColumn(canonicalTableName, request.columnName());
-        if (columnSnapshot == null || columnSnapshot.physicalColumn() == null) {
-            return false;
-        }
+                requirePhysicalColumnSnapshotOrThrow(
+                        visibilityContext, canonicalTableName, request.columnName());
         String canonicalColumnName = columnSnapshot.physicalColumn().getColumnName();
 
         ColumnSemanticInfo columnSemanticInfo =
@@ -294,7 +289,14 @@ public class SemanticSchemaService {
                 columnSemanticInfo.setColumnDescription(request.columnDescription());
             }
             columnSemanticInfo.setIsVisible(request.isVisible());
-            return columnSemanticInfoService.update(columnSemanticInfo);
+            ensureSemanticWriteSuccess(
+                    columnSemanticInfoService.update(columnSemanticInfo),
+                    "Failed to update column semantic metadata for column "
+                            + canonicalTableName
+                            + "."
+                            + canonicalColumnName
+                            + ".");
+            return;
         }
 
         ColumnSemanticInfo semanticColumn = new ColumnSemanticInfo();
@@ -304,40 +306,49 @@ public class SemanticSchemaService {
         semanticColumn.setColumnDescription(request.columnDescription());
         semanticColumn.setIsActive(true);
         semanticColumn.setIsVisible(request.isVisible());
-        return columnSemanticInfoService.save(semanticColumn);
+        ensureSemanticWriteSuccess(
+                columnSemanticInfoService.save(semanticColumn),
+                "Failed to save column semantic metadata for column "
+                        + canonicalTableName
+                        + "."
+                        + canonicalColumnName
+                        + ".");
     }
 
-    public boolean resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
-        Datasource datasource = datasourceService.findById(datasourceId);
-        if (datasource == null) {
-            return false;
-        }
+    public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
+        Datasource datasource =
+                requireSemanticDatasource(
+                        datasourceId, "Cannot reset column semantic because datasource does not exist: ");
         VisibilityContext visibilityContext =
                 semanticVisibilitySupport.createVisibilityContext(datasource);
         TableMergeSnapshot tableSnapshot =
-                requirePhysicalTableSnapshot(visibilityContext, tableName);
-        if (tableSnapshot == null) {
-            return false;
-        }
+                requirePhysicalTableSnapshotOrThrow(visibilityContext, tableName);
         String canonicalTableName = resolveCanonicalTableName(tableSnapshot);
         ColumnMergeSnapshot columnSnapshot =
-                visibilityContext.findMergedColumn(canonicalTableName, columnName);
-        if (columnSnapshot == null || columnSnapshot.physicalColumn() == null) {
-            return false;
-        }
+                requirePhysicalColumnSnapshotOrThrow(
+                        visibilityContext, canonicalTableName, columnName);
+        String canonicalColumnName = columnSnapshot.physicalColumn().getColumnName();
         List<Integer> matchedIds =
-                findMatchingSemanticColumns(
-                                datasourceId,
-                                canonicalTableName,
-                                columnSnapshot.physicalColumn().getColumnName())
+                findMatchingSemanticColumns(datasourceId, canonicalTableName, canonicalColumnName)
                         .stream()
                         .map(ColumnSemanticInfo::getId)
                         .distinct()
                         .toList();
         if (matchedIds.isEmpty()) {
-            return false;
+            throw new SemanticSchemaException(
+                    "No semantic metadata found for column "
+                            + canonicalTableName
+                            + "."
+                            + canonicalColumnName
+                            + ".");
         }
-        return columnSemanticInfoService.deleteByDatasourceIdAndIds(datasourceId, matchedIds) > 0;
+        ensureSemanticWriteSuccess(
+                columnSemanticInfoService.deleteByDatasourceIdAndIds(datasourceId, matchedIds) > 0,
+                "Failed to reset column semantic metadata for column "
+                        + canonicalTableName
+                        + "."
+                        + canonicalColumnName
+                        + ".");
     }
 
     public int resetColumnSemantics(
@@ -728,6 +739,31 @@ public class SemanticSchemaService {
         return tableSnapshot;
     }
 
+    private TableMergeSnapshot requirePhysicalTableSnapshotOrThrow(
+            Datasource datasource, String tableName) {
+        return requirePhysicalTableSnapshotOrThrow(
+                semanticVisibilitySupport.createVisibilityContext(datasource), tableName);
+    }
+
+    private TableMergeSnapshot requirePhysicalTableSnapshotOrThrow(
+            VisibilityContext visibilityContext, String tableName) {
+        TableMergeSnapshot tableSnapshot = requirePhysicalTableSnapshot(visibilityContext, tableName);
+        if (tableSnapshot == null) {
+            throw new SemanticSchemaException("Table " + tableName + " does not exist.");
+        }
+        return tableSnapshot;
+    }
+
+    private ColumnMergeSnapshot requirePhysicalColumnSnapshotOrThrow(
+            VisibilityContext visibilityContext, String tableName, String columnName) {
+        ColumnMergeSnapshot columnSnapshot = visibilityContext.findMergedColumn(tableName, columnName);
+        if (columnSnapshot == null || columnSnapshot.physicalColumn() == null) {
+            throw new SemanticSchemaException(
+                    "Column " + tableName + "." + columnName + " does not exist.");
+        }
+        return columnSnapshot;
+    }
+
     private TableInfo findPreferredSemanticTable(Integer datasourceId, String tableName) {
         TableInfo preferred = null;
         for (TableInfo tableInfo : findMatchingSemanticTables(datasourceId, tableName)) {
@@ -863,6 +899,20 @@ public class SemanticSchemaService {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
         return datasource;
+    }
+
+    private Datasource requireSemanticDatasource(Integer datasourceId, String messagePrefix) {
+        Datasource datasource = datasourceService.findById(datasourceId);
+        if (datasource == null) {
+            throw new SemanticSchemaException(messagePrefix + datasourceId);
+        }
+        return datasource;
+    }
+
+    private void ensureSemanticWriteSuccess(boolean success, String message) {
+        if (!success) {
+            throw new SemanticSchemaException(message);
+        }
     }
 
     private Set<String> normalizeIdentifierKeys(List<String> values, String fieldName) {

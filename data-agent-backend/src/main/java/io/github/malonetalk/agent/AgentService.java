@@ -24,6 +24,8 @@ import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
+import io.agentscope.core.state.SessionKey;
+import io.agentscope.core.state.SimpleSessionKey;
 import io.agentscope.core.tool.Toolkit;
 import io.github.malonetalk.agent.tools.ExecuteSqlTool;
 import io.github.malonetalk.agent.tools.GetTableSchemaTool;
@@ -31,6 +33,7 @@ import io.github.malonetalk.agent.tools.GetTablesTool;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,10 @@ import reactor.core.scheduler.Schedulers;
 
 @Service
 public class AgentService {
+
+    private static final String SESSION_DATABASE_NAME = "data_agent";
+    private static final String SESSION_TABLE_NAME = "agentscope_sessions";
+    private static final String SESSION_KEY_PREFIX = "data-agent:";
 
     private final ModelFactory modelFactory;
     private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
@@ -72,35 +79,35 @@ public class AgentService {
     }
 
     private Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(
-                sessionId,
-                k -> new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false));
+        return sessionCache.computeIfAbsent(sessionId, key -> createPersistentSessionStore());
+    }
+
+    MysqlSession createPersistentSessionStore() {
+        return new MysqlSession(dataSource, SESSION_DATABASE_NAME, SESSION_TABLE_NAME, true);
     }
 
     public String chat(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
-        Session session = getOrCreateSession(sessionId);
-        agent.loadIfExists(session, sessionId);
+        MysqlSession session = (MysqlSession) getOrCreateSession(sessionId);
+        agent.loadIfExists(session, buildNamespacedSessionId(sessionId));
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
-
         Msg response = agent.call(userMsg).block();
 
-        agent.saveTo(session, sessionId);
-
+        agent.saveTo(session, buildNamespacedSessionId(sessionId));
         return MsgUtils.getTextContent(response);
     }
 
     public Flux<String> chatStream(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
-        Session session = getOrCreateSession(sessionId);
-        agent.loadIfExists(session, sessionId);
+        MysqlSession session = (MysqlSession) getOrCreateSession(sessionId);
+        agent.loadIfExists(session, buildNamespacedSessionId(sessionId));
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
 
-        // TODO: 区分不同消息块类型，方便前端按类型渲染
+        // TODO: classify different stream chunk types for richer frontend rendering.
         StreamOptions streamOptions =
                 StreamOptions.builder()
                         .eventTypes(EventType.REASONING, EventType.TOOL_RESULT)
@@ -110,7 +117,7 @@ public class AgentService {
 
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
-                .doFinally(signalType -> agent.saveTo(session, sessionId))
+                .doFinally(signalType -> agent.saveTo(session, buildNamespacedSessionId(sessionId)))
                 .map(event -> MsgUtils.getTextContent(event.getMessage()))
                 .filter(text -> text != null && !text.isEmpty());
     }
@@ -155,13 +162,47 @@ public class AgentService {
     }
 
     public void clearSession(String sessionId) {
-        Session session = sessionCache.remove(sessionId);
-        if (session != null) {
-            session.delete(io.agentscope.core.state.SimpleSessionKey.of(sessionId));
+        closeSessionStore(sessionCache.remove(sessionId));
+        MysqlSession sessionStore = createPersistentSessionStore();
+        try {
+            sessionStore.delete(namespacedSessionKey(sessionId));
+        } finally {
+            sessionStore.close();
         }
     }
 
     public void clearAllSessions() {
+        sessionCache.values().forEach(this::closeSessionStore);
         sessionCache.clear();
+
+        MysqlSession sessionStore = createPersistentSessionStore();
+        try {
+            Set<SessionKey> sessionKeys = sessionStore.listSessionKeys();
+            for (SessionKey sessionKey : sessionKeys) {
+                if (isManagedSessionKey(sessionKey)) {
+                    sessionStore.delete(sessionKey);
+                }
+            }
+        } finally {
+            sessionStore.close();
+        }
+    }
+
+    private SimpleSessionKey namespacedSessionKey(String sessionId) {
+        return SimpleSessionKey.of(buildNamespacedSessionId(sessionId));
+    }
+
+    private String buildNamespacedSessionId(String sessionId) {
+        return SESSION_KEY_PREFIX + sessionId;
+    }
+
+    private boolean isManagedSessionKey(SessionKey sessionKey) {
+        return sessionKey.toIdentifier().startsWith(SESSION_KEY_PREFIX);
+    }
+
+    private void closeSessionStore(Session session) {
+        if (session instanceof MysqlSession mysqlSession) {
+            mysqlSession.close();
+        }
     }
 }

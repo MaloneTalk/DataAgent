@@ -64,9 +64,8 @@ public class TableColumnSemanticController {
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
             @Valid @RequestBody ColumnSemanticUpdateRequest request) {
-        boolean success =
-                semanticSchemaService.updateColumnSemantic(datasourceId, tableName, request);
-        return success ? Result.success(true) : Result.error("Failed to update column semantic");
+        semanticSchemaService.updateColumnSemantic(datasourceId, tableName, request);
+        return Result.success(true);
     }
 
     @DeleteMapping
@@ -74,9 +73,8 @@ public class TableColumnSemanticController {
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
             @RequestParam String columnName) {
-        boolean success =
-                semanticSchemaService.resetColumnSemantic(datasourceId, tableName, columnName);
-        return success ? Result.success(true) : Result.error("Failed to reset column semantic");
+        semanticSchemaService.resetColumnSemantic(datasourceId, tableName, columnName);
+        return Result.success(true);
     }
 
     @DeleteMapping("/batch")

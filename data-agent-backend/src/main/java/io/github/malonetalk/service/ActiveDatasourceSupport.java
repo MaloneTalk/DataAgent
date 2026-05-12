@@ -41,10 +41,15 @@ public class ActiveDatasourceSupport {
             return null;
         }
         if (activeDataSources.size() > 1) {
-            logger.warn(
-                    "Found {} active data sources, using the first one with id={}.",
+            List<Integer> activeIds = activeDataSources.stream().map(Datasource::getId).toList();
+            logger.error(
+                    "Found {} active data sources, refusing to choose implicitly. activeIds={}",
                     activeDataSources.size(),
-                    activeDataSources.get(0).getId());
+                    activeIds);
+            throw new IllegalStateException(
+                    "Multiple active datasources found: "
+                            + activeIds
+                            + ". Please keep exactly one datasource active.");
         }
         return activeDataSources.get(0);
     }
