@@ -33,3 +33,23 @@ CREATE TABLE IF NOT EXISTS `table_info` (
     KEY `idx_is_active` (`is_active`),
     KEY `idx_datasource_active` (`datasource_id`, `is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='表信息表';
+
+CREATE TABLE IF NOT EXISTS agentscope_skills (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT NOT NULL,
+    skill_content LONGTEXT NOT NULL,
+    source VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS agentscope_skill_resources (
+    id BIGINT NOT NULL,
+    resource_path VARCHAR(500) NOT NULL,
+    resource_content LONGTEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, resource_path),
+    FOREIGN KEY (id) REFERENCES agentscope_skills(id) ON DELETE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
