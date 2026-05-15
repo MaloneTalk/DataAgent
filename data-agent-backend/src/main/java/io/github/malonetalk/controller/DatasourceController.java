@@ -18,6 +18,9 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.convertor.DatasourceConverter;
+import io.github.malonetalk.dto.DatasourceRequest;
+import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
@@ -35,36 +38,61 @@ import org.springframework.web.bind.annotation.RestController;
 public class DatasourceController {
 
     private final DatasourceService dataSourceService;
+    private final DatasourceConverter datasourceConverter;
 
-    public DatasourceController(DatasourceService dataSourceService) {
+    public DatasourceController(
+            DatasourceService dataSourceService, DatasourceConverter datasourceConverter) {
         this.dataSourceService = dataSourceService;
+        this.datasourceConverter = datasourceConverter;
     }
 
     @GetMapping
-    public Result<List<Datasource>> findAll() {
-        List<Datasource> list = dataSourceService.findAll();
+    public Result<List<DatasourceResponse>> findAll() {
+        List<DatasourceResponse> list =
+                dataSourceService.findAll().stream()
+                        .map(datasourceConverter::toResponse)
+                        .toList();
         return Result.success(list);
     }
 
     @GetMapping("/{id}")
-    public Result<Datasource> findById(@PathVariable Integer id) {
+    public Result<DatasourceResponse> findById(@PathVariable Integer id) {
         Datasource dataSource = dataSourceService.findById(id);
         if (dataSource != null) {
-            return Result.success(dataSource);
+            return Result.success(datasourceConverter.toResponse(dataSource));
         } else {
             return Result.error(404, "DataSource not found");
         }
     }
 
     @PostMapping
-    public Result<Boolean> save(@RequestBody Datasource dataSource) {
-        boolean success = dataSourceService.save(dataSource);
+    public Result<Boolean> save(@RequestBody DatasourceRequest request) {
+        Datasource datasource = datasourceConverter.toEntity(request);
+        boolean success = dataSourceService.save(datasource);
         return success ? Result.success(true) : Result.error("Failed to save");
     }
 
     @PutMapping
-    public Result<Boolean> update(@RequestBody Datasource dataSource) {
-        boolean success = dataSourceService.update(dataSource);
+    public Result<Boolean> update(@RequestBody DatasourceRequest request) {
+        if (request.id() == null) {
+            return Result.error(400, "id 不能为空");
+        }
+        Datasource datasource = dataSourceService.findById(request.id());
+        if (datasource == null) {
+            return Result.error(404, "DataSource not found");
+        }
+        datasource.setName(request.name());
+        datasource.setType(request.type());
+        datasource.setHost(request.host());
+        datasource.setPort(request.port());
+        datasource.setDatabaseName(request.databaseName());
+        datasource.setUsername(request.username());
+        if (request.password() != null && !request.password().isEmpty()) {
+            datasource.setPassword(request.password());
+        }
+        datasource.setConnectionUrl(request.connectionUrl());
+        datasource.setDescription(request.description());
+        boolean success = dataSourceService.update(datasource);
         return success ? Result.success(true) : Result.error("Failed to update");
     }
 
@@ -75,14 +103,20 @@ public class DatasourceController {
     }
 
     @GetMapping("/status/{status}")
-    public Result<List<Datasource>> findByStatus(@PathVariable String status) {
-        List<Datasource> list = dataSourceService.findByStatus(status);
+    public Result<List<DatasourceResponse>> findByStatus(@PathVariable String status) {
+        List<DatasourceResponse> list =
+                dataSourceService.findByStatus(status).stream()
+                        .map(datasourceConverter::toResponse)
+                        .toList();
         return Result.success(list);
     }
 
     @GetMapping("/type/{type}")
-    public Result<List<Datasource>> findByType(@PathVariable String type) {
-        List<Datasource> list = dataSourceService.findByType(type);
+    public Result<List<DatasourceResponse>> findByType(@PathVariable String type) {
+        List<DatasourceResponse> list =
+                dataSourceService.findByType(type).stream()
+                        .map(datasourceConverter::toResponse)
+                        .toList();
         return Result.success(list);
     }
 }
