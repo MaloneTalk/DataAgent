@@ -75,3 +75,32 @@ log/
 *.tmp
 *.bak
 *.cache
+
+# ==============================
+# Frontend (Node/Vue)
+# ==============================
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor directories and files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# pnpm (保留 lock 文件保证团队版本一致)
+pnpm-debug.log*
+.pnpm-debug.log
+
+# npm (使用 pnpm 时可忽略)
+npm-debug.log*
+package-lock.json
+
+# Yarn
+yarn-error.log
+yarn-debug.log
+yarn-integrity
+.yarn-integrity
