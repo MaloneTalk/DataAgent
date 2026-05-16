@@ -24,7 +24,10 @@
 
   const isCollapse = ref(false);
 
-  const menuItems = [{ path: '/data-source', title: '数据源管理', icon: 'Connection' }];
+  const menuItems = [
+    { path: '/chat', title: 'AI 智能分析', icon: 'ChatDotRound' },
+    { path: '/data-source', title: '数据源管理', icon: 'Connection' },
+  ];
 
   const activeMenu = computed(() => route.path);
 

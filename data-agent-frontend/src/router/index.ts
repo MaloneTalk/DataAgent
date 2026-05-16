@@ -21,7 +21,13 @@ import type { RouteRecordRaw } from 'vue-router';
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/data-source',
+    redirect: '/chat',
+  },
+  {
+    path: '/chat',
+    name: 'Chat',
+    component: () => import('@/views/chat/ChatView.vue'),
+    meta: { title: 'AI 智能分析' },
   },
   {
     path: '/data-source',
