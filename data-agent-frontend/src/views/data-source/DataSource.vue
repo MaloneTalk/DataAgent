@@ -139,6 +139,32 @@ const handleCancel = () => {
       <el-button type="primary" @click="handleAdd">新增数据源</el-button>
     </div>
     <el-table v-loading="loading" :data="dataSourceList" style="width: 100%">
+      <el-table-column type="expand">
+        <template #default="{ row }">
+          <div class="expand-content">
+            <div class="expand-item">
+              <span class="expand-label">端口：</span>
+              <span>{{ row.port ?? "-" }}</span>
+            </div>
+            <div class="expand-item">
+              <span class="expand-label">数据库名：</span>
+              <span>{{ row.databaseName ?? "-" }}</span>
+            </div>
+            <div class="expand-item">
+              <span class="expand-label">用户名：</span>
+              <span>{{ row.username ?? "-" }}</span>
+            </div>
+            <div class="expand-item">
+              <span class="expand-label">连接URL：</span>
+              <span>{{ row.connectionUrl || "-" }}</span>
+            </div>
+            <div class="expand-item">
+              <span class="expand-label">描述：</span>
+              <span>{{ row.description || "-" }}</span>
+            </div>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="name" label="名称" />
       <el-table-column prop="type" label="类型" />
       <el-table-column prop="host" label="主机地址" />
@@ -263,5 +289,24 @@ const handleCancel = () => {
   padding: 16px 0;
   color: #f56c6c;
   font-size: 14px;
+}
+
+.expand-content {
+  padding: 12px 48px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 32px;
+  font-size: 14px;
+  color: #606266;
+}
+
+.expand-item {
+  display: flex;
+  gap: 4px;
+}
+
+.expand-label {
+  color: #909399;
+  white-space: nowrap;
 }
 </style>
