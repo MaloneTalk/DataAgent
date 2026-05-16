@@ -47,8 +47,8 @@ const toggleSidebar = () => {
 <style scoped>
 .app-sidebar {
   width: 200px;
-  background-color: #fff;
-  border-right: 1px solid #e4e7ed;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   transition: width 0.3s;
@@ -61,6 +61,26 @@ const toggleSidebar = () => {
 
 .app-sidebar :deep(.el-menu) {
   border-right: none;
+  background-color: transparent;
+}
+
+.app-sidebar :deep(.el-menu-item) {
+  color: #64748b;
+  font-weight: 500;
+  margin: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.app-sidebar :deep(.el-menu-item:hover) {
+  background-color: #f1f5f9;
+  color: #3b82f6;
+}
+
+.app-sidebar :deep(.el-menu-item.is-active) {
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .sidebar-toggle {
@@ -70,8 +90,17 @@ const toggleSidebar = () => {
   width: 100%;
   text-align: center;
   cursor: pointer;
-  color: #909399;
-  font-size: 16px;
+  color: #94a3b8;
+  font-size: 18px;
   transform: translateX(-50%);
+  padding: 8px;
+  transition: all 0.3s;
+  border-radius: 8px;
+  margin: 0 8px;
+}
+
+.sidebar-toggle:hover {
+  color: #3b82f6;
+  background-color: #f1f5f9;
 }
 </style>
