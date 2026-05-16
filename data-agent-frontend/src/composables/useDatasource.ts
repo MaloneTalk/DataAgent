@@ -4,6 +4,8 @@ import {
   createDatasource,
   updateDatasource,
   deleteDatasource,
+  activateDatasource,
+  deactivateDatasource,
   type DatasourceRequest,
   type DatasourceResponse,
 } from "@/api/datasource";
@@ -41,6 +43,16 @@ export function useDatasource() {
     await fetchList();
   };
 
+  const activate = async (id: number) => {
+    await activateDatasource(id);
+    await fetchList();
+  };
+
+  const deactivate = async (id: number) => {
+    await deactivateDatasource(id);
+    await fetchList();
+  };
+
   return {
     list,
     loading,
@@ -49,5 +61,7 @@ export function useDatasource() {
     addDatasource,
     editDatasource,
     removeDatasource,
+    activate,
+    deactivate,
   };
 }

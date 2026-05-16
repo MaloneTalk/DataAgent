@@ -54,3 +54,15 @@ export function deleteDatasource(id: number) {
     `/datasource/${id}`,
   );
 }
+
+export function activateDatasource(id: number) {
+  return request.put<{ code: number; message: string; data: boolean }>(
+    `/datasource/${id}/activate`,
+  );
+}
+
+export function deactivateDatasource(id: number) {
+  return request.put<{ code: number; message: string; data: boolean }>(
+    `/datasource/${id}/deactivate`,
+  );
+}

@@ -13,6 +13,8 @@ const {
   addDatasource,
   editDatasource,
   removeDatasource,
+  activate,
+  deactivate,
 } = useDatasource();
 
 const dialogVisible = ref(false);
@@ -105,6 +107,24 @@ const handleDelete = async (row: DatasourceResponse) => {
   }
 };
 
+const handleActivate = async (row: DatasourceResponse) => {
+  try {
+    await activate(row.id);
+    ElMessage.success("激活成功");
+  } catch {
+    // 错误已由 request 拦截器统一处理
+  }
+};
+
+const handleDeactivate = async (row: DatasourceResponse) => {
+  try {
+    await deactivate(row.id);
+    ElMessage.success("禁用成功");
+  } catch {
+    // 错误已由 request 拦截器统一处理
+  }
+};
+
 const handleSubmit = async () => {
   if (!formRef.value) return;
   const valid = await formRef.value.validate().catch(() => false);
@@ -175,11 +195,22 @@ const handleCancel = () => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180">
+      <el-table-column label="操作" width="300">
         <template #default="{ row }">
           <el-button link type="primary" @click="handleEdit(row)"
             >编辑</el-button
           >
+          <el-button
+            v-if="row.status !== 'ACTIVE'"
+            link
+            type="success"
+            @click="handleActivate(row)"
+          >
+            激活
+          </el-button>
+          <el-button v-else link type="warning" @click="handleDeactivate(row)">
+            禁用
+          </el-button>
           <el-button link type="danger" @click="handleDelete(row)"
             >删除</el-button
           >
