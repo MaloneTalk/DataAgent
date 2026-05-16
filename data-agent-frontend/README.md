@@ -6,15 +6,15 @@ Data Agent 管理系统前端，基于 Vue 3 + TypeScript + Vite 开发。
 
 ## 技术栈
 
-| 技术 | 说明 |
-|------|------|
-| Vue 3 | 响应式前端框架 |
-| TypeScript | 类型安全的 JavaScript 超集 |
-| Vite | 构建工具 |
-| Vue Router | 路由管理 |
-| Pinia | 状态管理 |
-| Axios | HTTP 请求 |
-| Element Plus | UI 组件库 |
+| 技术         | 说明                       |
+| ------------ | -------------------------- |
+| Vue 3        | 响应式前端框架             |
+| TypeScript   | 类型安全的 JavaScript 超集 |
+| Vite         | 构建工具                   |
+| Vue Router   | 路由管理                   |
+| Pinia        | 状态管理                   |
+| Axios        | HTTP 请求                  |
+| Element Plus | UI 组件库                  |
 
 ## 项目结构
 
@@ -86,14 +86,14 @@ pnpm build
 
 ```typescript
 // src/api/xxx.ts
-import request from './request'
+import request from './request';
 
 export function getXxxList(params: any) {
-  return request.get('/xxx/list', { params })
+  return request.get('/xxx/list', { params });
 }
 
 export function createXxx(data: any) {
-  return request.post('/xxx/create', data)
+  return request.post('/xxx/create', data);
 }
 ```
 
@@ -102,18 +102,18 @@ export function createXxx(data: any) {
 使用 Pinia 管理全局状态，在 `src/stores/` 下创建 store：
 
 ```typescript
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
 export const useXxxStore = defineStore('xxx', () => {
-  const list = ref([])
+  const list = ref([]);
 
   const fetchList = async () => {
     // ...
-  }
+  };
 
-  return { list, fetchList }
-})
+  return { list, fetchList };
+});
 ```
 
 ### 4. 组件规范
@@ -130,8 +130,8 @@ export const useXxxStore = defineStore('xxx', () => {
 ### 6. 路径别名
 
 | 别名 | 实际路径 |
-|------|----------|
-| `@/` | `src/` |
+| ---- | -------- |
+| `@/` | `src/`   |
 
 使用示例：`import Xxx from '@/components/Xxx.vue'`
 
@@ -150,8 +150,8 @@ proxy: {
 
 ## 命令说明
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm dev` | 启动开发服务器 |
-| `pnpm build` | 构建生产版本 |
-| `pnpm preview` | 预览构建结果 |
+| 命令           | 说明           |
+| -------------- | -------------- |
+| `pnpm dev`     | 启动开发服务器 |
+| `pnpm build`   | 构建生产版本   |
+| `pnpm preview` | 预览构建结果   |

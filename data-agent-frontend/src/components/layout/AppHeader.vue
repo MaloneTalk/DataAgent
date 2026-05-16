@@ -1,11 +1,28 @@
+<!--
+ * Copyright (C) 2026 github.com/MaloneTalk
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version.
+ * 
+ * This program is distributed in the hope that it will be useful
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from 'vue';
 
-const isCollapse = ref(false)
+  const isCollapse = ref(false);
 
-const toggleSidebar = () => {
-  isCollapse.value = !isCollapse.value
-}
+  const toggleSidebar = () => {
+    isCollapse.value = !isCollapse.value;
+  };
 </script>
 
 <template>
@@ -34,51 +51,51 @@ const toggleSidebar = () => {
 </template>
 
 <style scoped>
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 60px;
-  padding: 0 20px;
-  background-color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
-}
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 60px;
+    padding: 0 20px;
+    background-color: #fff;
+    box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  }
 
-.header-left {
-  display: flex;
-  align-items: center;
-}
+  .header-left {
+    display: flex;
+    align-items: center;
+  }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-.logo-icon {
-  width: 32px;
-  height: 32px;
-}
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+  }
 
-.logo-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
+  .logo-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+  }
 
-.header-right {
-  display: flex;
-  align-items: center;
-}
+  .header-right {
+    display: flex;
+    align-items: center;
+  }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
 
-.username {
-  color: #606266;
-}
+  .username {
+    color: #606266;
+  }
 </style>

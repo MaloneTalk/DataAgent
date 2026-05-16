@@ -1,10 +1,23 @@
-import axios from "axios";
-import type {
-  AxiosInstance,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from "axios";
-import { ElMessage } from "element-plus";
+/*
+ * Copyright (C) 2026 github.com/MaloneTalk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import axios from 'axios';
+import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { ElMessage } from 'element-plus';
 
 interface ApiResponse<T = any> {
   code: number;
@@ -13,7 +26,7 @@ interface ApiResponse<T = any> {
 }
 
 const service: AxiosInstance = axios.create({
-  baseURL: "/api",
+  baseURL: '/api',
   timeout: 30000,
 });
 
@@ -21,7 +34,7 @@ service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
   },
 );
@@ -30,14 +43,13 @@ service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const res = response.data;
     if (res.code !== 200) {
-      ElMessage.error(res.message || "请求失败");
-      return Promise.reject(new Error(res.message || "Error"));
+      ElMessage.error(res.message || '请求失败');
+      return Promise.reject(new Error(res.message || 'Error'));
     }
     return res;
   },
-  (error) => {
-    const message =
-      error.response?.data?.message || error.message || "网络错误";
+  error => {
+    const message = error.response?.data?.message || error.message || '网络错误';
     ElMessage.error(message);
     return Promise.reject(error);
   },

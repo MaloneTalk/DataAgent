@@ -95,9 +95,8 @@ dist-ssr/
 pnpm-debug.log*
 .pnpm-debug.log
 
-# npm (使用 pnpm 时可忽略)
+# npm
 npm-debug.log*
-package-lock.json
 
 # Yarn
 yarn-error.log
