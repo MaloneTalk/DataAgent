@@ -22,13 +22,14 @@ import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.datasource.ColumnInfo;
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
-import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class GetTableSchemaTool {
@@ -53,7 +54,8 @@ public class GetTableSchemaTool {
     public String getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {
-        List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
+        List<Datasource> activeDataSources =
+                dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
         if (activeDataSources.isEmpty()) {
             return "No active datasource available, cannot get table schema.";

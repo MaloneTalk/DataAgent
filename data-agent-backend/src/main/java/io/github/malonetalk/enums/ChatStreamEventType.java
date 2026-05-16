@@ -15,16 +15,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.enums;
 
-public class StatusConstants {
+import com.fasterxml.jackson.annotation.JsonValue;
 
-    public static final String ACTIVE = "active";
-    public static final String INACTIVE = "inactive";
+public enum ChatStreamEventType {
+    SUMMARY("summary"),
+    TOOL_CALL("tool_call"),
+    TOOL_RESULT("tool_result"),
+    THINKING("thinking"),
+    TEXT("text");
 
-    public static final String TEST_SUCCESS = "success";
-    public static final String TEST_FAILED = "failed";
-    public static final String TEST_UNTESTED = "untested";
+    private final String code;
 
-    private StatusConstants() {}
+    ChatStreamEventType(String code) {
+        this.code = code;
+    }
+
+    @JsonValue
+    public String getCode() {
+        return code;
+    }
 }

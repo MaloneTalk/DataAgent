@@ -23,8 +23,8 @@ import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
-import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
 import org.slf4j.Logger;
@@ -53,7 +53,8 @@ public class ExecuteSqlTool {
     public String executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
-        List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
+        List<Datasource> activeDataSources =
+                dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
         if (activeDataSources.isEmpty()) {
             return "No active datasource available, cannot execute SQL.";

@@ -61,6 +61,7 @@ public class ModelFactory {
         return switch (provider.toLowerCase()) {
             case "dashscope" ->
                     DashScopeChatModel.builder().apiKey(apiKey).modelName(modelName).stream(true)
+                            .enableThinking(true)
                             .build();
             case "openai" -> {
                 OpenAIChatModel.Builder builder =

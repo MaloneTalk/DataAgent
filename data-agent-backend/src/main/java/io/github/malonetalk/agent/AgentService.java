@@ -28,6 +28,8 @@ import io.agentscope.core.tool.Toolkit;
 import io.github.malonetalk.agent.tools.ExecuteSqlTool;
 import io.github.malonetalk.agent.tools.GetTableSchemaTool;
 import io.github.malonetalk.agent.tools.GetTablesTool;
+import io.github.malonetalk.convertor.EventConverter;
+import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.Map;
@@ -92,7 +94,7 @@ public class AgentService {
         return MsgUtils.getTextContent(response);
     }
 
-    public Flux<String> chatStream(String sessionId, String userInput) {
+    public Flux<ChatStreamEvent> chatStream(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
         Session session = getOrCreateSession(sessionId);
@@ -100,19 +102,17 @@ public class AgentService {
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
 
-        // TODO 各种信息块的类型区分，以返回给前端方便按不同的UI渲染
         StreamOptions streamOptions =
                 StreamOptions.builder()
-                        .eventTypes(EventType.REASONING, EventType.TOOL_RESULT)
+                        .eventTypes(EventType.REASONING, EventType.TOOL_RESULT, EventType.SUMMARY)
                         .incremental(true)
-                        .includeReasoningResult(false)
+                        .includeReasoningResult(true)
                         .build();
 
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> agent.saveTo(session, sessionId))
-                .map(event -> MsgUtils.getTextContent(event.getMessage()))
-                .filter(text -> text != null && !text.isEmpty());
+                .flatMapIterable(EventConverter::map);
     }
 
     private ReActAgent createAgent() {

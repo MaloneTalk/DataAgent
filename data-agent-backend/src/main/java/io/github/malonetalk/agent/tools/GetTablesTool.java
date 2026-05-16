@@ -18,9 +18,9 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
-import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.TableInfoService;
 import java.util.Collections;
@@ -44,7 +44,8 @@ public class GetTablesTool {
 
     @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
     public List<TableInfo> getTables() {
-        List<Datasource> activeDataSources = dataSourceService.findByStatus(StatusConstants.ACTIVE);
+        List<Datasource> activeDataSources =
+                dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
         if (activeDataSources.isEmpty()) {
             return Collections.emptyList();
