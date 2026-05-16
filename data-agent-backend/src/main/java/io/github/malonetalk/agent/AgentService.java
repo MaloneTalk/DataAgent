@@ -25,19 +25,19 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.tool.Toolkit;
-import io.github.malonetalk.agent.tools.ExecuteSqlTool;
-import io.github.malonetalk.agent.tools.GetTableSchemaTool;
-import io.github.malonetalk.agent.tools.GetTablesTool;
+import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import javax.sql.DataSource;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
+
+import javax.sql.DataSource;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AgentService {
@@ -46,31 +46,21 @@ public class AgentService {
     private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
     private Toolkit toolkit;
 
-    private final GetTablesTool getTablesTool;
-    private final GetTableSchemaTool getTableSchemaTool;
-    private final ExecuteSqlTool executeSqlTool;
+    private final List<MarkAgentTool> allToolBeans;
 
     private final DataSource dataSource;
 
     public AgentService(
-            ModelFactory modelFactory,
-            GetTablesTool getTablesTool,
-            GetTableSchemaTool getTableSchemaTool,
-            ExecuteSqlTool executeSqlTool,
-            DataSource dataSource) {
+            ModelFactory modelFactory, List<MarkAgentTool> allToolBeans, DataSource dataSource) {
         this.modelFactory = modelFactory;
-        this.getTablesTool = getTablesTool;
-        this.getTableSchemaTool = getTableSchemaTool;
-        this.executeSqlTool = executeSqlTool;
+        this.allToolBeans = allToolBeans;
         this.dataSource = dataSource;
     }
 
     @PostConstruct
     public void init() {
         this.toolkit = new Toolkit();
-        this.toolkit.registerTool(getTablesTool);
-        this.toolkit.registerTool(getTableSchemaTool);
-        this.toolkit.registerTool(executeSqlTool);
+        allToolBeans.forEach(this.toolkit::registerTool);
     }
 
     private Session getOrCreateSession(String sessionId) {

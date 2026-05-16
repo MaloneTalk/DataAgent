@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-public class GetTableSchemaTool {
+public class GetTableSchemaTool implements MarkAgentTool {
 
     private static final Logger logger = LoggerFactory.getLogger(GetTableSchemaTool.class);
 
