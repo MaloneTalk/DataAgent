@@ -20,7 +20,6 @@ package io.github.malonetalk.dto;
 import jakarta.validation.constraints.NotBlank;
 
 public record DatasourceRequest(
-        Integer id,
         @NotBlank(message = "name 不能为空") String name,
         @NotBlank(message = "type 不能为空") String type,
         String host,

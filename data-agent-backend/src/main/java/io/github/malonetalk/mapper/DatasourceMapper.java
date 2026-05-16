@@ -38,4 +38,6 @@ public interface DatasourceMapper {
     List<Datasource> selectByStatus(@Param("status") String status);
 
     List<Datasource> selectByType(@Param("type") String type);
+
+    int updateStatus(@Param("id") Integer id, @Param("status") String status);
 }

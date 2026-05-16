@@ -69,4 +69,9 @@ public class DatasourceServiceImpl implements DatasourceService {
     public List<Datasource> findByType(String type) {
         return dataSourceMapper.selectByType(type);
     }
+
+    @Override
+    public boolean updateStatus(Integer id, String status) {
+        return dataSourceMapper.updateStatus(id, status) > 0;
+    }
 }

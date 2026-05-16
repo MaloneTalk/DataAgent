@@ -22,8 +22,8 @@ import io.github.malonetalk.convertor.DatasourceConverter;
 import io.github.malonetalk.dto.DatasourceRequest;
 import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
-import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/datasource")
@@ -49,9 +51,7 @@ public class DatasourceController {
     @GetMapping
     public Result<List<DatasourceResponse>> findAll() {
         List<DatasourceResponse> list =
-                dataSourceService.findAll().stream()
-                        .map(datasourceConverter::toResponse)
-                        .toList();
+                dataSourceService.findAll().stream().map(datasourceConverter::toResponse).toList();
         return Result.success(list);
     }
 
@@ -68,16 +68,15 @@ public class DatasourceController {
     @PostMapping
     public Result<Boolean> save(@RequestBody DatasourceRequest request) {
         Datasource datasource = datasourceConverter.toEntity(request);
+        datasource.setStatus(Status.INACTIVE.getCode());
         boolean success = dataSourceService.save(datasource);
-        return success ? Result.success(true) : Result.error("Failed to save");
+        return success ? Result.success() : Result.error("Failed to save");
     }
 
-    @PutMapping
-    public Result<Boolean> update(@RequestBody DatasourceRequest request) {
-        if (request.id() == null) {
-            return Result.error(400, "id 不能为空");
-        }
-        Datasource datasource = dataSourceService.findById(request.id());
+    @PutMapping("/{id}")
+    public Result<Boolean> update(
+            @PathVariable Integer id, @RequestBody DatasourceRequest request) {
+        Datasource datasource = dataSourceService.findById(id);
         if (datasource == null) {
             return Result.error(404, "DataSource not found");
         }
@@ -118,5 +117,25 @@ public class DatasourceController {
                         .map(datasourceConverter::toResponse)
                         .toList();
         return Result.success(list);
+    }
+
+    @PutMapping("/{id}/activate")
+    public Result<Boolean> activate(@PathVariable Integer id) {
+        Datasource datasource = dataSourceService.findById(id);
+        if (datasource == null) {
+            return Result.error(404, "DataSource not found");
+        }
+        boolean success = dataSourceService.updateStatus(id, Status.ACTIVE.getCode());
+        return success ? Result.success(true) : Result.error("激活失败");
+    }
+
+    @PutMapping("/{id}/deactivate")
+    public Result<Boolean> deactivate(@PathVariable Integer id) {
+        Datasource datasource = dataSourceService.findById(id);
+        if (datasource == null) {
+            return Result.error(404, "DataSource not found");
+        }
+        boolean success = dataSourceService.updateStatus(id, Status.INACTIVE.getCode());
+        return success ? Result.success(true) : Result.error("禁用失败");
     }
 }

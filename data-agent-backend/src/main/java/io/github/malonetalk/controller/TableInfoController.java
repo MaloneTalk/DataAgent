@@ -40,7 +40,8 @@ public class TableInfoController {
     private final TableInfoService tableInfoService;
     private final TableInfoConverter tableInfoConverter;
 
-    public TableInfoController(TableInfoService tableInfoService, TableInfoConverter tableInfoConverter) {
+    public TableInfoController(
+            TableInfoService tableInfoService, TableInfoConverter tableInfoConverter) {
         this.tableInfoService = tableInfoService;
         this.tableInfoConverter = tableInfoConverter;
     }
@@ -48,9 +49,7 @@ public class TableInfoController {
     @GetMapping
     public Result<List<TableInfoResponse>> findAll() {
         List<TableInfoResponse> list =
-                tableInfoService.findAll().stream()
-                        .map(tableInfoConverter::toResponse)
-                        .toList();
+                tableInfoService.findAll().stream().map(tableInfoConverter::toResponse).toList();
         return Result.success(list);
     }
 
