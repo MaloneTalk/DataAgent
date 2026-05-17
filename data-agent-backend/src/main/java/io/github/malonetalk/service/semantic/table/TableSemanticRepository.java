@@ -15,12 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.semantic.table;
 
 import io.github.malonetalk.entity.TableInfo;
 import java.util.List;
 
-public interface TableInfoService {
+/**
+ * 表语义信息持久化接口
+ */
+public interface TableSemanticRepository {
 
     List<TableInfo> findAll();
 
@@ -38,14 +41,16 @@ public interface TableInfoService {
 
     int deleteByDatasourceIdAndIds(Integer datasourceId, List<Integer> ids);
 
-    List<TableInfo> findByDatasourceId(Integer datasourceId);
+    List<TableInfo> listByDatasourceId(Integer datasourceId);
+
+    List<TableInfo> listByDatasourceIdAndTableNames(Integer datasourceId, List<String> tableNames);
 
     TableInfo findByDatasourceIdAndTableName(Integer datasourceId, String tableName);
 
-    List<TableInfo> findByIsActive(Boolean isActive);
+    List<TableInfo> listByIsActive(Boolean isActive);
 
-    List<TableInfo> findByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive);
+    List<TableInfo> listByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive);
 
-    List<TableInfo> findByDatasourceIdAndIsActiveAndIsVisible(
+    List<TableInfo> listByDatasourceIdAndIsActiveAndIsVisible(
             Integer datasourceId, Boolean isActive, Boolean isVisible);
 }

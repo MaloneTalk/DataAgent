@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -39,19 +40,37 @@ import org.springframework.stereotype.Component;
 public class SchemaReader {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaReader.class);
+    private static final long CACHE_TTL_MILLIS = 60_000L;
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
+    private final Map<Integer, CacheEntry<List<TableInfo>>> tableCache = new ConcurrentHashMap<>();
+    private final Map<String, CacheEntry<List<ColumnInfo>>> columnCache = new ConcurrentHashMap<>();
+    private final Map<String, CacheEntry<List<TableRelationInfo>>> relationCache =
+            new ConcurrentHashMap<>();
 
     public SchemaReader(DynamicDataSourceManager dynamicDataSourceManager) {
         this.dynamicDataSourceManager = dynamicDataSourceManager;
     }
 
-    public List<ColumnInfo> getTableSchema(Datasource datasource, String tableName) {
-        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+    public void invalidateCache(Integer datasourceId) {
+        tableCache.remove(datasourceId);
+        columnCache.keySet().removeIf(key -> key.startsWith(datasourceId + ":"));
+        relationCache.keySet().removeIf(key -> key.startsWith(datasourceId + ":"));
+    }
 
+    public List<ColumnInfo> getTableSchema(Datasource datasource, String tableName) {
+        String cacheKey = buildTableCacheKey(datasource.getId(), tableName);
+        List<ColumnInfo> cachedColumns = getCachedValue(columnCache, cacheKey);
+        if (cachedColumns != null) {
+            return cachedColumns;
+        }
+
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
         try (Connection conn = ds.getConnection()) {
             Set<String> primaryKeys = getPrimaryKeys(conn, tableName);
-            return getColumns(conn, tableName, primaryKeys);
+            List<ColumnInfo> columns = List.copyOf(getColumns(conn, tableName, primaryKeys));
+            putCachedValue(columnCache, cacheKey, columns);
+            return columns;
         } catch (SQLException e) {
             logger.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
             throw new SchemaReadException(
@@ -60,10 +79,16 @@ public class SchemaReader {
     }
 
     public List<TableInfo> getTables(Datasource datasource) {
-        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+        List<TableInfo> cachedTables = getCachedValue(tableCache, datasource.getId());
+        if (cachedTables != null) {
+            return copyTableInfos(cachedTables);
+        }
 
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
         try (Connection conn = ds.getConnection()) {
-            return getTables(conn, datasource);
+            List<TableInfo> tables = getTables(conn, datasource);
+            putCachedValue(tableCache, datasource.getId(), copyTableInfos(tables));
+            return tables;
         } catch (SQLException e) {
             logger.error(
                     "Failed to read tables for datasource {}: {}",
@@ -80,10 +105,18 @@ public class SchemaReader {
     }
 
     public List<TableRelationInfo> getImportedRelations(Datasource datasource, String tableName) {
-        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+        String cacheKey = buildTableCacheKey(datasource.getId(), tableName);
+        List<TableRelationInfo> cachedRelations = getCachedValue(relationCache, cacheKey);
+        if (cachedRelations != null) {
+            return cachedRelations;
+        }
 
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
         try (Connection conn = ds.getConnection()) {
-            return getImportedRelations(conn, tableName);
+            List<TableRelationInfo> relations =
+                    List.copyOf(getImportedRelations(conn, tableName));
+            putCachedValue(relationCache, cacheKey, relations);
+            return relations;
         } catch (SQLException e) {
             logger.error(
                     "Failed to read imported keys for table {}: {}", tableName, e.getMessage(), e);
@@ -214,6 +247,46 @@ public class SchemaReader {
         }
         return "Physical foreign key discovered from JDBC metadata: " + fkName.trim();
     }
+
+    private List<TableInfo> copyTableInfos(List<TableInfo> tables) {
+        return tables.stream().map(this::copyTableInfo).toList();
+    }
+
+    private TableInfo copyTableInfo(TableInfo source) {
+        TableInfo target = new TableInfo();
+        target.setId(source.getId());
+        target.setTableName(source.getTableName());
+        target.setTableDescription(source.getTableDescription());
+        target.setDomain(source.getDomain());
+        target.setDatasourceId(source.getDatasourceId());
+        target.setIsActive(source.getIsActive());
+        target.setIsVisible(source.getIsVisible());
+        target.setCreateTime(source.getCreateTime());
+        target.setUpdateTime(source.getUpdateTime());
+        return target;
+    }
+
+    private String buildTableCacheKey(Integer datasourceId, String tableName) {
+        return datasourceId + ":" + tableName;
+    }
+
+    private <K, V> V getCachedValue(Map<K, CacheEntry<V>> cache, K key) {
+        CacheEntry<V> entry = cache.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (entry.expireAtMillis() <= System.currentTimeMillis()) {
+            cache.remove(key);
+            return null;
+        }
+        return entry.value();
+    }
+
+    private <K, V> void putCachedValue(Map<K, CacheEntry<V>> cache, K key, V value) {
+        cache.put(key, new CacheEntry<>(value, System.currentTimeMillis() + CACHE_TTL_MILLIS));
+    }
+
+    private record CacheEntry<T>(T value, long expireAtMillis) {}
 
     private static class ImportedKeyAggregate {
         private final String sourceTableName;

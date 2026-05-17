@@ -15,12 +15,27 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.toolresponse;
+package io.github.malonetalk.utils;
 
-public record ColumnSemanticPrompt(
-        String name,
-        String type,
-        Boolean primaryKey,
-        Boolean nullable,
-        String defaultValue,
-        String description) {}
+import java.util.Locale;
+
+public final class SemanticStringUtils {
+
+    private SemanticStringUtils() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
+    public static String normalizeBlankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    public static String normalizeName(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+}

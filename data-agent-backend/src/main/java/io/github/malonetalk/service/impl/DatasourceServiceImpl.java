@@ -22,10 +22,10 @@ import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.service.ActiveDatasourceLockManager;
-import io.github.malonetalk.service.ColumnSemanticInfoService;
+import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
 import io.github.malonetalk.service.DatasourceService;
-import io.github.malonetalk.service.LogicalTableRelationService;
-import io.github.malonetalk.service.TableInfoService;
+import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
+import io.github.malonetalk.service.semantic.table.TableSemanticRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -36,23 +36,23 @@ import org.springframework.context.annotation.Lazy;
 public class DatasourceServiceImpl implements DatasourceService {
 
     private final DatasourceMapper dataSourceMapper;
-    private final TableInfoService tableInfoService;
-    private final ColumnSemanticInfoService columnSemanticInfoService;
-    private final LogicalTableRelationService logicalTableRelationService;
+    private final TableSemanticRepository tableSemanticRepository;
+    private final ColumnSemanticRepository columnSemanticRepository;
+    private final RelationSemanticRepository relationSemanticRepository;
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final ActiveDatasourceLockManager activeDatasourceLockManager;
 
     public DatasourceServiceImpl(
             DatasourceMapper dataSourceMapper,
-            TableInfoService tableInfoService,
-            ColumnSemanticInfoService columnSemanticInfoService,
-            @Lazy LogicalTableRelationService logicalTableRelationService,
+            TableSemanticRepository tableSemanticRepository,
+            ColumnSemanticRepository columnSemanticRepository,
+            @Lazy RelationSemanticRepository relationSemanticRepository,
             DynamicDataSourceManager dynamicDataSourceManager,
             ActiveDatasourceLockManager activeDatasourceLockManager) {
         this.dataSourceMapper = dataSourceMapper;
-        this.tableInfoService = tableInfoService;
-        this.columnSemanticInfoService = columnSemanticInfoService;
-        this.logicalTableRelationService = logicalTableRelationService;
+        this.tableSemanticRepository = tableSemanticRepository;
+        this.columnSemanticRepository = columnSemanticRepository;
+        this.relationSemanticRepository = relationSemanticRepository;
         this.dynamicDataSourceManager = dynamicDataSourceManager;
         this.activeDatasourceLockManager = activeDatasourceLockManager;
     }
@@ -104,9 +104,9 @@ public class DatasourceServiceImpl implements DatasourceService {
         if (existingDatasource == null) {
             return false;
         }
-        logicalTableRelationService.deleteByDatasourceId(id);
-        columnSemanticInfoService.deleteByDatasourceId(id);
-        tableInfoService.deleteByDatasourceId(id);
+        relationSemanticRepository.deleteByDatasourceId(id);
+        columnSemanticRepository.deleteByDatasourceId(id);
+        tableSemanticRepository.deleteByDatasourceId(id);
         boolean deleted = dataSourceMapper.deleteById(id) > 0;
         if (deleted) {
             dynamicDataSourceManager.removeDataSource(id);

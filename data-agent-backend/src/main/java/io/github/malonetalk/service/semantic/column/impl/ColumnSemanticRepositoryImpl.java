@@ -15,53 +15,64 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service.impl;
+package io.github.malonetalk.service.semantic.column.impl;
 
-import io.github.malonetalk.entity.ColumnSemanticInfo;
+import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
-import io.github.malonetalk.service.ColumnSemanticInfoService;
+import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ColumnSemanticInfoServiceImpl implements ColumnSemanticInfoService {
+public class ColumnSemanticRepositoryImpl implements ColumnSemanticRepository {
 
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
 
-    public ColumnSemanticInfoServiceImpl(ColumnSemanticInfoMapper columnSemanticInfoMapper) {
+    public ColumnSemanticRepositoryImpl(ColumnSemanticInfoMapper columnSemanticInfoMapper) {
         this.columnSemanticInfoMapper = columnSemanticInfoMapper;
     }
 
     @Override
-    public List<ColumnSemanticInfo> findByDatasourceIdAndTableName(
+    public List<ColumnInfo> listByDatasourceIdAndTableName(
             Integer datasourceId, String tableName) {
         return columnSemanticInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
     }
 
     @Override
-    public List<ColumnSemanticInfo> findByDatasourceId(Integer datasourceId) {
+    public List<ColumnInfo> listByDatasourceId(Integer datasourceId) {
         return columnSemanticInfoMapper.selectByDatasourceId(datasourceId);
     }
 
     @Override
-    public ColumnSemanticInfo findByDatasourceIdAndTableNameAndColumnName(
+    public List<ColumnInfo> listByDatasourceIdAndTableNameAndColumnNames(
+            Integer datasourceId, String tableName, List<String> columnNames) {
+        if (columnNames == null || columnNames.isEmpty()) {
+            return List.of();
+        }
+        return columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnNames(
+                datasourceId, tableName, columnNames);
+    }
+
+    @Override
+    public ColumnInfo findByDatasourceIdAndTableNameAndColumnName(
             Integer datasourceId, String tableName, String columnName) {
         return columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                 datasourceId, tableName, columnName);
     }
 
     @Override
-    public boolean save(ColumnSemanticInfo columnSemanticInfo) {
-        columnSemanticInfo.setCreateTime(LocalDateTime.now());
-        columnSemanticInfo.setUpdateTime(LocalDateTime.now());
-        return columnSemanticInfoMapper.insert(columnSemanticInfo) > 0;
+    public boolean save(ColumnInfo columnInfo) {
+        columnInfo.setCreateTime(LocalDateTime.now());
+        columnInfo.setUpdateTime(LocalDateTime.now());
+        return columnSemanticInfoMapper.insert(columnInfo) > 0;
     }
 
     @Override
-    public boolean update(ColumnSemanticInfo columnSemanticInfo) {
-        columnSemanticInfo.setUpdateTime(LocalDateTime.now());
-        return columnSemanticInfoMapper.update(columnSemanticInfo) > 0;
+    public boolean update(ColumnInfo columnInfo) {
+        columnInfo.setUpdateTime(LocalDateTime.now());
+        return columnSemanticInfoMapper.update(columnInfo) > 0;
     }
 
     @Override

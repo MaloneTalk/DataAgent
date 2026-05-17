@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="io.github.malonetalk.mapper.ColumnSemanticInfoMapper">
 
-    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.ColumnSemanticInfo">
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.ColumnInfo">
         <id column="id" property="id"/>
         <result column="datasource_id" property="datasourceId"/>
         <result column="table_name" property="tableName"/>
@@ -27,6 +27,17 @@
         ORDER BY update_time DESC, create_time DESC, id DESC
     </select>
 
+    <select id="selectByDatasourceIdAndTableNameAndColumnNames" resultMap="BaseResultMap">
+        SELECT * FROM column_info
+        WHERE datasource_id = #{datasourceId}
+          AND table_name = #{tableName}
+          AND column_name IN
+        <foreach collection="columnNames" item="columnName" open="(" separator="," close=")">
+            #{columnName}
+        </foreach>
+        ORDER BY update_time DESC, create_time DESC, id DESC
+    </select>
+
     <select id="selectByDatasourceIdAndTableNameAndColumnName" resultMap="BaseResultMap">
         SELECT * FROM column_info
         WHERE datasource_id = #{datasourceId}
@@ -36,7 +47,7 @@
         LIMIT 1
     </select>
 
-    <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnSemanticInfo" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO column_info (
             datasource_id, table_name, column_name, column_description,
             is_active, is_visible, create_time, update_time
@@ -46,7 +57,7 @@
         )
     </insert>
 
-    <update id="update" parameterType="io.github.malonetalk.entity.ColumnSemanticInfo">
+    <update id="update" parameterType="io.github.malonetalk.entity.ColumnInfo">
         UPDATE column_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>

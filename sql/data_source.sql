@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS `table_info` (
     KEY `idx_is_active` (`is_active`),
     KEY `idx_is_visible` (`is_visible`),
     KEY `idx_datasource_active` (`datasource_id`, `is_active`),
-    KEY `idx_datasource_active_visible` (`datasource_id`, `is_active`, `is_visible`)
+    KEY `idx_datasource_active_visible` (`datasource_id`, `is_active`, `is_visible`),
+    KEY `idx_datasource_visible_table` (`datasource_id`, `is_active`, `is_visible`, `table_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='表信息表';
 
 CREATE TABLE IF NOT EXISTS `column_info` (
@@ -48,7 +49,9 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_datasource_table_column` (`datasource_id`, `table_name`, `column_name`),
-    KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_active`, `is_visible`)
+    KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_active`, `is_visible`),
+    KEY `idx_datasource_table_visible_column`
+            (`datasource_id`, `table_name`, `is_active`, `is_visible`, `column_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='列语义信息表';
 
 CREATE TABLE IF NOT EXISTS `logical_table_relation` (
@@ -69,5 +72,8 @@ CREATE TABLE IF NOT EXISTS `logical_table_relation` (
     UNIQUE KEY `uk_relation_source_signature`
             (`datasource_id`, `source_table_name`, `source_column_signature`),
     KEY `idx_relation_source_table` (`datasource_id`, `source_table_name`),
-    KEY `idx_relation_source_enabled` (`datasource_id`, `source_table_name`, `is_enabled`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表';
+    KEY `idx_relation_source_enabled` (`datasource_id`, `source_table_name`, `is_enabled`),
+    KEY `idx_relation_source_enabled_id` (`datasource_id`, `source_table_name`, `is_enabled`, `id`),
+    KEY `idx_relation_source_target_id`
+            (`datasource_id`, `source_table_name`, `target_table_name`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表（查询依赖 ci collation 做大小写不敏感匹配）';

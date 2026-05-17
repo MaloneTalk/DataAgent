@@ -21,9 +21,9 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
-import io.github.malonetalk.dto.tool.ToolResult;
-import io.github.malonetalk.service.SemanticSchemaService;
-import io.github.malonetalk.service.SemanticSchemaService.SemanticSchemaException;
+import io.github.malonetalk.common.ToolResult;
+import io.github.malonetalk.exception.SemanticSchemaException;
+import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -33,10 +33,10 @@ public class GetTableSchemaTool {
 
     private static final Logger logger = LoggerFactory.getLogger(GetTableSchemaTool.class);
 
-    private final SemanticSchemaService semanticSchemaService;
+    private final TableSemanticService tableSemanticService;
 
-    public GetTableSchemaTool(SemanticSchemaService semanticSchemaService) {
-        this.semanticSchemaService = semanticSchemaService;
+    public GetTableSchemaTool(TableSemanticService tableSemanticService) {
+        this.tableSemanticService = tableSemanticService;
     }
 
     @Tool(
@@ -70,7 +70,7 @@ public class GetTableSchemaTool {
                     Integer relationPageSize) {
         try {
             return ToolResult.success(
-                    semanticSchemaService.getTableSchema(
+                    tableSemanticService.getTableSchema(
                             tableName,
                             PageRequest.of(columnPage, columnPageSize),
                             PageRequest.of(relationPage, relationPageSize)));

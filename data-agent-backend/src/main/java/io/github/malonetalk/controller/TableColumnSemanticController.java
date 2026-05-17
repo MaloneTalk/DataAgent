@@ -23,7 +23,7 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchResetColumnSemanticRequest;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
-import io.github.malonetalk.service.SemanticSchemaService;
+import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,10 +38,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/tableinfo/{tableName}/semantic/columns")
 public class TableColumnSemanticController {
 
-    private final SemanticSchemaService semanticSchemaService;
+    private final ColumnSemanticService columnSemanticService;
 
-    public TableColumnSemanticController(SemanticSchemaService semanticSchemaService) {
-        this.semanticSchemaService = semanticSchemaService;
+    public TableColumnSemanticController(ColumnSemanticService columnSemanticService) {
+        this.columnSemanticService = columnSemanticService;
     }
 
     @GetMapping
@@ -49,11 +49,17 @@ public class TableColumnSemanticController {
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
+            @RequestParam(defaultValue = "asc") String sortOrder) {
         try {
             return Result.success(
-                    semanticSchemaService.getColumnPage(
-                            datasourceId, tableName, PageRequest.of(page, pageSize)));
+                    columnSemanticService.getColumnPage(
+                            datasourceId,
+                            tableName,
+                            PageRequest.of(page, pageSize),
+                            keywordPrefix,
+                            sortOrder));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -64,7 +70,7 @@ public class TableColumnSemanticController {
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
             @Valid @RequestBody ColumnSemanticUpdateRequest request) {
-        semanticSchemaService.updateColumnSemantic(datasourceId, tableName, request);
+        columnSemanticService.updateColumnSemantic(datasourceId, tableName, request);
         return Result.success(true);
     }
 
@@ -73,7 +79,7 @@ public class TableColumnSemanticController {
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
             @RequestParam String columnName) {
-        semanticSchemaService.resetColumnSemantic(datasourceId, tableName, columnName);
+        columnSemanticService.resetColumnSemantic(datasourceId, tableName, columnName);
         return Result.success(true);
     }
 
@@ -83,7 +89,7 @@ public class TableColumnSemanticController {
             @Valid @RequestBody BatchResetColumnSemanticRequest request) {
         try {
             return Result.success(
-                    semanticSchemaService.resetColumnSemantics(
+                    columnSemanticService.resetColumnSemantics(
                             request.datasourceId(), tableName, request.columnNames()));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());

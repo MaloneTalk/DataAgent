@@ -15,23 +15,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.semantic.column;
 
-import io.github.malonetalk.entity.ColumnSemanticInfo;
+import io.github.malonetalk.entity.ColumnInfo;
 import java.util.List;
 
-public interface ColumnSemanticInfoService {
+/**
+ * 列语义信息持久化接口
+ */
+public interface ColumnSemanticRepository {
 
-    List<ColumnSemanticInfo> findByDatasourceId(Integer datasourceId);
+    List<ColumnInfo> listByDatasourceId(Integer datasourceId);
 
-    List<ColumnSemanticInfo> findByDatasourceIdAndTableName(Integer datasourceId, String tableName);
+    List<ColumnInfo> listByDatasourceIdAndTableName(Integer datasourceId, String tableName);
 
-    ColumnSemanticInfo findByDatasourceIdAndTableNameAndColumnName(
+    List<ColumnInfo> listByDatasourceIdAndTableNameAndColumnNames(
+            Integer datasourceId, String tableName, List<String> columnNames);
+
+    ColumnInfo findByDatasourceIdAndTableNameAndColumnName(
             Integer datasourceId, String tableName, String columnName);
 
-    boolean save(ColumnSemanticInfo columnSemanticInfo);
+    boolean save(ColumnInfo columnInfo);
 
-    boolean update(ColumnSemanticInfo columnSemanticInfo);
+    boolean update(ColumnInfo columnInfo);
 
     int deleteByDatasourceId(Integer datasourceId);
 

@@ -15,15 +15,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.toolresponse;
+package io.github.malonetalk.exception;
 
-import java.util.List;
+import io.github.malonetalk.common.Result;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-public record TableRelationToolResponse(
-        String relationType,
-        String source,
-        String sourceTableName,
-        List<String> sourceColumnNames,
-        String targetTableName,
-        List<String> targetColumnNames,
-        String description) {}
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(IllegalStateException.class)
+    public Result<Void> handleIllegalStateException(IllegalStateException e) {
+        return Result.error(409, e.getMessage());
+    }
+
+    @ExceptionHandler(SemanticSchemaException.class)
+    public Result<Void> handleSemanticSchemaException(SemanticSchemaException e) {
+        return Result.error(400, e.getMessage());
+    }
+}

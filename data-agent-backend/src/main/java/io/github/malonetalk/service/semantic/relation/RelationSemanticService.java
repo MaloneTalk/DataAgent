@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.semantic.relation;
 
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -24,41 +24,45 @@ import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.dto.semantic.RelationCandidateColumnResponse;
 import io.github.malonetalk.dto.semantic.RelationCandidateTableResponse;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
-import io.github.malonetalk.entity.LogicalTableRelation;
 import java.util.List;
 
-public interface LogicalTableRelationService {
+public interface RelationSemanticService {
 
-    List<LogicalTableRelationResponse> listByDatasourceIdAndTable(
+    List<LogicalTableRelationResponse> getRelationSemantics(
             Integer datasourceId, String tableName);
 
-    PageResponse<LogicalTableRelationResponse> listByDatasourceIdAndTable(
-            Integer datasourceId, String tableName, PageRequest pageRequest);
+    PageResponse<LogicalTableRelationResponse> getRelationPage(
+            Integer datasourceId,
+            String tableName,
+            PageRequest pageRequest,
+            String keywordPrefix,
+            Boolean enabled,
+            String sortOrder);
 
-    LogicalTableRelationResponse create(
+    LogicalTableRelationResponse createRelationSemantic(
             Integer datasourceId, String tableName, BindLogicalTableRelationRequest request);
 
-    LogicalTableRelationResponse update(
+    LogicalTableRelationResponse updateRelationSemantic(
             Integer datasourceId,
             String tableName,
             Integer relationId,
             UpdateLogicalTableRelationRequest request);
 
-    boolean updateEnabled(
+    boolean updateRelationSemanticEnabled(
             Integer datasourceId, String tableName, Integer relationId, Boolean enabled);
 
-    boolean delete(Integer datasourceId, String tableName, Integer relationId);
+    boolean deleteRelationSemantic(Integer datasourceId, String tableName, Integer relationId);
 
-    int deleteBatch(Integer datasourceId, String tableName, List<Integer> relationIds);
+    int deleteRelationSemantics(Integer datasourceId, String tableName, List<Integer> relationIds);
 
-    PageResponse<RelationCandidateTableResponse> listCandidateTables(
-            Integer datasourceId, PageRequest pageRequest);
+    PageResponse<RelationCandidateTableResponse> getRelationCandidateTablePage(
+            Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder);
 
-    PageResponse<RelationCandidateColumnResponse> listCandidateColumns(
-            Integer datasourceId, String tableName, PageRequest pageRequest);
+    PageResponse<RelationCandidateColumnResponse> getRelationCandidateColumnPage(
+            Integer datasourceId,
+            String tableName,
+            PageRequest pageRequest,
+            String keywordPrefix,
+            String sortOrder);
 
-    List<LogicalTableRelation> listEnabledByDatasourceIdAndSourceTable(
-            Integer datasourceId, String tableName);
-
-    int deleteByDatasourceId(Integer datasourceId);
 }

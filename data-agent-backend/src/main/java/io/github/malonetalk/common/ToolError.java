@@ -15,15 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.semantic;
+package io.github.malonetalk.common;
 
-import java.time.LocalDateTime;
-
-public record ColumnSemanticResponse(
-        Integer id,
-        String columnName,
-        String physicalColumnDescription,
-        String columnDescription,
-        String typeName,
-        LocalDateTime updateTime,
-        Boolean primaryKey) {}
+public record ToolError(String code, String message) {}

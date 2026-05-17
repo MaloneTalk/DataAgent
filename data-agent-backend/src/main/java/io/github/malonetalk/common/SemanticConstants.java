@@ -15,6 +15,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.toolresponse;
+package io.github.malonetalk.common;
 
-public record TableSemanticPrompt(String name, String domain, String description) {}
+/**
+ * 语义层常量定义
+ */
+public final class SemanticConstants {
+
+    private SemanticConstants() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
+    /**
+     * 关系键分隔符，用于构建唯一的关系标识
+     */
+    public static final String RELATION_KEY_SEPARATOR = "|";
+
+    /**
+     * 排序顺序：升序
+     */
+    public static final String SORT_ORDER_ASC = "asc";
+
+    /**
+     * 排序顺序：降序
+     */
+    public static final String SORT_ORDER_DESC = "desc";
+}

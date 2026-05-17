@@ -15,15 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.tool;
+package io.github.malonetalk.entity;
 
-public record ToolResult<T>(boolean success, T data, ToolError error) {
-
-    public static <T> ToolResult<T> success(T data) {
-        return new ToolResult<>(true, data, null);
-    }
-
-    public static <T> ToolResult<T> error(String code, String message) {
-        return new ToolResult<>(false, null, new ToolError(code, message));
-    }
-}
+/**
+ * 关系状态，表示关系是否有效及原因
+ */
+public record RelationState(boolean effective, String invalidReason) {}

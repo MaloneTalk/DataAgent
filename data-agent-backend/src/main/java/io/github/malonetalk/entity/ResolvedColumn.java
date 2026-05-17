@@ -15,15 +15,30 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.semantic;
+package io.github.malonetalk.entity;
 
 import java.time.LocalDateTime;
 
-public record ColumnSemanticResponse(
-        Integer id,
+/**
+ * 已解析的列信息，合并了物理列和语义列的数据
+ */
+public record ResolvedColumn(
+        Integer semanticId,
+        String tableName,
         String columnName,
-        String physicalColumnDescription,
-        String columnDescription,
+        io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn,
+        ColumnInfo semanticColumn,
+        String description,
+        String physicalDescription,
         String typeName,
+        String typeText,
+        boolean primaryKey,
+        boolean nullable,
+        String defaultValue,
         LocalDateTime updateTime,
-        Boolean primaryKey) {}
+        boolean visible) {
+
+    public boolean hasPhysicalColumn() {
+        return physicalColumn != null;
+    }
+}

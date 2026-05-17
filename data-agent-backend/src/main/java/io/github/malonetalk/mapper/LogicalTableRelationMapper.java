@@ -35,11 +35,16 @@ public interface LogicalTableRelationMapper {
 
     long countByDatasourceIdAndSourceTable(
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName);
+            @Param("sourceTableName") String sourceTableName,
+            @Param("keywordPrefix") String keywordPrefix,
+            @Param("isEnabled") Boolean isEnabled);
 
     List<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
             @Param("datasourceId") Integer datasourceId,
             @Param("sourceTableName") String sourceTableName,
+            @Param("keywordPrefix") String keywordPrefix,
+            @Param("isEnabled") Boolean isEnabled,
+            @Param("sortDescending") boolean sortDescending,
             @Param("offset") long offset,
             @Param("limit") int limit);
 

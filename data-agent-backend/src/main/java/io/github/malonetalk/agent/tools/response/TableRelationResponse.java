@@ -15,6 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.tool;
+package io.github.malonetalk.agent.tools.response;
 
-public record ToolError(String code, String message) {}
+import java.util.List;
+
+public record TableRelationResponse(
+        String relationType,
+        String source,
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        String description) {}

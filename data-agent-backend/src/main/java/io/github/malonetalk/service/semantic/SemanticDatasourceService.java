@@ -15,15 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.semantic;
+package io.github.malonetalk.service.semantic;
 
-import java.time.LocalDateTime;
+import io.github.malonetalk.entity.Datasource;
 
-public record ColumnSemanticResponse(
-        Integer id,
-        String columnName,
-        String physicalColumnDescription,
-        String columnDescription,
-        String typeName,
-        LocalDateTime updateTime,
-        Boolean primaryKey) {}
+public interface SemanticDatasourceService {
+
+    Datasource findDatasourceOrNull(Integer datasourceId);
+
+    Datasource requireDatasource(Integer datasourceId);
+
+    Datasource requireSemanticDatasource(Integer datasourceId, String messagePrefix);
+
+    void ensureWriteSuccess(boolean success, String message);
+}

@@ -15,13 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.semantic;
 
-import io.github.malonetalk.agent.datasource.ColumnInfo;
 import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.entity.ColumnSemanticInfo;
+import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
+import io.github.malonetalk.service.semantic.table.TableSemanticRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,43 +31,27 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
 import org.springframework.stereotype.Component;
 
 @Component
-public class SemanticVisibilitySupport {
+public class SemanticManager {
 
-    private final TableInfoService tableInfoService;
-    private final ColumnSemanticInfoService columnSemanticInfoService;
+    private final TableSemanticRepository tableSemanticRepository;
+    private final ColumnSemanticRepository columnSemanticRepository;
     private final SchemaReader schemaReader;
 
-    public SemanticVisibilitySupport(
-            TableInfoService tableInfoService,
-            ColumnSemanticInfoService columnSemanticInfoService,
+    public SemanticManager(
+            TableSemanticRepository tableSemanticRepository,
+            ColumnSemanticRepository columnSemanticRepository,
             SchemaReader schemaReader) {
-        this.tableInfoService = tableInfoService;
-        this.columnSemanticInfoService = columnSemanticInfoService;
+        this.tableSemanticRepository = tableSemanticRepository;
+        this.columnSemanticRepository = columnSemanticRepository;
         this.schemaReader = schemaReader;
     }
 
     public VisibilityContext createVisibilityContext(Datasource datasource) {
         return new VisibilityContext(datasource);
-    }
-
-    public List<TableMergeSnapshot> mergeTables(Datasource datasource) {
-        return createVisibilityContext(datasource).mergeTables();
-    }
-
-    public TableMergeSnapshot findMergedTable(Datasource datasource, String tableName) {
-        return createVisibilityContext(datasource).findMergedTable(tableName);
-    }
-
-    public List<ColumnMergeSnapshot> mergeColumns(Datasource datasource, String tableName) {
-        return createVisibilityContext(datasource).mergeColumns(tableName);
-    }
-
-    public ColumnMergeSnapshot findMergedColumn(
-            Datasource datasource, String tableName, String columnName) {
-        return createVisibilityContext(datasource).findMergedColumn(tableName, columnName);
     }
 
     public boolean isTableVisible(TableInfo semanticTable, TableInfo physicalTable) {
@@ -77,7 +62,7 @@ public class SemanticVisibilitySupport {
         return physicalTable != null && Boolean.TRUE.equals(physicalTable.getIsVisible());
     }
 
-    public boolean isColumnVisible(ColumnSemanticInfo semanticColumn, ColumnInfo physicalColumn) {
+    public boolean isColumnVisible(ColumnInfo semanticColumn, io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn) {
         if (semanticColumn != null) {
             return Boolean.TRUE.equals(semanticColumn.getIsVisible())
                     && Boolean.TRUE.equals(semanticColumn.getIsActive());
@@ -107,7 +92,7 @@ public class SemanticVisibilitySupport {
 
     private LinkedHashMap<String, TableMergeSnapshot> buildMergedTableMap(Datasource datasource) {
         List<TableInfo> physicalTables = schemaReader.getTables(datasource);
-        List<TableInfo> semanticTables = tableInfoService.findByDatasourceId(datasource.getId());
+        List<TableInfo> semanticTables = tableSemanticRepository.listByDatasourceId(datasource.getId());
         LinkedHashMap<String, TableMergeSnapshot> mergedTables = new LinkedHashMap<>();
 
         for (TableInfo physicalTable : physicalTables) {
@@ -124,9 +109,7 @@ public class SemanticVisibilitySupport {
             }
             mergedTables.put(
                     normalizeName(semanticTable.getTableName()),
-                    new TableMergeSnapshot(
-                            existing.physicalTable(),
-                            selectPreferredSemanticTable(existing.semanticTable(), semanticTable)));
+                    new TableMergeSnapshot(existing.physicalTable(), semanticTable));
         }
 
         return mergedTables;
@@ -137,76 +120,31 @@ public class SemanticVisibilitySupport {
         if (resolvedTableName == null || resolvedTableName.isBlank()) {
             return Collections.emptyList();
         }
-        List<ColumnInfo> physicalColumns =
+        List<io.github.malonetalk.agent.datasource.ColumnInfo> physicalColumns =
                 schemaReader.getTableSchema(datasource, resolvedTableName);
-        List<ColumnSemanticInfo> semanticColumns =
-                columnSemanticInfoService.findByDatasourceIdAndTableName(
+        List<ColumnInfo> semanticColumns =
+                columnSemanticRepository.listByDatasourceIdAndTableName(
                         datasource.getId(), resolvedTableName);
         LinkedHashMap<String, ColumnMergeSnapshot> mergedColumns = new LinkedHashMap<>();
 
-        for (ColumnInfo physicalColumn : physicalColumns) {
+        for (io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn : physicalColumns) {
             mergedColumns.put(
                     normalizeName(physicalColumn.getColumnName()),
                     new ColumnMergeSnapshot(physicalColumn, null));
         }
 
-        for (ColumnSemanticInfo semanticColumn : semanticColumns) {
+        for (ColumnInfo semanticColumn : semanticColumns) {
             ColumnMergeSnapshot existing =
                     mergedColumns.get(normalizeName(semanticColumn.getColumnName()));
             if (existing == null) {
                 continue;
             }
-            ColumnSemanticInfo preferredSemanticColumn =
-                    selectPreferredSemanticColumn(existing.semanticColumn(), semanticColumn);
             mergedColumns.put(
                     normalizeName(semanticColumn.getColumnName()),
-                    new ColumnMergeSnapshot(existing.physicalColumn(), preferredSemanticColumn));
+                    new ColumnMergeSnapshot(existing.physicalColumn(), semanticColumn));
         }
 
         return List.copyOf(mergedColumns.values());
-    }
-
-    private TableInfo selectPreferredSemanticTable(TableInfo existing, TableInfo candidate) {
-        if (existing == null) {
-            return candidate;
-        }
-        LocalDateTime existingUpdateTime =
-                existing.getUpdateTime() != null
-                        ? existing.getUpdateTime()
-                        : existing.getCreateTime();
-        LocalDateTime candidateUpdateTime =
-                candidate.getUpdateTime() != null
-                        ? candidate.getUpdateTime()
-                        : candidate.getCreateTime();
-        if (candidateUpdateTime == null) {
-            return existing;
-        }
-        if (existingUpdateTime == null || candidateUpdateTime.isAfter(existingUpdateTime)) {
-            return candidate;
-        }
-        return existing;
-    }
-
-    private ColumnSemanticInfo selectPreferredSemanticColumn(
-            ColumnSemanticInfo existing, ColumnSemanticInfo candidate) {
-        if (existing == null) {
-            return candidate;
-        }
-        LocalDateTime existingUpdateTime =
-                existing.getUpdateTime() != null
-                        ? existing.getUpdateTime()
-                        : existing.getCreateTime();
-        LocalDateTime candidateUpdateTime =
-                candidate.getUpdateTime() != null
-                        ? candidate.getUpdateTime()
-                        : candidate.getCreateTime();
-        if (candidateUpdateTime == null) {
-            return existing;
-        }
-        if (existingUpdateTime == null || candidateUpdateTime.isAfter(existingUpdateTime)) {
-            return candidate;
-        }
-        return existing;
     }
 
     public final class VisibilityContext {
@@ -291,5 +229,5 @@ public class SemanticVisibilitySupport {
     public record TableMergeSnapshot(TableInfo physicalTable, TableInfo semanticTable) {}
 
     public record ColumnMergeSnapshot(
-            ColumnInfo physicalColumn, ColumnSemanticInfo semanticColumn) {}
+            io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn, ColumnInfo semanticColumn) {}
 }

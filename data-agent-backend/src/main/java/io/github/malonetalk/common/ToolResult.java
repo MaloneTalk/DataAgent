@@ -15,23 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.controller;
+package io.github.malonetalk.common;
 
-import io.github.malonetalk.common.Result;
-import io.github.malonetalk.service.SemanticSchemaService.SemanticSchemaException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+public record ToolResult<T>(boolean success, T data, ToolError error) {
 
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(IllegalStateException.class)
-    public Result<Void> handleIllegalStateException(IllegalStateException e) {
-        return Result.error(409, e.getMessage());
+    public static <T> ToolResult<T> success(T data) {
+        return new ToolResult<>(true, data, null);
     }
 
-    @ExceptionHandler(SemanticSchemaException.class)
-    public Result<Void> handleSemanticSchemaException(SemanticSchemaException e) {
-        return Result.error(400, e.getMessage());
+    public static <T> ToolResult<T> error(String code, String message) {
+        return new ToolResult<>(false, null, new ToolError(code, message));
     }
 }

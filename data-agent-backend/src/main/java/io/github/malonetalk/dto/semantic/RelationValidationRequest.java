@@ -17,13 +17,16 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
-public record ColumnSemanticResponse(
-        Integer id,
-        String columnName,
-        String physicalColumnDescription,
-        String columnDescription,
-        String typeName,
-        LocalDateTime updateTime,
-        Boolean primaryKey) {}
+/**
+ * 关系验证请求参数
+ */
+public record RelationValidationRequest(
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        boolean enabled,
+        String sourceColumnErrorMessage,
+        String targetColumnErrorMessage) {}

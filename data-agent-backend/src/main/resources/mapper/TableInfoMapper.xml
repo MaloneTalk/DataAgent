@@ -26,6 +26,16 @@
         SELECT * FROM table_info WHERE datasource_id = #{datasourceId} ORDER BY create_time DESC
     </select>
 
+    <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND table_name IN
+        <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
+            #{tableName}
+        </foreach>
+        ORDER BY update_time DESC, create_time DESC, id DESC
+    </select>
+
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
         SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}

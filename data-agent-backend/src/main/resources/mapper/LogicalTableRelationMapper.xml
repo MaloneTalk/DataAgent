@@ -31,36 +31,55 @@
     <select id="selectByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
-        ORDER BY create_time DESC, id DESC
+          AND source_table_name = #{sourceTableName}
+        ORDER BY id DESC
     </select>
 
     <select id="countByDatasourceIdAndSourceTable" resultType="long">
         SELECT COUNT(1) FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_name = #{sourceTableName}
+        <if test="keywordPrefix != null and keywordPrefix != ''">
+          AND target_table_name LIKE CONCAT(#{keywordPrefix}, '%')
+        </if>
+        <if test="isEnabled != null">
+          AND is_enabled = #{isEnabled}
+        </if>
     </select>
 
     <select id="selectPageByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
-        ORDER BY create_time DESC, id DESC
+          AND source_table_name = #{sourceTableName}
+        <if test="keywordPrefix != null and keywordPrefix != ''">
+          AND target_table_name LIKE CONCAT(#{keywordPrefix}, '%')
+        </if>
+        <if test="isEnabled != null">
+          AND is_enabled = #{isEnabled}
+        </if>
+        <choose>
+          <when test="sortDescending">
+            ORDER BY id DESC
+          </when>
+          <otherwise>
+            ORDER BY id ASC
+          </otherwise>
+        </choose>
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
     <select id="selectEnabledByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_name = #{sourceTableName}
           AND is_enabled = 1
-        ORDER BY create_time DESC, id DESC
+        ORDER BY id DESC
     </select>
 
     <select id="selectByUniqueSourceKey" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_name = #{sourceTableName}
           AND source_column_signature = #{sourceColumnSignature}
         ORDER BY update_time DESC, create_time DESC, id DESC
         LIMIT 1
@@ -101,20 +120,20 @@
             update_time = #{updateTime}
         WHERE id = #{id}
           AND datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_name = #{sourceTableName}
     </update>
 
     <delete id="deleteById">
         DELETE FROM logical_table_relation
         WHERE id = #{id}
           AND datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_name = #{sourceTableName}
     </delete>
 
     <delete id="deleteByIdsAndSourceTable">
         DELETE FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_name = #{sourceTableName}
           AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}

@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.semantic.relation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -26,8 +26,10 @@ import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
+import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
+
 @Component
-public class LogicalTableRelationSupport {
+public class LogicalTableRelationHelper {
 
     public static final String RELATION_TYPE_FOREIGN_KEY = "foreign_key";
     public static final String RELATION_SOURCE_PHYSICAL = "physical";
@@ -37,7 +39,7 @@ public class LogicalTableRelationSupport {
 
     private final ObjectMapper objectMapper;
 
-    public LogicalTableRelationSupport(ObjectMapper objectMapper) {
+    public LogicalTableRelationHelper(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
@@ -91,7 +93,7 @@ public class LogicalTableRelationSupport {
     public String buildColumnSignature(List<String> columnNames) {
         return normalizeColumnNames(columnNames, "columnNames").stream()
                 .map(columnName -> columnName.toLowerCase(Locale.ROOT))
-                .reduce((left, right) -> left + "|" + right)
+                .reduce((left, right) -> left + RELATION_KEY_SEPARATOR + right)
                 .orElse("");
     }
 

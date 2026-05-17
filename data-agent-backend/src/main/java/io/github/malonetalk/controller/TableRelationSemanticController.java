@@ -27,7 +27,7 @@ import io.github.malonetalk.dto.semantic.RelationCandidateColumnResponse;
 import io.github.malonetalk.dto.semantic.RelationCandidateTableResponse;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
-import io.github.malonetalk.service.LogicalTableRelationService;
+import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,22 +43,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/tableinfo/semantic/relations")
 public class TableRelationSemanticController {
 
-    private final LogicalTableRelationService logicalTableRelationService;
+    private final RelationSemanticService relationSemanticService;
 
     public TableRelationSemanticController(
-            LogicalTableRelationService logicalTableRelationService) {
-        this.logicalTableRelationService = logicalTableRelationService;
+            RelationSemanticService relationSemanticService) {
+        this.relationSemanticService = relationSemanticService;
     }
 
     @GetMapping("/candidate/tables")
     public Result<PageResponse<RelationCandidateTableResponse>> listCandidateTables(
             @RequestParam Integer datasourceId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
+            @RequestParam(defaultValue = "asc") String sortOrder) {
         try {
             return Result.success(
-                    logicalTableRelationService.listCandidateTables(
-                            datasourceId, PageRequest.of(page, pageSize)));
+                    relationSemanticService.getRelationCandidateTablePage(
+                            datasourceId, PageRequest.of(page, pageSize), keywordPrefix, sortOrder));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -69,11 +71,17 @@ public class TableRelationSemanticController {
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
+            @RequestParam(defaultValue = "asc") String sortOrder) {
         try {
             return Result.success(
-                    logicalTableRelationService.listCandidateColumns(
-                            datasourceId, tableName, PageRequest.of(page, pageSize)));
+                    relationSemanticService.getRelationCandidateColumnPage(
+                            datasourceId,
+                            tableName,
+                            PageRequest.of(page, pageSize),
+                            keywordPrefix,
+                            sortOrder));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -84,11 +92,19 @@ public class TableRelationSemanticController {
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
         try {
             return Result.success(
-                    logicalTableRelationService.listByDatasourceIdAndTable(
-                            datasourceId, tableName, PageRequest.of(page, pageSize)));
+                    relationSemanticService.getRelationPage(
+                            datasourceId,
+                            tableName,
+                            PageRequest.of(page, pageSize),
+                            keywordPrefix,
+                            enabled,
+                            sortOrder));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -101,7 +117,7 @@ public class TableRelationSemanticController {
             @Valid @RequestBody BindLogicalTableRelationRequest request) {
         try {
             return Result.success(
-                    logicalTableRelationService.create(datasourceId, tableName, request));
+                    relationSemanticService.createRelationSemantic(datasourceId, tableName, request));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -115,7 +131,7 @@ public class TableRelationSemanticController {
             @Valid @RequestBody UpdateLogicalTableRelationRequest request) {
         try {
             return Result.success(
-                    logicalTableRelationService.update(
+                    relationSemanticService.updateRelationSemantic(
                             datasourceId, tableName, relationId, request));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
@@ -130,7 +146,7 @@ public class TableRelationSemanticController {
             @Valid @RequestBody UpdateLogicalTableRelationEnabledRequest request) {
         try {
             return Result.success(
-                    logicalTableRelationService.updateEnabled(
+                    relationSemanticService.updateRelationSemanticEnabled(
                             datasourceId, tableName, relationId, request.enabled()));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
@@ -144,7 +160,8 @@ public class TableRelationSemanticController {
             @RequestParam Integer datasourceId) {
         try {
             return Result.success(
-                    logicalTableRelationService.delete(datasourceId, tableName, relationId));
+                    relationSemanticService.deleteRelationSemantic(
+                            datasourceId, tableName, relationId));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -156,7 +173,7 @@ public class TableRelationSemanticController {
             @Valid @RequestBody BatchDeleteLogicalTableRelationRequest request) {
         try {
             return Result.success(
-                    logicalTableRelationService.deleteBatch(
+                    relationSemanticService.deleteRelationSemantics(
                             request.datasourceId(), tableName, request.relationIds()));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());

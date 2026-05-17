@@ -65,6 +65,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.data-agent-backend/src/main/resources/application.properties
 
 # Logs
 logs

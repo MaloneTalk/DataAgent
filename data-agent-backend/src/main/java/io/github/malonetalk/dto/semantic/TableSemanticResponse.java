@@ -25,5 +25,4 @@ public record TableSemanticResponse(
         String domain,
         String physicalTableDescription,
         String tableDescription,
-        Boolean isVisible,
         LocalDateTime updateTime) {}

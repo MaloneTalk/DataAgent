@@ -45,6 +45,10 @@ public interface TableInfoMapper {
 
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
+    List<TableInfo> selectByDatasourceIdAndTableNames(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableNames") List<String> tableNames);
+
     TableInfo selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 

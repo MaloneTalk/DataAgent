@@ -18,12 +18,12 @@
 package io.github.malonetalk.dto.semantic;
 
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.dto.toolresponse.ColumnSemanticPrompt;
-import io.github.malonetalk.dto.toolresponse.TableRelationToolResponse;
+import io.github.malonetalk.agent.tools.response.ColumnResponse;
+import io.github.malonetalk.agent.tools.response.TableRelationResponse;
 
 public record TableSchemaSemanticPrompt(
         String name,
         String domain,
         String description,
-        PageResponse<ColumnSemanticPrompt> columns,
-        PageResponse<TableRelationToolResponse> relations) {}
+        PageResponse<ColumnResponse> columns,
+        PageResponse<TableRelationResponse> relations) {}

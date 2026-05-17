@@ -23,7 +23,7 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchResetTableSemanticRequest;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
-import io.github.malonetalk.service.SemanticSchemaService;
+import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,21 +37,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/tableinfo/semantic")
 public class TableSemanticController {
 
-    private final SemanticSchemaService semanticSchemaService;
+    private final TableSemanticService tableSemanticService;
 
-    public TableSemanticController(SemanticSchemaService semanticSchemaService) {
-        this.semanticSchemaService = semanticSchemaService;
+    public TableSemanticController(TableSemanticService tableSemanticService) {
+        this.tableSemanticService = tableSemanticService;
     }
 
     @GetMapping("/tables")
     public Result<PageResponse<TableSemanticResponse>> findAllTables(
             @RequestParam(required = false) Integer datasourceId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
+            @RequestParam(defaultValue = "asc") String sortOrder) {
         try {
             return Result.success(
-                    semanticSchemaService.getTablePage(
-                            datasourceId, PageRequest.of(page, pageSize)));
+                    tableSemanticService.getTablePage(
+                            datasourceId,
+                            PageRequest.of(page, pageSize),
+                            keywordPrefix,
+                            sortOrder));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -60,14 +65,14 @@ public class TableSemanticController {
     @PutMapping("/tables")
     public Result<Boolean> updateTableSemantic(
             @Valid @RequestBody TableSemanticUpdateRequest request) {
-        semanticSchemaService.updateTableSemantic(request);
+        tableSemanticService.updateTableSemantic(request);
         return Result.success(true);
     }
 
     @DeleteMapping("/tables")
     public Result<Boolean> resetTableSemantic(
             @RequestParam Integer datasourceId, @RequestParam String tableName) {
-        semanticSchemaService.resetTableSemantic(datasourceId, tableName);
+        tableSemanticService.resetTableSemantic(datasourceId, tableName);
         return Result.success(true);
     }
 
@@ -76,7 +81,7 @@ public class TableSemanticController {
             @Valid @RequestBody BatchResetTableSemanticRequest request) {
         try {
             return Result.success(
-                    semanticSchemaService.resetTableSemantics(
+                    tableSemanticService.resetTableSemantics(
                             request.datasourceId(), request.tableNames()));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());

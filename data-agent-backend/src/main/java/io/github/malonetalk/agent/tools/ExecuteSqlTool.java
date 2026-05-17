@@ -23,7 +23,7 @@ import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
-import io.github.malonetalk.dto.tool.ToolResult;
+import io.github.malonetalk.common.ToolResult;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.service.ActiveDatasourceSupport;
 import org.slf4j.Logger;

@@ -15,15 +15,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.semantic;
+package io.github.malonetalk.entity;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
-public record ColumnSemanticResponse(
-        Integer id,
-        String columnName,
-        String physicalColumnDescription,
-        String columnDescription,
-        String typeName,
-        LocalDateTime updateTime,
-        Boolean primaryKey) {}
+/**
+ * 已解析的表关系信息
+ */
+public record ResolvedRelation(
+        Integer logicalId,
+        String relationType,
+        String source,
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        String description,
+        boolean effective) {}

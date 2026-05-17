@@ -19,7 +19,7 @@ package io.github.malonetalk.entity;
 
 import java.time.LocalDateTime;
 
-public class ColumnSemanticInfo {
+public class ColumnInfo {
 
     private Integer id;
     private Integer datasourceId;
