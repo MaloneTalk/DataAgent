@@ -24,19 +24,19 @@ import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
-import io.github.malonetalk.service.semantic.SemanticResolver;
 import io.github.malonetalk.entity.ResolvedColumn;
-import io.github.malonetalk.service.semantic.SemanticService;
-import io.github.malonetalk.service.semantic.SemanticPageService;
 import io.github.malonetalk.exception.SemanticSchemaException;
-import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
 import io.github.malonetalk.service.semantic.SemanticDatasourceService;
 import io.github.malonetalk.service.semantic.SemanticManager.ColumnMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
+import io.github.malonetalk.service.semantic.SemanticPageService;
+import io.github.malonetalk.service.semantic.SemanticResolver;
+import io.github.malonetalk.service.semantic.SemanticService;
+import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
+import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -85,13 +85,16 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (datasource == null) {
             return PageResponse.empty(pageRequest);
         }
-        VisibilityContext visibilityContext = semanticSnapshotFactory.createVisibilityContext(datasource);
+        VisibilityContext visibilityContext =
+                semanticSnapshotFactory.createVisibilityContext(datasource);
         TableMergeSnapshot tableSnapshot =
                 semanticSnapshotFactory.requirePhysicalTableSnapshotOrThrow(
                         visibilityContext, tableName);
-        String canonicalTableName = semanticSnapshotFactory.resolveCanonicalTableName(tableSnapshot);
+        String canonicalTableName =
+                semanticSnapshotFactory.resolveCanonicalTableName(tableSnapshot);
 
-        List<io.github.malonetalk.agent.datasource.ColumnInfo> physicalColumns = schemaReader.getTableSchema(datasource, canonicalTableName);
+        List<io.github.malonetalk.agent.datasource.ColumnInfo> physicalColumns =
+                schemaReader.getTableSchema(datasource, canonicalTableName);
         if (physicalColumns.isEmpty()) {
             return PageResponse.empty(pageRequest);
         }
@@ -108,10 +111,13 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
 
         List<String> pageColumnNames =
-                semanticPageService
-                        .sliceItems(
-                                sortedColumns.stream().map(io.github.malonetalk.agent.datasource.ColumnInfo::getColumnName).toList(),
-                                pageRequest);
+                semanticPageService.sliceItems(
+                        sortedColumns.stream()
+                                .map(
+                                        io.github.malonetalk.agent.datasource.ColumnInfo
+                                                ::getColumnName)
+                                .toList(),
+                        pageRequest);
         if (pageColumnNames.isEmpty()) {
             return PageResponse.empty(pageRequest);
         }
@@ -141,10 +147,12 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public void updateColumnSemantic(
             Integer datasourceId, String tableName, ColumnSemanticUpdateRequest request) {
         Datasource datasource = loadUpdateDatasource(datasourceId);
-        VisibilityContext visibilityContext = semanticSnapshotFactory.createVisibilityContext(datasource);
+        VisibilityContext visibilityContext =
+                semanticSnapshotFactory.createVisibilityContext(datasource);
         String canonicalTableName = resolveCanonicalTableName(visibilityContext, tableName);
         String canonicalColumnName =
-                resolveCanonicalColumnName(visibilityContext, canonicalTableName, request.columnName());
+                resolveCanonicalColumnName(
+                        visibilityContext, canonicalTableName, request.columnName());
         ColumnInfo existingOverlay =
                 loadExistingOverlay(datasourceId, canonicalTableName, canonicalColumnName);
         if (existingOverlay != null) {
@@ -161,7 +169,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
         Datasource datasource = loadResetDatasource(datasourceId);
-        VisibilityContext visibilityContext = semanticSnapshotFactory.createVisibilityContext(datasource);
+        VisibilityContext visibilityContext =
+                semanticSnapshotFactory.createVisibilityContext(datasource);
         String canonicalTableName = resolveCanonicalTableName(visibilityContext, tableName);
         String canonicalColumnName =
                 resolveCanonicalColumnName(visibilityContext, canonicalTableName, columnName);
@@ -201,9 +210,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .filter(
                                 column ->
                                         normalizedColumnKeys.contains(
-                                                semanticService
-                                                        .normalizeIdentifierKey(
-                                                                column.getColumnName())))
+                                                semanticService.normalizeIdentifierKey(
+                                                        column.getColumnName())))
                         .map(ColumnInfo::getId)
                         .distinct()
                         .toList();
@@ -238,7 +246,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 datasourceId, "Cannot reset column semantic because datasource does not exist: ");
     }
 
-    private String resolveCanonicalTableName(VisibilityContext visibilityContext, String tableName) {
+    private String resolveCanonicalTableName(
+            VisibilityContext visibilityContext, String tableName) {
         TableMergeSnapshot tableSnapshot =
                 semanticSnapshotFactory.requirePhysicalTableSnapshotOrThrow(
                         visibilityContext, tableName);
@@ -291,9 +300,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     }
 
     private void persistUpdatedOverlay(
-            ColumnInfo existingOverlay,
-            String canonicalTableName,
-            String canonicalColumnName) {
+            ColumnInfo existingOverlay, String canonicalTableName, String canonicalColumnName) {
         semanticDatasourceService.ensureWriteSuccess(
                 columnSemanticRepository.update(existingOverlay),
                 "Failed to update column semantic metadata for column "
@@ -304,9 +311,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     }
 
     private void persistNewOverlay(
-            ColumnInfo semanticColumn,
-            String canonicalTableName,
-            String canonicalColumnName) {
+            ColumnInfo semanticColumn, String canonicalTableName, String canonicalColumnName) {
         semanticDatasourceService.ensureWriteSuccess(
                 columnSemanticRepository.save(semanticColumn),
                 "Failed to save column semantic metadata for column "
@@ -328,8 +333,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                 semanticService
                                         .normalizeIdentifierKey(semanticColumn.getColumnName())
                                         .equals(
-                                                semanticService
-                                                        .normalizeIdentifierKey(canonicalColumnName)))
+                                                semanticService.normalizeIdentifierKey(
+                                                        canonicalColumnName)))
                 .map(ColumnInfo::getId)
                 .distinct()
                 .toList();

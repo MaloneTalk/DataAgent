@@ -18,29 +18,29 @@
 package io.github.malonetalk.service.semantic.table.impl;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
+import io.github.malonetalk.agent.tools.response.ColumnResponse;
+import io.github.malonetalk.agent.tools.response.TableRelationResponse;
+import io.github.malonetalk.agent.tools.response.TableResponse;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
-import io.github.malonetalk.agent.tools.response.ColumnResponse;
-import io.github.malonetalk.agent.tools.response.TableRelationResponse;
-import io.github.malonetalk.agent.tools.response.TableResponse;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.service.ActiveDatasourceSupport;
-import io.github.malonetalk.service.semantic.SemanticContextFactory;
-import io.github.malonetalk.service.semantic.SemanticResolver;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedRelation;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.service.semantic.SemanticService;
-import io.github.malonetalk.service.semantic.SemanticPageService;
 import io.github.malonetalk.entity.SemanticContext;
+import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.SemanticSchemaException;
-import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
+import io.github.malonetalk.service.ActiveDatasourceSupport;
+import io.github.malonetalk.service.semantic.SemanticContextFactory;
 import io.github.malonetalk.service.semantic.SemanticDatasourceService;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
+import io.github.malonetalk.service.semantic.SemanticPageService;
+import io.github.malonetalk.service.semantic.SemanticResolver;
+import io.github.malonetalk.service.semantic.SemanticService;
+import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
 import io.github.malonetalk.service.semantic.table.TableSemanticRepository;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.List;
@@ -84,10 +84,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     @Override
     public PageResponse<TableSemanticResponse> getTablePage(
-            Integer datasourceId,
-            PageRequest pageRequest,
-            String keywordPrefix,
-            String sortOrder) {
+            Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder) {
         semanticPageService.validateSortOrder(sortOrder);
         Datasource datasource = getActiveDatasource();
         if (datasourceId != null) {
@@ -114,10 +111,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
 
         List<String> pageTableNames =
-                semanticPageService
-                        .sliceItems(
-                                sortedTables.stream().map(TableInfo::getTableName).toList(),
-                                pageRequest);
+                semanticPageService.sliceItems(
+                        sortedTables.stream().map(TableInfo::getTableName).toList(), pageRequest);
         if (pageTableNames.isEmpty()) {
             return PageResponse.empty(pageRequest);
         }
@@ -170,8 +165,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         Datasource datasource = loadUpdateDatasource(request.datasourceId());
         String canonicalTableName = resolveCanonicalTableName(datasource, request.tableName());
-        TableInfo existingOverlay =
-                loadExistingOverlay(request.datasourceId(), canonicalTableName);
+        TableInfo existingOverlay = loadExistingOverlay(request.datasourceId(), canonicalTableName);
         if (existingOverlay != null) {
             applyUpdate(existingOverlay, canonicalTableName, request);
             persistUpdatedOverlay(existingOverlay, canonicalTableName);
@@ -191,9 +185,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         semanticDatasourceService.ensureWriteSuccess(
                 tableSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds) > 0,
-                "Failed to reset table semantic metadata for table "
-                        + canonicalTableName
-                        + ".");
+                "Failed to reset table semantic metadata for table " + canonicalTableName + ".");
     }
 
     @Override
@@ -206,9 +198,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                         .filter(
                                 table ->
                                         normalizedTableKeys.contains(
-                                                semanticService
-                                                        .normalizeIdentifierKey(
-                                                                table.getTableName())))
+                                                semanticService.normalizeIdentifierKey(
+                                                        table.getTableName())))
                         .map(TableInfo::getId)
                         .distinct()
                         .toList();
@@ -217,7 +208,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         return tableSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
     }
-
 
     @Override
     public TableSchemaSemanticPrompt getTableSchema(
@@ -249,10 +239,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 table.domain(),
                 text(table.description()),
                 semanticPageService.paginateMapped(
-                        columns,
-                        columnPageRequest,
-                        ResolvedColumn::visible,
-                        this::mapColumnPrompt),
+                        columns, columnPageRequest, ResolvedColumn::visible, this::mapColumnPrompt),
                 semanticPageService.paginateMapped(
                         readContext.listVisibleRelations(resolvedTableName),
                         relationPageRequest,
@@ -275,10 +262,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     private TableResponse mapVisibleTablePrompt(ResolvedTable table) {
-        return new TableResponse(
-                table.canonicalName(),
-                table.domain(),
-                text(table.description()));
+        return new TableResponse(table.canonicalName(), table.domain(), text(table.description()));
     }
 
     private ColumnResponse mapColumnPrompt(ResolvedColumn column) {
@@ -324,7 +308,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     private TableInfo loadExistingOverlay(Integer datasourceId, String canonicalTableName) {
         return semanticService.findSemanticTable(
-                tableSemanticRepository.listByDatasourceId(datasourceId), datasourceId, canonicalTableName);
+                tableSemanticRepository.listByDatasourceId(datasourceId),
+                datasourceId,
+                canonicalTableName);
     }
 
     private void applyUpdate(
@@ -372,8 +358,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                 semanticService
                                         .normalizeIdentifierKey(tableInfo.getTableName())
                                         .equals(
-                                                semanticService
-                                                        .normalizeIdentifierKey(canonicalTableName)))
+                                                semanticService.normalizeIdentifierKey(
+                                                        canonicalTableName)))
                 .map(TableInfo::getId)
                 .distinct()
                 .toList();

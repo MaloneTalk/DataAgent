@@ -19,10 +19,10 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.agent.tools.response.TableResponse;
+import io.github.malonetalk.common.ToolResult;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.common.ToolResult;
-import io.github.malonetalk.agent.tools.response.TableResponse;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,8 +54,7 @@ public class GetTablesTool {
                     Integer pageSize) {
         try {
             return ToolResult.success(
-                    tableSemanticService.getVisibleTablePromptPage(
-                            PageRequest.of(page, pageSize)));
+                    tableSemanticService.getVisibleTablePromptPage(PageRequest.of(page, pageSize)));
         } catch (IllegalArgumentException e) {
             return ToolResult.error("INVALID_PAGINATION_ARGUMENT", e.getMessage());
         } catch (RuntimeException e) {

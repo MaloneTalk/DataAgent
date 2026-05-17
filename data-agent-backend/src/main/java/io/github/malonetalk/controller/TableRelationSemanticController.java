@@ -45,8 +45,7 @@ public class TableRelationSemanticController {
 
     private final RelationSemanticService relationSemanticService;
 
-    public TableRelationSemanticController(
-            RelationSemanticService relationSemanticService) {
+    public TableRelationSemanticController(RelationSemanticService relationSemanticService) {
         this.relationSemanticService = relationSemanticService;
     }
 
@@ -60,7 +59,10 @@ public class TableRelationSemanticController {
         try {
             return Result.success(
                     relationSemanticService.getRelationCandidateTablePage(
-                            datasourceId, PageRequest.of(page, pageSize), keywordPrefix, sortOrder));
+                            datasourceId,
+                            PageRequest.of(page, pageSize),
+                            keywordPrefix,
+                            sortOrder));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }
@@ -117,7 +119,8 @@ public class TableRelationSemanticController {
             @Valid @RequestBody BindLogicalTableRelationRequest request) {
         try {
             return Result.success(
-                    relationSemanticService.createRelationSemantic(datasourceId, tableName, request));
+                    relationSemanticService.createRelationSemantic(
+                            datasourceId, tableName, request));
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         }

@@ -17,12 +17,15 @@
  */
 package io.github.malonetalk.service.semantic.impl;
 
+import static io.github.malonetalk.common.SemanticConstants.SORT_ORDER_ASC;
+import static io.github.malonetalk.common.SemanticConstants.SORT_ORDER_DESC;
+
 import io.github.malonetalk.agent.datasource.ColumnInfo;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedTable;
+import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.SemanticPageService;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,9 +34,6 @@ import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import org.springframework.stereotype.Service;
-
-import static io.github.malonetalk.common.SemanticConstants.SORT_ORDER_ASC;
-import static io.github.malonetalk.common.SemanticConstants.SORT_ORDER_DESC;
 
 @Service
 public class SemanticPageServiceImpl implements SemanticPageService {
@@ -45,7 +45,12 @@ public class SemanticPageServiceImpl implements SemanticPageService {
                 && !SORT_ORDER_ASC.equalsIgnoreCase(sortOrder)
                 && !SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
             throw new IllegalArgumentException(
-                    "sortOrder must be '" + SORT_ORDER_ASC + "' or '" + SORT_ORDER_DESC + "', got: " + sortOrder);
+                    "sortOrder must be '"
+                            + SORT_ORDER_ASC
+                            + "' or '"
+                            + SORT_ORDER_DESC
+                            + "', got: "
+                            + sortOrder);
         }
     }
 

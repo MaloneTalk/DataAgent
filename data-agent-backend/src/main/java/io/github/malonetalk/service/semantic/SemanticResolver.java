@@ -17,16 +17,16 @@
  */
 package io.github.malonetalk.service.semantic;
 
+import static io.github.malonetalk.utils.SemanticStringUtils.normalizeBlankToNull;
+
 import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.entity.ResolvedColumn;
+import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.SemanticManager.ColumnMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
-import io.github.malonetalk.entity.ResolvedColumn;
-import io.github.malonetalk.entity.ResolvedTable;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
-
-import static io.github.malonetalk.utils.SemanticStringUtils.normalizeBlankToNull;
 
 @Component
 public class SemanticResolver {
@@ -54,7 +54,8 @@ public class SemanticResolver {
                         ? firstNonNull(semanticTable.getUpdateTime(), semanticTable.getCreateTime())
                         : physicalTable != null
                                 ? firstNonNull(
-                                        physicalTable.getUpdateTime(), physicalTable.getCreateTime())
+                                        physicalTable.getUpdateTime(),
+                                        physicalTable.getCreateTime())
                                 : null;
         return new ResolvedTable(
                 semanticTable != null ? semanticTable.getId() : null,

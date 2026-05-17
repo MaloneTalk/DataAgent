@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.relation;
 
+import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,8 +27,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Component;
-
-import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
 
 @Component
 public class LogicalTableRelationHelper {

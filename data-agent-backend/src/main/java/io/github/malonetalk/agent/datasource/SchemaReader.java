@@ -113,8 +113,7 @@ public class SchemaReader {
 
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
         try (Connection conn = ds.getConnection()) {
-            List<TableRelationInfo> relations =
-                    List.copyOf(getImportedRelations(conn, tableName));
+            List<TableRelationInfo> relations = List.copyOf(getImportedRelations(conn, tableName));
             putCachedValue(relationCache, cacheKey, relations);
             return relations;
         } catch (SQLException e) {

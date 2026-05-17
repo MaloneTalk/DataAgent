@@ -22,15 +22,15 @@ import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.service.ActiveDatasourceLockManager;
-import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
 import io.github.malonetalk.service.semantic.table.TableSemanticRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.context.annotation.Lazy;
 
 @Service
 public class DatasourceServiceImpl implements DatasourceService {
@@ -87,7 +87,9 @@ public class DatasourceServiceImpl implements DatasourceService {
             return false;
         }
         String targetStatus =
-                dataSource.getStatus() != null ? dataSource.getStatus() : existingDatasource.getStatus();
+                dataSource.getStatus() != null
+                        ? dataSource.getStatus()
+                        : existingDatasource.getStatus();
         guardActiveDatasourceTransition(existingDatasource.getId(), targetStatus);
         dataSource.setUpdateTime(LocalDateTime.now());
         boolean updated = dataSourceMapper.update(dataSource) > 0;
@@ -131,7 +133,10 @@ public class DatasourceServiceImpl implements DatasourceService {
         List<Integer> conflictingDatasourceIds =
                 dataSourceMapper.selectByStatus(StatusConstants.ACTIVE).stream()
                         .map(Datasource::getId)
-                        .filter(id -> currentDatasourceId == null || !currentDatasourceId.equals(id))
+                        .filter(
+                                id ->
+                                        currentDatasourceId == null
+                                                || !currentDatasourceId.equals(id))
                         .toList();
         if (!conflictingDatasourceIds.isEmpty()) {
             throw new IllegalStateException(

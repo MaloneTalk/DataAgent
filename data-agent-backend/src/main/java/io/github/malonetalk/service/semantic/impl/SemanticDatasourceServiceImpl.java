@@ -18,8 +18,8 @@
 package io.github.malonetalk.service.semantic.impl;
 
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.exception.SemanticSchemaException;
+import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticDatasourceService;
 import org.springframework.stereotype.Service;
 

@@ -61,8 +61,7 @@ public interface RelationSemanticRepository {
 
     boolean deleteById(Integer id, Integer datasourceId, String sourceTableName);
 
-    int deleteByIdsAndSourceTable(
-            Integer datasourceId, String sourceTableName, List<Integer> ids);
+    int deleteByIdsAndSourceTable(Integer datasourceId, String sourceTableName, List<Integer> ids);
 
     int deleteByIds(Integer datasourceId, List<Integer> ids);
 

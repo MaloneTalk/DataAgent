@@ -19,9 +19,9 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.common.ToolResult;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
-import io.github.malonetalk.common.ToolResult;
 import io.github.malonetalk.exception.SemanticSchemaException;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import org.slf4j.Logger;

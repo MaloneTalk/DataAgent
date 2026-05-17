@@ -18,13 +18,13 @@
 package io.github.malonetalk.service.semantic.relation.impl;
 
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
-import io.github.malonetalk.entity.LogicalTableRelation;
-import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
-import io.github.malonetalk.entity.RelationState;
 import io.github.malonetalk.dto.semantic.RelationValidationRequest;
+import io.github.malonetalk.entity.LogicalTableRelation;
+import io.github.malonetalk.entity.RelationState;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.entity.SemanticContext;
+import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticPolicyService;
 import java.util.Collections;
 import java.util.List;
@@ -129,8 +129,10 @@ public class RelationSemanticPolicyServiceImpl implements RelationSemanticPolicy
                 requireVisibleTable(readContext, normalizedTargetTableName, "target table");
         String canonicalSourceTableName = sourceTable.canonicalName();
         String canonicalTargetTableName = targetTable.canonicalName();
-        requireVisibleColumns(readContext, canonicalSourceTableName, normalizedSourceColumns, "source");
-        requireVisibleColumns(readContext, canonicalTargetTableName, normalizedTargetColumns, "target");
+        requireVisibleColumns(
+                readContext, canonicalSourceTableName, normalizedSourceColumns, "source");
+        requireVisibleColumns(
+                readContext, canonicalTargetTableName, normalizedTargetColumns, "target");
 
         return new RelationDraft(
                 canonicalSourceTableName,

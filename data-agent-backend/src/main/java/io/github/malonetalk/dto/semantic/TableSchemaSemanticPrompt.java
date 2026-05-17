@@ -17,9 +17,9 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.agent.tools.response.ColumnResponse;
 import io.github.malonetalk.agent.tools.response.TableRelationResponse;
+import io.github.malonetalk.dto.pagination.PageResponse;
 
 public record TableSchemaSemanticPrompt(
         String name,

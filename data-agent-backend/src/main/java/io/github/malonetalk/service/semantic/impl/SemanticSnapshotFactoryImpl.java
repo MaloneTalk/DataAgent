@@ -19,11 +19,11 @@ package io.github.malonetalk.service.semantic.impl;
 
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.SemanticSchemaException;
-import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
 import io.github.malonetalk.service.semantic.SemanticManager;
 import io.github.malonetalk.service.semantic.SemanticManager.ColumnMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
+import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -59,7 +59,8 @@ public class SemanticSnapshotFactoryImpl implements SemanticSnapshotFactory {
     @Override
     public ColumnMergeSnapshot requirePhysicalColumnSnapshotOrThrow(
             VisibilityContext visibilityContext, String tableName, String columnName) {
-        ColumnMergeSnapshot columnSnapshot = visibilityContext.findMergedColumn(tableName, columnName);
+        ColumnMergeSnapshot columnSnapshot =
+                visibilityContext.findMergedColumn(tableName, columnName);
         if (columnSnapshot == null || columnSnapshot.physicalColumn() == null) {
             throw new SemanticSchemaException(
                     "Column " + tableName + "." + columnName + " does not exist.");

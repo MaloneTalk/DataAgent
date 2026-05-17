@@ -19,8 +19,8 @@ package io.github.malonetalk.service.semantic.impl;
 
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.service.semantic.SemanticService;
+import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,8 +33,7 @@ public class SemanticServiceImpl implements SemanticService {
 
     private final LogicalTableRelationHelper logicalTableRelationHelper;
 
-    public SemanticServiceImpl(
-            LogicalTableRelationHelper logicalTableRelationHelper) {
+    public SemanticServiceImpl(LogicalTableRelationHelper logicalTableRelationHelper) {
         this.logicalTableRelationHelper = logicalTableRelationHelper;
     }
 
@@ -85,7 +84,8 @@ public class SemanticServiceImpl implements SemanticService {
             if (!datasourceId.equals(semanticColumn.getDatasourceId())) {
                 continue;
             }
-            if (!normalizeIdentifierKey(semanticColumn.getTableName()).equals(normalizedTableName)) {
+            if (!normalizeIdentifierKey(semanticColumn.getTableName())
+                    .equals(normalizedTableName)) {
                 continue;
             }
             if (normalizeIdentifierKey(semanticColumn.getColumnName())

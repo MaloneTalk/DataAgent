@@ -26,17 +26,17 @@ import io.github.malonetalk.dto.semantic.RelationCandidateTableResponse;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
-import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
-import io.github.malonetalk.service.semantic.SemanticContextFactory;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.service.semantic.SemanticPageService;
 import io.github.malonetalk.entity.SemanticContext;
+import io.github.malonetalk.service.semantic.SemanticContextFactory;
 import io.github.malonetalk.service.semantic.SemanticDatasourceService;
+import io.github.malonetalk.service.semantic.SemanticPageService;
+import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticPolicyService;
+import io.github.malonetalk.service.semantic.relation.RelationSemanticPolicyService.RelationDraft;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
-import io.github.malonetalk.service.semantic.relation.RelationSemanticPolicyService.RelationDraft;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -66,24 +66,6 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         this.semanticPageService = semanticPageService;
         this.relationSemanticPolicyService = relationSemanticPolicyService;
         this.semanticDatasourceService = semanticDatasourceService;
-    }
-
-    @Override
-    public List<LogicalTableRelationResponse> getRelationSemantics(
-            Integer datasourceId, String tableName) {
-        Datasource datasource = semanticDatasourceService.requireDatasource(datasourceId);
-        String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
-        List<LogicalTableRelation> relations =
-                relationSemanticRepository.listByDatasourceIdAndSourceTable(
-                        datasourceId, normalizedTableName);
-        if (relations.isEmpty()) {
-            return Collections.emptyList();
-        }
-        SemanticContext readContext = semanticContextFactory.createContext(datasource);
-        return relations.stream()
-                .map(relation -> relationSemanticPolicyService.mapResponse(readContext, relation))
-                .toList();
     }
 
     @Override
@@ -183,8 +165,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         semanticDatasourceService.requireDatasource(datasourceId);
         requireRelation(datasourceId, normalizedTableName, relationId);
-        return relationSemanticRepository.deleteById(
-                relationId, datasourceId, normalizedTableName);
+        return relationSemanticRepository.deleteById(relationId, datasourceId, normalizedTableName);
     }
 
     @Override
@@ -225,9 +206,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 ResolvedTable::visible,
                 table ->
                         new RelationCandidateTableResponse(
-                                table.canonicalName(),
-                                table.domain(),
-                                text(table.description())));
+                                table.canonicalName(), table.domain(), text(table.description())));
     }
 
     @Override

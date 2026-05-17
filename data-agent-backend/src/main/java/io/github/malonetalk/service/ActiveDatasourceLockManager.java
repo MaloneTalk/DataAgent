@@ -54,8 +54,8 @@ public class ActiveDatasourceLockManager {
                         public void afterCompletion(int status) {
                             LockHandle boundHandle =
                                     (LockHandle)
-                                            TransactionSynchronizationManager.unbindResourceIfPossible(
-                                                    LOCK_RESOURCE_KEY);
+                                            TransactionSynchronizationManager
+                                                    .unbindResourceIfPossible(LOCK_RESOURCE_KEY);
                             if (boundHandle != null) {
                                 boundHandle.releaseAndClose();
                             }

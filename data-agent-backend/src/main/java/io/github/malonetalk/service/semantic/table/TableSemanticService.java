@@ -17,21 +17,18 @@
  */
 package io.github.malonetalk.service.semantic.table;
 
+import io.github.malonetalk.agent.tools.response.TableResponse;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
-import io.github.malonetalk.agent.tools.response.TableResponse;
 import java.util.List;
 
 public interface TableSemanticService {
 
     PageResponse<TableSemanticResponse> getTablePage(
-            Integer datasourceId,
-            PageRequest pageRequest,
-            String keywordPrefix,
-            String sortOrder);
+            Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder);
 
     PageResponse<TableResponse> getVisibleTablePromptPage(PageRequest pageRequest);
 

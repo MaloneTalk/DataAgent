@@ -20,7 +20,6 @@ package io.github.malonetalk.service.semantic.column.impl;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -35,8 +34,7 @@ public class ColumnSemanticRepositoryImpl implements ColumnSemanticRepository {
     }
 
     @Override
-    public List<ColumnInfo> listByDatasourceIdAndTableName(
-            Integer datasourceId, String tableName) {
+    public List<ColumnInfo> listByDatasourceIdAndTableName(Integer datasourceId, String tableName) {
         return columnSemanticInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
     }
 

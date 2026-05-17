@@ -17,13 +17,13 @@
  */
 package io.github.malonetalk.entity;
 
+import static io.github.malonetalk.utils.SemanticStringUtils.normalizeName;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import static io.github.malonetalk.utils.SemanticStringUtils.normalizeName;
 
 public class SemanticCache {
 
@@ -40,7 +40,8 @@ public class SemanticCache {
         return tables;
     }
 
-    public ResolvedTable getOrComputeTable(String tableKey, Function<String, ResolvedTable> compute) {
+    public ResolvedTable getOrComputeTable(
+            String tableKey, Function<String, ResolvedTable> compute) {
         return tablesByKey.computeIfAbsent(tableKey, compute);
     }
 
@@ -54,9 +55,7 @@ public class SemanticCache {
     }
 
     public void putColumns(
-            String tableKey,
-            String canonicalTableName,
-            List<ResolvedColumn> columns) {
+            String tableKey, String canonicalTableName, List<ResolvedColumn> columns) {
         Map<String, ResolvedColumn> lookup = new HashMap<>();
         for (ResolvedColumn column : columns) {
             lookup.put(normalizeName(column.columnName()), column);
@@ -76,9 +75,7 @@ public class SemanticCache {
     }
 
     public void putRelations(
-            String tableKey,
-            String canonicalTableName,
-            List<ResolvedRelation> relations) {
+            String tableKey, String canonicalTableName, List<ResolvedRelation> relations) {
         relationsByTableKey.put(tableKey, relations);
         String canonicalTableKey = normalizeName(canonicalTableName);
         if (!canonicalTableKey.equals(tableKey)) {

@@ -23,7 +23,6 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
 import io.github.malonetalk.service.semantic.table.TableSemanticRepository;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,7 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
 import org.springframework.stereotype.Component;
 
 @Component
@@ -62,7 +60,9 @@ public class SemanticManager {
         return physicalTable != null && Boolean.TRUE.equals(physicalTable.getIsVisible());
     }
 
-    public boolean isColumnVisible(ColumnInfo semanticColumn, io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn) {
+    public boolean isColumnVisible(
+            ColumnInfo semanticColumn,
+            io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn) {
         if (semanticColumn != null) {
             return Boolean.TRUE.equals(semanticColumn.getIsVisible())
                     && Boolean.TRUE.equals(semanticColumn.getIsActive());
@@ -92,7 +92,8 @@ public class SemanticManager {
 
     private LinkedHashMap<String, TableMergeSnapshot> buildMergedTableMap(Datasource datasource) {
         List<TableInfo> physicalTables = schemaReader.getTables(datasource);
-        List<TableInfo> semanticTables = tableSemanticRepository.listByDatasourceId(datasource.getId());
+        List<TableInfo> semanticTables =
+                tableSemanticRepository.listByDatasourceId(datasource.getId());
         LinkedHashMap<String, TableMergeSnapshot> mergedTables = new LinkedHashMap<>();
 
         for (TableInfo physicalTable : physicalTables) {
@@ -229,5 +230,6 @@ public class SemanticManager {
     public record TableMergeSnapshot(TableInfo physicalTable, TableInfo semanticTable) {}
 
     public record ColumnMergeSnapshot(
-            io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn, ColumnInfo semanticColumn) {}
+            io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn,
+            ColumnInfo semanticColumn) {}
 }

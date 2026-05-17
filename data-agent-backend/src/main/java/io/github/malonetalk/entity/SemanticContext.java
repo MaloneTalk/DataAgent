@@ -17,13 +17,17 @@
  */
 package io.github.malonetalk.entity;
 
+import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
+import static io.github.malonetalk.utils.SemanticStringUtils.normalizeBlankToNull;
+import static io.github.malonetalk.utils.SemanticStringUtils.normalizeName;
+
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.agent.datasource.TableRelationInfo;
-import io.github.malonetalk.mapper.LogicalTableRelationMapper;
-import io.github.malonetalk.service.semantic.SemanticResolver;
 import io.github.malonetalk.dto.semantic.RelationValidationRequest;
+import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
+import io.github.malonetalk.service.semantic.SemanticResolver;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -31,10 +35,6 @@ import java.util.List;
 import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
-import static io.github.malonetalk.utils.SemanticStringUtils.normalizeBlankToNull;
-import static io.github.malonetalk.utils.SemanticStringUtils.normalizeName;
 
 public class SemanticContext {
 
@@ -65,7 +65,10 @@ public class SemanticContext {
 
     public List<ResolvedTable> listTables() {
         return cache.getOrComputeTables(
-                () -> visibilityContext.mergeTables().stream().map(this::resolveCachedTable).toList());
+                () ->
+                        visibilityContext.mergeTables().stream()
+                                .map(this::resolveCachedTable)
+                                .toList());
     }
 
     public ResolvedTable findTable(String tableName) {
@@ -92,7 +95,10 @@ public class SemanticContext {
         String canonicalTableName = table.canonicalName();
         List<ResolvedColumn> resolvedColumns =
                 visibilityContext.mergeColumns(canonicalTableName).stream()
-                        .map(snapshot -> semanticResolver.resolveColumn(canonicalTableName, snapshot))
+                        .map(
+                                snapshot ->
+                                        semanticResolver.resolveColumn(
+                                                canonicalTableName, snapshot))
                         .toList();
         cache.putColumns(tableKey, canonicalTableName, resolvedColumns);
         return resolvedColumns;
@@ -152,12 +158,14 @@ public class SemanticContext {
             return new RelationState(false, targetTableError);
         }
         String sourceColumnError =
-                validateVisibleColumns(request.sourceTableName(), request.sourceColumnNames(), "Source");
+                validateVisibleColumns(
+                        request.sourceTableName(), request.sourceColumnNames(), "Source");
         if (sourceColumnError != null) {
             return new RelationState(false, sourceColumnError);
         }
         String targetColumnError =
-                validateVisibleColumns(request.targetTableName(), request.targetColumnNames(), "Target");
+                validateVisibleColumns(
+                        request.targetTableName(), request.targetColumnNames(), "Target");
         if (targetColumnError != null) {
             return new RelationState(false, targetColumnError);
         }
@@ -208,7 +216,8 @@ public class SemanticContext {
         String canonical = table.canonicalName();
         LinkedHashMap<String, ResolvedRelation> merged = new LinkedHashMap<>();
 
-        for (TableRelationInfo physical : schemaReader.getImportedRelations(datasource, canonical)) {
+        for (TableRelationInfo physical :
+                schemaReader.getImportedRelations(datasource, canonical)) {
             ResolvedRelation resolved = resolvePhysicalRelation(physical);
             if (resolved != null) {
                 merged.put(relationKey(resolved), resolved);

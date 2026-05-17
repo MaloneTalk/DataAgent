@@ -107,18 +107,19 @@ public class DatasourceController {
     }
 
     private Datasource toDatasource(DatasourceUpdateRequest request) {
-        Datasource datasource = toDatasource(
-                new DatasourceCreateRequest(
-                        request.name(),
-                        request.type(),
-                        request.host(),
-                        request.port(),
-                        request.databaseName(),
-                        request.username(),
-                        request.password(),
-                        request.connectionUrl(),
-                        request.status(),
-                        request.description()));
+        Datasource datasource =
+                toDatasource(
+                        new DatasourceCreateRequest(
+                                request.name(),
+                                request.type(),
+                                request.host(),
+                                request.port(),
+                                request.databaseName(),
+                                request.username(),
+                                request.password(),
+                                request.connectionUrl(),
+                                request.status(),
+                                request.description()));
         datasource.setId(request.id());
         return datasource;
     }

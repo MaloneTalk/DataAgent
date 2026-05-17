@@ -28,9 +28,6 @@ import java.util.List;
 
 public interface RelationSemanticService {
 
-    List<LogicalTableRelationResponse> getRelationSemantics(
-            Integer datasourceId, String tableName);
-
     PageResponse<LogicalTableRelationResponse> getRelationPage(
             Integer datasourceId,
             String tableName,
@@ -64,5 +61,4 @@ public interface RelationSemanticService {
             PageRequest pageRequest,
             String keywordPrefix,
             String sortOrder);
-
 }
