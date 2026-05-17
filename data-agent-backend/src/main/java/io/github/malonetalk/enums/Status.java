@@ -17,15 +17,14 @@
  */
 package io.github.malonetalk.enums;
 
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
 public enum Status {
     ACTIVE("ACTIVE"),
     INACTIVE("INACTIVE");
 
     private final String code;
-
-    Status(String code) {
-        this.code = code;
-    }
 
     public String getCode() {
         return code;

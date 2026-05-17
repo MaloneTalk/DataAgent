@@ -20,30 +20,12 @@ package io.github.malonetalk.convertor;
 import io.github.malonetalk.dto.TableInfoRequest;
 import io.github.malonetalk.dto.TableInfoResponse;
 import io.github.malonetalk.entity.TableInfo;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
 
-@Component
-public class TableInfoConverter {
+@Mapper(componentModel = "spring")
+public interface TableInfoConverter {
 
-    public TableInfo toEntity(TableInfoRequest request) {
-        TableInfo tableInfo = new TableInfo();
-        tableInfo.setTableName(request.tableName());
-        tableInfo.setTableDescription(request.tableDescription());
-        tableInfo.setDomain(request.domain());
-        tableInfo.setDatasourceId(request.datasourceId());
-        tableInfo.setIsActive(request.isActive());
-        return tableInfo;
-    }
+    TableInfo toEntity(TableInfoRequest request);
 
-    public TableInfoResponse toResponse(TableInfo tableInfo) {
-        return new TableInfoResponse(
-                tableInfo.getId(),
-                tableInfo.getTableName(),
-                tableInfo.getTableDescription(),
-                tableInfo.getDomain(),
-                tableInfo.getDatasourceId(),
-                tableInfo.getIsActive(),
-                tableInfo.getCreateTime(),
-                tableInfo.getUpdateTime());
-    }
+    TableInfoResponse toResponse(TableInfo tableInfo);
 }

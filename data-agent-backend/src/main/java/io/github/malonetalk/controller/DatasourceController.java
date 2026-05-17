@@ -25,6 +25,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,17 +36,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/datasource")
 public class DatasourceController {
 
     private final DatasourceService dataSourceService;
     private final DatasourceConverter datasourceConverter;
-
-    public DatasourceController(
-            DatasourceService dataSourceService, DatasourceConverter datasourceConverter) {
-        this.dataSourceService = dataSourceService;
-        this.datasourceConverter = datasourceConverter;
-    }
 
     @GetMapping
     public Result<List<DatasourceResponse>> findAll() {

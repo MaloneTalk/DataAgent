@@ -26,14 +26,15 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.sql.DataSource;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
+@AllArgsConstructor
 public class SqlExecutor {
-
-    private static final Logger logger = LoggerFactory.getLogger(SqlExecutor.class);
 
     private static final int MAX_ROWS = 200;
     private static final int QUERY_TIMEOUT_SECONDS = 30;
@@ -48,19 +49,15 @@ public class SqlExecutor {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
-    public SqlExecutor(DynamicDataSourceManager dynamicDataSourceManager) {
-        this.dynamicDataSourceManager = dynamicDataSourceManager;
-    }
-
     public QueryResult execute(Datasource datasource, String sql) {
         validateSql(sql);
 
-        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+        DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
             return doExecute(conn, sql);
         } catch (SQLException e) {
-            logger.error("SQL execution failed: {}", e.getMessage(), e);
+            log.error("SQL execution failed: {}", e.getMessage(), e);
             throw new SqlExecutionException("SQL execution failed: " + e.getMessage(), e);
         }
     }

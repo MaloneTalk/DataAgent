@@ -20,40 +20,12 @@ package io.github.malonetalk.convertor;
 import io.github.malonetalk.dto.DatasourceRequest;
 import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
 
-@Component
-public class DatasourceConverter {
+@Mapper(componentModel = "spring")
+public interface DatasourceConverter {
 
-    public Datasource toEntity(DatasourceRequest request) {
-        Datasource datasource = new Datasource();
-        datasource.setName(request.name());
-        datasource.setType(request.type());
-        datasource.setHost(request.host());
-        datasource.setPort(request.port());
-        datasource.setDatabaseName(request.databaseName());
-        datasource.setUsername(request.username());
-        datasource.setPassword(request.password());
-        datasource.setConnectionUrl(request.connectionUrl());
-        datasource.setDescription(request.description());
-        return datasource;
-    }
+    Datasource toEntity(DatasourceRequest request);
 
-    public DatasourceResponse toResponse(Datasource datasource) {
-        return new DatasourceResponse(
-                datasource.getId(),
-                datasource.getName(),
-                datasource.getType(),
-                datasource.getHost(),
-                datasource.getPort(),
-                datasource.getDatabaseName(),
-                datasource.getUsername(),
-                datasource.getConnectionUrl(),
-                datasource.getStatus(),
-                datasource.getTestStatus(),
-                datasource.getDescription(),
-                datasource.getCreatorId(),
-                datasource.getCreateTime(),
-                datasource.getUpdateTime());
-    }
+    DatasourceResponse toResponse(Datasource datasource);
 }

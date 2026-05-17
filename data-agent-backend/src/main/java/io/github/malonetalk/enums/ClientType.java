@@ -17,15 +17,14 @@
  */
 package io.github.malonetalk.enums;
 
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
 public enum ClientType {
     ASYNC("async"),
     SYNC("sync");
 
     private final String code;
-
-    ClientType(String code) {
-        this.code = code;
-    }
 
     public String getCode() {
         return code;

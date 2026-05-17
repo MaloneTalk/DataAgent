@@ -25,22 +25,17 @@ import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.TableInfoService;
 import java.util.Collections;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
+@AllArgsConstructor
 public class GetTablesTool implements MarkAgentTool {
-
-    private static final Logger logger = LoggerFactory.getLogger(GetTablesTool.class);
 
     private final DatasourceService dataSourceService;
     private final TableInfoService tableInfoService;
-
-    public GetTablesTool(DatasourceService dataSourceService, TableInfoService tableInfoService) {
-        this.dataSourceService = dataSourceService;
-        this.tableInfoService = tableInfoService;
-    }
 
     @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
     public List<TableInfo> getTables() {
@@ -52,7 +47,7 @@ public class GetTablesTool implements MarkAgentTool {
         }
 
         if (activeDataSources.size() > 1) {
-            logger.warn(
+            log.warn(
                     "Found {} active data sources, using the first one. This may cause data"
                             + " inconsistency.",
                     activeDataSources.size());

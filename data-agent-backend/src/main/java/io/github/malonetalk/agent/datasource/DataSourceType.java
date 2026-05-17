@@ -19,7 +19,11 @@ package io.github.malonetalk.agent.datasource;
 
 import java.util.Arrays;
 import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
+@Getter
+@AllArgsConstructor
 public enum DataSourceType {
     MYSQL("mysql", "com.mysql.cj.jdbc.Driver", "jdbc:mysql://"),
     POSTGRESQL("postgresql", "org.postgresql.Driver", "jdbc:postgresql://"),
@@ -28,24 +32,6 @@ public enum DataSourceType {
     private final String code;
     private final String driverClassName;
     private final String urlPrefix;
-
-    DataSourceType(String code, String driverClassName, String urlPrefix) {
-        this.code = code;
-        this.driverClassName = driverClassName;
-        this.urlPrefix = urlPrefix;
-    }
-
-    public String getCode() {
-        return code;
-    }
-
-    public String getDriverClassName() {
-        return driverClassName;
-    }
-
-    public String getUrlPrefix() {
-        return urlPrefix;
-    }
 
     public static Optional<DataSourceType> fromCode(String code) {
         if (code == null) {

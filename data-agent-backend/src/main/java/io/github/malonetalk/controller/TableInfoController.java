@@ -24,6 +24,7 @@ import io.github.malonetalk.dto.TableInfoResponse;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.TableInfoService;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,17 +35,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/tableinfo")
 public class TableInfoController {
 
     private final TableInfoService tableInfoService;
     private final TableInfoConverter tableInfoConverter;
-
-    public TableInfoController(
-            TableInfoService tableInfoService, TableInfoConverter tableInfoConverter) {
-        this.tableInfoService = tableInfoService;
-        this.tableInfoConverter = tableInfoConverter;
-    }
 
     @GetMapping
     public Result<List<TableInfoResponse>> findAll() {

@@ -32,19 +32,17 @@ import io.github.malonetalk.enums.ChatStreamEventType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class EventConverter {
-
-    private static final Logger logger = LoggerFactory.getLogger(EventConverter.class);
 
     public static List<ChatStreamEvent> map(Event event) {
         Msg msg = event.getMessage();
         String messageId = msg.getId();
         boolean isLast = event.isLast();
 
-        logger.info(
+        log.info(
                 "Event received: type={}, isLast={}, msgId={}, contentBlocks={}, blockTypes={}",
                 event.getType(),
                 isLast,
@@ -125,7 +123,7 @@ public class EventConverter {
                                     ChatStreamEventType.TEXT, messageId, isLast, text, null, null));
                 }
             } else {
-                logger.warn("Unknown ContentBlock type: {}", block.getClass().getName());
+                log.warn("Unknown ContentBlock type: {}", block.getClass().getName());
             }
         }
 

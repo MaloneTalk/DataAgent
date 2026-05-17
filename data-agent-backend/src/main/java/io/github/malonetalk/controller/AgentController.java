@@ -22,6 +22,7 @@ import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,14 +34,11 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/agent")
 public class AgentController {
 
     private final AgentService agentService;
-
-    public AgentController(AgentService agentService) {
-        this.agentService = agentService;
-    }
 
     @PostMapping("/chat")
     public Result<String> chat(@Valid @RequestBody ChatRequest request) {

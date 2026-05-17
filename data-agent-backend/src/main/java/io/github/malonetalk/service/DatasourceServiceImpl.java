@@ -21,16 +21,14 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@AllArgsConstructor
 public class DatasourceServiceImpl implements DatasourceService {
 
     private final DatasourceMapper dataSourceMapper;
-
-    public DatasourceServiceImpl(DatasourceMapper dataSourceMapper) {
-        this.dataSourceMapper = dataSourceMapper;
-    }
 
     @Override
     public List<Datasource> findAll() {

@@ -26,20 +26,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
+@AllArgsConstructor
 public class SchemaReader {
 
-    private static final Logger logger = LoggerFactory.getLogger(SchemaReader.class);
-
     private final DynamicDataSourceManager dynamicDataSourceManager;
-
-    public SchemaReader(DynamicDataSourceManager dynamicDataSourceManager) {
-        this.dynamicDataSourceManager = dynamicDataSourceManager;
-    }
 
     public List<ColumnInfo> getTableSchema(Datasource datasource, String tableName) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
@@ -48,7 +44,7 @@ public class SchemaReader {
             Set<String> primaryKeys = getPrimaryKeys(conn, tableName);
             return getColumns(conn, tableName, primaryKeys);
         } catch (SQLException e) {
-            logger.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
+            log.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
             throw new SchemaReadException(
                     "Failed to read schema for table " + tableName + ": " + e.getMessage(), e);
         }

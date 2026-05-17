@@ -18,7 +18,9 @@
 package io.github.malonetalk.enums;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.AllArgsConstructor;
 
+@AllArgsConstructor
 public enum ChatStreamEventType {
     SUMMARY("summary"),
     TOOL_CALL("tool_call"),
@@ -27,10 +29,6 @@ public enum ChatStreamEventType {
     TEXT("text");
 
     private final String code;
-
-    ChatStreamEventType(String code) {
-        this.code = code;
-    }
 
     @JsonValue
     public String getCode() {

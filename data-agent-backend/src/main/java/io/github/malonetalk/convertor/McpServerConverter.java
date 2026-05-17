@@ -20,59 +20,32 @@ package io.github.malonetalk.convertor;
 import io.github.malonetalk.dto.McpServerRequest;
 import io.github.malonetalk.dto.McpServerResponse;
 import io.github.malonetalk.entity.McpServer;
-import io.github.malonetalk.enums.HttpVersion;
-import io.github.malonetalk.enums.RedirectPolicy;
-import java.util.List;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-@Component
-public class McpServerConverter {
+@Mapper(componentModel = "spring")
+public interface McpServerConverter {
 
-    public McpServer toEntity(McpServerRequest request) {
-        McpServer mcpServer = new McpServer();
-        mcpServer.setName(request.name());
-        mcpServer.setTransportType(request.transportType());
-        mcpServer.setClientType(request.clientType());
-        mcpServer.setCommand(request.command());
-        mcpServer.setArgs(request.args() != null ? String.join(",", request.args()) : null);
-        mcpServer.setUrl(request.url());
-        mcpServer.setTimeout(request.timeout());
-        mcpServer.setInitializationTimeout(request.initializationTimeout());
-        mcpServer.setEnableElicitation(request.enableElicitation());
-        mcpServer.setHttpVersion(
-                request.httpVersion() != null ? request.httpVersion().name() : null);
-        mcpServer.setConnectTimeout(request.connectTimeout());
-        mcpServer.setRedirectPolicy(
-                request.redirectPolicy() != null ? request.redirectPolicy().name() : null);
-        mcpServer.setDescription(request.description());
-        return mcpServer;
-    }
+    @Mapping(
+            target = "args",
+            expression = "java(request.args() != null ? String.join(\",\", request.args()) : null)")
+    @Mapping(target = "env", ignore = true)
+    @Mapping(target = "headers", ignore = true)
+    @Mapping(target = "queryParams", ignore = true)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "creatorId", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", ignore = true)
+    McpServer toEntity(McpServerRequest request);
 
-    public McpServerResponse toResponse(McpServer mcpServer) {
-        return new McpServerResponse(
-                mcpServer.getId(),
-                mcpServer.getName(),
-                mcpServer.getTransportType(),
-                mcpServer.getClientType(),
-                mcpServer.getCommand(),
-                mcpServer.getArgs() != null ? List.of(mcpServer.getArgs().split(",")) : null,
-                null,
-                mcpServer.getUrl(),
-                null,
-                null,
-                mcpServer.getTimeout(),
-                mcpServer.getInitializationTimeout(),
-                mcpServer.getEnableElicitation(),
-                mcpServer.getHttpVersion() != null
-                        ? HttpVersion.valueOf(mcpServer.getHttpVersion())
-                        : null,
-                mcpServer.getConnectTimeout(),
-                mcpServer.getRedirectPolicy() != null
-                        ? RedirectPolicy.valueOf(mcpServer.getRedirectPolicy())
-                        : null,
-                mcpServer.getStatus(),
-                mcpServer.getDescription(),
-                mcpServer.getCreateTime(),
-                mcpServer.getUpdateTime());
-    }
+    @Mapping(
+            target = "args",
+            expression =
+                    "java(mcpServer.getArgs() != null ?"
+                            + " java.util.List.of(mcpServer.getArgs().split(\",\")) : null)")
+    @Mapping(target = "env", expression = "java(null)")
+    @Mapping(target = "headers", expression = "java(null)")
+    @Mapping(target = "queryParams", expression = "java(null)")
+    McpServerResponse toResponse(McpServer mcpServer);
 }

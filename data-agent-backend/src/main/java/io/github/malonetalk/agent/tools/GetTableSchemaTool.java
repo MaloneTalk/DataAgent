@@ -26,22 +26,17 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
+@AllArgsConstructor
 public class GetTableSchemaTool implements MarkAgentTool {
-
-    private static final Logger logger = LoggerFactory.getLogger(GetTableSchemaTool.class);
 
     private final DatasourceService dataSourceService;
     private final SchemaReader schemaReader;
-
-    public GetTableSchemaTool(DatasourceService dataSourceService, SchemaReader schemaReader) {
-        this.dataSourceService = dataSourceService;
-        this.schemaReader = schemaReader;
-    }
 
     @Tool(
             name = "get_table_schema",
@@ -61,7 +56,7 @@ public class GetTableSchemaTool implements MarkAgentTool {
         }
 
         if (activeDataSources.size() > 1) {
-            logger.warn(
+            log.warn(
                     "Found {} active data sources, using the first one.", activeDataSources.size());
         }
 

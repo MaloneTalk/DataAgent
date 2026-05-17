@@ -27,22 +27,17 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
+@AllArgsConstructor
 public class ExecuteSqlTool implements MarkAgentTool {
-
-    private static final Logger logger = LoggerFactory.getLogger(ExecuteSqlTool.class);
 
     private final DatasourceService dataSourceService;
     private final SqlExecutor sqlExecutor;
-
-    public ExecuteSqlTool(DatasourceService dataSourceService, SqlExecutor sqlExecutor) {
-        this.dataSourceService = dataSourceService;
-        this.sqlExecutor = sqlExecutor;
-    }
 
     @Tool(
             name = "execute_sql",
@@ -61,7 +56,7 @@ public class ExecuteSqlTool implements MarkAgentTool {
         }
 
         if (activeDataSources.size() > 1) {
-            logger.warn(
+            log.warn(
                     "Found {} active data sources, using the first one.", activeDataSources.size());
         }
 
@@ -78,25 +73,21 @@ public class ExecuteSqlTool implements MarkAgentTool {
     }
 
     private String formatResult(QueryResult result) {
-        if (result.getRows().isEmpty()) {
+        if (result.rows().isEmpty()) {
             return "Query result is empty.";
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Query result (total ").append(result.getTotalRows()).append(" rows)");
-        if (result.isTruncated()) {
-            sb.append(", truncated to show first ").append(result.getRows().size()).append(" rows");
+        sb.append("Query result (total ").append(result.totalRows()).append(" rows)");
+        if (result.truncated()) {
+            sb.append(", truncated to show first ").append(result.rows().size()).append(" rows");
         }
         sb.append(":\n");
 
-        sb.append("Columns: ").append(result.getColumns()).append("\n");
+        sb.append("Columns: ").append(result.columns()).append("\n");
 
-        for (int i = 0; i < result.getRows().size(); i++) {
-            sb.append("Row ")
-                    .append(i + 1)
-                    .append(": ")
-                    .append(result.getRows().get(i))
-                    .append("\n");
+        for (int i = 0; i < result.rows().size(); i++) {
+            sb.append("Row ").append(i + 1).append(": ").append(result.rows().get(i)).append("\n");
         }
 
         return sb.toString();

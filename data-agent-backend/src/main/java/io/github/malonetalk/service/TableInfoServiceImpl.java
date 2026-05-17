@@ -21,16 +21,14 @@ import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@AllArgsConstructor
 public class TableInfoServiceImpl implements TableInfoService {
 
     private final TableInfoMapper tableInfoMapper;
-
-    public TableInfoServiceImpl(TableInfoMapper tableInfoMapper) {
-        this.tableInfoMapper = tableInfoMapper;
-    }
 
     @Override
     public List<TableInfo> findAll() {

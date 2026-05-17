@@ -17,16 +17,15 @@
  */
 package io.github.malonetalk.enums;
 
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
 public enum RedirectPolicy {
     FOLLOW("follow"),
     NEVER("never"),
     ERROR("error");
 
     private final String code;
-
-    RedirectPolicy(String code) {
-        this.code = code;
-    }
 
     public String getCode() {
         return code;

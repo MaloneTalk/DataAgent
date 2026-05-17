@@ -26,6 +26,7 @@ import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.McpServerService;
 import jakarta.validation.Valid;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,17 +37,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/mcp-server")
 public class McpServerController {
 
     private final McpServerService mcpServerService;
     private final McpServerConverter mcpServerConverter;
-
-    public McpServerController(
-            McpServerService mcpServerService, McpServerConverter mcpServerConverter) {
-        this.mcpServerService = mcpServerService;
-        this.mcpServerConverter = mcpServerConverter;
-    }
 
     @GetMapping
     public Result<List<McpServerResponse>> findAll() {

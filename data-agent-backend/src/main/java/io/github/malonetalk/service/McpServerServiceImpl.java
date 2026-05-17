@@ -21,16 +21,14 @@ import io.github.malonetalk.entity.McpServer;
 import io.github.malonetalk.mapper.McpServerMapper;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@AllArgsConstructor
 public class McpServerServiceImpl implements McpServerService {
 
     private final McpServerMapper mcpServerMapper;
-
-    public McpServerServiceImpl(McpServerMapper mcpServerMapper) {
-        this.mcpServerMapper = mcpServerMapper;
-    }
 
     @Override
     public List<McpServer> findAll() {

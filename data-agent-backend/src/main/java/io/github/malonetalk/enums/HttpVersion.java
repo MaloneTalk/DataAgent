@@ -17,15 +17,14 @@
  */
 package io.github.malonetalk.enums;
 
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
 public enum HttpVersion {
     HTTP_1_1("http/1.1"),
     HTTP_2("h2");
 
     private final String code;
-
-    HttpVersion(String code) {
-        this.code = code;
-    }
 
     public String getCode() {
         return code;

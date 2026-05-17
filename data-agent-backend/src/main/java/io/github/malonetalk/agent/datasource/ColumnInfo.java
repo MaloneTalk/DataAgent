@@ -17,60 +17,14 @@
  */
 package io.github.malonetalk.agent.datasource;
 
-public class ColumnInfo {
-
-    private final String columnName;
-    private final String typeName;
-    private final int columnSize;
-    private final boolean nullable;
-    private final String defaultValue;
-    private final boolean primaryKey;
-    private final String remarks;
-
-    public ColumnInfo(
-            String columnName,
-            String typeName,
-            int columnSize,
-            boolean nullable,
-            String defaultValue,
-            boolean primaryKey,
-            String remarks) {
-        this.columnName = columnName;
-        this.typeName = typeName;
-        this.columnSize = columnSize;
-        this.nullable = nullable;
-        this.defaultValue = defaultValue;
-        this.primaryKey = primaryKey;
-        this.remarks = remarks;
-    }
-
-    public String getColumnName() {
-        return columnName;
-    }
-
-    public String getTypeName() {
-        return typeName;
-    }
-
-    public int getColumnSize() {
-        return columnSize;
-    }
-
-    public boolean isNullable() {
-        return nullable;
-    }
-
-    public String getDefaultValue() {
-        return defaultValue;
-    }
-
-    public boolean isPrimaryKey() {
-        return primaryKey;
-    }
-
-    public String getRemarks() {
-        return remarks;
-    }
+public record ColumnInfo(
+        String columnName,
+        String typeName,
+        int columnSize,
+        boolean nullable,
+        String defaultValue,
+        boolean primaryKey,
+        String remarks) {
 
     @Override
     public String toString() {

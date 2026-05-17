@@ -22,10 +22,14 @@ import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.OllamaChatModel;
 import io.agentscope.core.model.OpenAIChatModel;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@NoArgsConstructor
+@AllArgsConstructor
 public class ModelFactory {
 
     @Value("${agentscope.model.provider:dashscope}")
@@ -39,15 +43,6 @@ public class ModelFactory {
 
     @Value("${agentscope.model.base-url:}")
     private String baseUrl;
-
-    public ModelFactory() {}
-
-    public ModelFactory(String provider, String apiKey, String modelName, String baseUrl) {
-        this.provider = provider;
-        this.apiKey = apiKey;
-        this.modelName = modelName;
-        this.baseUrl = baseUrl;
-    }
 
     public Model createModel() {
         return createModel(apiKey, modelName);
@@ -87,13 +82,5 @@ public class ModelFactory {
             default ->
                     throw new IllegalArgumentException("Unsupported model provider: " + provider);
         };
-    }
-
-    public String getProvider() {
-        return provider;
-    }
-
-    public String getModelName() {
-        return modelName;
     }
 }
