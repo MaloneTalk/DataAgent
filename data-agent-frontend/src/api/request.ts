@@ -19,7 +19,7 @@ import axios from 'axios';
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { ElMessage } from 'element-plus';
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   code: number;
   data: T;
   message: string;
@@ -46,7 +46,7 @@ service.interceptors.response.use(
       ElMessage.error(res.message || '请求失败');
       return Promise.reject(new Error(res.message || 'Error'));
     }
-    return res;
+    return response;
   },
   error => {
     const message = error.response?.data?.message || error.message || '网络错误';

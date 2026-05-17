@@ -16,13 +16,12 @@
  -->
 
 <script setup lang="ts">
-  import { ref } from 'vue';
-
-  const isCollapse = ref(false);
-
-  const toggleSidebar = () => {
-    isCollapse.value = !isCollapse.value;
-  };
+  // TODO: sidebar collapse feature not yet implemented
+  // import { ref } from 'vue';
+  // const isCollapse = ref(false);
+  // const toggleSidebar = () => {
+  //   isCollapse.value = !isCollapse.value;
+  // };
 </script>
 
 <template>

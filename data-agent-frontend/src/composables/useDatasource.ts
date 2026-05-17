@@ -37,7 +37,7 @@ export function useDatasource() {
     error.value = null;
     try {
       const res = await getDatasourceList();
-      list.value = res.data;
+      list.value = res.data.data;
     } catch (e) {
       error.value = e as Error;
     } finally {

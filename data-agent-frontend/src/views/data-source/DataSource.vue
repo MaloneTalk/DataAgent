@@ -100,7 +100,7 @@
       port: row.port,
       databaseName: row.databaseName,
       username: row.username,
-      password: row.password,
+      password: '',
       connectionUrl: row.connectionUrl,
       description: row.description,
     });

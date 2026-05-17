@@ -18,8 +18,10 @@
     "resolveJsonModule": true,
     // Ensure each file can be transpiled separately
     "isolatedModules": true,
-    // Don't emit compiled files (Vite handles it)
-    "noEmit": true,
+    // Enable project references for vue-tsc build mode
+    "composite": true,
+    // Only emit type declarations (Vite handles JS emit)
+    "emitDeclarationOnly": true,
     // Enable strict type checking
     "strict": true,
     // Error on unused local variables
@@ -30,5 +32,5 @@
     "noFallthroughCasesInSwitch": true
   },
   // Only compile Vite config file (Node.js environment)
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "types/*.d.ts"]
 }

@@ -10,3 +10,5 @@ pnpm-lock.yaml
 Thumbs.db
 .eslintcache
 *.log
+*.tsbuildinfo
+vite.config.d.ts

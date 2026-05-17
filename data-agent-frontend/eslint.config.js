@@ -129,7 +129,7 @@ const licenseHeaderPlugin = {
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**'],
+    ignores: ['node_modules/**', 'dist/**', 'vite.config.d.ts', '*.tsbuildinfo'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

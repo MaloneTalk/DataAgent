@@ -15,16 +15,4 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// <reference types="vite/client" />
-
-/**
- * Type declarations for Vue single-file components (.vue files)
- * Allows TypeScript to recognize .vue files and properly infer their types
- * Prevents "module not found" errors when importing Vue components in TypeScript
- */
-declare module '*.vue' {
-  import type { DefineComponent } from 'vue';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const component: DefineComponent<object, object, any>;
-  export default component;
-}
+declare module 'vite-plugin-eslint';
