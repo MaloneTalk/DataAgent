@@ -163,7 +163,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         Set<String> normalizedColumnKeys =
                 logicalTableRelationHelper.normalizeColumnNames(columnNames, "columnNames").stream()
                         .map(logicalTableRelationHelper::normalizeIdentifierKey)
-                        .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+                        .collect(
+                                java.util.stream.Collectors.toCollection(
+                                        java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 columnSemanticRepository.listByDatasourceId(datasourceId).stream()
                         .filter(
@@ -289,9 +291,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                 logicalTableRelationHelper
                                         .normalizeIdentifierKey(semanticColumn.getColumnName())
                                         .equals(
-                                                logicalTableRelationHelper
-                                                        .normalizeIdentifierKey(
-                                                                canonicalColumnName)))
+                                                logicalTableRelationHelper.normalizeIdentifierKey(
+                                                        canonicalColumnName)))
                 .map(ColumnInfo::getId)
                 .distinct()
                 .toList();

@@ -20,12 +20,10 @@ package io.github.malonetalk.service.impl.semantic;
 import static io.github.malonetalk.common.SemanticConstants.SORT_ORDER_ASC;
 import static io.github.malonetalk.common.SemanticConstants.SORT_ORDER_DESC;
 
-import io.github.malonetalk.agent.datasource.ColumnInfo;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.SemanticPageService;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -62,20 +60,6 @@ public class SemanticPageServiceImpl implements SemanticPageService {
         return value != null
                 && value.toLowerCase(Locale.ROOT)
                         .startsWith(keywordPrefix.trim().toLowerCase(Locale.ROOT));
-    }
-
-    @Override
-    public Comparator<TableInfo> buildTableComparator(String sortOrder) {
-        Comparator<TableInfo> comparator =
-                Comparator.comparing(table -> table.getTableName().toLowerCase(Locale.ROOT));
-        return isDescending(sortOrder) ? comparator.reversed() : comparator;
-    }
-
-    @Override
-    public Comparator<ColumnInfo> buildColumnComparator(String sortOrder) {
-        Comparator<ColumnInfo> comparator =
-                Comparator.comparing(column -> column.getColumnName().toLowerCase(Locale.ROOT));
-        return isDescending(sortOrder) ? comparator.reversed() : comparator;
     }
 
     @Override

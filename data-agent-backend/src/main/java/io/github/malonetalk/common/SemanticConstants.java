@@ -40,4 +40,9 @@ public final class SemanticConstants {
      * 排序顺序：降序
      */
     public static final String SORT_ORDER_DESC = "desc";
+
+    /**
+     * 每张表在 Agent prompt 中返回的最大关系数量
+     */
+    public static final int MAX_RELATIONS_PER_TABLE = 20;
 }

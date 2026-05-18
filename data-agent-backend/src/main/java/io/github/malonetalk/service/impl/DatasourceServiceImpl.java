@@ -148,7 +148,10 @@ public class DatasourceServiceImpl implements DatasourceService {
         List<Integer> conflictingDatasourceIds =
                 dataSourceMapper.selectByStatus(Status.ACTIVE.getCode()).stream()
                         .map(Datasource::getId)
-                        .filter(id -> currentDatasourceId == null || !currentDatasourceId.equals(id))
+                        .filter(
+                                id ->
+                                        currentDatasourceId == null
+                                                || !currentDatasourceId.equals(id))
                         .toList();
         if (!conflictingDatasourceIds.isEmpty()) {
             throw new IllegalStateException(

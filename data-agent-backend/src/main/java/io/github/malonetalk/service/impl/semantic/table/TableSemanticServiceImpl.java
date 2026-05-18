@@ -17,10 +17,11 @@
  */
 package io.github.malonetalk.service.impl.semantic.table;
 
-import io.github.malonetalk.agent.datasource.SchemaReader;
+import static io.github.malonetalk.common.SemanticConstants.MAX_RELATIONS_PER_TABLE;
+
 import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
-import io.github.malonetalk.agent.tools.response.TableRelationResponse;
 import io.github.malonetalk.agent.tools.response.TablePromptResponse;
+import io.github.malonetalk.agent.tools.response.TableRelationResponse;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
@@ -50,13 +51,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class TableSemanticServiceImpl implements TableSemanticService {
 
-    private static final int MAX_RELATIONS_PER_TABLE = 20;
-
     private final ActiveDatasourceSupport activeDatasourceSupport;
     private final TableSemanticRepository tableSemanticRepository;
     private final SemanticContextFactory semanticContextFactory;
     private final SemanticResolver semanticResolver;
-    private final SchemaReader schemaReader;
     private final SemanticPageService semanticPageService;
     private final SemanticService semanticService;
     private final SemanticDatasourceService semanticDatasourceService;
@@ -67,7 +65,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             TableSemanticRepository tableSemanticRepository,
             SemanticContextFactory semanticContextFactory,
             SemanticResolver semanticResolver,
-            SchemaReader schemaReader,
             SemanticPageService semanticPageService,
             SemanticService semanticService,
             SemanticDatasourceService semanticDatasourceService,
@@ -76,7 +73,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         this.tableSemanticRepository = tableSemanticRepository;
         this.semanticContextFactory = semanticContextFactory;
         this.semanticResolver = semanticResolver;
-        this.schemaReader = schemaReader;
         this.semanticPageService = semanticPageService;
         this.semanticService = semanticService;
         this.semanticDatasourceService = semanticDatasourceService;
@@ -214,11 +210,10 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 table.domain(),
                 text(table.description()),
                 semanticPageService.paginateMapped(
-                        columns, columnPageRequest, ResolvedColumn::visible, this::mapColumnPrompt));
-    }
-
-    private TableSemanticResponse mapTableResponse(TableMergeSnapshot snapshot) {
-        return mapTableResponse(semanticResolver.resolveTable(snapshot));
+                        columns,
+                        columnPageRequest,
+                        ResolvedColumn::visible,
+                        this::mapColumnPrompt));
     }
 
     private TableSemanticResponse mapTableResponse(ResolvedTable table) {
@@ -231,7 +226,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 table.updateTime());
     }
 
-    private TablePromptResponse mapVisibleTablePrompt(SemanticContext context, ResolvedTable table) {
+    private TablePromptResponse mapVisibleTablePrompt(
+            SemanticContext context, ResolvedTable table) {
         List<TableRelationResponse> allRelations =
                 context.listVisibleRelations(table.canonicalName()).stream()
                         .map(this::toRelationResponse)
@@ -240,7 +236,11 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         List<TableRelationResponse> relations =
                 truncated ? allRelations.subList(0, MAX_RELATIONS_PER_TABLE) : allRelations;
         return new TablePromptResponse(
-                table.canonicalName(), table.domain(), text(table.description()), relations, truncated);
+                table.canonicalName(),
+                table.domain(),
+                text(table.description()),
+                relations,
+                truncated);
     }
 
     private ColumnPromptResponse mapColumnPrompt(ResolvedColumn column) {

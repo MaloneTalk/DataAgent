@@ -17,12 +17,10 @@
  */
 package io.github.malonetalk.service.semantic;
 
-import io.github.malonetalk.agent.datasource.ColumnInfo;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.entity.TableInfo;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
@@ -33,10 +31,6 @@ public interface SemanticPageService {
     void validateSortOrder(String sortOrder);
 
     boolean matchesKeywordPrefix(String value, String keywordPrefix);
-
-    Comparator<TableInfo> buildTableComparator(String sortOrder);
-
-    Comparator<ColumnInfo> buildColumnComparator(String sortOrder);
 
     Comparator<ResolvedTable> buildResolvedTableComparator(String sortOrder);
 

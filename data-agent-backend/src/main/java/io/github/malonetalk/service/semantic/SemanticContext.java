@@ -33,7 +33,6 @@ import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
-import io.github.malonetalk.service.semantic.SemanticResolver;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import java.util.Collections;
 import java.util.HashMap;
