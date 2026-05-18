@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.service.semantic.table;
 
-import io.github.malonetalk.agent.tools.response.TableResponse;
+import io.github.malonetalk.agent.tools.response.TablePromptResponse;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
@@ -30,7 +30,7 @@ public interface TableSemanticService {
     PageResponse<TableSemanticResponse> getTablePage(
             Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder);
 
-    PageResponse<TableResponse> getVisibleTablePromptPage(PageRequest pageRequest);
+    PageResponse<TablePromptResponse> getVisibleTablePromptPage(PageRequest pageRequest);
 
     void updateTableSemantic(TableSemanticUpdateRequest request);
 
@@ -38,6 +38,5 @@ public interface TableSemanticService {
 
     int resetTableSemantics(Integer datasourceId, List<String> tableNames);
 
-    TableSchemaSemanticPrompt getTableSchema(
-            String tableName, PageRequest columnPageRequest, PageRequest relationPageRequest);
+    TableSchemaSemanticPrompt getTableSchema(String tableName, PageRequest columnPageRequest);
 }

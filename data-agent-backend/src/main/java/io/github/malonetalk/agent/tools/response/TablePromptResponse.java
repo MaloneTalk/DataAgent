@@ -15,14 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.agent.tools.response;
 
-import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 
-public record TableInfoRequest(
-        Integer id,
-        @NotBlank(message = "tableName 不能为空") String tableName,
-        String tableDescription,
+public record TablePromptResponse(
+        String name,
         String domain,
-        Integer datasourceId,
-        Boolean isActive) {}
+        String description,
+        List<TableRelationResponse> relations,
+        boolean relationsTruncated) {}

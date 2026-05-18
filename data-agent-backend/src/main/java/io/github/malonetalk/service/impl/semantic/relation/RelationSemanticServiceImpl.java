@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service.semantic.relation.impl;
+package io.github.malonetalk.service.impl.semantic.relation;
 
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -28,7 +28,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.entity.SemanticContext;
+import io.github.malonetalk.service.semantic.SemanticContext;
 import io.github.malonetalk.service.semantic.SemanticContextFactory;
 import io.github.malonetalk.service.semantic.SemanticDatasourceService;
 import io.github.malonetalk.service.semantic.SemanticPageService;

@@ -20,7 +20,7 @@ package io.github.malonetalk.service.semantic.relation;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.entity.SemanticContext;
+import io.github.malonetalk.service.semantic.SemanticContext;
 import java.util.List;
 
 public interface RelationSemanticPolicyService {

@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.service.semantic;
 
 import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
 import static io.github.malonetalk.utils.SemanticStringUtils.normalizeBlankToNull;
@@ -24,15 +24,23 @@ import static io.github.malonetalk.utils.SemanticStringUtils.normalizeName;
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.agent.datasource.TableRelationInfo;
 import io.github.malonetalk.dto.semantic.RelationValidationRequest;
+import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.LogicalTableRelation;
+import io.github.malonetalk.entity.RelationState;
+import io.github.malonetalk.entity.ResolvedColumn;
+import io.github.malonetalk.entity.ResolvedRelation;
+import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
 import io.github.malonetalk.service.semantic.SemanticResolver;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +55,7 @@ public class SemanticContext {
     private final LogicalTableRelationHelper logicalTableRelationHelper;
     private final SchemaReader schemaReader;
     private final SemanticCache cache = new SemanticCache();
+    private Map<String, List<LogicalTableRelation>> logicalRelationsBySourceTable;
 
     public SemanticContext(
             Datasource datasource,
@@ -224,9 +233,7 @@ public class SemanticContext {
             }
         }
 
-        List<LogicalTableRelation> logicalRelations =
-                logicalTableRelationMapper.selectEnabledByDatasourceIdAndSourceTable(
-                        datasource.getId(), canonical);
+        List<LogicalTableRelation> logicalRelations = getLogicalRelationsForTable(canonical);
         for (LogicalTableRelation entity : logicalRelations) {
             ResolvedRelation resolved = resolveLogicalRelation(entity);
             if (resolved != null) {
@@ -316,6 +323,25 @@ public class SemanticContext {
                 + normalizeName(relation.targetTableName())
                 + RELATION_KEY_SEPARATOR
                 + targetColumns;
+    }
+
+    private List<LogicalTableRelation> getLogicalRelationsForTable(String sourceTableName) {
+        if (logicalRelationsBySourceTable == null) {
+            logicalRelationsBySourceTable = new HashMap<>();
+            List<LogicalTableRelation> allRelations =
+                    logicalTableRelationMapper.selectByDatasourceId(datasource.getId());
+            for (LogicalTableRelation relation : allRelations) {
+                if (!Boolean.TRUE.equals(relation.getIsEnabled())) {
+                    continue;
+                }
+                String normalizedSource = normalizeName(relation.getSourceTableName());
+                logicalRelationsBySourceTable
+                        .computeIfAbsent(normalizedSource, k -> new java.util.ArrayList<>())
+                        .add(relation);
+            }
+        }
+        return logicalRelationsBySourceTable.getOrDefault(
+                normalizeName(sourceTableName), Collections.emptyList());
     }
 
     private ResolvedTable resolveCachedTable(TableMergeSnapshot snapshot) {

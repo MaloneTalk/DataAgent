@@ -43,10 +43,11 @@ public class GetTableSchemaTool implements MarkAgentTool {
             name = "get_table_schema",
             description =
                     "Get the structured semantic schema information of the specified table."
-                            + " Returns a success/data/error wrapper. Data includes table metadata,"
-                            + " paged visible columns, and paged visible relations, with semantic"
-                            + " descriptions taking precedence and physical metadata used as"
-                            + " fallback. This tool should be called before generating SQL.")
+                            + " Returns a success/data/error wrapper. Data includes table metadata"
+                            + " and paged visible columns, with semantic descriptions taking"
+                            + " precedence and physical metadata used as fallback. Table relations"
+                            + " are returned together with the table list by get_tables, not by"
+                            + " this tool. This tool should be called before generating SQL.")
     public ToolResult<TableSchemaSemanticPrompt> getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName,
@@ -58,22 +59,11 @@ public class GetTableSchemaTool implements MarkAgentTool {
                             name = "column_page_size",
                             description =
                                     "Optional column page size, defaults to 20 and max is 100")
-                    Integer columnPageSize,
-            @ToolParam(
-                            name = "relation_page",
-                            description = "Optional relation page number, defaults to 1")
-                    Integer relationPage,
-            @ToolParam(
-                            name = "relation_page_size",
-                            description =
-                                    "Optional relation page size, defaults to 20 and max is 100")
-                    Integer relationPageSize) {
+                    Integer columnPageSize) {
         try {
             return ToolResult.success(
                     tableSemanticService.getTableSchema(
-                            tableName,
-                            PageRequest.of(columnPage, columnPageSize),
-                            PageRequest.of(relationPage, relationPageSize)));
+                            tableName, PageRequest.of(columnPage, columnPageSize)));
         } catch (IllegalArgumentException e) {
             return ToolResult.error("INVALID_PAGINATION_ARGUMENT", e.getMessage());
         } catch (SemanticSchemaException e) {

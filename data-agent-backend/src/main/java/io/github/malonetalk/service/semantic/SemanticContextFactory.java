@@ -19,7 +19,6 @@ package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.SemanticContext;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import org.springframework.stereotype.Component;

@@ -19,7 +19,7 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.agent.tools.response.TableResponse;
+import io.github.malonetalk.agent.tools.response.TablePromptResponse;
 import io.github.malonetalk.common.ToolResult;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -43,9 +43,12 @@ public class GetTablesTool implements MarkAgentTool {
             name = "get_tables",
             description =
                     "Get visible tables as structured data. Returns a success/data/error wrapper,"
-                            + " and data contains paged table items with name, domain,"
-                            + " description, total count, and page metadata.")
-    public ToolResult<PageResponse<TableResponse>> getTables(
+                            + " and data contains paged table items with name, domain, description,"
+                            + " and the table's relations to other tables (relationType, source,"
+                            + " sourceTableName, sourceColumnNames, targetTableName,"
+                            + " targetColumnNames, description). Use this tool to discover both the"
+                            + " available tables and how they join to each other.")
+    public ToolResult<PageResponse<TablePromptResponse>> getTables(
             @ToolParam(name = "page", description = "Optional page number, defaults to 1")
                     Integer page,
             @ToolParam(

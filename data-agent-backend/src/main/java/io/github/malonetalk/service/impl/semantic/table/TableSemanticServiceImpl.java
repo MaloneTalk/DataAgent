@@ -15,12 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service.semantic.table.impl;
+package io.github.malonetalk.service.impl.semantic.table;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.agent.tools.response.ColumnResponse;
+import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.agent.tools.response.TableRelationResponse;
-import io.github.malonetalk.agent.tools.response.TableResponse;
+import io.github.malonetalk.agent.tools.response.TablePromptResponse;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
@@ -30,10 +30,10 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedRelation;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.entity.SemanticContext;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.SemanticSchemaException;
 import io.github.malonetalk.service.ActiveDatasourceSupport;
+import io.github.malonetalk.service.semantic.SemanticContext;
 import io.github.malonetalk.service.semantic.SemanticContextFactory;
 import io.github.malonetalk.service.semantic.SemanticDatasourceService;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
@@ -44,12 +44,13 @@ import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
 import io.github.malonetalk.service.semantic.table.TableSemanticRepository;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TableSemanticServiceImpl implements TableSemanticService {
+
+    private static final int MAX_RELATIONS_PER_TABLE = 20;
 
     private final ActiveDatasourceSupport activeDatasourceSupport;
     private final TableSemanticRepository tableSemanticRepository;
@@ -94,58 +95,32 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return PageResponse.empty(pageRequest);
         }
 
-        List<TableInfo> physicalTables = schemaReader.getTables(datasource);
-        if (physicalTables.isEmpty()) {
-            return PageResponse.empty(pageRequest);
-        }
-        List<TableInfo> sortedTables =
-                physicalTables.stream()
+        SemanticContext context = semanticContextFactory.createContext(datasource);
+        List<ResolvedTable> sortedTables =
+                context.listTables().stream()
                         .filter(
                                 table ->
                                         semanticPageService.matchesKeywordPrefix(
-                                                table.getTableName(), keywordPrefix))
-                        .sorted(semanticPageService.buildTableComparator(sortOrder))
+                                                table.canonicalName(), keywordPrefix))
+                        .sorted(semanticPageService.buildResolvedTableComparator(sortOrder))
                         .toList();
         if (sortedTables.isEmpty()) {
             return PageResponse.empty(pageRequest);
         }
 
-        List<String> pageTableNames =
-                semanticPageService.sliceItems(
-                        sortedTables.stream().map(TableInfo::getTableName).toList(), pageRequest);
-        if (pageTableNames.isEmpty()) {
-            return PageResponse.empty(pageRequest);
-        }
-
-        Map<String, TableInfo> pageSemanticTablesByName =
-                semanticService.toSemanticTableMap(
-                        tableSemanticRepository.listByDatasourceIdAndTableNames(
-                                datasource.getId(), pageTableNames));
-        List<TableSemanticResponse> pageItems =
-                sortedTables.stream()
-                        .filter(table -> pageTableNames.contains(table.getTableName()))
-                        .map(
-                                physicalTable ->
-                                        mapTableResponse(
-                                                new TableMergeSnapshot(
-                                                        physicalTable,
-                                                        pageSemanticTablesByName.get(
-                                                                semanticService
-                                                                        .normalizeIdentifierKey(
-                                                                                physicalTable
-                                                                                        .getTableName())))))
-                        .toList();
-        return PageResponse.of(pageItems, sortedTables.size(), pageRequest);
+        return semanticPageService.paginateMapped(
+                sortedTables, pageRequest, ResolvedTable::hasPhysicalTable, this::mapTableResponse);
     }
 
     @Override
-    public PageResponse<TableResponse> getVisibleTablePromptPage(PageRequest pageRequest) {
+    public PageResponse<TablePromptResponse> getVisibleTablePromptPage(PageRequest pageRequest) {
         Datasource datasource = getActiveDatasource();
         if (datasource == null) {
             return PageResponse.empty(pageRequest);
         }
+        SemanticContext context = semanticContextFactory.createContext(datasource);
         List<ResolvedTable> visibleTables =
-                semanticContextFactory.createContext(datasource).listTables().stream()
+                context.listTables().stream()
                         .filter(ResolvedTable::visible)
                         .sorted(semanticPageService.buildResolvedTableComparator("asc"))
                         .toList();
@@ -156,8 +131,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (pageTables.isEmpty()) {
             return PageResponse.empty(pageRequest);
         }
-        List<TableResponse> pageItems =
-                pageTables.stream().map(this::mapVisibleTablePrompt).toList();
+        List<TablePromptResponse> pageItems =
+                pageTables.stream().map(table -> mapVisibleTablePrompt(context, table)).toList();
         return PageResponse.of(pageItems, visibleTables.size(), pageRequest);
     }
 
@@ -211,7 +186,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     @Override
     public TableSchemaSemanticPrompt getTableSchema(
-            String tableName, PageRequest columnPageRequest, PageRequest relationPageRequest) {
+            String tableName, PageRequest columnPageRequest) {
         Datasource datasource = getActiveDatasource();
         if (datasource == null) {
             throw new SemanticSchemaException(
@@ -239,12 +214,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 table.domain(),
                 text(table.description()),
                 semanticPageService.paginateMapped(
-                        columns, columnPageRequest, ResolvedColumn::visible, this::mapColumnPrompt),
-                semanticPageService.paginateMapped(
-                        readContext.listVisibleRelations(resolvedTableName),
-                        relationPageRequest,
-                        relation -> true,
-                        this::toRelationResponse));
+                        columns, columnPageRequest, ResolvedColumn::visible, this::mapColumnPrompt));
     }
 
     private TableSemanticResponse mapTableResponse(TableMergeSnapshot snapshot) {
@@ -261,12 +231,20 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 table.updateTime());
     }
 
-    private TableResponse mapVisibleTablePrompt(ResolvedTable table) {
-        return new TableResponse(table.canonicalName(), table.domain(), text(table.description()));
+    private TablePromptResponse mapVisibleTablePrompt(SemanticContext context, ResolvedTable table) {
+        List<TableRelationResponse> allRelations =
+                context.listVisibleRelations(table.canonicalName()).stream()
+                        .map(this::toRelationResponse)
+                        .toList();
+        boolean truncated = allRelations.size() > MAX_RELATIONS_PER_TABLE;
+        List<TableRelationResponse> relations =
+                truncated ? allRelations.subList(0, MAX_RELATIONS_PER_TABLE) : allRelations;
+        return new TablePromptResponse(
+                table.canonicalName(), table.domain(), text(table.description()), relations, truncated);
     }
 
-    private ColumnResponse mapColumnPrompt(ResolvedColumn column) {
-        return new ColumnResponse(
+    private ColumnPromptResponse mapColumnPrompt(ResolvedColumn column) {
+        return new ColumnPromptResponse(
                 column.columnName(),
                 column.typeText(),
                 column.primaryKey(),

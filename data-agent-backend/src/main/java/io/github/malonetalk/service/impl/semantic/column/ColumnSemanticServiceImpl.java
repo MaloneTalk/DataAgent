@@ -15,9 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service.semantic.column.impl;
+package io.github.malonetalk.service.impl.semantic.column;
 
-import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
@@ -26,19 +25,17 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.exception.SemanticSchemaException;
+import io.github.malonetalk.service.semantic.SemanticContext;
+import io.github.malonetalk.service.semantic.SemanticContextFactory;
 import io.github.malonetalk.service.semantic.SemanticDatasourceService;
-import io.github.malonetalk.service.semantic.SemanticManager.ColumnMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
 import io.github.malonetalk.service.semantic.SemanticPageService;
-import io.github.malonetalk.service.semantic.SemanticResolver;
-import io.github.malonetalk.service.semantic.SemanticService;
 import io.github.malonetalk.service.semantic.SemanticSnapshotFactory;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticRepository;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 
@@ -47,28 +44,22 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final ColumnSemanticRepository columnSemanticRepository;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
-    private final SemanticResolver semanticResolver;
-    private final SchemaReader schemaReader;
+    private final SemanticContextFactory semanticContextFactory;
     private final SemanticPageService semanticPageService;
-    private final SemanticService semanticService;
     private final SemanticDatasourceService semanticDatasourceService;
     private final SemanticSnapshotFactory semanticSnapshotFactory;
 
     public ColumnSemanticServiceImpl(
             ColumnSemanticRepository columnSemanticRepository,
             LogicalTableRelationHelper logicalTableRelationHelper,
-            SemanticResolver semanticResolver,
-            SchemaReader schemaReader,
+            SemanticContextFactory semanticContextFactory,
             SemanticPageService semanticPageService,
-            SemanticService semanticService,
             SemanticDatasourceService semanticDatasourceService,
             SemanticSnapshotFactory semanticSnapshotFactory) {
         this.columnSemanticRepository = columnSemanticRepository;
         this.logicalTableRelationHelper = logicalTableRelationHelper;
-        this.semanticResolver = semanticResolver;
-        this.schemaReader = schemaReader;
+        this.semanticContextFactory = semanticContextFactory;
         this.semanticPageService = semanticPageService;
-        this.semanticService = semanticService;
         this.semanticDatasourceService = semanticDatasourceService;
         this.semanticSnapshotFactory = semanticSnapshotFactory;
     }
@@ -93,54 +84,24 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String canonicalTableName =
                 semanticSnapshotFactory.resolveCanonicalTableName(tableSnapshot);
 
-        List<io.github.malonetalk.agent.datasource.ColumnInfo> physicalColumns =
-                schemaReader.getTableSchema(datasource, canonicalTableName);
-        if (physicalColumns.isEmpty()) {
-            return PageResponse.empty(pageRequest);
-        }
-        List<io.github.malonetalk.agent.datasource.ColumnInfo> sortedColumns =
-                physicalColumns.stream()
+        SemanticContext context = semanticContextFactory.createContext(datasource);
+        List<ResolvedColumn> sortedColumns =
+                context.listColumns(canonicalTableName).stream()
                         .filter(
                                 column ->
                                         semanticPageService.matchesKeywordPrefix(
-                                                column.getColumnName(), keywordPrefix))
-                        .sorted(semanticPageService.buildColumnComparator(sortOrder))
+                                                column.columnName(), keywordPrefix))
+                        .sorted(semanticPageService.buildResolvedColumnComparator(sortOrder))
                         .toList();
         if (sortedColumns.isEmpty()) {
             return PageResponse.empty(pageRequest);
         }
 
-        List<String> pageColumnNames =
-                semanticPageService.sliceItems(
-                        sortedColumns.stream()
-                                .map(
-                                        io.github.malonetalk.agent.datasource.ColumnInfo
-                                                ::getColumnName)
-                                .toList(),
-                        pageRequest);
-        if (pageColumnNames.isEmpty()) {
-            return PageResponse.empty(pageRequest);
-        }
-
-        Map<String, ColumnInfo> semanticColumnsByName =
-                semanticService.toSemanticColumnMap(
-                        columnSemanticRepository.listByDatasourceIdAndTableNameAndColumnNames(
-                                datasource.getId(), canonicalTableName, pageColumnNames));
-        List<ColumnSemanticResponse> pageItems =
-                sortedColumns.stream()
-                        .filter(column -> pageColumnNames.contains(column.getColumnName()))
-                        .map(
-                                physicalColumn ->
-                                        mapColumnResponse(
-                                                new ColumnMergeSnapshot(
-                                                        physicalColumn,
-                                                        semanticColumnsByName.get(
-                                                                semanticService
-                                                                        .normalizeIdentifierKey(
-                                                                                physicalColumn
-                                                                                        .getColumnName())))))
-                        .toList();
-        return PageResponse.of(pageItems, sortedColumns.size(), pageRequest);
+        return semanticPageService.paginateMapped(
+                sortedColumns,
+                pageRequest,
+                ResolvedColumn::hasPhysicalColumn,
+                this::mapColumnResponse);
     }
 
     @Override
@@ -200,7 +161,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String normalizedTableName =
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         Set<String> normalizedColumnKeys =
-                semanticService.normalizeIdentifierKeys(columnNames, "columnNames");
+                logicalTableRelationHelper.normalizeColumnNames(columnNames, "columnNames").stream()
+                        .map(logicalTableRelationHelper::normalizeIdentifierKey)
+                        .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 columnSemanticRepository.listByDatasourceId(datasourceId).stream()
                         .filter(
@@ -210,7 +173,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .filter(
                                 column ->
                                         normalizedColumnKeys.contains(
-                                                semanticService.normalizeIdentifierKey(
+                                                logicalTableRelationHelper.normalizeIdentifierKey(
                                                         column.getColumnName())))
                         .map(ColumnInfo::getId)
                         .distinct()
@@ -219,10 +182,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             return 0;
         }
         return columnSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
-    }
-
-    private ColumnSemanticResponse mapColumnResponse(ColumnMergeSnapshot snapshot) {
-        return mapColumnResponse(semanticResolver.resolveColumn(null, snapshot));
     }
 
     private ColumnSemanticResponse mapColumnResponse(ResolvedColumn column) {
@@ -256,7 +215,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private String resolveCanonicalColumnName(
             VisibilityContext visibilityContext, String canonicalTableName, String columnName) {
-        ColumnMergeSnapshot columnSnapshot =
+        var columnSnapshot =
                 semanticSnapshotFactory.requirePhysicalColumnSnapshotOrThrow(
                         visibilityContext, canonicalTableName, columnName);
         return columnSnapshot.physicalColumn().getColumnName();
@@ -264,11 +223,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private ColumnInfo loadExistingOverlay(
             Integer datasourceId, String canonicalTableName, String canonicalColumnName) {
-        return semanticService.findSemanticColumn(
-                columnSemanticRepository.listByDatasourceId(datasourceId),
-                datasourceId,
-                canonicalTableName,
-                canonicalColumnName);
+        return columnSemanticRepository.findByDatasourceIdAndTableNameAndColumnName(
+                datasourceId, canonicalTableName, canonicalColumnName);
     }
 
     private void applyUpdate(
@@ -330,11 +286,12 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                         semanticColumn.getTableName(), canonicalTableName))
                 .filter(
                         semanticColumn ->
-                                semanticService
+                                logicalTableRelationHelper
                                         .normalizeIdentifierKey(semanticColumn.getColumnName())
                                         .equals(
-                                                semanticService.normalizeIdentifierKey(
-                                                        canonicalColumnName)))
+                                                logicalTableRelationHelper
+                                                        .normalizeIdentifierKey(
+                                                                canonicalColumnName)))
                 .map(ColumnInfo::getId)
                 .distinct()
                 .toList();

@@ -15,10 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.service.semantic;
 
 import static io.github.malonetalk.utils.SemanticStringUtils.normalizeName;
 
+import io.github.malonetalk.entity.ResolvedColumn;
+import io.github.malonetalk.entity.ResolvedRelation;
+import io.github.malonetalk.entity.ResolvedTable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

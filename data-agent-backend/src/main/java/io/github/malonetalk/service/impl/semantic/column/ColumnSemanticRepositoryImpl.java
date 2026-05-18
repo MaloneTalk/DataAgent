@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service.semantic.column.impl;
+package io.github.malonetalk.service.impl.semantic.column;
 
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;

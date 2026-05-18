@@ -15,16 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.agent.tools.response;
 
-import java.time.LocalDateTime;
-
-public record TableInfoResponse(
-        Integer id,
-        String tableName,
-        String tableDescription,
-        String domain,
-        Integer datasourceId,
-        Boolean isActive,
-        LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+public record ColumnPromptResponse(
+        String name,
+        String type,
+        Boolean primaryKey,
+        Boolean nullable,
+        String defaultValue,
+        String description) {}
