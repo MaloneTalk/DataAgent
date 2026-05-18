@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.McpServerMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.McpServer">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="transport_type" property="transportType"/>
+        <result column="client_type" property="clientType"/>
+        <result column="command" property="command"/>
+        <result column="args" property="args"/>
+        <result column="env" property="env"/>
+        <result column="url" property="url"/>
+        <result column="headers" property="headers"/>
+        <result column="query_params" property="queryParams"/>
+        <result column="timeout" property="timeout"/>
+        <result column="initialization_timeout" property="initializationTimeout"/>
+        <result column="enable_elicitation" property="enableElicitation"/>
+        <result column="http_version" property="httpVersion"/>
+        <result column="connect_timeout" property="connectTimeout"/>
+        <result column="redirect_policy" property="redirectPolicy"/>
+        <result column="status" property="status"/>
+        <result column="description" property="description"/>
+        <result column="creator_id" property="creatorId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM mcp_server ORDER BY create_time DESC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM mcp_server WHERE id = #{id}
+    </select>
+
+    <select id="selectByName" resultMap="BaseResultMap">
+        SELECT * FROM mcp_server WHERE name = #{name}
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM mcp_server WHERE status = #{status} ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.McpServer" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO mcp_server (
+            name, transport_type, client_type, command, args, env,
+            url, headers, query_params,
+            timeout, initialization_timeout,
+            enable_elicitation, http_version, connect_timeout, redirect_policy,
+            status, description, creator_id, create_time, update_time
+        ) VALUES (
+            #{name}, #{transportType}, #{clientType}, #{command}, #{args}, #{env},
+            #{url}, #{headers}, #{queryParams},
+            #{timeout}, #{initializationTimeout},
+            #{enableElicitation}, #{httpVersion}, #{connectTimeout}, #{redirectPolicy},
+            #{status}, #{description}, #{creatorId}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update" parameterType="io.github.malonetalk.entity.McpServer">
+        UPDATE mcp_server
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="transportType != null">transport_type = #{transportType},</if>
+            <if test="clientType != null">client_type = #{clientType},</if>
+            <if test="command != null">command = #{command},</if>
+            <if test="args != null">args = #{args},</if>
+            <if test="env != null">env = #{env},</if>
+            <if test="url != null">url = #{url},</if>
+            <if test="headers != null">headers = #{headers},</if>
+            <if test="queryParams != null">query_params = #{queryParams},</if>
+            <if test="timeout != null">timeout = #{timeout},</if>
+            <if test="initializationTimeout != null">initialization_timeout = #{initializationTimeout},</if>
+            <if test="enableElicitation != null">enable_elicitation = #{enableElicitation},</if>
+            <if test="httpVersion != null">http_version = #{httpVersion},</if>
+            <if test="connectTimeout != null">connect_timeout = #{connectTimeout},</if>
+            <if test="redirectPolicy != null">redirect_policy = #{redirectPolicy},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM mcp_server WHERE id = #{id}
+    </delete>
+
+</mapper>

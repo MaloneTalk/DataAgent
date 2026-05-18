@@ -18,12 +18,15 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.datasource.DatasourceCreateRequest;
-import io.github.malonetalk.dto.datasource.DatasourceUpdateRequest;
+import io.github.malonetalk.convertor.DatasourceConverter;
+import io.github.malonetalk.dto.DatasourceRequest;
+import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import jakarta.validation.Valid;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,42 +37,57 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/datasource")
 public class DatasourceController {
 
     private final DatasourceService dataSourceService;
-
-    public DatasourceController(DatasourceService dataSourceService) {
-        this.dataSourceService = dataSourceService;
-    }
+    private final DatasourceConverter datasourceConverter;
 
     @GetMapping
-    public Result<List<Datasource>> findAll() {
-        List<Datasource> list = dataSourceService.findAll();
+    public Result<List<DatasourceResponse>> findAll() {
+        List<DatasourceResponse> list =
+                dataSourceService.findAll().stream().map(datasourceConverter::toResponse).toList();
         return Result.success(list);
     }
 
     @GetMapping("/{id}")
-    public Result<Datasource> findById(@PathVariable Integer id) {
+    public Result<DatasourceResponse> findById(@PathVariable Integer id) {
         Datasource dataSource = dataSourceService.findById(id);
         if (dataSource != null) {
-            return Result.success(dataSource);
+            return Result.success(datasourceConverter.toResponse(dataSource));
         } else {
             return Result.error(404, "DataSource not found");
         }
     }
 
     @PostMapping
-    public Result<Boolean> save(@Valid @RequestBody DatasourceCreateRequest request) {
-        Datasource dataSource = toDatasource(request);
-        boolean success = dataSourceService.save(dataSource);
-        return success ? Result.success(true) : Result.error("Failed to save");
+    public Result<Boolean> save(@Valid @RequestBody DatasourceRequest request) {
+        Datasource datasource = datasourceConverter.toEntity(request);
+        datasource.setStatus(Status.INACTIVE.getCode());
+        boolean success = dataSourceService.save(datasource);
+        return success ? Result.success() : Result.error("Failed to save");
     }
 
-    @PutMapping
-    public Result<Boolean> update(@Valid @RequestBody DatasourceUpdateRequest request) {
-        Datasource dataSource = toDatasource(request);
-        boolean success = dataSourceService.update(dataSource);
+    @PutMapping("/{id}")
+    public Result<Boolean> update(
+            @PathVariable Integer id, @Valid @RequestBody DatasourceRequest request) {
+        Datasource datasource = dataSourceService.findById(id);
+        if (datasource == null) {
+            return Result.error(404, "DataSource not found");
+        }
+        datasource.setName(request.name());
+        datasource.setType(request.type());
+        datasource.setHost(request.host());
+        datasource.setPort(request.port());
+        datasource.setDatabaseName(request.databaseName());
+        datasource.setUsername(request.username());
+        if (request.password() != null && !request.password().isEmpty()) {
+            datasource.setPassword(request.password());
+        }
+        datasource.setConnectionUrl(request.connectionUrl());
+        datasource.setDescription(request.description());
+        boolean success = dataSourceService.update(datasource);
         return success ? Result.success(true) : Result.error("Failed to update");
     }
 
@@ -80,47 +98,40 @@ public class DatasourceController {
     }
 
     @GetMapping("/status/{status}")
-    public Result<List<Datasource>> findByStatus(@PathVariable String status) {
-        List<Datasource> list = dataSourceService.findByStatus(status);
+    public Result<List<DatasourceResponse>> findByStatus(@PathVariable String status) {
+        List<DatasourceResponse> list =
+                dataSourceService.findByStatus(status).stream()
+                        .map(datasourceConverter::toResponse)
+                        .toList();
         return Result.success(list);
     }
 
     @GetMapping("/type/{type}")
-    public Result<List<Datasource>> findByType(@PathVariable String type) {
-        List<Datasource> list = dataSourceService.findByType(type);
+    public Result<List<DatasourceResponse>> findByType(@PathVariable String type) {
+        List<DatasourceResponse> list =
+                dataSourceService.findByType(type).stream()
+                        .map(datasourceConverter::toResponse)
+                        .toList();
         return Result.success(list);
     }
 
-    private Datasource toDatasource(DatasourceCreateRequest request) {
-        Datasource datasource = new Datasource();
-        datasource.setName(request.name());
-        datasource.setType(request.type());
-        datasource.setHost(request.host());
-        datasource.setPort(request.port());
-        datasource.setDatabaseName(request.databaseName());
-        datasource.setUsername(request.username());
-        datasource.setPassword(request.password());
-        datasource.setConnectionUrl(request.connectionUrl());
-        datasource.setStatus(request.status());
-        datasource.setDescription(request.description());
-        return datasource;
+    @PutMapping("/{id}/activate")
+    public Result<Boolean> activate(@PathVariable Integer id) {
+        Datasource datasource = dataSourceService.findById(id);
+        if (datasource == null) {
+            return Result.error(404, "DataSource not found");
+        }
+        boolean success = dataSourceService.updateStatus(id, Status.ACTIVE.getCode());
+        return success ? Result.success(true) : Result.error("激活失败");
     }
 
-    private Datasource toDatasource(DatasourceUpdateRequest request) {
-        Datasource datasource =
-                toDatasource(
-                        new DatasourceCreateRequest(
-                                request.name(),
-                                request.type(),
-                                request.host(),
-                                request.port(),
-                                request.databaseName(),
-                                request.username(),
-                                request.password(),
-                                request.connectionUrl(),
-                                request.status(),
-                                request.description()));
-        datasource.setId(request.id());
-        return datasource;
+    @PutMapping("/{id}/deactivate")
+    public Result<Boolean> deactivate(@PathVariable Integer id) {
+        Datasource datasource = dataSourceService.findById(id);
+        if (datasource == null) {
+            return Result.error(404, "DataSource not found");
+        }
+        boolean success = dataSourceService.updateStatus(id, Status.INACTIVE.getCode());
+        return success ? Result.success(true) : Result.error("禁用失败");
     }
 }

@@ -22,14 +22,13 @@ import com.zaxxer.hikari.HikariDataSource;
 import io.github.malonetalk.entity.Datasource;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ConcurrentHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class DynamicDataSourceManager {
-
-    private static final Logger logger = LoggerFactory.getLogger(DynamicDataSourceManager.class);
 
     private static final int MAX_POOL_SIZE = 5;
     private static final int MIN_IDLE = 1;
@@ -40,7 +39,7 @@ public class DynamicDataSourceManager {
     private final ConcurrentHashMap<Integer, HikariDataSource> dataSourcePool =
             new ConcurrentHashMap<>();
 
-    public javax.sql.DataSource getOrCreateDataSource(Datasource datasource) {
+    public DataSource getOrCreateDataSource(Datasource datasource) {
         return dataSourcePool.computeIfAbsent(
                 datasource.getId(), id -> createDataSource(datasource));
     }
@@ -58,7 +57,7 @@ public class DynamicDataSourceManager {
 
         HikariConfig config = getHikariConfig(datasource, jdbcUrl, type);
 
-        logger.info(
+        log.info(
                 "Creating datasource pool for [{}] type={} url={}",
                 datasource.getName(),
                 type.getCode(),
@@ -97,13 +96,13 @@ public class DynamicDataSourceManager {
         HikariDataSource ds = dataSourcePool.remove(datasourceId);
         if (ds != null && !ds.isClosed()) {
             ds.close();
-            logger.info("Closed datasource pool for datasourceId={}", datasourceId);
+            log.info("Closed datasource pool for datasourceId={}", datasourceId);
         }
     }
 
     @PreDestroy
     public void destroy() {
-        logger.info("Shutting down all dynamic datasource pools, count={}", dataSourcePool.size());
+        log.info("Shutting down all dynamic datasource pools, count={}", dataSourcePool.size());
         dataSourcePool.forEach(
                 (id, ds) -> {
                     if (!ds.isClosed()) {

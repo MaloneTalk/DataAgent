@@ -1,0 +1,45 @@
+{
+  // TypeScript compiler options
+  "compilerOptions": {
+    // Target JavaScript version: ES2020 (equivalent to Java 8+ bytecode version)
+    "target": "ES2020",
+    // Use modern class field syntax
+    "useDefineForClassFields": true,
+    // Module system: ESNext (ES Modules, like Java's module system)
+    "module": "ESNext",
+    // Built-in type definitions for browser and DOM APIs
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // Skip type checking for node_modules (speeds up compilation)
+    "skipLibCheck": true,
+    // How to resolve module imports: bundler mode (let Vite handle it)
+    "moduleResolution": "bundler",
+    // Allow importing .ts files directly (Vite feature)
+    "allowImportingTsExtensions": true,
+    // Allow importing JSON files as modules
+    "resolveJsonModule": true,
+    // Ensure each file can be safely transpiled separately
+    "isolatedModules": true,
+    // Don't emit compiled JS files (Vite handles transpilation)
+    "noEmit": true,
+    // Keep JSX as-is for Vue to process (vs React's "react-jsx")
+    "jsx": "preserve",
+    // Enable strict type checking (like strict mode in Java)
+    "strict": true,
+    // Error on unused local variables
+    "noUnusedLocals": true,
+    // Error on unused function parameters
+    "noUnusedParameters": true,
+    // Error on missing break in switch statements
+    "noFallthroughCasesInSwitch": true,
+    // Base directory for resolving non-relative module names
+    "baseUrl": ".",
+    // Path alias: '@' -> 'src' (same as vite.config.ts)
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  // Which files to include in compilation
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  // Reference other tsconfig files (for Vite config files)
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

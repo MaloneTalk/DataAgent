@@ -27,11 +27,12 @@ import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.state.SessionKey;
 import io.agentscope.core.state.SimpleSessionKey;
 import io.agentscope.core.tool.Toolkit;
-import io.github.malonetalk.agent.tools.ExecuteSqlTool;
-import io.github.malonetalk.agent.tools.GetTableSchemaTool;
-import io.github.malonetalk.agent.tools.GetTablesTool;
+import io.github.malonetalk.agent.tools.MarkAgentTool;
+import io.github.malonetalk.convertor.EventConverter;
+import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,33 +50,21 @@ public class AgentService {
 
     private final ModelFactory modelFactory;
     private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
+    private final List<MarkAgentTool> allToolBeans;
+    private final DataSource dataSource;
     private Toolkit toolkit;
 
-    private final GetTablesTool getTablesTool;
-    private final GetTableSchemaTool getTableSchemaTool;
-    private final ExecuteSqlTool executeSqlTool;
-
-    private final DataSource dataSource;
-
     public AgentService(
-            ModelFactory modelFactory,
-            GetTablesTool getTablesTool,
-            GetTableSchemaTool getTableSchemaTool,
-            ExecuteSqlTool executeSqlTool,
-            DataSource dataSource) {
+            ModelFactory modelFactory, List<MarkAgentTool> allToolBeans, DataSource dataSource) {
         this.modelFactory = modelFactory;
-        this.getTablesTool = getTablesTool;
-        this.getTableSchemaTool = getTableSchemaTool;
-        this.executeSqlTool = executeSqlTool;
+        this.allToolBeans = allToolBeans;
         this.dataSource = dataSource;
     }
 
     @PostConstruct
     public void init() {
         this.toolkit = new Toolkit();
-        this.toolkit.registerTool(getTablesTool);
-        this.toolkit.registerTool(getTableSchemaTool);
-        this.toolkit.registerTool(executeSqlTool);
+        allToolBeans.forEach(this.toolkit::registerTool);
     }
 
     private Session getOrCreateSession(String sessionId) {
@@ -99,7 +88,7 @@ public class AgentService {
         return MsgUtils.getTextContent(response);
     }
 
-    public Flux<String> chatStream(String sessionId, String userInput) {
+    public Flux<ChatStreamEvent> chatStream(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
         MysqlSession session = (MysqlSession) getOrCreateSession(sessionId);
@@ -107,19 +96,17 @@ public class AgentService {
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
 
-        // TODO: classify different stream chunk types for richer frontend rendering.
         StreamOptions streamOptions =
                 StreamOptions.builder()
-                        .eventTypes(EventType.REASONING, EventType.TOOL_RESULT)
+                        .eventTypes(EventType.REASONING, EventType.TOOL_RESULT, EventType.SUMMARY)
                         .incremental(true)
-                        .includeReasoningResult(false)
+                        .includeReasoningResult(true)
                         .build();
 
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> agent.saveTo(session, buildNamespacedSessionId(sessionId)))
-                .map(event -> MsgUtils.getTextContent(event.getMessage()))
-                .filter(text -> text != null && !text.isEmpty());
+                .flatMapIterable(EventConverter::map);
     }
 
     private ReActAgent createAgent() {

@@ -11,13 +11,41 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.malone</groupId>
+    <groupId>io.github.malonetalk</groupId>
     <artifactId>data-agent-backend</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>data-agent-management</name>
+    <name>data-agent-backend</name>
     <description>Data Agent Management Backend Service</description>
+    <licenses>
+        <license>
+            <name>GNU AFFERO GENERAL PUBLIC LICENSE VERSION 3</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.html</url>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>MaloneTalk</name>
+        <url>https://github.com/MaloneTalk</url>
+    </organization>
+    <developers>
+        <developer>
+            <id>lzq986</id>
+            <name>lzq</name>
+            <url>https://github.com/lzq986</url>
+        </developer>
+        <developer>
+            <id>VLSMB</id>
+            <name>VLSMB</name>
+            <url>https://github.com/VLSMB</url>
+        </developer>
+        <developer>
+            <id>mengnankkkk</id>
+            <name>mengnankkkk</name>
+            <url>https://github.com/mengnankkkk</url>
+        </developer>
+    </developers>
 
     <properties>
         <java.version>17</java.version>
@@ -27,6 +55,9 @@
         <agentscope.version>1.0.11</agentscope.version>
         <spotless.version>3.4.0</spotless.version>
         <google-java-format.version>1.28.0</google-java-format.version>
+        <mybatis-springboot-starter.version>4.0.0</mybatis-springboot-starter.version>
+        <lombok.version>1.18.42</lombok.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
     </properties>
 
     <dependencies>
@@ -49,7 +80,7 @@
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>4.0.0</version>
+            <version>${mybatis-springboot-starter.version}</version>
         </dependency>
 
         <dependency>
@@ -63,10 +94,41 @@
             <artifactId>agentscope</artifactId>
             <version>${agentscope.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>

@@ -1,0 +1,36 @@
+{
+  // TypeScript compiler options for Node.js environment (build tools)
+  // Similar to tsconfig.json but targets Node.js instead of browser
+  "compilerOptions": {
+    // Target JavaScript version: ES2022 (newer than app's ES2020)
+    "target": "ES2022",
+    // Built-in type definitions for Node.js (not browser)
+    "lib": ["ES2023"],
+    // Module system: ESNext (ES Modules)
+    "module": "ESNext",
+    // Skip type checking for node_modules
+    "skipLibCheck": true,
+    // Let bundler (Vite) handle module resolution
+    "moduleResolution": "bundler",
+    // Allow importing .ts files directly
+    "allowImportingTsExtensions": true,
+    // Allow importing JSON files
+    "resolveJsonModule": true,
+    // Ensure each file can be transpiled separately
+    "isolatedModules": true,
+    // Enable project references for vue-tsc build mode
+    "composite": true,
+    // Only emit type declarations (Vite handles JS emit)
+    "emitDeclarationOnly": true,
+    // Enable strict type checking
+    "strict": true,
+    // Error on unused local variables
+    "noUnusedLocals": true,
+    // Error on unused parameters
+    "noUnusedParameters": true,
+    // Error on missing break in switch
+    "noFallthroughCasesInSwitch": true
+  },
+  // Only compile Vite config file (Node.js environment)
+  "include": ["vite.config.ts", "types/*.d.ts"]
+}

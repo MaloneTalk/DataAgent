@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,8 @@ public class ActiveDatasourceSupport {
     }
 
     public Datasource getActiveDatasource() {
-        List<Datasource> activeDataSources = datasourceService.findByStatus(StatusConstants.ACTIVE);
+        List<Datasource> activeDataSources =
+                datasourceService.findByStatus(Status.ACTIVE.getCode());
         if (activeDataSources.isEmpty()) {
             return null;
         }

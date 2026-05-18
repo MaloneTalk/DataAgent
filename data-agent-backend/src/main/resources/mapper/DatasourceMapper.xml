@@ -71,4 +71,8 @@
         DELETE FROM datasource WHERE id = #{id}
     </delete>
 
+    <update id="updateStatus">
+        UPDATE datasource SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    </update>
+
 </mapper>

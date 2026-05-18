@@ -22,42 +22,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class QueryResult {
-
-    private final List<String> columns;
-    private final List<Map<String, Object>> rows;
-    private final int totalRows;
-    private final boolean truncated;
-
-    public QueryResult(
-            List<String> columns,
-            List<Map<String, Object>> rows,
-            int totalRows,
-            boolean truncated) {
-        this.columns = columns;
-        this.rows = rows;
-        this.totalRows = totalRows;
-        this.truncated = truncated;
-    }
+public record QueryResult(
+        List<String> columns, List<Map<String, Object>> rows, int totalRows, boolean truncated) {
 
     public static Builder builder() {
         return new Builder();
-    }
-
-    public List<String> getColumns() {
-        return columns;
-    }
-
-    public List<Map<String, Object>> getRows() {
-        return rows;
-    }
-
-    public int getTotalRows() {
-        return totalRows;
-    }
-
-    public boolean isTruncated() {
-        return truncated;
     }
 
     @Override

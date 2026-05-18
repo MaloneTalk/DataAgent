@@ -6,25 +6,25 @@
  * published by the Free Software Foundation, either version 3 of the
  * License, or any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- * limitations under the License.
  */
-package io.github.malonetalk.common;
 
-public class StatusConstants {
+/// <reference types="vite/client" />
 
-    public static final String ACTIVE = "active";
-    public static final String INACTIVE = "inactive";
-
-    public static final String TEST_SUCCESS = "success";
-    public static final String TEST_FAILED = "failed";
-    public static final String TEST_UNTESTED = "untested";
-
-    private StatusConstants() {}
+/**
+ * Type declarations for Vue single-file components (.vue files)
+ * Allows TypeScript to recognize .vue files and properly infer their types
+ * Prevents "module not found" errors when importing Vue components in TypeScript
+ */
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const component: DefineComponent<object, object, any>;
+  export default component;
 }

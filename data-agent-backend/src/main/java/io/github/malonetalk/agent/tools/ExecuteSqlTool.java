@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ExecuteSqlTool {
+public class ExecuteSqlTool implements MarkAgentTool {
 
     private static final Logger logger = LoggerFactory.getLogger(ExecuteSqlTool.class);
 

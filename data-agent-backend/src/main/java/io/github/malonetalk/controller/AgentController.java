@@ -20,8 +20,11 @@ package io.github.malonetalk.controller;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ChatRequest;
+import io.github.malonetalk.dto.ChatStreamEvent;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,14 +34,11 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/agent")
 public class AgentController {
 
     private final AgentService agentService;
-
-    public AgentController(AgentService agentService) {
-        this.agentService = agentService;
-    }
 
     @PostMapping("/chat")
     public Result<String> chat(@Valid @RequestBody ChatRequest request) {
@@ -47,8 +47,26 @@ public class AgentController {
     }
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> chatStream(@Valid @RequestBody ChatRequest request) {
-        return agentService.chatStream(request.sessionId(), request.message());
+    public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
+            @Valid @RequestBody ChatRequest request) {
+        String sessionId = request.sessionId();
+        if (sessionId == null || sessionId.isEmpty()) {
+            sessionId = "default";
+        }
+
+        String message = request.message();
+        if (message == null) {
+            message = "";
+        }
+
+        return agentService
+                .chatStream(sessionId, message)
+                .map(
+                        event ->
+                                ServerSentEvent.<ChatStreamEvent>builder()
+                                        .event(event.type().getCode())
+                                        .data(event)
+                                        .build());
     }
 
     @DeleteMapping("/session/{sessionId}")

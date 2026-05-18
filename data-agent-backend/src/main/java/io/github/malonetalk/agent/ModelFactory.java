@@ -22,10 +22,14 @@ import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.OllamaChatModel;
 import io.agentscope.core.model.OpenAIChatModel;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@NoArgsConstructor
+@AllArgsConstructor
 public class ModelFactory {
 
     @Value("${agentscope.model.provider:dashscope}")
@@ -48,6 +52,7 @@ public class ModelFactory {
         return switch (provider.toLowerCase()) {
             case "dashscope" ->
                     DashScopeChatModel.builder().apiKey(apiKey).modelName(modelName).stream(true)
+                            .enableThinking(true)
                             .build();
             case "openai" -> {
                 OpenAIChatModel.Builder builder =

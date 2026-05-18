@@ -18,8 +18,8 @@
 package io.github.malonetalk.service.impl;
 
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
-import io.github.malonetalk.common.StatusConstants;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.service.ActiveDatasourceLockManager;
 import io.github.malonetalk.service.DatasourceService;
@@ -126,17 +126,29 @@ public class DatasourceServiceImpl implements DatasourceService {
         return dataSourceMapper.selectByType(type);
     }
 
+    @Override
+    @Transactional
+    public boolean updateStatus(Integer id, String status) {
+        Datasource existingDatasource = dataSourceMapper.selectById(id);
+        if (existingDatasource == null) {
+            return false;
+        }
+        guardActiveDatasourceTransition(existingDatasource.getId(), status);
+        boolean updated = dataSourceMapper.updateStatus(id, status) > 0;
+        if (updated) {
+            dynamicDataSourceManager.removeDataSource(id);
+        }
+        return updated;
+    }
+
     private void validateActiveDatasourceConstraint(Integer currentDatasourceId, String status) {
-        if (!StatusConstants.ACTIVE.equalsIgnoreCase(status)) {
+        if (!Status.ACTIVE.getCode().equalsIgnoreCase(status)) {
             return;
         }
         List<Integer> conflictingDatasourceIds =
-                dataSourceMapper.selectByStatus(StatusConstants.ACTIVE).stream()
+                dataSourceMapper.selectByStatus(Status.ACTIVE.getCode()).stream()
                         .map(Datasource::getId)
-                        .filter(
-                                id ->
-                                        currentDatasourceId == null
-                                                || !currentDatasourceId.equals(id))
+                        .filter(id -> currentDatasourceId == null || !currentDatasourceId.equals(id))
                         .toList();
         if (!conflictingDatasourceIds.isEmpty()) {
             throw new IllegalStateException(
@@ -146,7 +158,7 @@ public class DatasourceServiceImpl implements DatasourceService {
     }
 
     private void guardActiveDatasourceTransition(Integer currentDatasourceId, String targetStatus) {
-        if (!StatusConstants.ACTIVE.equalsIgnoreCase(targetStatus)) {
+        if (!Status.ACTIVE.getCode().equalsIgnoreCase(targetStatus)) {
             return;
         }
         activeDatasourceLockManager.acquireLock();

@@ -35,4 +35,6 @@ public interface DatasourceService {
     List<Datasource> findByStatus(String status);
 
     List<Datasource> findByType(String type);
+
+    boolean updateStatus(Integer id, String status);
 }

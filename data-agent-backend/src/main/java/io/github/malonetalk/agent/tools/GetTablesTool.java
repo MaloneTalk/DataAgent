@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-public class GetTablesTool {
+public class GetTablesTool implements MarkAgentTool {
 
     private static final Logger logger = LoggerFactory.getLogger(GetTablesTool.class);
 
