@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn *)",
+      "mcp__sequential__sequentialthinking",
+      "Bash(git diff *)",
+      "mcp__tavily__tavily_search",
+      "Bash(xargs grep -l -i \"sse\\\\|eventsource\\\\|stream\")",
+      "mcp__mcp-deepwiki__deepwiki_fetch",
+      "WebSearch",
+      "Bash(python -c ' *)",
+      "Bash(python *)",
+      "mcp__GitHub__search_code",
+      "mcp__GitHub__get_file_contents",
+      "mcp__think__sequentialthinking"
+    ]
+  }
+}
