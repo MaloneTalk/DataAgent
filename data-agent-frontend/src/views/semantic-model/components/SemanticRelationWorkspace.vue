@@ -28,7 +28,7 @@
 
   interface RelationEdge {
     id: string;
-    relationId?: number;
+    relationId: number;
     sourceX: number;
     sourceY: number;
     targetX: number;
@@ -74,6 +74,26 @@
   interface SelectRelationOptions {
     scrollList?: boolean;
     focusCanvas?: boolean;
+  }
+
+  interface RelationPointerLikeEvent {
+    button?: number;
+    clientX: number;
+    clientY: number;
+    currentTarget: unknown;
+    target: unknown;
+    stopPropagation: () => void;
+  }
+
+  interface RelationWheelLikeEvent {
+    clientX: number;
+    clientY: number;
+    deltaY: number;
+    preventDefault: () => void;
+  }
+
+  interface ClosestCapableTarget {
+    closest?: (selector: string) => unknown;
   }
 
   const props = defineProps<{
@@ -177,12 +197,11 @@
   });
 
   const relationEdges = computed<RelationEdge[]>(() =>
-    props.relations
-      .map(relation => {
+    props.relations.reduce<RelationEdge[]>((edges, relation) => {
         const sourceNode = renderedNodeMap.value.get(relation.sourceTableName);
         const targetNode = renderedNodeMap.value.get(relation.targetTableName);
         if (!sourceNode || !targetNode) {
-          return null;
+          return edges;
         }
 
         const geometry = resolveRelationGeometry(
@@ -194,7 +213,7 @@
         const relationLabel = relation.sourceColumnNames.length > 1 ? '多列外键' : '外键';
         const labelWidth = Math.max(96, relationLabel.length * 18 + 22);
 
-        return {
+        edges.push({
           id: `relation-${relation.id}`,
           relationId: relation.id,
           sourceX: geometry.sourceX,
@@ -213,9 +232,9 @@
           enabled: relation.enabled,
           effective: relation.effective,
           invalidReason: relation.invalidReason,
-        } satisfies RelationEdge;
-      })
-      .filter((edge): edge is RelationEdge => edge !== null),
+        } satisfies RelationEdge);
+        return edges;
+      }, []),
   );
 
   const draftEdge = computed<RelationEdge | null>(() => {
@@ -245,6 +264,7 @@
 
     return {
       id: 'draft-edge',
+      relationId: -1,
       sourceX: geometry.sourceX,
       sourceY: geometry.sourceY,
       targetX: geometry.targetX,
@@ -297,6 +317,7 @@
 
     return {
       id: 'drag-preview',
+      relationId: -2,
       sourceX: previewAnchor.x,
       sourceY: previewAnchor.y,
       targetX: dragRelation.value.currentX + canvasBounds.value.offsetX,
@@ -568,8 +589,8 @@
     hoveredDropColumn.value = null;
   }
 
-  function isRelationSelected(relationId?: number) {
-    return typeof relationId === 'number' && relationId === selectedRelationId.value;
+  function isRelationSelected(relationId: number) {
+    return relationId === selectedRelationId.value;
   }
 
   function focusCanvasOnRelation(relationId: number) {
@@ -589,10 +610,7 @@
     schedulePersistLayout();
   }
 
-  function selectRelation(relationId?: number, options: SelectRelationOptions = {}) {
-    if (typeof relationId !== 'number') {
-      return;
-    }
+  function selectRelation(relationId: number, options: SelectRelationOptions = {}) {
     const { scrollList = true, focusCanvas = false } = options;
     selectedRelationId.value = relationId;
     if (focusCanvas) {
@@ -629,7 +647,7 @@
   function handleDragColumnStart(
     tableName: string,
     columnName: string,
-    event: { stopPropagation: () => void; clientX: number; clientY: number },
+    event: RelationPointerLikeEvent,
   ) {
     event.stopPropagation();
     const node = renderedNodeMap.value.get(tableName);
@@ -650,15 +668,7 @@
     };
   }
 
-  function handleCanvasPointerMove(event: {
-    clientX: number;
-    clientY: number;
-    currentTarget: {
-      getBoundingClientRect: () => { left: number; top: number };
-      scrollLeft: number;
-      scrollTop: number;
-    } | null;
-  }) {
+  function handleCanvasPointerMove(event: RelationPointerLikeEvent) {
     if (nodeDrag.value) {
       const deltaX = (event.clientX - nodeDrag.value.startClientX) / viewport.scale;
       const deltaY = (event.clientY - nodeDrag.value.startClientY) / viewport.scale;
@@ -696,7 +706,7 @@
     };
   }
 
-  function handleCanvasPointerUp(event: { clientX: number; clientY: number }) {
+  function handleCanvasPointerUp(event: RelationPointerLikeEvent) {
     if (nodeDrag.value) {
       nodeDrag.value = null;
       flushPersistLayout();
@@ -746,12 +756,7 @@
     }
   }
 
-  function handleViewportWheel(event: {
-    preventDefault: () => void;
-    clientX: number;
-    clientY: number;
-    deltaY: number;
-  }) {
+  function handleViewportWheel(event: RelationWheelLikeEvent) {
     event.preventDefault();
     const viewportElement = viewportRef.value;
     if (!viewportElement) {
@@ -770,17 +775,13 @@
     schedulePersistLayout();
   }
 
-  function handleViewportPointerDown(event: {
-    button?: number;
-    clientX: number;
-    clientY: number;
-    target?: { closest?: (selector: string) => unknown };
-  }) {
+  function handleViewportPointerDown(event: RelationPointerLikeEvent) {
     if (event.button && event.button !== 0) {
       return;
     }
+    const target = event.target as ClosestCapableTarget | null;
     if (
-      event.target?.closest?.(
+      target?.closest?.(
         '.relation-node, .relation-side-card, .el-dialog, .relation-edge-hit-area, .relation-edge-label',
       )
     ) {
@@ -796,14 +797,10 @@
 
   function handleNodePointerDown(
     tableName: string,
-    event: {
-      clientX: number;
-      clientY: number;
-      stopPropagation: () => void;
-      target?: { closest?: (selector: string) => unknown };
-    },
+    event: RelationPointerLikeEvent,
   ) {
-    if (event.target?.closest?.('.relation-column-item, .el-button')) {
+    const target = event.target as ClosestCapableTarget | null;
+    if (target?.closest?.('.relation-column-item, .el-button')) {
       return;
     }
     event.stopPropagation();
@@ -1108,7 +1105,10 @@
                   active-text="开"
                   inactive-text="关"
                   @click.stop
-                  @change="value => emit('toggle-relation-enabled', relation, value)"
+                  @change="
+                    (value: boolean | string | number) =>
+                      emit('toggle-relation-enabled', relation, Boolean(value))
+                  "
                 />
                 <el-button link type="primary" @click.stop="emit('edit-relation', relation)">
                   编辑
