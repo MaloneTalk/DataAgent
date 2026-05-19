@@ -223,6 +223,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 table.domain(),
                 table.physicalDescription(),
                 table.description(),
+                table.visible(),
                 table.updateTime());
     }
 

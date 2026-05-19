@@ -26,4 +26,5 @@ public record ColumnSemanticResponse(
         String columnDescription,
         String typeName,
         LocalDateTime updateTime,
-        Boolean primaryKey) {}
+        Boolean primaryKey,
+        Boolean isVisible) {}

@@ -194,7 +194,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 column.description(),
                 column.typeName(),
                 column.updateTime(),
-                column.primaryKey());
+                column.primaryKey(),
+                column.visible());
     }
 
     private Datasource loadUpdateDatasource(Integer datasourceId) {
