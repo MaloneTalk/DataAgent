@@ -101,6 +101,7 @@ export interface RelationCandidateColumnResponse {
 export interface LogicalTableRelationResponse {
   id: number;
   datasourceId: number;
+  source: 'physical' | 'logical';
   sourceTableName: string;
   sourceColumnNames: string[];
   targetTableName: string;

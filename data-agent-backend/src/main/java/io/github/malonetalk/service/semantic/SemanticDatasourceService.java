@@ -27,5 +27,7 @@ public interface SemanticDatasourceService {
 
     Datasource requireSemanticDatasource(Integer datasourceId, String messagePrefix);
 
+    boolean datasourceExists(Integer datasourceId);
+
     void ensureWriteSuccess(boolean success, String message);
 }

@@ -23,6 +23,7 @@ import java.util.List;
 public record LogicalTableRelationResponse(
         Integer id,
         Integer datasourceId,
+        String source,
         String sourceTableName,
         List<String> sourceColumnNames,
         String targetTableName,

@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic.relation;
 
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.entity.LogicalTableRelation;
+import io.github.malonetalk.entity.ResolvedRelation;
 import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.service.semantic.SemanticContext;
 import java.util.List;
@@ -49,6 +50,9 @@ public interface RelationSemanticPolicyService {
 
     LogicalTableRelationResponse mapResponse(
             SemanticContext readContext, LogicalTableRelation relation);
+
+    LogicalTableRelationResponse mapResolvedRelationResponse(
+            SemanticContext readContext, Integer datasourceId, ResolvedRelation relation);
 
     record RelationDraft(
             String sourceTableName,

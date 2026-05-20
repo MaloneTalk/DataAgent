@@ -696,6 +696,10 @@
   };
 
   const handleEditRelation = async (relation: LogicalTableRelationResponse) => {
+    if (relation.source === 'physical') {
+      ElMessage.warning('物理外键仅展示，不支持直接编辑');
+      return;
+    }
     selectedRelation.value = relation;
     relationDialogVisible.value = true;
     suppressRelationTableWatch.value = true;
@@ -776,6 +780,10 @@
   };
 
   const handleDeleteRelation = async (relation: LogicalTableRelationResponse) => {
+    if (relation.source === 'physical') {
+      ElMessage.warning('物理外键仅展示，不支持删除');
+      return;
+    }
     if (typeof selectedDatasourceId.value !== 'number') {
       return;
     }
@@ -805,6 +813,10 @@
     relation: LogicalTableRelationResponse,
     value: boolean,
   ) => {
+    if (relation.source === 'physical') {
+      ElMessage.warning('物理外键始终由数据库结构决定，不能在这里启停');
+      return;
+    }
     if (typeof selectedDatasourceId.value !== 'number') {
       return;
     }

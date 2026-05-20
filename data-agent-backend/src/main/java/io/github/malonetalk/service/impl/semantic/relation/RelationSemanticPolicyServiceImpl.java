@@ -22,6 +22,7 @@ import io.github.malonetalk.dto.semantic.RelationValidationRequest;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.RelationState;
 import io.github.malonetalk.entity.ResolvedColumn;
+import io.github.malonetalk.entity.ResolvedRelation;
 import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.service.semantic.SemanticContext;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
@@ -167,6 +168,7 @@ public class RelationSemanticPolicyServiceImpl implements RelationSemanticPolicy
         return new LogicalTableRelationResponse(
                 relation.getId(),
                 relation.getDatasourceId(),
+                LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
                 relation.getSourceTableName(),
                 sourceColumnResult.columnNames(),
                 relation.getTargetTableName(),
@@ -178,6 +180,36 @@ public class RelationSemanticPolicyServiceImpl implements RelationSemanticPolicy
                 relationState.invalidReason(),
                 relation.getCreateTime(),
                 relation.getUpdateTime());
+    }
+
+    @Override
+    public LogicalTableRelationResponse mapResolvedRelationResponse(
+            SemanticContext readContext, Integer datasourceId, ResolvedRelation relation) {
+        RelationState relationState =
+                readContext.evaluateRelationState(
+                        new RelationValidationRequest(
+                                relation.sourceTableName(),
+                                relation.sourceColumnNames(),
+                                relation.targetTableName(),
+                                relation.targetColumnNames(),
+                                relation.effective(),
+                                null,
+                                null));
+        return new LogicalTableRelationResponse(
+                relation.logicalId(),
+                datasourceId,
+                relation.source(),
+                relation.sourceTableName(),
+                relation.sourceColumnNames(),
+                relation.targetTableName(),
+                relation.targetColumnNames(),
+                relation.relationType(),
+                relation.description(),
+                relation.effective(),
+                relationState.effective(),
+                relationState.invalidReason(),
+                null,
+                null);
     }
 
     private ColumnDecodeResult decodeColumnNames(

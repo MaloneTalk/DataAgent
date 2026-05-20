@@ -43,6 +43,7 @@
     label: string;
     labelWidth: number;
     enabled: boolean;
+    source: 'physical' | 'logical';
     effective?: boolean;
     invalidReason?: string | null;
   }
@@ -121,6 +122,9 @@
   const RELATION_CANVAS_PADDING = 220;
   const RELATION_CANVAS_MIN_WIDTH = 1200;
   const RELATION_CANVAS_MIN_HEIGHT = 720;
+  const RELATION_FIT_PADDING = 32;
+  const RELATION_MIN_SCALE = 0.25;
+  const RELATION_MAX_SCALE = 1.8;
   const RELATION_LAYOUT_STORAGE_PREFIX = 'semantic-model:relation-layout';
 
   const viewportRef = ref<{
@@ -149,6 +153,7 @@
     ) => { scrollIntoView?: (options?: { block?: string; behavior?: string }) => void } | null;
   } | null>(null);
   let persistLayoutTimer: number | null = null;
+  let autoFitFrame: number | null = null;
 
   const layoutStorageKey = computed(() =>
     typeof props.datasourceId === 'number'
@@ -230,6 +235,7 @@
           label: relationLabel,
           labelWidth,
           enabled: relation.enabled,
+          source: relation.source,
           effective: relation.effective,
           invalidReason: relation.invalidReason,
         } satisfies RelationEdge);
@@ -279,6 +285,7 @@
       label: relationLabel,
       labelWidth: Math.max(110, relationLabel.length * 18 + 24),
       enabled: props.draftRelation.enabled,
+      source: 'logical',
     };
   });
 
@@ -337,6 +344,7 @@
       label: '拖拽创建关系',
       labelWidth: 132,
       enabled: true,
+      source: 'logical',
     };
   });
 
@@ -366,6 +374,12 @@
       });
       localNodes.value = restoredNodes;
       initializeCanvasOrigin(restoredNodes, snapshot?.canvasOrigin);
+      void nextTick(() => {
+        if (snapshot?.viewport) {
+          return;
+        }
+        scheduleAutoFitViewport();
+      });
     },
     { immediate: true },
   );
@@ -386,6 +400,10 @@
   );
 
   onBeforeUnmount(() => {
+    if (autoFitFrame) {
+      globalThis.cancelAnimationFrame(autoFitFrame);
+      autoFitFrame = null;
+    }
     flushPersistLayout();
   });
 
@@ -486,6 +504,47 @@
       typeof snapshotOrigin?.minY === 'number'
         ? Math.min(snapshotOrigin.minY, extents.minY)
         : extents.minY;
+  }
+
+  function scheduleAutoFitViewport() {
+    if (autoFitFrame) {
+      globalThis.cancelAnimationFrame(autoFitFrame);
+    }
+    autoFitFrame = globalThis.requestAnimationFrame(() => {
+      autoFitFrame = null;
+      fitCanvasToViewport();
+    });
+  }
+
+  function fitCanvasToViewport() {
+    const viewportElement = viewportRef.value;
+    if (!viewportElement) {
+      return;
+    }
+
+    const width = canvasBounds.value.width;
+    const height = canvasBounds.value.height;
+    if (!width || !height) {
+      viewport.scale = 1;
+      viewport.offsetX = 0;
+      viewport.offsetY = 0;
+      return;
+    }
+
+    const availableWidth = Math.max(240, viewportElement.clientWidth - RELATION_FIT_PADDING * 2);
+    const availableHeight = Math.max(240, viewportElement.clientHeight - RELATION_FIT_PADDING * 2);
+    const nextScale = Math.max(
+      RELATION_MIN_SCALE,
+      Math.min(
+        RELATION_MAX_SCALE,
+        1,
+        Math.min(availableWidth / width, availableHeight / height),
+      ),
+    );
+
+    viewport.scale = Number(nextScale.toFixed(3));
+    viewport.offsetX = (viewportElement.clientWidth - width * viewport.scale) / 2;
+    viewport.offsetY = (viewportElement.clientHeight - height * viewport.scale) / 2;
   }
 
   function expandCanvasOriginToFit(nodes: TableNodeLayout[]) {
@@ -768,7 +827,9 @@
     const worldX = (pointerX - viewport.offsetX) / viewport.scale;
     const worldY = (pointerY - viewport.offsetY) / viewport.scale;
     const nextScale =
-      event.deltaY < 0 ? Math.min(1.8, viewport.scale * 1.1) : Math.max(0.45, viewport.scale / 1.1);
+      event.deltaY < 0
+        ? Math.min(RELATION_MAX_SCALE, viewport.scale * 1.1)
+        : Math.max(RELATION_MIN_SCALE, viewport.scale / 1.1);
     viewport.offsetX = pointerX - worldX * nextScale;
     viewport.offsetY = pointerY - worldY * nextScale;
     viewport.scale = Number(nextScale.toFixed(3));
@@ -818,9 +879,7 @@
   }
 
   function resetViewport() {
-    viewport.scale = 1;
-    viewport.offsetX = 0;
-    viewport.offsetY = 0;
+    fitCanvasToViewport();
   }
 
   function relationStateTagType(relation: LogicalTableRelationResponse) {
@@ -1085,6 +1144,9 @@
                   <strong>{{ relation.sourceTableName }}</strong>
                   <span class="relation-arrow-text">→</span>
                   <strong>{{ relation.targetTableName }}</strong>
+                  <el-tag size="small" effect="plain" class="relation-source-tag">
+                    {{ relation.source === 'physical' ? '物理外键' : '逻辑外键' }}
+                  </el-tag>
                 </div>
                 <el-tag :type="relationStateTagType(relation)">
                   {{ !relation.enabled ? '已禁用' : relation.effective ? '生效中' : '失效' }}
@@ -1101,6 +1163,7 @@
               <div class="relation-list-actions">
                 <el-switch
                   :model-value="relation.enabled"
+                  :disabled="relation.source === 'physical'"
                   inline-prompt
                   active-text="开"
                   inactive-text="关"
@@ -1110,10 +1173,20 @@
                       emit('toggle-relation-enabled', relation, Boolean(value))
                   "
                 />
-                <el-button link type="primary" @click.stop="emit('edit-relation', relation)">
+                <el-button
+                  link
+                  type="primary"
+                  :disabled="relation.source === 'physical'"
+                  @click.stop="emit('edit-relation', relation)"
+                >
                   编辑
                 </el-button>
-                <el-button link type="danger" @click.stop="emit('delete-relation', relation)">
+                <el-button
+                  link
+                  type="danger"
+                  :disabled="relation.source === 'physical'"
+                  @click.stop="emit('delete-relation', relation)"
+                >
                   删除
                 </el-button>
               </div>
@@ -1164,7 +1237,7 @@
       linear-gradient(rgba(14, 165, 233, 0.06) 1px, transparent 1px),
       linear-gradient(90deg, rgba(14, 165, 233, 0.06) 1px, transparent 1px), #f8fbff;
     background-size: 32px 32px;
-    overflow: auto;
+    overflow: hidden;
     min-height: 720px;
     position: relative;
     cursor: grab;
@@ -1371,6 +1444,11 @@
   .relation-arrow-text {
     margin: 0 6px;
     color: #64748b;
+  }
+
+  .relation-source-tag {
+    margin-left: 8px;
+    vertical-align: middle;
   }
 
   .relation-columns-line {

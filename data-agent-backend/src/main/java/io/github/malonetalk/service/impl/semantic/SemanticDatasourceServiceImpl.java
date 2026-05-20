@@ -56,6 +56,11 @@ public class SemanticDatasourceServiceImpl implements SemanticDatasourceService 
     }
 
     @Override
+    public boolean datasourceExists(Integer datasourceId) {
+        return findDatasourceOrNull(datasourceId) != null;
+    }
+
+    @Override
     public void ensureWriteSuccess(boolean success, String message) {
         if (!success) {
             throw new SemanticSchemaException(message);

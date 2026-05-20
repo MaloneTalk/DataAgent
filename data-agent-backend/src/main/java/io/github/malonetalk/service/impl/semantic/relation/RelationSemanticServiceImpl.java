@@ -27,6 +27,7 @@ import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.ResolvedColumn;
+import io.github.malonetalk.entity.ResolvedRelation;
 import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.service.semantic.SemanticContext;
 import io.github.malonetalk.service.semantic.SemanticContextFactory;
@@ -38,8 +39,9 @@ import io.github.malonetalk.service.semantic.relation.RelationSemanticPolicyServ
 import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
 import java.time.LocalDateTime;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,39 +79,37 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Boolean enabled,
             String sortOrder) {
         semanticPageService.validateSortOrder(sortOrder);
-        Datasource datasource = semanticDatasourceService.requireDatasource(datasourceId);
-        String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
-        String normalizedKeywordPrefix =
-                relationSemanticPolicyService.normalizeKeywordPrefix(keywordPrefix);
-        boolean sortDescending = "desc".equalsIgnoreCase(sortOrder);
-        long total =
-                relationSemanticRepository.countByDatasourceIdAndSourceTable(
-                        datasourceId, normalizedTableName, normalizedKeywordPrefix, enabled);
-        if (total == 0) {
+        Datasource datasource = semanticDatasourceService.findDatasourceOrNull(datasourceId);
+        if (datasource == null) {
             return PageResponse.empty(pageRequest);
         }
-        List<LogicalTableRelation> relations =
-                relationSemanticRepository.listPageByDatasourceIdAndSourceTable(
-                        datasourceId,
-                        normalizedTableName,
-                        normalizedKeywordPrefix,
-                        enabled,
-                        sortDescending,
-                        pageRequest.offset(),
-                        pageRequest.pageSize());
-        if (relations.isEmpty()) {
-            return PageResponse.of(Collections.emptyList(), total, pageRequest);
-        }
         SemanticContext readContext = semanticContextFactory.createContext(datasource);
-        List<LogicalTableRelationResponse> responses =
-                relations.stream()
-                        .map(
+        String normalizedTableName =
+                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
+        ResolvedTable table =
+                relationSemanticPolicyService.requireVisibleTable(
+                        readContext, normalizedTableName, "source table");
+        String normalizedKeywordPrefix =
+                relationSemanticPolicyService.normalizeKeywordPrefix(keywordPrefix);
+        List<ResolvedRelation> resolvedRelations =
+                readContext.listVisibleRelations(table.canonicalName()).stream()
+                        .filter(
                                 relation ->
-                                        relationSemanticPolicyService.mapResponse(
-                                                readContext, relation))
+                                        semanticPageService.matchesKeywordPrefix(
+                                                relation.targetTableName(), normalizedKeywordPrefix))
+                        .filter(relation -> enabled == null || relation.effective() == enabled)
+                        .sorted(buildResolvedRelationComparator(sortOrder))
                         .toList();
-        return PageResponse.of(responses, total, pageRequest);
+        if (resolvedRelations.isEmpty()) {
+            return PageResponse.empty(pageRequest);
+        }
+        return semanticPageService.paginateMapped(
+                resolvedRelations,
+                pageRequest,
+                relation -> true,
+                relation ->
+                        relationSemanticPolicyService.mapResolvedRelationResponse(
+                                readContext, datasourceId, relation));
     }
 
     @Override
@@ -120,8 +120,13 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         SemanticContext readContext = semanticContextFactory.createContext(datasource);
         RelationDraft draft = buildDraft(readContext, tableName, request);
         ensureNoDuplicateRelation(datasourceId, draft, null);
+        ensureNoPhysicalDuplicateRelation(readContext, draft);
         LogicalTableRelation relation = buildNewRelation(datasourceId, draft);
-        relationSemanticRepository.save(relation);
+        semanticDatasourceService.ensureWriteSuccess(
+                relationSemanticRepository.save(relation),
+                "Failed to create logical relation for source table "
+                        + draft.sourceTableName()
+                        + ".");
         return relationSemanticPolicyService.mapResponse(readContext, relation);
     }
 
@@ -137,8 +142,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation existing = loadTargetRelation(datasourceId, tableName, relationId);
         RelationDraft draft = buildDraft(readContext, tableName, request);
         ensureNoDuplicateRelation(datasourceId, draft, existing.getId());
+        ensureNoPhysicalDuplicateRelation(readContext, draft);
         applyUpdate(existing, draft);
-        relationSemanticRepository.update(existing);
+        semanticDatasourceService.ensureWriteSuccess(
+                relationSemanticRepository.update(existing),
+                "Failed to update logical relation " + relationId + ".");
         return relationSemanticPolicyService.mapResponse(readContext, existing);
     }
 
@@ -152,9 +160,15 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         String normalizedTableName =
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         semanticDatasourceService.requireDatasource(datasourceId);
-        requireRelation(datasourceId, normalizedTableName, relationId);
-        return relationSemanticRepository.updateEnabled(
-                relationId, datasourceId, normalizedTableName, enabled, LocalDateTime.now());
+        LogicalTableRelation relation = requireRelation(datasourceId, normalizedTableName, relationId);
+        if (Boolean.valueOf(enabled).equals(relation.getIsEnabled())) {
+            return true;
+        }
+        semanticDatasourceService.ensureWriteSuccess(
+                relationSemanticRepository.updateEnabled(
+                        relationId, datasourceId, normalizedTableName, enabled, LocalDateTime.now()),
+                "Failed to update logical relation enabled state for relation " + relationId + ".");
+        return true;
     }
 
     @Override
@@ -165,7 +179,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         semanticDatasourceService.requireDatasource(datasourceId);
         requireRelation(datasourceId, normalizedTableName, relationId);
-        return relationSemanticRepository.deleteById(relationId, datasourceId, normalizedTableName);
+        semanticDatasourceService.ensureWriteSuccess(
+                relationSemanticRepository.deleteById(relationId, datasourceId, normalizedTableName),
+                "Failed to delete logical relation " + relationId + ".");
+        return true;
     }
 
     @Override
@@ -188,7 +205,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public PageResponse<RelationCandidateTableResponse> getRelationCandidateTablePage(
             Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder) {
         semanticPageService.validateSortOrder(sortOrder);
-        Datasource datasource = semanticDatasourceService.requireDatasource(datasourceId);
+        Datasource datasource = semanticDatasourceService.findDatasourceOrNull(datasourceId);
+        if (datasource == null) {
+            return PageResponse.empty(pageRequest);
+        }
         List<ResolvedTable> sortedTables =
                 semanticContextFactory.createContext(datasource).listTables().stream()
                         .filter(
@@ -217,7 +237,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String keywordPrefix,
             String sortOrder) {
         semanticPageService.validateSortOrder(sortOrder);
-        Datasource datasource = semanticDatasourceService.requireDatasource(datasourceId);
+        Datasource datasource = semanticDatasourceService.findDatasourceOrNull(datasourceId);
+        if (datasource == null) {
+            return PageResponse.empty(pageRequest);
+        }
         SemanticContext readContext = semanticContextFactory.createContext(datasource);
         String normalizedTableName =
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
@@ -301,6 +324,21 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 "A logical relation already exists for the same source columns.");
     }
 
+    private void ensureNoPhysicalDuplicateRelation(
+            SemanticContext readContext, RelationDraft draft) {
+        boolean duplicated =
+                readContext.listVisibleRelations(draft.sourceTableName()).stream()
+                        .filter(
+                                relation ->
+                                        LogicalTableRelationHelper.RELATION_SOURCE_PHYSICAL.equals(
+                                                relation.source()))
+                        .anyMatch(relation -> sameRelationEndpoints(relation, draft));
+        if (duplicated) {
+            throw new IllegalArgumentException(
+                    "A physical foreign key already exists for the same source and target columns.");
+        }
+    }
+
     private LogicalTableRelation buildNewRelation(Integer datasourceId, RelationDraft draft) {
         LogicalTableRelation relation = new LogicalTableRelation();
         relation.setDatasourceId(datasourceId);
@@ -308,6 +346,17 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         relation.setCreateTime(LocalDateTime.now());
         relation.setUpdateTime(LocalDateTime.now());
         return relation;
+    }
+
+    private boolean sameRelationEndpoints(ResolvedRelation relation, RelationDraft draft) {
+        return logicalTableRelationHelper.sameTableName(
+                        relation.sourceTableName(), draft.sourceTableName())
+                && logicalTableRelationHelper.sameTableName(
+                        relation.targetTableName(), draft.targetTableName())
+                && logicalTableRelationHelper.buildColumnSignature(relation.sourceColumnNames())
+                        .equals(draft.sourceColumnSignature())
+                && logicalTableRelationHelper.buildColumnSignature(relation.targetColumnNames())
+                        .equals(draft.targetColumnSignature());
     }
 
     private void applyUpdate(LogicalTableRelation relation, RelationDraft draft) {
@@ -337,6 +386,24 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             throw new IllegalArgumentException("Logical relation does not exist.");
         }
         return relation;
+    }
+
+    private Comparator<ResolvedRelation> buildResolvedRelationComparator(String sortOrder) {
+        Comparator<ResolvedRelation> comparator =
+                Comparator.comparing(
+                                (ResolvedRelation relation) ->
+                                        relation.logicalId() == null ? 0 : 1)
+                        .thenComparing(
+                                relation -> relation.targetTableName().toLowerCase(Locale.ROOT))
+                        .thenComparing(
+                                relation ->
+                                        logicalTableRelationHelper.buildColumnSignature(
+                                                relation.sourceColumnNames()))
+                        .thenComparing(
+                                relation ->
+                                        logicalTableRelationHelper.buildColumnSignature(
+                                                relation.targetColumnNames()));
+        return "desc".equalsIgnoreCase(sortOrder) ? comparator.reversed() : comparator;
     }
 
     private String text(String value) {
