@@ -28,7 +28,7 @@
 
   interface RelationEdge {
     id: string;
-    relationId: number;
+    relationId: string;
     sourceX: number;
     sourceY: number;
     targetX: number;
@@ -125,6 +125,7 @@
   const RELATION_FIT_PADDING = 32;
   const RELATION_MIN_SCALE = 0.25;
   const RELATION_MAX_SCALE = 1.8;
+  const RELATION_LAYOUT_STORAGE_VERSION = 2;
   const RELATION_LAYOUT_STORAGE_PREFIX = 'semantic-model:relation-layout';
 
   const viewportRef = ref<{
@@ -146,7 +147,7 @@
   const hoveredDropColumn = ref<{ tableName: string; columnName: string } | null>(null);
   const canvasPan = ref<RelationCanvasPanState | null>(null);
   const nodeDrag = ref<RelationNodeDragState | null>(null);
-  const selectedRelationId = ref<number | null>(null);
+  const selectedRelationId = ref<string | null>(null);
   const relationListRef = ref<{
     querySelector: (
       selector: string,
@@ -219,8 +220,8 @@
         const labelWidth = Math.max(96, relationLabel.length * 18 + 22);
 
         edges.push({
-          id: `relation-${relation.id}`,
-          relationId: relation.id,
+          id: `relation-${relation.relationKey}`,
+          relationId: relation.relationKey,
           sourceX: geometry.sourceX,
           sourceY: geometry.sourceY,
           targetX: geometry.targetX,
@@ -270,7 +271,7 @@
 
     return {
       id: 'draft-edge',
-      relationId: -1,
+      relationId: 'draft-edge',
       sourceX: geometry.sourceX,
       sourceY: geometry.sourceY,
       targetX: geometry.targetX,
@@ -297,8 +298,8 @@
         return;
       }
       if (
-        typeof selectedRelationId.value === 'number' &&
-        relations.some(relation => relation.id === selectedRelationId.value)
+        typeof selectedRelationId.value === 'string' &&
+        relations.some(relation => relation.relationKey === selectedRelationId.value)
       ) {
         return;
       }
@@ -324,7 +325,7 @@
 
     return {
       id: 'drag-preview',
-      relationId: -2,
+      relationId: 'drag-preview',
       sourceX: previewAnchor.x,
       sourceY: previewAnchor.y,
       targetX: dragRelation.value.currentX + canvasBounds.value.offsetX,
@@ -417,7 +418,12 @@
       if (!raw) {
         return null;
       }
-      return JSON.parse(raw) as SemanticRelationLayoutSnapshot;
+      const snapshot = JSON.parse(raw) as SemanticRelationLayoutSnapshot;
+      if (snapshot.version !== RELATION_LAYOUT_STORAGE_VERSION) {
+        globalThis.localStorage.removeItem(layoutStorageKey.value);
+        return null;
+      }
+      return snapshot;
     } catch {
       return null;
     }
@@ -429,6 +435,7 @@
     }
 
     const snapshot: SemanticRelationLayoutSnapshot = {
+      version: RELATION_LAYOUT_STORAGE_VERSION,
       nodes: Object.fromEntries(
         localNodes.value.map(node => [node.tableName, { x: node.x, y: node.y }]),
       ),
@@ -648,11 +655,11 @@
     hoveredDropColumn.value = null;
   }
 
-  function isRelationSelected(relationId: number) {
+  function isRelationSelected(relationId: string) {
     return relationId === selectedRelationId.value;
   }
 
-  function focusCanvasOnRelation(relationId: number) {
+  function focusCanvasOnRelation(relationId: string) {
     const viewportElement = viewportRef.value;
     const edge = relationEdges.value.find(item => item.relationId === relationId);
     if (!viewportElement || !edge) {
@@ -669,7 +676,7 @@
     schedulePersistLayout();
   }
 
-  function selectRelation(relationId: number, options: SelectRelationOptions = {}) {
+  function selectRelation(relationId: string, options: SelectRelationOptions = {}) {
     const { scrollList = true, focusCanvas = false } = options;
     selectedRelationId.value = relationId;
     if (focusCanvas) {
@@ -1133,11 +1140,11 @@
           <div v-else ref="relationListRef" class="relation-list">
             <article
               v-for="relation in relations"
-              :key="relation.id"
+              :key="relation.relationKey"
               class="relation-list-item"
-              :class="{ 'is-relation-selected': isRelationSelected(relation.id) }"
-              :data-relation-id="relation.id"
-              @click="selectRelation(relation.id, { scrollList: false, focusCanvas: true })"
+              :class="{ 'is-relation-selected': isRelationSelected(relation.relationKey) }"
+              :data-relation-id="relation.relationKey"
+              @click="selectRelation(relation.relationKey, { scrollList: false, focusCanvas: true })"
             >
               <div class="relation-list-head">
                 <div>

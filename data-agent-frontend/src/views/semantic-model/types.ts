@@ -59,6 +59,7 @@ export interface RelationDragCreatePayload {
 }
 
 export interface SemanticRelationLayoutSnapshot {
+  version?: number;
   nodes: Record<string, { x: number; y: number }>;
   viewport: RelationViewportState;
   canvasOrigin?: {

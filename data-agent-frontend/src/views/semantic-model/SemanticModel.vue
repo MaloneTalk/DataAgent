@@ -700,6 +700,10 @@
       ElMessage.warning('物理外键仅展示，不支持直接编辑');
       return;
     }
+    if (typeof relation.id !== 'number') {
+      ElMessage.error('当前逻辑外键缺少有效标识，无法编辑');
+      return;
+    }
     selectedRelation.value = relation;
     relationDialogVisible.value = true;
     suppressRelationTableWatch.value = true;
@@ -755,10 +759,15 @@
       };
 
       if (selectedRelation.value) {
+        const selectedRelationId = selectedRelation.value.id;
+        if (typeof selectedRelationId !== 'number') {
+          ElMessage.error('当前逻辑外键缺少有效标识，无法更新');
+          return;
+        }
         await updateLogicalRelation(
           selectedDatasourceId.value,
           relationForm.sourceTableName,
-          selectedRelation.value.id,
+          selectedRelationId,
           payload,
         );
         ElMessage.success('逻辑外键已更新');
@@ -782,6 +791,10 @@
   const handleDeleteRelation = async (relation: LogicalTableRelationResponse) => {
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键仅展示，不支持删除');
+      return;
+    }
+    if (typeof relation.id !== 'number') {
+      ElMessage.error('当前逻辑外键缺少有效标识，无法删除');
       return;
     }
     if (typeof selectedDatasourceId.value !== 'number') {
@@ -815,6 +828,10 @@
   ) => {
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键始终由数据库结构决定，不能在这里启停');
+      return;
+    }
+    if (typeof relation.id !== 'number') {
+      ElMessage.error('当前逻辑外键缺少有效标识，无法更新状态');
       return;
     }
     if (typeof selectedDatasourceId.value !== 'number') {

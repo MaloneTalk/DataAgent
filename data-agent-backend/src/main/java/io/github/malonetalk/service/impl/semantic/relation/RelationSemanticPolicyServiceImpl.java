@@ -167,6 +167,13 @@ public class RelationSemanticPolicyServiceImpl implements RelationSemanticPolicy
                                 targetColumnResult.errorMessage()));
         return new LogicalTableRelationResponse(
                 relation.getId(),
+                buildRelationKey(
+                        LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
+                        relation.getSourceTableName(),
+                        sourceColumnResult.columnNames(),
+                        relation.getTargetTableName(),
+                        targetColumnResult.columnNames(),
+                        relation.getId()),
                 relation.getDatasourceId(),
                 LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
                 relation.getSourceTableName(),
@@ -197,6 +204,13 @@ public class RelationSemanticPolicyServiceImpl implements RelationSemanticPolicy
                                 null));
         return new LogicalTableRelationResponse(
                 relation.logicalId(),
+                buildRelationKey(
+                        relation.source(),
+                        relation.sourceTableName(),
+                        relation.sourceColumnNames(),
+                        relation.targetTableName(),
+                        relation.targetColumnNames(),
+                        relation.logicalId()),
                 datasourceId,
                 relation.source(),
                 relation.sourceTableName(),
@@ -210,6 +224,27 @@ public class RelationSemanticPolicyServiceImpl implements RelationSemanticPolicy
                 relationState.invalidReason(),
                 null,
                 null);
+    }
+
+    private String buildRelationKey(
+            String source,
+            String sourceTableName,
+            List<String> sourceColumnNames,
+            String targetTableName,
+            List<String> targetColumnNames,
+            Integer logicalId) {
+        if (logicalId != null) {
+            return source + ":" + logicalId;
+        }
+        return source
+                + ":"
+                + logicalTableRelationHelper.normalizeIdentifierKey(sourceTableName)
+                + "->"
+                + logicalTableRelationHelper.buildColumnSignature(sourceColumnNames)
+                + "=>"
+                + logicalTableRelationHelper.normalizeIdentifierKey(targetTableName)
+                + "->"
+                + logicalTableRelationHelper.buildColumnSignature(targetColumnNames);
     }
 
     private ColumnDecodeResult decodeColumnNames(

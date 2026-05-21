@@ -22,6 +22,7 @@ import java.util.List;
 
 public record LogicalTableRelationResponse(
         Integer id,
+        String relationKey,
         Integer datasourceId,
         String source,
         String sourceTableName,

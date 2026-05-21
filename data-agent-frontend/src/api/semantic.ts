@@ -99,7 +99,8 @@ export interface RelationCandidateColumnResponse {
 }
 
 export interface LogicalTableRelationResponse {
-  id: number;
+  id: number | null;
+  relationKey: string;
   datasourceId: number;
   source: 'physical' | 'logical';
   sourceTableName: string;
