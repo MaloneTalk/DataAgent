@@ -83,10 +83,10 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     public PageResponse<TableSemanticResponse> getTablePage(
             Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder) {
         semanticPageService.validateSortOrder(sortOrder);
-        Datasource datasource = getActiveDatasource();
-        if (datasourceId != null) {
-            datasource = semanticDatasourceService.findDatasourceOrNull(datasourceId);
-        }
+        Datasource datasource =
+                datasourceId == null
+                        ? getActiveDatasource()
+                        : semanticDatasourceService.findDatasourceOrNull(datasourceId);
         if (datasource == null) {
             return PageResponse.empty(pageRequest);
         }
@@ -177,7 +177,17 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (matchedIds.isEmpty()) {
             return 0;
         }
-        return tableSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        if (matchedIds.size() != normalizedTableKeys.size()) {
+            throw new SemanticSchemaException(
+                    "Some table semantic metadata does not exist for datasource " + datasourceId + ".");
+        }
+        int deletedCount = tableSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        semanticDatasourceService.ensureWriteSuccess(
+                deletedCount == matchedIds.size(),
+                "Failed to reset all requested table semantic metadata for datasource "
+                        + datasourceId
+                        + ".");
+        return deletedCount;
     }
 
     @Override

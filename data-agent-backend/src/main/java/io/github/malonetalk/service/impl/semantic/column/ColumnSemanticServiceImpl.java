@@ -84,7 +84,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String canonicalTableName =
                 semanticSnapshotFactory.resolveCanonicalTableName(tableSnapshot);
 
-        SemanticContext context = semanticContextFactory.createContext(datasource);
+        SemanticContext context =
+                semanticContextFactory.createContext(datasource, visibilityContext);
         List<ResolvedColumn> sortedColumns =
                 context.listColumns(canonicalTableName).stream()
                         .filter(
@@ -110,6 +111,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         Datasource datasource = loadUpdateDatasource(datasourceId);
         VisibilityContext visibilityContext =
                 semanticSnapshotFactory.createVisibilityContext(datasource);
+        SemanticContext context =
+                semanticContextFactory.createContext(datasource, visibilityContext);
         String canonicalTableName = resolveCanonicalTableName(visibilityContext, tableName);
         String canonicalColumnName =
                 resolveCanonicalColumnName(
@@ -183,7 +186,19 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (matchedIds.isEmpty()) {
             return 0;
         }
-        return columnSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        if (matchedIds.size() != normalizedColumnKeys.size()) {
+            throw new SemanticSchemaException(
+                    "Some column semantic metadata does not exist for table "
+                            + normalizedTableName
+                            + ".");
+        }
+        int deletedCount = columnSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        semanticDatasourceService.ensureWriteSuccess(
+                deletedCount == matchedIds.size(),
+                "Failed to reset all requested column semantic metadata for table "
+                        + normalizedTableName
+                        + ".");
+        return deletedCount;
     }
 
     private ColumnSemanticResponse mapColumnResponse(ResolvedColumn column) {

@@ -19,8 +19,9 @@ package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
+import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
+import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,29 +29,34 @@ public class SemanticContextFactory {
 
     private final SemanticResolver semanticResolver;
     private final SemanticSnapshotFactory semanticSnapshotFactory;
-    private final LogicalTableRelationMapper logicalTableRelationMapper;
+    private final RelationSemanticRepository relationSemanticRepository;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
     private final SchemaReader schemaReader;
 
     public SemanticContextFactory(
             SemanticResolver semanticResolver,
             SemanticSnapshotFactory semanticSnapshotFactory,
-            LogicalTableRelationMapper logicalTableRelationMapper,
+            RelationSemanticRepository relationSemanticRepository,
             LogicalTableRelationHelper logicalTableRelationHelper,
             SchemaReader schemaReader) {
         this.semanticResolver = semanticResolver;
         this.semanticSnapshotFactory = semanticSnapshotFactory;
-        this.logicalTableRelationMapper = logicalTableRelationMapper;
+        this.relationSemanticRepository = relationSemanticRepository;
         this.logicalTableRelationHelper = logicalTableRelationHelper;
         this.schemaReader = schemaReader;
     }
 
     public SemanticContext createContext(Datasource datasource) {
+        return createContext(datasource, semanticSnapshotFactory.createVisibilityContext(datasource));
+    }
+
+    public SemanticContext createContext(
+            Datasource datasource, VisibilityContext visibilityContext) {
         return new SemanticContext(
                 datasource,
-                semanticSnapshotFactory.createVisibilityContext(datasource),
+                visibilityContext,
                 semanticResolver,
-                logicalTableRelationMapper,
+                relationSemanticRepository,
                 logicalTableRelationHelper,
                 schemaReader);
     }

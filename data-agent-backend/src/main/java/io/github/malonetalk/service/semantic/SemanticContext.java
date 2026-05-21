@@ -30,10 +30,10 @@ import io.github.malonetalk.entity.RelationState;
 import io.github.malonetalk.entity.ResolvedColumn;
 import io.github.malonetalk.entity.ResolvedRelation;
 import io.github.malonetalk.entity.ResolvedTable;
-import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.semantic.SemanticManager.TableMergeSnapshot;
 import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
+import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -50,7 +50,7 @@ public class SemanticContext {
     private final Datasource datasource;
     private final VisibilityContext visibilityContext;
     private final SemanticResolver semanticResolver;
-    private final LogicalTableRelationMapper logicalTableRelationMapper;
+    private final RelationSemanticRepository relationSemanticRepository;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
     private final SchemaReader schemaReader;
     private final SemanticCache cache = new SemanticCache();
@@ -60,13 +60,13 @@ public class SemanticContext {
             Datasource datasource,
             VisibilityContext visibilityContext,
             SemanticResolver semanticResolver,
-            LogicalTableRelationMapper logicalTableRelationMapper,
+            RelationSemanticRepository relationSemanticRepository,
             LogicalTableRelationHelper logicalTableRelationHelper,
             SchemaReader schemaReader) {
         this.datasource = datasource;
         this.visibilityContext = visibilityContext;
         this.semanticResolver = semanticResolver;
-        this.logicalTableRelationMapper = logicalTableRelationMapper;
+        this.relationSemanticRepository = relationSemanticRepository;
         this.logicalTableRelationHelper = logicalTableRelationHelper;
         this.schemaReader = schemaReader;
     }
@@ -234,7 +234,7 @@ public class SemanticContext {
 
         List<LogicalTableRelation> logicalRelations = getLogicalRelationsForTable(canonical);
         for (LogicalTableRelation entity : logicalRelations) {
-            ResolvedRelation resolved = resolveLogicalRelation(entity);
+            ResolvedRelation resolved = resolveLogicalRelation(entity, true);
             if (resolved != null) {
                 merged.putIfAbsent(relationKey(resolved), resolved);
             }
@@ -243,6 +243,22 @@ public class SemanticContext {
         List<ResolvedRelation> result = List.copyOf(merged.values());
         cache.putRelations(tableKey, canonical, result);
         return result;
+    }
+
+    public List<ResolvedRelation> listVisiblePhysicalRelations(String tableName) {
+        ResolvedTable table = findTable(tableName);
+        if (table == null || !table.hasPhysicalTable()) {
+            return Collections.emptyList();
+        }
+        String canonical = table.canonicalName();
+        return schemaReader.getImportedRelations(datasource, canonical).stream()
+                .map(this::resolvePhysicalRelation)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    public List<LogicalTableRelation> listLogicalRelations(String sourceTableName) {
+        return getLogicalRelationsForTable(sourceTableName);
     }
 
     private ResolvedRelation resolvePhysicalRelation(TableRelationInfo relation) {
@@ -265,8 +281,9 @@ public class SemanticContext {
                 true);
     }
 
-    private ResolvedRelation resolveLogicalRelation(LogicalTableRelation entity) {
-        if (!Boolean.TRUE.equals(entity.getIsEnabled())) {
+    private ResolvedRelation resolveLogicalRelation(
+            LogicalTableRelation entity, boolean visibleOnly) {
+        if (visibleOnly && !Boolean.TRUE.equals(entity.getIsEnabled())) {
             return null;
         }
         List<String> sourceColumnNames;
@@ -287,7 +304,8 @@ public class SemanticContext {
             logger.warn("Skipping relation id={}: invalid target columns JSON.", entity.getId(), e);
             return null;
         }
-        if (!isRelationEndpointVisible(
+        if (visibleOnly
+                && !isRelationEndpointVisible(
                 entity.getSourceTableName(), sourceColumnNames,
                 entity.getTargetTableName(), targetColumnNames)) {
             return null;
@@ -328,11 +346,8 @@ public class SemanticContext {
         if (logicalRelationsBySourceTable == null) {
             logicalRelationsBySourceTable = new HashMap<>();
             List<LogicalTableRelation> allRelations =
-                    logicalTableRelationMapper.selectByDatasourceId(datasource.getId());
+                    relationSemanticRepository.listByDatasourceId(datasource.getId());
             for (LogicalTableRelation relation : allRelations) {
-                if (!Boolean.TRUE.equals(relation.getIsEnabled())) {
-                    continue;
-                }
                 String normalizedSource = normalizeName(relation.getSourceTableName());
                 logicalRelationsBySourceTable
                         .computeIfAbsent(normalizedSource, k -> new java.util.ArrayList<>())
