@@ -24,6 +24,7 @@ import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -61,7 +62,7 @@ public class DatasourceController {
     }
 
     @PostMapping
-    public Result<Boolean> save(@RequestBody DatasourceRequest request) {
+    public Result<Boolean> save(@Valid @RequestBody DatasourceRequest request) {
         Datasource datasource = datasourceConverter.toEntity(request);
         datasource.setStatus(Status.INACTIVE.getCode());
         boolean success = dataSourceService.save(datasource);
@@ -70,7 +71,7 @@ public class DatasourceController {
 
     @PutMapping("/{id}")
     public Result<Boolean> update(
-            @PathVariable Integer id, @RequestBody DatasourceRequest request) {
+            @PathVariable Integer id, @Valid @RequestBody DatasourceRequest request) {
         Datasource datasource = dataSourceService.findById(id);
         if (datasource == null) {
             return Result.error(404, "DataSource not found");

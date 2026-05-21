@@ -18,42 +18,51 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
-import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.enums.Status;
-import io.github.malonetalk.service.DatasourceService;
-import io.github.malonetalk.service.TableInfoService;
-import java.util.Collections;
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.agent.tools.response.TablePromptResponse;
+import io.github.malonetalk.common.ToolResult;
+import io.github.malonetalk.dto.pagination.PageRequest;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.service.semantic.table.TableSemanticService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
-@AllArgsConstructor
 public class GetTablesTool implements MarkAgentTool {
 
-    private final DatasourceService dataSourceService;
-    private final TableInfoService tableInfoService;
+    private static final Logger logger = LoggerFactory.getLogger(GetTablesTool.class);
 
-    @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
-    public List<TableInfo> getTables() {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
+    private final TableSemanticService tableSemanticService;
 
-        if (activeDataSources.isEmpty()) {
-            return Collections.emptyList();
+    public GetTablesTool(TableSemanticService tableSemanticService) {
+        this.tableSemanticService = tableSemanticService;
+    }
+
+    @Tool(
+            name = "get_tables",
+            description =
+                    "Get visible tables as structured data. Returns a success/data/error wrapper,"
+                            + " and data contains paged table items with name, domain, description,"
+                            + " and the table's relations to other tables (relationType, source,"
+                            + " sourceTableName, sourceColumnNames, targetTableName,"
+                            + " targetColumnNames, description). Use this tool to discover both the"
+                            + " available tables and how they join to each other.")
+    public ToolResult<PageResponse<TablePromptResponse>> getTables(
+            @ToolParam(name = "page", description = "Optional page number, defaults to 1")
+                    Integer page,
+            @ToolParam(
+                            name = "page_size",
+                            description = "Optional page size, defaults to 20 and max is 100")
+                    Integer pageSize) {
+        try {
+            return ToolResult.success(
+                    tableSemanticService.getVisibleTablePromptPage(PageRequest.of(page, pageSize)));
+        } catch (IllegalArgumentException e) {
+            return ToolResult.error("INVALID_PAGINATION_ARGUMENT", e.getMessage());
+        } catch (RuntimeException e) {
+            logger.error("Failed to get visible tables: {}", e.getMessage(), e);
+            return ToolResult.error("GET_TABLES_ERROR", e.getMessage());
         }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one. This may cause data"
-                            + " inconsistency.",
-                    activeDataSources.size());
-        }
-
-        Datasource dataSource = activeDataSources.get(0);
-        return tableInfoService.findByDatasourceId(dataSource.getId());
     }
 }

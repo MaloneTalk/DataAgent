@@ -15,26 +15,30 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.semantic;
 
+import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-public interface TableInfoService {
+public interface SemanticService {
 
-    List<TableInfo> findAll();
+    String normalizeIdentifierKey(String value);
 
-    TableInfo findById(Integer id);
+    Set<String> normalizeIdentifierKeys(List<String> values, String fieldName);
 
-    boolean save(TableInfo tableInfo);
+    TableInfo findSemanticTable(
+            List<TableInfo> semanticTables, Integer datasourceId, String tableName);
 
-    boolean update(TableInfo tableInfo);
+    ColumnInfo findSemanticColumn(
+            List<ColumnInfo> semanticColumns,
+            Integer datasourceId,
+            String tableName,
+            String columnName);
 
-    boolean deleteById(Integer id);
+    Map<String, TableInfo> toSemanticTableMap(List<TableInfo> semanticTables);
 
-    List<TableInfo> findByDatasourceId(Integer datasourceId);
-
-    List<TableInfo> findByIsActive(Boolean isActive);
-
-    List<TableInfo> findByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive);
+    Map<String, ColumnInfo> toSemanticColumnMap(List<ColumnInfo> semanticColumns);
 }

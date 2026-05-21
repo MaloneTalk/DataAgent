@@ -15,17 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.convertor;
+package io.github.malonetalk.dto.datasource;
 
-import io.github.malonetalk.dto.TableInfoRequest;
-import io.github.malonetalk.dto.TableInfoResponse;
-import io.github.malonetalk.entity.TableInfo;
-import org.mapstruct.Mapper;
+import jakarta.validation.constraints.NotNull;
 
-@Mapper(componentModel = "spring")
-public interface TableInfoConverter {
-
-    TableInfo toEntity(TableInfoRequest request);
-
-    TableInfoResponse toResponse(TableInfo tableInfo);
-}
+public record DatasourceUpdateRequest(
+        @NotNull(message = "id 不能为空") Integer id,
+        String name,
+        String type,
+        String host,
+        Integer port,
+        String databaseName,
+        String username,
+        String password,
+        String connectionUrl,
+        String status,
+        String description) {}

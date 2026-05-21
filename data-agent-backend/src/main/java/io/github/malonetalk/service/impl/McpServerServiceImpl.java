@@ -15,10 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.impl;
 
 import io.github.malonetalk.entity.McpServer;
 import io.github.malonetalk.mapper.McpServerMapper;
+import io.github.malonetalk.service.McpServerService;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;

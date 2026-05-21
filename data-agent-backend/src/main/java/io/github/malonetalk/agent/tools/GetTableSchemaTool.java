@@ -19,69 +19,58 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.agent.datasource.ColumnInfo;
-import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
-import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.enums.Status;
-import io.github.malonetalk.service.DatasourceService;
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import io.github.malonetalk.common.ToolResult;
+import io.github.malonetalk.dto.pagination.PageRequest;
+import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
+import io.github.malonetalk.exception.SemanticSchemaException;
+import io.github.malonetalk.service.semantic.table.TableSemanticService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
-@AllArgsConstructor
 public class GetTableSchemaTool implements MarkAgentTool {
 
-    private final DatasourceService dataSourceService;
-    private final SchemaReader schemaReader;
+    private static final Logger logger = LoggerFactory.getLogger(GetTableSchemaTool.class);
+
+    private final TableSemanticService tableSemanticService;
+
+    public GetTableSchemaTool(TableSemanticService tableSemanticService) {
+        this.tableSemanticService = tableSemanticService;
+    }
 
     @Tool(
             name = "get_table_schema",
             description =
-                    "Get the schema information of the specified table, including column name, data"
-                        + " type, whether it is primary key, whether it allows null, default value"
-                        + " and column comments. This tool should be called to understand the table"
-                        + " structure before generating SQL.")
-    public String getTableSchema(
+                    "Get the structured semantic schema information of the specified table."
+                            + " Returns a success/data/error wrapper. Data includes table metadata"
+                            + " and paged visible columns, with semantic descriptions taking"
+                            + " precedence and physical metadata used as fallback. Table relations"
+                            + " are returned together with the table list by get_tables, not by"
+                            + " this tool. This tool should be called before generating SQL.")
+    public ToolResult<TableSchemaSemanticPrompt> getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
-                    String tableName) {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-        if (activeDataSources.isEmpty()) {
-            return "No active datasource available, cannot get table schema.";
-        }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one.", activeDataSources.size());
-        }
-
-        Datasource datasource = activeDataSources.get(0);
-
+                    String tableName,
+            @ToolParam(
+                            name = "column_page",
+                            description = "Optional column page number, defaults to 1")
+                    Integer columnPage,
+            @ToolParam(
+                            name = "column_page_size",
+                            description =
+                                    "Optional column page size, defaults to 20 and max is 100")
+                    Integer columnPageSize) {
         try {
-            List<ColumnInfo> columns = schemaReader.getTableSchema(datasource, tableName);
-            return formatSchema(tableName, columns);
-        } catch (SchemaReadException e) {
-            return "Failed to get table schema: " + e.getMessage();
+            return ToolResult.success(
+                    tableSemanticService.getTableSchema(
+                            tableName, PageRequest.of(columnPage, columnPageSize)));
+        } catch (IllegalArgumentException e) {
+            return ToolResult.error("INVALID_PAGINATION_ARGUMENT", e.getMessage());
+        } catch (SemanticSchemaException e) {
+            return ToolResult.error("TABLE_SCHEMA_ERROR", e.getMessage());
+        } catch (RuntimeException e) {
+            logger.error("Failed to get table schema for {}: {}", tableName, e.getMessage(), e);
+            return ToolResult.error("TABLE_SCHEMA_INTERNAL_ERROR", e.getMessage());
         }
-    }
-
-    private String formatSchema(String tableName, List<ColumnInfo> columns) {
-        if (columns.isEmpty()) {
-            return "Table " + tableName + " does not exist or has no column information.";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("Schema of table ").append(tableName).append(":\n");
-
-        for (ColumnInfo col : columns) {
-            sb.append("  - ").append(col.toString()).append("\n");
-        }
-
-        return sb.toString();
     }
 }

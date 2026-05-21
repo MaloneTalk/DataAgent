@@ -15,14 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.service.semantic;
 
-import jakarta.validation.constraints.NotBlank;
+import io.github.malonetalk.entity.Datasource;
 
-public record TableInfoRequest(
-        Integer id,
-        @NotBlank(message = "tableName 不能为空") String tableName,
-        String tableDescription,
-        String domain,
-        Integer datasourceId,
-        Boolean isActive) {}
+public interface SemanticDatasourceService {
+
+    Datasource findDatasourceOrNull(Integer datasourceId);
+
+    Datasource requireDatasource(Integer datasourceId);
+
+    Datasource requireSemanticDatasource(Integer datasourceId, String messagePrefix);
+
+    boolean datasourceExists(Integer datasourceId);
+
+    void ensureWriteSuccess(boolean success, String message);
+}

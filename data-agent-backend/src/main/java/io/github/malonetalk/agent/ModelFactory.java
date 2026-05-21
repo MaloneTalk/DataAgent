@@ -45,14 +45,10 @@ public class ModelFactory {
     private String baseUrl;
 
     public Model createModel() {
-        return createModel(apiKey, modelName);
-    }
-
-    public Model createModel(String apiKey, String modelName) {
         return createModel(apiKey, modelName, baseUrl);
     }
 
-    public Model createModel(String apiKey, String modelName, String baseUrl) {
+    private Model createModel(String apiKey, String modelName, String baseUrl) {
         return switch (provider.toLowerCase()) {
             case "dashscope" ->
                     DashScopeChatModel.builder().apiKey(apiKey).modelName(modelName).stream(true)

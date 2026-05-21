@@ -65,6 +65,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+data-agent-backend/src/main/resources/application.properties
 
 # Logs
 logs
@@ -76,16 +77,18 @@ log/
 *.bak
 *.cache
 
+# AI
+.claude
+.spec-workflow
+
 # ==============================
 # Frontend (Node/Vue)
 # ==============================
 node_modules/
-dist/
 dist-ssr/
 *.local
 
 # Editor directories and files
-*.suo
 *.ntvs*
 *.njsproj
 *.sln

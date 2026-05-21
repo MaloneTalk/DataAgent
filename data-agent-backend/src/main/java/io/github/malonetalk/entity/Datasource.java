@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import lombok.Data;
 
@@ -30,7 +31,10 @@ public class Datasource {
     private Integer port;
     private String databaseName;
     private String username;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
+
     private String connectionUrl;
     private String status;
     private String testStatus;

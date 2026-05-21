@@ -26,6 +26,34 @@ public record ColumnInfo(
         boolean primaryKey,
         String remarks) {
 
+    public String getColumnName() {
+        return columnName;
+    }
+
+    public String getTypeName() {
+        return typeName;
+    }
+
+    public int getColumnSize() {
+        return columnSize;
+    }
+
+    public boolean isNullable() {
+        return nullable;
+    }
+
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public boolean isPrimaryKey() {
+        return primaryKey;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

@@ -30,7 +30,7 @@ public class DataSourceConfig {
     @Value("${spring.datasource.url:jdbc:mysql://localhost:3306/data_agent}")
     private String jdbcUrl;
 
-    @Value("${spring.datasource.username:root}")
+    @Value("${spring.datasource.username:}")
     private String username;
 
     @Value("${spring.datasource.password:}")
