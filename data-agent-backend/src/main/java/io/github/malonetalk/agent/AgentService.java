@@ -23,7 +23,6 @@ import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
-import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.tool.Toolkit;
 import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
@@ -33,24 +32,21 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentService {
 
     private final ModelFactory modelFactory;
     private final List<MarkAgentTool> allToolBeans;
-    private final DataSource dataSource;
     private final ModelProperties modelProperties;
-
-    private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
+    private final SessionService sessionService;
     private Toolkit toolkit;
 
     @PostConstruct
@@ -59,16 +55,10 @@ public class AgentService {
         allToolBeans.forEach(this.toolkit::registerTool);
     }
 
-    private Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(
-                sessionId,
-                k -> new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false));
-    }
-
     public String chat(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
-        Session session = getOrCreateSession(sessionId);
+        Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
@@ -83,7 +73,7 @@ public class AgentService {
     public Flux<ChatStreamEvent> chatStream(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
-        Session session = getOrCreateSession(sessionId);
+        Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
@@ -119,16 +109,5 @@ public class AgentService {
                 .memory(new InMemoryMemory())
                 .maxIters(10)
                 .build();
-    }
-
-    public void clearSession(String sessionId) {
-        Session session = sessionCache.remove(sessionId);
-        if (session != null) {
-            session.delete(io.agentscope.core.state.SimpleSessionKey.of(sessionId));
-        }
-    }
-
-    public void clearAllSessions() {
-        sessionCache.clear();
     }
 }

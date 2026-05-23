@@ -38,9 +38,46 @@ export interface ChatStreamEvent {
   toolResult: ToolResultInfo | null;
 }
 
+export interface SessionInfo {
+  sessionId: string;
+  title: string;
+  createdAt: string;
+  lastActiveAt: string;
+}
+
 export interface ChatRequest {
   sessionId: string;
   message: string;
+}
+
+export interface TurnItem {
+  role: string;
+  content: string;
+  traceSteps: ChatStreamEvent[];
+}
+
+export async function fetchSessionList(): Promise<SessionInfo[]> {
+  const response = await fetch('/api/agent/sessions');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch session list: ${response.status} ${response.statusText}`);
+  }
+  const body = await response.json();
+  if (body.code !== 200) {
+    throw new Error(body.message || 'Failed to fetch session list');
+  }
+  return body.data as SessionInfo[];
+}
+
+export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]> {
+  const response = await fetch(`/api/agent/session/${encodeURIComponent(sessionId)}/history`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch session history: ${response.status} ${response.statusText}`);
+  }
+  const body = await response.json();
+  if (body.code !== 200) {
+    throw new Error(body.message || 'Failed to fetch session history');
+  }
+  return body.data as TurnItem[];
 }
 
 export async function* streamChat(

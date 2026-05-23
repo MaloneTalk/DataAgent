@@ -96,7 +96,11 @@ public class EventConverter {
                                     null,
                                     null));
                 }
-            } else if (block instanceof ToolUseBlock tub) {
+            } else if (block instanceof ToolUseBlock tub
+                    && event.getType() != EventType.REASONING) {
+                // REASONING events already emit tool calls in the isLast branch above with
+                // complete input. Skip incremental duplicates here to avoid emitting partial
+                // (empty) tool arguments that the model hasn't finished generating yet.
                 results.add(
                         new ChatStreamEvent(
                                 ChatStreamEventType.TOOL_CALL,
