@@ -33,10 +33,6 @@ import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import io.github.malonetalk.utils.MsgUtils;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -48,6 +44,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
