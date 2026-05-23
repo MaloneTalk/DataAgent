@@ -17,8 +17,11 @@
 
 <script setup lang="ts">
   import { computed } from 'vue';
+  import { marked } from 'marked';
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
   import TracePanel from './TracePanel.vue';
+
+  marked.use({ gfm: true, breaks: true });
 
   const props = defineProps<{
     message: ChatMessageType;
@@ -36,18 +39,17 @@
       summary: props.message.content.slice(idx + SUMMARY_MARKER.length),
     };
   });
+
+  const renderedText = computed(() => marked.parse(contentParts.value.text) as string);
+  const renderedSummary = computed(() => marked.parse(contentParts.value.summary) as string);
 </script>
 
 <template>
   <div class="chat-message" :class="`chat-message--${message.role}`">
     <div class="chat-message__bubble">
       <TracePanel v-if="message.role === 'agent'" :message="message" />
-      <div v-if="contentParts.text" class="chat-message__content">
-        {{ contentParts.text }}
-      </div>
-      <div v-if="contentParts.summary" class="chat-message__summary">
-        Summary：{{ '\n' }}{{ contentParts.summary }}
-      </div>
+      <div v-if="contentParts.text" class="chat-message__content" v-html="renderedText"></div>
+      <div v-if="contentParts.summary" class="chat-message__summary" v-html="renderedSummary"></div>
       <div
         v-if="
           message.isStreaming &&
@@ -108,15 +110,122 @@
   }
 
   .chat-message__content {
-    white-space: pre-wrap;
     word-break: break-word;
+
+    :deep(p) {
+      margin: 0 0 8px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    :deep(strong) {
+      font-weight: 700;
+    }
+
+    :deep(em) {
+      font-style: italic;
+    }
+
+    :deep(ul),
+    :deep(ol) {
+      padding-left: 20px;
+      margin: 4px 0 8px;
+    }
+
+    :deep(li) {
+      margin-bottom: 2px;
+    }
+
+    :deep(code) {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    }
+
+    :deep(pre) {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      overflow-x: auto;
+      margin: 8px 0;
+
+      code {
+        background: none;
+        padding: 0;
+        font-size: 13px;
+      }
+    }
+
+    :deep(blockquote) {
+      border-left: 3px solid #3b82f6;
+      padding-left: 12px;
+      margin: 8px 0;
+      color: #64748b;
+    }
+
+    :deep(h1),
+    :deep(h2),
+    :deep(h3),
+    :deep(h4),
+    :deep(h5),
+    :deep(h6) {
+      margin: 12px 0 6px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    :deep(table) {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 8px 0;
+
+      th,
+      td {
+        border: 1px solid #e2e8f0;
+        padding: 6px 12px;
+        text-align: left;
+      }
+
+      th {
+        background: #f8fafc;
+        font-weight: 600;
+      }
+    }
+
+    :deep(hr) {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 12px 0;
+    }
   }
 
   .chat-message__summary {
-    white-space: pre-wrap;
     word-break: break-word;
     color: #16a34a;
     margin-top: 8px;
+
+    :deep(p) {
+      margin: 0 0 8px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    :deep(strong) {
+      font-weight: 700;
+    }
+
+    :deep(ul),
+    :deep(ol) {
+      padding-left: 20px;
+      margin: 4px 0 8px;
+    }
   }
 
   .chat-message__thinking {

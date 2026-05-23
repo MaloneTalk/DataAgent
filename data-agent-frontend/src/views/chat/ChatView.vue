@@ -16,14 +16,31 @@
  -->
 
 <script setup lang="ts">
-  import { ref, nextTick, watch } from 'vue';
+  import { ref, nextTick, watch, onMounted, computed } from 'vue';
+  import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
   import ChatMessage from '@/components/chat/ChatMessage.vue';
   import ChatInput from '@/components/chat/ChatInput.vue';
+  import SessionList from '@/components/chat/SessionList.vue';
 
-  const { messages, isStreaming, sendMessage, stopStreaming, newSession } = useAgentChat();
+  const route = useRoute();
+  const router = useRouter();
+
+  const { messages, isStreaming, sessionId, sendMessage, stopStreaming, newSession, loadHistory } =
+    useAgentChat();
 
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
+  const sessionListRef = ref<InstanceType<typeof SessionList>>();
+  const showSessionList = ref(false);
+
+  function toggleSessionList() {
+    showSessionList.value = !showSessionList.value;
+  }
+
+  const activeSessionId = computed(() => {
+    const sid = route.params.sessionId;
+    return typeof sid === 'string' ? sid : null;
+  });
 
   async function scrollToBottom() {
     await nextTick();
@@ -34,76 +51,157 @@
 
   watch(messages, () => scrollToBottom(), { deep: true });
 
+  onMounted(async () => {
+    const sid = route.params.sessionId as string | undefined;
+    if (sid) {
+      await loadHistory(sid);
+    }
+  });
+
+  watch(
+    () => route.params.sessionId,
+    async newSid => {
+      if (newSid && typeof newSid === 'string') {
+        await loadHistory(newSid);
+      }
+    },
+  );
+
+  watch(isStreaming, (val, prev) => {
+    if (prev && !val) {
+      sessionListRef.value?.loadList();
+    }
+  });
+
   function handleSend(text: string) {
     sendMessage(text);
+    if (!activeSessionId.value) {
+      router.replace(`/chat/${sessionId.value}`);
+    }
+  }
+
+  function handleNewSession() {
+    newSession();
+    router.push('/chat');
   }
 </script>
 
 <template>
   <div class="chat-view">
-    <div class="chat-view__header">
-      <h2 class="chat-view__title">AI 智能分析</h2>
-      <el-button text @click="newSession">新建会话</el-button>
+    <div
+      class="chat-view__session-panel"
+      :class="{ 'chat-view__session-panel--hidden': !showSessionList }"
+    >
+      <SessionList
+        ref="sessionListRef"
+        :active-session-id="activeSessionId"
+        @new-session="handleNewSession"
+      />
     </div>
 
-    <div ref="messagesContainer" class="chat-view__messages">
-      <div v-if="messages.length === 0" class="chat-view__empty">
-        <div class="chat-view__empty-icon">💬</div>
-        <div class="chat-view__empty-text">开始对话，让 AI 帮你分析数据</div>
-        <div class="chat-view__empty-hints">
-          <div
-            class="hint-item"
-            @click="handleSend('帮我查一下上个月高价值用户都买了哪些品类的商品？')"
-          >
-            "帮我查一下上个月高价值用户都买了哪些品类的商品？"
-          </div>
-          <div class="hint-item" @click="handleSend('分析今年第一季度的销售趋势')">
-            "分析今年第一季度的销售趋势"
-          </div>
-          <div class="hint-item" @click="handleSend('统计各地区的用户活跃情况')">
-            "统计各地区的用户活跃情况"
-          </div>
+    <div class="chat-view__main">
+      <div class="chat-view__header">
+        <div class="chat-view__header-left">
+          <el-button class="chat-view__toggle-btn" text @click="toggleSessionList">
+            <el-icon :size="18">
+              <Fold v-if="showSessionList" />
+              <Expand v-else />
+            </el-icon>
+          </el-button>
         </div>
+        <el-button text @click="handleNewSession">新建会话</el-button>
       </div>
 
-      <ChatMessage v-for="msg in messages" :key="msg.id" :message="msg" />
+      <div ref="messagesContainer" class="chat-view__messages">
+        <div v-if="messages.length === 0" class="chat-view__empty">
+          <div class="chat-view__empty-icon">💬</div>
+          <div class="chat-view__empty-text">开始对话，让 AI 帮你分析数据</div>
+          <div class="chat-view__empty-hints">
+            <div
+              class="hint-item"
+              @click="handleSend('帮我查一下上个月高价值用户都买了哪些品类的商品？')"
+            >
+              "帮我查一下上个月高价值用户都买了哪些品类的商品？"
+            </div>
+            <div class="hint-item" @click="handleSend('分析今年第一季度的销售趋势')">
+              "分析今年第一季度的销售趋势"
+            </div>
+            <div class="hint-item" @click="handleSend('统计各地区的用户活跃情况')">
+              "统计各地区的用户活跃情况"
+            </div>
+          </div>
+        </div>
 
-      <div v-if="isStreaming && messages.length === 0" class="chat-view__empty">思考中...</div>
+        <ChatMessage v-for="msg in messages" :key="msg.id" :message="msg" />
+
+        <div v-if="isStreaming && messages.length === 0" class="chat-view__empty">思考中...</div>
+      </div>
+
+      <ChatInput :is-streaming="isStreaming" @send="handleSend" @stop="stopStreaming" />
     </div>
-
-    <ChatInput :is-streaming="isStreaming" @send="handleSend" @stop="stopStreaming" />
   </div>
 </template>
 
 <style scoped>
   .chat-view {
     display: flex;
-    flex-direction: column;
     height: 100%;
-    max-width: 800px;
+    max-width: 1100px;
     margin: 0 auto;
+  }
+
+  .chat-view__session-panel {
+    width: 260px;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition:
+      width 0.2s,
+      opacity 0.2s;
+    opacity: 1;
+  }
+
+  .chat-view__session-panel--hidden {
+    width: 0;
+    opacity: 0;
+  }
+
+  .chat-view__main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
 
   .chat-view__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0;
+    padding: 16px 20px;
     border-bottom: 1px solid #e5e7eb;
     flex-shrink: 0;
   }
 
-  .chat-view__title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #303133;
-    margin: 0;
+  .chat-view__header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chat-view__toggle-btn {
+    font-size: 14px;
+    color: #94a3b8;
+    padding: 4px;
+  }
+
+  .chat-view__toggle-btn:hover {
+    color: #3b82f6;
+    background: #f1f5f9;
   }
 
   .chat-view__messages {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 0;
+    padding: 20px;
   }
 
   .chat-view__empty {

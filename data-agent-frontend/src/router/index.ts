@@ -30,6 +30,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'AI 智能分析' },
   },
   {
+    path: '/chat/:sessionId',
+    name: 'ChatSession',
+    component: () => import('@/views/chat/ChatView.vue'),
+    meta: { title: 'AI 智能分析' },
+  },
+  {
     path: '/data-source',
     name: 'DataSource',
     component: () => import('@/views/data-source/DataSource.vue'),
