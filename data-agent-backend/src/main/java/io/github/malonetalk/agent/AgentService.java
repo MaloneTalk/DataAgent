@@ -24,12 +24,15 @@ import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.tool.Toolkit;
+import io.github.malonetalk.agent.models.ModelFactory;
+import io.github.malonetalk.agent.models.ModelProperties;
 import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -37,22 +40,14 @@ import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AgentService {
 
     private final ModelFactory modelFactory;
+    private final List<MarkAgentTool> allToolBeans;
+    private final ModelProperties modelProperties;
     private final SessionService sessionService;
     private Toolkit toolkit;
-
-    private final List<MarkAgentTool> allToolBeans;
-
-    public AgentService(
-            ModelFactory modelFactory,
-            SessionService sessionService,
-            List<MarkAgentTool> allToolBeans) {
-        this.modelFactory = modelFactory;
-        this.sessionService = sessionService;
-        this.allToolBeans = allToolBeans;
-    }
 
     @PostConstruct
     public void init() {
@@ -109,7 +104,7 @@ public class AgentService {
                         5. 根据查询结果回答用户问题
                         注意：仅支持 SELECT 查询，不支持修改操作。生成SQL时请务必先查看表结构，确保列名和类型正确。
                         """)
-                .model(modelFactory.createModel())
+                .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
                 .memory(new InMemoryMemory())
                 .maxIters(10)
