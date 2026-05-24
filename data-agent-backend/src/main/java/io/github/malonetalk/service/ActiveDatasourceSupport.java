@@ -36,22 +36,42 @@ public class ActiveDatasourceSupport {
     }
 
     public Datasource getActiveDatasource() {
+        ActiveDatasourceResolution resolution = resolveActiveDatasource();
+        if (!resolution.success()) {
+            throw new IllegalStateException(resolution.message());
+        }
+        return resolution.datasource();
+    }
+
+    public ActiveDatasourceResolution resolveActiveDatasource() {
         List<Datasource> activeDataSources =
                 datasourceService.findByStatus(Status.ACTIVE.getCode());
         if (activeDataSources.isEmpty()) {
-            return null;
+            return ActiveDatasourceResolution.success(null);
         }
         if (activeDataSources.size() > 1) {
             List<Integer> activeIds = activeDataSources.stream().map(Datasource::getId).toList();
+            String message =
+                    "Multiple active datasources found: "
+                            + activeIds
+                            + ". Please keep exactly one datasource active.";
             logger.error(
                     "Found {} active data sources, refusing to choose implicitly. activeIds={}",
                     activeDataSources.size(),
                     activeIds);
-            throw new IllegalStateException(
-                    "Multiple active datasources found: "
-                            + activeIds
-                            + ". Please keep exactly one datasource active.");
+            return ActiveDatasourceResolution.error(message);
         }
-        return activeDataSources.get(0);
+        return ActiveDatasourceResolution.success(activeDataSources.get(0));
+    }
+
+    public record ActiveDatasourceResolution(boolean success, Datasource datasource, String message) {
+
+        public static ActiveDatasourceResolution success(Datasource datasource) {
+            return new ActiveDatasourceResolution(true, datasource, null);
+        }
+
+        public static ActiveDatasourceResolution error(String message) {
+            return new ActiveDatasourceResolution(false, null, message);
+        }
     }
 }

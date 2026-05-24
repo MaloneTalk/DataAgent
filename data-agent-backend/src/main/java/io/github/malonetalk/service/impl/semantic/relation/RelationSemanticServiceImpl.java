@@ -94,7 +94,12 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 relationSemanticPolicyService.normalizeKeywordPrefix(keywordPrefix);
         List<LogicalTableRelationResponse> relations =
                 buildRelationManagementResponses(
-                        readContext, datasourceId, table.canonicalName(), normalizedKeywordPrefix, enabled);
+                        readContext,
+                        datasourceId,
+                        table.canonicalName(),
+                        normalizedKeywordPrefix,
+                        enabled,
+                        sortOrder);
         if (relations.isEmpty()) {
             return PageResponse.empty(pageRequest);
         }
@@ -236,7 +241,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         return semanticPageService.paginateMapped(
                 sortedTables,
                 pageRequest,
-                ResolvedTable::visible,
+                table -> table.hasPhysicalTable() && table.visible(),
                 table ->
                         new RelationCandidateTableResponse(
                                 table.canonicalName(), table.domain(), text(table.description())));
@@ -274,7 +279,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         return semanticPageService.paginateMapped(
                 sortedColumns,
                 pageRequest,
-                ResolvedColumn::visible,
+                column -> column.hasPhysicalColumn() && column.visible(),
                 column ->
                         new RelationCandidateColumnResponse(
                                 column.columnName(),
@@ -424,7 +429,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId,
             String canonicalTableName,
             String keywordPrefix,
-            Boolean enabled) {
+            Boolean enabled,
+            String sortOrder) {
         List<LogicalTableRelationResponse> responses = new ArrayList<>();
         readContext.listVisiblePhysicalRelations(canonicalTableName).stream()
                 .filter(

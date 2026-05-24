@@ -148,7 +148,7 @@
   const relationSourceColumns = ref<RelationCandidateColumnResponse[]>([]);
   const relationTargetColumns = ref<RelationCandidateColumnResponse[]>([]);
   const suppressRelationTableWatch = ref(false);
-  const RELATION_FETCH_PAGE_SIZE = 100;
+  const BULK_FETCH_PAGE_SIZE = 100;
 
   const activeDatasource = computed<DatasourceResponse | undefined>(() =>
     datasourceList.value.find(item => item.id === selectedDatasourceId.value),
@@ -175,6 +175,11 @@
     };
   });
 
+  const normalizeOptionalText = (value: string) => {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  };
+
   async function fetchAllPages<T>(
     loader: (
       page: number,
@@ -193,7 +198,7 @@
     let totalPages = 1;
 
     while (page <= totalPages) {
-      const response = await loader(page, RELATION_FETCH_PAGE_SIZE);
+      const response = await loader(page, BULK_FETCH_PAGE_SIZE);
       const pageData = response.data.data;
       items.push(...pageData.items);
       totalPages = Math.max(pageData.totalPages, 1);
@@ -494,6 +499,10 @@
   };
 
   const handleViewColumns = async (row: TableSemanticResponse) => {
+    if (!row.hasPhysicalTable) {
+      ElMessage.warning('当前表对应的物理表已不存在，无法查看列，但仍可编辑或重置语义配置');
+      return;
+    }
     selectedTable.value = row;
     columnDrawerVisible.value = true;
     columnPage.page = 1;
@@ -539,8 +548,8 @@
       await updateTableSemantic({
         datasourceId: tableForm.datasourceId,
         tableName: tableForm.tableName,
-        domain: tableForm.domain.trim(),
-        tableDescription: tableForm.tableDescription.trim(),
+        domain: normalizeOptionalText(tableForm.domain),
+        tableDescription: normalizeOptionalText(tableForm.tableDescription),
         isVisible: tableForm.isVisible,
       });
       ElMessage.success('表语义已更新');
@@ -573,7 +582,7 @@
     try {
       await updateColumnSemantic(selectedDatasourceId.value, selectedTable.value.tableName, {
         columnName: columnForm.columnName,
-        columnDescription: columnForm.columnDescription.trim(),
+        columnDescription: normalizeOptionalText(columnForm.columnDescription),
         isVisible: columnForm.isVisible,
       });
       ElMessage.success('列语义已更新');
@@ -858,6 +867,8 @@
   };
 
   const visibilityTagType = (visible: boolean) => (visible ? 'success' : 'info');
+  const semanticStateTagType = (effective: boolean) => (effective ? 'success' : 'danger');
+  const semanticStateLabel = (effective: boolean) => (effective ? '生效中' : '失效');
 </script>
 
 <template>
@@ -960,12 +971,19 @@
                   </el-tag>
                 </template>
               </el-table-column>
+              <el-table-column label="状态" width="120">
+                <template #default="{ row }">
+                  <el-tag :type="semanticStateTagType(row.effective)">
+                    {{ semanticStateLabel(row.effective) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
               <el-table-column label="更新时间" width="180">
                 <template #default="{ row }">
                   {{ formatTime(row.updateTime) }}
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="260" fixed="right">
+              <el-table-column label="操作" width="280" fixed="right">
                 <template #default="{ row }">
                   <el-button link type="primary" @click="handleViewColumns(row)">查看列</el-button>
                   <el-button link type="primary" @click="handleOpenTableEdit(row)">编辑</el-button>
@@ -975,6 +993,13 @@
             </el-table>
 
             <div v-if="tableError" class="error-tip">表语义加载失败：{{ tableError }}</div>
+            <div
+              v-for="row in tableRows.filter(item => item.invalidReason)"
+              :key="`table-invalid-${row.tableName}`"
+              class="error-tip"
+            >
+              {{ row.tableName }}：{{ row.invalidReason }}
+            </div>
 
             <div class="pagination-wrap">
               <el-pagination
@@ -1026,6 +1051,12 @@
             {{ selectedTable.isVisible ? '显示' : '隐藏' }}
           </el-tag>
         </div>
+        <div class="summary-item">
+          <span>状态</span>
+          <el-tag :type="semanticStateTagType(selectedTable.effective)">
+            {{ semanticStateLabel(selectedTable.effective) }}
+          </el-tag>
+        </div>
       </div>
 
       <el-table v-loading="columnLoading" :data="columnRows" class="semantic-table">
@@ -1069,6 +1100,13 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="状态" width="120">
+          <template #default="{ row }">
+            <el-tag :type="semanticStateTagType(row.effective)">
+              {{ semanticStateLabel(row.effective) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="更新时间" width="180">
           <template #default="{ row }">
             {{ formatTime(row.updateTime) }}
@@ -1083,6 +1121,13 @@
       </el-table>
 
       <div v-if="columnError" class="error-tip">列语义加载失败：{{ columnError }}</div>
+      <div
+        v-for="row in columnRows.filter(item => item.invalidReason)"
+        :key="`column-invalid-${row.columnName}`"
+        class="error-tip"
+      >
+        {{ row.columnName }}：{{ row.invalidReason }}
+      </div>
 
       <div class="pagination-wrap">
         <el-pagination

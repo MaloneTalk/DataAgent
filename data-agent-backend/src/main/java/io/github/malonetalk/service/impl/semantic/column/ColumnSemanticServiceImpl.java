@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service.impl.semantic.column;
 
+import static io.github.malonetalk.utils.SemanticStringUtils.normalizeBlankToNull;
+
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
@@ -79,8 +81,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         VisibilityContext visibilityContext =
                 semanticSnapshotFactory.createVisibilityContext(datasource);
         TableMergeSnapshot tableSnapshot =
-                semanticSnapshotFactory.requirePhysicalTableSnapshotOrThrow(
-                        visibilityContext, tableName);
+                semanticSnapshotFactory.requireTableSnapshotOrThrow(visibilityContext, tableName);
         String canonicalTableName =
                 semanticSnapshotFactory.resolveCanonicalTableName(tableSnapshot);
 
@@ -101,7 +102,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         return semanticPageService.paginateMapped(
                 sortedColumns,
                 pageRequest,
-                ResolvedColumn::hasPhysicalColumn,
+                column -> true,
                 this::mapColumnResponse);
     }
 
@@ -111,14 +112,19 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         Datasource datasource = loadUpdateDatasource(datasourceId);
         VisibilityContext visibilityContext =
                 semanticSnapshotFactory.createVisibilityContext(datasource);
-        SemanticContext context =
-                semanticContextFactory.createContext(datasource, visibilityContext);
         String canonicalTableName = resolveCanonicalTableName(visibilityContext, tableName);
+        ColumnInfo existingOverlayByRequestName =
+                loadExistingOverlay(datasourceId, canonicalTableName, request.columnName());
         String canonicalColumnName =
-                resolveCanonicalColumnName(
-                        visibilityContext, canonicalTableName, request.columnName());
+                resolveManagedColumnName(
+                        visibilityContext,
+                        canonicalTableName,
+                        request.columnName(),
+                        existingOverlayByRequestName);
         ColumnInfo existingOverlay =
-                loadExistingOverlay(datasourceId, canonicalTableName, canonicalColumnName);
+                existingOverlayByRequestName != null
+                        ? existingOverlayByRequestName
+                        : loadExistingOverlay(datasourceId, canonicalTableName, canonicalColumnName);
         if (existingOverlay != null) {
             applyUpdate(existingOverlay, canonicalTableName, canonicalColumnName, request);
             persistUpdatedOverlay(existingOverlay, canonicalTableName, canonicalColumnName);
@@ -136,8 +142,11 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         VisibilityContext visibilityContext =
                 semanticSnapshotFactory.createVisibilityContext(datasource);
         String canonicalTableName = resolveCanonicalTableName(visibilityContext, tableName);
+        ColumnInfo existingOverlay =
+                loadExistingOverlay(datasourceId, canonicalTableName, columnName);
         String canonicalColumnName =
-                resolveCanonicalColumnName(visibilityContext, canonicalTableName, columnName);
+                resolveManagedColumnName(
+                        visibilityContext, canonicalTableName, columnName, existingOverlay);
         List<Integer> matchedIds =
                 findResetIds(datasourceId, canonicalTableName, canonicalColumnName);
         if (matchedIds.isEmpty()) {
@@ -208,9 +217,12 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 column.physicalDescription(),
                 column.description(),
                 column.typeName(),
-                column.updateTime(),
                 column.primaryKey(),
-                column.visible());
+                column.visible(),
+                column.hasPhysicalColumn(),
+                column.hasPhysicalColumn() && column.visible(),
+                column.hasPhysicalColumn() ? null : "Physical column no longer exists.",
+                column.updateTime());
     }
 
     private Datasource loadUpdateDatasource(Integer datasourceId) {
@@ -226,8 +238,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     private String resolveCanonicalTableName(
             VisibilityContext visibilityContext, String tableName) {
         TableMergeSnapshot tableSnapshot =
-                semanticSnapshotFactory.requirePhysicalTableSnapshotOrThrow(
-                        visibilityContext, tableName);
+                semanticSnapshotFactory.requireTableSnapshotOrThrow(visibilityContext, tableName);
         return semanticSnapshotFactory.resolveCanonicalTableName(tableSnapshot);
     }
 
@@ -237,6 +248,21 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 semanticSnapshotFactory.requirePhysicalColumnSnapshotOrThrow(
                         visibilityContext, canonicalTableName, columnName);
         return columnSnapshot.physicalColumn().getColumnName();
+    }
+
+    private String resolveManagedColumnName(
+            VisibilityContext visibilityContext,
+            String canonicalTableName,
+            String columnName,
+            ColumnInfo existingOverlay) {
+        if (existingOverlay != null) {
+            try {
+                return resolveCanonicalColumnName(visibilityContext, canonicalTableName, columnName);
+            } catch (SemanticSchemaException e) {
+                return existingOverlay.getColumnName();
+            }
+        }
+        return resolveCanonicalColumnName(visibilityContext, canonicalTableName, columnName);
     }
 
     private ColumnInfo loadExistingOverlay(
@@ -252,9 +278,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             ColumnSemanticUpdateRequest request) {
         existingOverlay.setTableName(canonicalTableName);
         existingOverlay.setColumnName(canonicalColumnName);
-        if (request.columnDescription() != null) {
-            existingOverlay.setColumnDescription(request.columnDescription());
-        }
+        existingOverlay.setColumnDescription(normalizeBlankToNull(request.columnDescription()));
         existingOverlay.setIsVisible(request.isVisible());
     }
 
@@ -267,7 +291,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         semanticColumn.setDatasourceId(datasourceId);
         semanticColumn.setTableName(canonicalTableName);
         semanticColumn.setColumnName(canonicalColumnName);
-        semanticColumn.setColumnDescription(request.columnDescription());
+        semanticColumn.setColumnDescription(normalizeBlankToNull(request.columnDescription()));
         semanticColumn.setIsActive(true);
         semanticColumn.setIsVisible(request.isVisible());
         return semanticColumn;

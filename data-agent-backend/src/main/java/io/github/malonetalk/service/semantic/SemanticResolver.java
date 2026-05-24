@@ -52,11 +52,7 @@ public class SemanticResolver {
         LocalDateTime updateTime =
                 semanticTable != null
                         ? firstNonNull(semanticTable.getUpdateTime(), semanticTable.getCreateTime())
-                        : physicalTable != null
-                                ? firstNonNull(
-                                        physicalTable.getUpdateTime(),
-                                        physicalTable.getCreateTime())
-                                : null;
+                        : null;
         return new ResolvedTable(
                 semanticTable != null ? semanticTable.getId() : null,
                 semanticManager.resolveTableName(snapshot),

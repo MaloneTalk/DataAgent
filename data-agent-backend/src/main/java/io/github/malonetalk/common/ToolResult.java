@@ -19,11 +19,15 @@ package io.github.malonetalk.common;
 
 public record ToolResult<T>(boolean success, T data, ToolError error) {
 
+    private static final String DEFAULT_ERROR_MESSAGE = "Tool execution failed.";
+
     public static <T> ToolResult<T> success(T data) {
         return new ToolResult<>(true, data, null);
     }
 
     public static <T> ToolResult<T> error(String code, String message) {
-        return new ToolResult<>(false, null, new ToolError(code, message));
+        String resolvedMessage =
+                message == null || message.isBlank() ? DEFAULT_ERROR_MESSAGE : message;
+        return new ToolResult<>(false, null, new ToolError(code, resolvedMessage));
     }
 }

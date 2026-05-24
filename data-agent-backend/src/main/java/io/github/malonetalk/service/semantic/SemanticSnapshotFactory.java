@@ -26,6 +26,11 @@ public interface SemanticSnapshotFactory {
 
     VisibilityContext createVisibilityContext(Datasource datasource);
 
+    TableMergeSnapshot requireTableSnapshotOrThrow(Datasource datasource, String tableName);
+
+    TableMergeSnapshot requireTableSnapshotOrThrow(
+            VisibilityContext visibilityContext, String tableName);
+
     TableMergeSnapshot requirePhysicalTableSnapshotOrThrow(Datasource datasource, String tableName);
 
     TableMergeSnapshot requirePhysicalTableSnapshotOrThrow(

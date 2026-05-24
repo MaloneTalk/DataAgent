@@ -54,7 +54,12 @@ public class ExecuteSqlTool implements MarkAgentTool {
     public ToolResult<QueryResult> executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
-        Datasource datasource = activeDatasourceSupport.getActiveDatasource();
+        var datasourceResolution = activeDatasourceSupport.resolveActiveDatasource();
+        if (!datasourceResolution.success()) {
+            return ToolResult.error(
+                    "ACTIVE_DATASOURCE_STATE_ERROR", datasourceResolution.message());
+        }
+        Datasource datasource = datasourceResolution.datasource();
         if (datasource == null) {
             return ToolResult.error(
                     "NO_ACTIVE_DATASOURCE", "No active datasource available, cannot execute SQL.");

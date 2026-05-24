@@ -23,6 +23,7 @@ import io.github.malonetalk.agent.tools.response.TablePromptResponse;
 import io.github.malonetalk.common.ToolResult;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.service.ActiveDatasourceSupport;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,9 +34,13 @@ public class GetTablesTool implements MarkAgentTool {
 
     private static final Logger logger = LoggerFactory.getLogger(GetTablesTool.class);
 
+    private final ActiveDatasourceSupport activeDatasourceSupport;
     private final TableSemanticService tableSemanticService;
 
-    public GetTablesTool(TableSemanticService tableSemanticService) {
+    public GetTablesTool(
+            ActiveDatasourceSupport activeDatasourceSupport,
+            TableSemanticService tableSemanticService) {
+        this.activeDatasourceSupport = activeDatasourceSupport;
         this.tableSemanticService = tableSemanticService;
     }
 
@@ -55,6 +60,16 @@ public class GetTablesTool implements MarkAgentTool {
                             name = "page_size",
                             description = "Optional page size, defaults to 20 and max is 100")
                     Integer pageSize) {
+        var datasourceResolution = activeDatasourceSupport.resolveActiveDatasource();
+        if (!datasourceResolution.success()) {
+            return ToolResult.error(
+                    "ACTIVE_DATASOURCE_STATE_ERROR", datasourceResolution.message());
+        }
+        if (datasourceResolution.datasource() == null) {
+            return ToolResult.error(
+                    "NO_ACTIVE_DATASOURCE",
+                    "No active datasource available, cannot query visible tables.");
+        }
         try {
             return ToolResult.success(
                     tableSemanticService.getVisibleTablePromptPage(PageRequest.of(page, pageSize)));

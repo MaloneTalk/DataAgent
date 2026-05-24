@@ -97,7 +97,7 @@ public class SemanticContext {
             return cachedColumns;
         }
         ResolvedTable table = findTable(tableName);
-        if (table == null || !table.hasPhysicalTable()) {
+        if (table == null) {
             return Collections.emptyList();
         }
         String canonicalTableName = table.canonicalName();
@@ -247,7 +247,7 @@ public class SemanticContext {
 
     public List<ResolvedRelation> listVisiblePhysicalRelations(String tableName) {
         ResolvedTable table = findTable(tableName);
-        if (table == null || !table.hasPhysicalTable()) {
+        if (table == null) {
             return Collections.emptyList();
         }
         String canonical = table.canonicalName();

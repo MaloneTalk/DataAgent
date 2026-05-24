@@ -41,6 +41,7 @@ public class DatasourceServiceImpl implements DatasourceService {
     private final RelationSemanticRepository relationSemanticRepository;
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final ActiveDatasourceLockManager activeDatasourceLockManager;
+    private final io.github.malonetalk.agent.datasource.SchemaReader schemaReader;
 
     public DatasourceServiceImpl(
             DatasourceMapper dataSourceMapper,
@@ -48,13 +49,15 @@ public class DatasourceServiceImpl implements DatasourceService {
             ColumnSemanticRepository columnSemanticRepository,
             @Lazy RelationSemanticRepository relationSemanticRepository,
             DynamicDataSourceManager dynamicDataSourceManager,
-            ActiveDatasourceLockManager activeDatasourceLockManager) {
+            ActiveDatasourceLockManager activeDatasourceLockManager,
+            io.github.malonetalk.agent.datasource.SchemaReader schemaReader) {
         this.dataSourceMapper = dataSourceMapper;
         this.tableSemanticRepository = tableSemanticRepository;
         this.columnSemanticRepository = columnSemanticRepository;
         this.relationSemanticRepository = relationSemanticRepository;
         this.dynamicDataSourceManager = dynamicDataSourceManager;
         this.activeDatasourceLockManager = activeDatasourceLockManager;
+        this.schemaReader = schemaReader;
     }
 
     @Override
@@ -94,7 +97,7 @@ public class DatasourceServiceImpl implements DatasourceService {
         dataSource.setUpdateTime(LocalDateTime.now());
         boolean updated = dataSourceMapper.update(dataSource) > 0;
         if (updated) {
-            dynamicDataSourceManager.removeDataSource(existingDatasource.getId());
+            invalidateDatasourceRuntimeState(existingDatasource.getId());
         }
         return updated;
     }
@@ -111,7 +114,7 @@ public class DatasourceServiceImpl implements DatasourceService {
         tableSemanticRepository.deleteByDatasourceId(id);
         boolean deleted = dataSourceMapper.deleteById(id) > 0;
         if (deleted) {
-            dynamicDataSourceManager.removeDataSource(id);
+            invalidateDatasourceRuntimeState(id);
         }
         return deleted;
     }
@@ -136,7 +139,7 @@ public class DatasourceServiceImpl implements DatasourceService {
         guardActiveDatasourceTransition(existingDatasource.getId(), status);
         boolean updated = dataSourceMapper.updateStatus(id, status) > 0;
         if (updated) {
-            dynamicDataSourceManager.removeDataSource(id);
+            invalidateDatasourceRuntimeState(id);
         }
         return updated;
     }
@@ -166,5 +169,10 @@ public class DatasourceServiceImpl implements DatasourceService {
         }
         activeDatasourceLockManager.acquireLock();
         validateActiveDatasourceConstraint(currentDatasourceId, targetStatus);
+    }
+
+    private void invalidateDatasourceRuntimeState(Integer datasourceId) {
+        dynamicDataSourceManager.removeDataSource(datasourceId);
+        schemaReader.invalidateCache(datasourceId);
     }
 }

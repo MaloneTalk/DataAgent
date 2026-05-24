@@ -34,6 +34,9 @@ export interface TableSemanticResponse {
   physicalTableDescription: string | null;
   tableDescription: string | null;
   isVisible: boolean;
+  hasPhysicalTable: boolean;
+  effective: boolean;
+  invalidReason: string | null;
   updateTime: string | null;
 }
 
@@ -43,9 +46,12 @@ export interface ColumnSemanticResponse {
   physicalColumnDescription: string | null;
   columnDescription: string | null;
   typeName: string | null;
-  updateTime: string | null;
   primaryKey: boolean;
   isVisible: boolean;
+  hasPhysicalColumn: boolean;
+  effective: boolean;
+  invalidReason: string | null;
+  updateTime: string | null;
 }
 
 export interface TableSemanticQuery {
@@ -64,14 +70,14 @@ export interface ColumnSemanticQuery extends TableSemanticQuery {
 export interface TableSemanticUpdateRequest {
   datasourceId: number;
   tableName: string;
-  domain: string;
-  tableDescription: string;
+  domain: string | null;
+  tableDescription: string | null;
   isVisible: boolean;
 }
 
 export interface ColumnSemanticUpdateRequest {
   columnName: string;
-  columnDescription: string;
+  columnDescription: string | null;
   isVisible: boolean;
 }
 

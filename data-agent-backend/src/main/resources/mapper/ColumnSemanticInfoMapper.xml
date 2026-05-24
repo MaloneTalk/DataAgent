@@ -62,7 +62,7 @@
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
             <if test="columnName != null">column_name = #{columnName},</if>
-            <if test="columnDescription != null">column_description = #{columnDescription},</if>
+            column_description = #{columnDescription},
             <if test="isActive != null">is_active = #{isActive},</if>
             <if test="isVisible != null">is_visible = #{isVisible},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>

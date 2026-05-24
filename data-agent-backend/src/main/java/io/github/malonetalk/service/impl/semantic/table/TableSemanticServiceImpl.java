@@ -18,6 +18,7 @@
 package io.github.malonetalk.service.impl.semantic.table;
 
 import static io.github.malonetalk.common.SemanticConstants.MAX_RELATIONS_PER_TABLE;
+import static io.github.malonetalk.utils.SemanticStringUtils.normalizeBlankToNull;
 
 import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.agent.tools.response.TablePromptResponse;
@@ -105,7 +106,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
 
         return semanticPageService.paginateMapped(
-                sortedTables, pageRequest, ResolvedTable::hasPhysicalTable, this::mapTableResponse);
+                sortedTables, pageRequest, table -> true, this::mapTableResponse);
     }
 
     @Override
@@ -117,7 +118,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         SemanticContext context = semanticContextFactory.createContext(datasource);
         List<ResolvedTable> visibleTables =
                 context.listTables().stream()
-                        .filter(ResolvedTable::visible)
+                        .filter(table -> table.hasPhysicalTable() && table.visible())
                         .sorted(semanticPageService.buildResolvedTableComparator("asc"))
                         .toList();
         if (visibleTables.isEmpty()) {
@@ -135,8 +136,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         Datasource datasource = loadUpdateDatasource(request.datasourceId());
-        String canonicalTableName = resolveCanonicalTableName(datasource, request.tableName());
-        TableInfo existingOverlay = loadExistingOverlay(request.datasourceId(), canonicalTableName);
+        TableInfo existingOverlay = loadExistingOverlay(request.datasourceId(), request.tableName());
+        String canonicalTableName =
+                resolveManagedTableName(datasource, request.tableName(), existingOverlay);
         if (existingOverlay != null) {
             applyUpdate(existingOverlay, canonicalTableName, request);
             persistUpdatedOverlay(existingOverlay, canonicalTableName);
@@ -148,7 +150,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         Datasource datasource = loadResetDatasource(datasourceId);
-        String canonicalTableName = resolveCanonicalTableName(datasource, tableName);
+        TableInfo existingOverlay = loadExistingOverlay(datasourceId, tableName);
+        String canonicalTableName =
+                resolveManagedTableName(datasource, tableName, existingOverlay);
         List<Integer> matchedIds = findResetIds(datasourceId, canonicalTableName);
         if (matchedIds.isEmpty()) {
             throw new SemanticSchemaException(
@@ -234,6 +238,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 table.physicalDescription(),
                 table.description(),
                 table.visible(),
+                table.hasPhysicalTable(),
+                table.hasPhysicalTable() && table.visible(),
+                table.hasPhysicalTable() ? null : "Physical table no longer exists.",
                 table.updateTime());
     }
 
@@ -295,6 +302,18 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         return semanticSnapshotFactory.resolveCanonicalTableName(snapshot);
     }
 
+    private String resolveManagedTableName(
+            Datasource datasource, String tableName, TableInfo existingOverlay) {
+        if (existingOverlay != null) {
+            try {
+                return resolveCanonicalTableName(datasource, tableName);
+            } catch (SemanticSchemaException e) {
+                return existingOverlay.getTableName();
+            }
+        }
+        return resolveCanonicalTableName(datasource, tableName);
+    }
+
     private TableInfo loadExistingOverlay(Integer datasourceId, String canonicalTableName) {
         return semanticService.findSemanticTable(
                 tableSemanticRepository.listByDatasourceId(datasourceId),
@@ -307,12 +326,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             String canonicalTableName,
             TableSemanticUpdateRequest request) {
         existingOverlay.setTableName(canonicalTableName);
-        if (request.tableDescription() != null) {
-            existingOverlay.setTableDescription(request.tableDescription());
-        }
-        if (request.domain() != null) {
-            existingOverlay.setDomain(request.domain());
-        }
+        existingOverlay.setTableDescription(normalizeBlankToNull(request.tableDescription()));
+        existingOverlay.setDomain(normalizeBlankToNull(request.domain()));
         existingOverlay.setIsVisible(request.isVisible());
     }
 
@@ -320,8 +335,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             TableSemanticUpdateRequest request, String canonicalTableName) {
         TableInfo semanticTable = new TableInfo();
         semanticTable.setTableName(canonicalTableName);
-        semanticTable.setDomain(request.domain());
-        semanticTable.setTableDescription(request.tableDescription());
+        semanticTable.setDomain(normalizeBlankToNull(request.domain()));
+        semanticTable.setTableDescription(normalizeBlankToNull(request.tableDescription()));
         semanticTable.setDatasourceId(request.datasourceId());
         semanticTable.setIsActive(true);
         semanticTable.setIsVisible(request.isVisible());

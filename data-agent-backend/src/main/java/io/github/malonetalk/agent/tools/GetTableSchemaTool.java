@@ -23,6 +23,7 @@ import io.github.malonetalk.common.ToolResult;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
 import io.github.malonetalk.exception.SemanticSchemaException;
+import io.github.malonetalk.service.ActiveDatasourceSupport;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,9 +34,13 @@ public class GetTableSchemaTool implements MarkAgentTool {
 
     private static final Logger logger = LoggerFactory.getLogger(GetTableSchemaTool.class);
 
+    private final ActiveDatasourceSupport activeDatasourceSupport;
     private final TableSemanticService tableSemanticService;
 
-    public GetTableSchemaTool(TableSemanticService tableSemanticService) {
+    public GetTableSchemaTool(
+            ActiveDatasourceSupport activeDatasourceSupport,
+            TableSemanticService tableSemanticService) {
+        this.activeDatasourceSupport = activeDatasourceSupport;
         this.tableSemanticService = tableSemanticService;
     }
 
@@ -60,6 +65,16 @@ public class GetTableSchemaTool implements MarkAgentTool {
                             description =
                                     "Optional column page size, defaults to 20 and max is 100")
                     Integer columnPageSize) {
+        var datasourceResolution = activeDatasourceSupport.resolveActiveDatasource();
+        if (!datasourceResolution.success()) {
+            return ToolResult.error(
+                    "ACTIVE_DATASOURCE_STATE_ERROR", datasourceResolution.message());
+        }
+        if (datasourceResolution.datasource() == null) {
+            return ToolResult.error(
+                    "NO_ACTIVE_DATASOURCE",
+                    "No active datasource available, cannot query table schema.");
+        }
         try {
             return ToolResult.success(
                     tableSemanticService.getTableSchema(

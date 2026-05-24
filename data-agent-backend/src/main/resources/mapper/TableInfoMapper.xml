@@ -74,8 +74,8 @@
         UPDATE table_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
-            <if test="tableDescription != null">table_description = #{tableDescription},</if>
-            <if test="domain != null">domain = #{domain},</if>
+            table_description = #{tableDescription},
+            domain = #{domain},
             <if test="datasourceId != null">datasource_id = #{datasourceId},</if>
             <if test="isActive != null">is_active = #{isActive},</if>
             <if test="isVisible != null">is_visible = #{isVisible},</if>

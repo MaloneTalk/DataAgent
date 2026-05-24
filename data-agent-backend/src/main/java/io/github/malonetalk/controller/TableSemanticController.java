@@ -50,16 +50,9 @@ public class TableSemanticController {
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
             @RequestParam(defaultValue = "asc") String sortOrder) {
-        try {
-            return Result.success(
-                    tableSemanticService.getTablePage(
-                            datasourceId,
-                            PageRequest.of(page, pageSize),
-                            keywordPrefix,
-                            sortOrder));
-        } catch (IllegalArgumentException e) {
-            return Result.error(e.getMessage());
-        }
+        return Result.success(
+                tableSemanticService.getTablePage(
+                        datasourceId, PageRequest.of(page, pageSize), keywordPrefix, sortOrder));
     }
 
     @PutMapping("/tables")
@@ -79,12 +72,8 @@ public class TableSemanticController {
     @DeleteMapping("/tables/batch")
     public Result<Integer> resetTableSemantics(
             @Valid @RequestBody BatchResetTableSemanticRequest request) {
-        try {
-            return Result.success(
-                    tableSemanticService.resetTableSemantics(
-                            request.datasourceId(), request.tableNames()));
-        } catch (IllegalArgumentException e) {
-            return Result.error(e.getMessage());
-        }
+        return Result.success(
+                tableSemanticService.resetTableSemantics(
+                        request.datasourceId(), request.tableNames()));
     }
 }

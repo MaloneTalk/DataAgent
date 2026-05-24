@@ -52,17 +52,13 @@ public class TableColumnSemanticController {
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
             @RequestParam(defaultValue = "asc") String sortOrder) {
-        try {
-            return Result.success(
-                    columnSemanticService.getColumnPage(
-                            datasourceId,
-                            tableName,
-                            PageRequest.of(page, pageSize),
-                            keywordPrefix,
-                            sortOrder));
-        } catch (IllegalArgumentException e) {
-            return Result.error(e.getMessage());
-        }
+        return Result.success(
+                columnSemanticService.getColumnPage(
+                        datasourceId,
+                        tableName,
+                        PageRequest.of(page, pageSize),
+                        keywordPrefix,
+                        sortOrder));
     }
 
     @PutMapping
@@ -87,12 +83,8 @@ public class TableColumnSemanticController {
     public Result<Integer> resetColumnSemantics(
             @PathVariable String tableName,
             @Valid @RequestBody BatchResetColumnSemanticRequest request) {
-        try {
-            return Result.success(
-                    columnSemanticService.resetColumnSemantics(
-                            request.datasourceId(), tableName, request.columnNames()));
-        } catch (IllegalArgumentException e) {
-            return Result.error(e.getMessage());
-        }
+        return Result.success(
+                columnSemanticService.resetColumnSemantics(
+                        request.datasourceId(), tableName, request.columnNames()));
     }
 }

@@ -127,6 +127,7 @@
   const RELATION_MAX_SCALE = 1.8;
   const RELATION_LAYOUT_STORAGE_VERSION = 2;
   const RELATION_LAYOUT_STORAGE_PREFIX = 'semantic-model:relation-layout';
+  const RELATION_LIST_PAGE_SIZE = 6;
 
   const viewportRef = ref<{
     clientWidth: number;
@@ -153,6 +154,7 @@
       selector: string,
     ) => { scrollIntoView?: (options?: { block?: string; behavior?: string }) => void } | null;
   } | null>(null);
+  const relationListPage = ref(1);
   let persistLayoutTimer: number | null = null;
   let autoFitFrame: number | null = null;
 
@@ -244,6 +246,17 @@
       }, []),
   );
 
+  const relationListTotal = computed(() => props.relations.length);
+
+  const relationListTotalPages = computed(() =>
+    Math.max(1, Math.ceil(relationListTotal.value / RELATION_LIST_PAGE_SIZE)),
+  );
+
+  const pagedRelations = computed(() => {
+    const startIndex = (relationListPage.value - 1) * RELATION_LIST_PAGE_SIZE;
+    return props.relations.slice(startIndex, startIndex + RELATION_LIST_PAGE_SIZE);
+  });
+
   const draftEdge = computed<RelationEdge | null>(() => {
     if (
       !props.draftRelation?.sourceTableName ||
@@ -293,6 +306,10 @@
   watch(
     () => props.relations,
     relations => {
+      const lastPage = Math.max(1, Math.ceil(relations.length / RELATION_LIST_PAGE_SIZE));
+      if (relationListPage.value > lastPage) {
+        relationListPage.value = lastPage;
+      }
       if (!relations.length) {
         selectedRelationId.value = null;
         return;
@@ -679,6 +696,10 @@
   function selectRelation(relationId: string, options: SelectRelationOptions = {}) {
     const { scrollList = true, focusCanvas = false } = options;
     selectedRelationId.value = relationId;
+    const relationIndex = props.relations.findIndex(relation => relation.relationKey === relationId);
+    if (relationIndex >= 0) {
+      relationListPage.value = Math.floor(relationIndex / RELATION_LIST_PAGE_SIZE) + 1;
+    }
     if (focusCanvas) {
       focusCanvasOnRelation(relationId);
     }
@@ -894,6 +915,10 @@
       return 'info';
     }
     return relation.effective ? 'success' : 'danger';
+  }
+
+  function handleRelationListPageChange(page: number) {
+    relationListPage.value = page;
   }
 </script>
 
@@ -1137,9 +1162,14 @@
           <div v-if="!relations.length && !loading" class="canvas-empty">
             当前数据源还没有逻辑外键
           </div>
-          <div v-else ref="relationListRef" class="relation-list">
+          <template v-else>
+            <div class="relation-list-summary">
+              <span>共 {{ relationListTotal }} 条关系</span>
+              <span>每页 {{ RELATION_LIST_PAGE_SIZE }} 条</span>
+            </div>
+            <div ref="relationListRef" class="relation-list">
             <article
-              v-for="relation in relations"
+              v-for="relation in pagedRelations"
               :key="relation.relationKey"
               class="relation-list-item"
               :class="{ 'is-relation-selected': isRelationSelected(relation.relationKey) }"
@@ -1198,7 +1228,19 @@
                 </el-button>
               </div>
             </article>
-          </div>
+            </div>
+            <div v-if="relationListTotalPages > 1" class="relation-pagination">
+              <el-pagination
+                background
+                small
+                layout="prev, pager, next"
+                :current-page="relationListPage"
+                :page-size="RELATION_LIST_PAGE_SIZE"
+                :total="relationListTotal"
+                @current-change="handleRelationListPageChange"
+              />
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -1415,6 +1457,15 @@
     gap: 14px;
   }
 
+  .relation-list-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
   .relation-list-item {
     border: 1px solid #e2e8f0;
     border-radius: 16px;
@@ -1481,6 +1532,12 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+  }
+
+  .relation-pagination {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
   }
 
   .error-tip {

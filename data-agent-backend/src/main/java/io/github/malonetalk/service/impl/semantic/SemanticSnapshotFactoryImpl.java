@@ -41,6 +41,21 @@ public class SemanticSnapshotFactoryImpl implements SemanticSnapshotFactory {
     }
 
     @Override
+    public TableMergeSnapshot requireTableSnapshotOrThrow(Datasource datasource, String tableName) {
+        return requireTableSnapshotOrThrow(createVisibilityContext(datasource), tableName);
+    }
+
+    @Override
+    public TableMergeSnapshot requireTableSnapshotOrThrow(
+            VisibilityContext visibilityContext, String tableName) {
+        TableMergeSnapshot tableSnapshot = visibilityContext.findMergedTable(tableName);
+        if (tableSnapshot == null) {
+            throw new SemanticSchemaException("Table " + tableName + " does not exist.");
+        }
+        return tableSnapshot;
+    }
+
+    @Override
     public TableMergeSnapshot requirePhysicalTableSnapshotOrThrow(
             Datasource datasource, String tableName) {
         return requirePhysicalTableSnapshotOrThrow(createVisibilityContext(datasource), tableName);
@@ -49,8 +64,8 @@ public class SemanticSnapshotFactoryImpl implements SemanticSnapshotFactory {
     @Override
     public TableMergeSnapshot requirePhysicalTableSnapshotOrThrow(
             VisibilityContext visibilityContext, String tableName) {
-        TableMergeSnapshot tableSnapshot = visibilityContext.findMergedTable(tableName);
-        if (tableSnapshot == null || tableSnapshot.physicalTable() == null) {
+        TableMergeSnapshot tableSnapshot = requireTableSnapshotOrThrow(visibilityContext, tableName);
+        if (tableSnapshot.physicalTable() == null) {
             throw new SemanticSchemaException("Table " + tableName + " does not exist.");
         }
         return tableSnapshot;
