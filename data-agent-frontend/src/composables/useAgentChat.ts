@@ -16,7 +16,7 @@
  */
 
 import { ref, shallowRef } from 'vue';
-import { streamChat, type ChatStreamEventType } from '@/api/agent';
+import { streamChat, fetchSessionHistory, type ChatStreamEventType } from '@/api/agent';
 
 export interface TraceStep {
   type: ChatStreamEventType;
@@ -43,10 +43,10 @@ function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function useAgentChat() {
+export function useAgentChat(initialSessionId?: string) {
   const messages = shallowRef<ChatMessage[]>([]);
   const isStreaming = ref(false);
-  const sessionId = ref(generateSessionId());
+  const sessionId = ref(initialSessionId || generateSessionId());
   const abortController = shallowRef<AbortController | null>(null);
 
   function addUserMessage(text: string): ChatMessage {
@@ -82,6 +82,22 @@ export function useAgentChat() {
       updater(cloned);
       return cloned;
     });
+  }
+
+  async function loadHistory(sid: string) {
+    stopStreaming();
+    messages.value = [];
+    sessionId.value = sid;
+
+    const turns = await fetchSessionHistory(sid);
+    messages.value = turns.map(turn => ({
+      id: nextId(),
+      role: (turn.role === 'USER' ? 'user' : 'agent') as 'user' | 'agent',
+      content: turn.content,
+      traceSteps: turn.traceSteps,
+      isStreaming: false,
+      timestamp: Date.now(),
+    }));
   }
 
   async function sendMessage(text: string) {
@@ -186,6 +202,7 @@ export function useAgentChat() {
     messages,
     isStreaming,
     sessionId,
+    loadHistory,
     sendMessage,
     stopStreaming,
     clearMessages,

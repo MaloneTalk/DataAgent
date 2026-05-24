@@ -23,76 +23,62 @@ import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
-import io.agentscope.core.session.mysql.MysqlSession;
-import io.agentscope.core.state.SessionKey;
-import io.agentscope.core.state.SimpleSessionKey;
+import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.tool.Toolkit;
+import io.github.malonetalk.agent.models.ModelFactory;
+import io.github.malonetalk.agent.models.ModelProperties;
+import io.github.malonetalk.agent.skill.SkillLoaderService;
 import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class AgentService {
 
-    private static final String SESSION_DATABASE_NAME = "data_agent";
-    private static final String SESSION_TABLE_NAME = "agentscope_sessions";
-    private static final String SESSION_KEY_PREFIX = "data-agent:";
-
     private final ModelFactory modelFactory;
-    private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
     private final List<MarkAgentTool> allToolBeans;
-    private final DataSource dataSource;
-    private Toolkit toolkit;
+    private final ModelProperties modelProperties;
+    private final SessionService sessionService;
+    private final SkillLoaderService skillLoaderService;
 
-    public AgentService(
-            ModelFactory modelFactory, List<MarkAgentTool> allToolBeans, DataSource dataSource) {
-        this.modelFactory = modelFactory;
-        this.allToolBeans = allToolBeans;
-        this.dataSource = dataSource;
-    }
+    private Toolkit toolkit;
+    private SkillBox skillBox;
 
     @PostConstruct
     public void init() {
         this.toolkit = new Toolkit();
         allToolBeans.forEach(this.toolkit::registerTool);
-    }
-
-    private Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(sessionId, key -> createPersistentSessionStore());
-    }
-
-    MysqlSession createPersistentSessionStore() {
-        return new MysqlSession(dataSource, SESSION_DATABASE_NAME, SESSION_TABLE_NAME, true);
+        this.skillBox = skillLoaderService.createSkillBox(toolkit);
     }
 
     public String chat(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
-        MysqlSession session = (MysqlSession) getOrCreateSession(sessionId);
-        agent.loadIfExists(session, buildNamespacedSessionId(sessionId));
+        Session session = sessionService.getOrCreateSession(sessionId);
+        agent.loadIfExists(session, sessionService.buildNamespacedSessionId(sessionId));
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
         Msg response = agent.call(userMsg).block();
 
-        agent.saveTo(session, buildNamespacedSessionId(sessionId));
+        agent.saveTo(session, sessionService.buildNamespacedSessionId(sessionId));
         return MsgUtils.getTextContent(response);
     }
 
     public Flux<ChatStreamEvent> chatStream(String sessionId, String userInput) {
         ReActAgent agent = createAgent();
 
-        MysqlSession session = (MysqlSession) getOrCreateSession(sessionId);
-        agent.loadIfExists(session, buildNamespacedSessionId(sessionId));
+        Session session = sessionService.getOrCreateSession(sessionId);
+        agent.loadIfExists(session, sessionService.buildNamespacedSessionId(sessionId));
 
         Msg userMsg = Msg.builder().textContent(userInput).build();
 
@@ -105,7 +91,11 @@ public class AgentService {
 
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
-                .doFinally(signalType -> agent.saveTo(session, buildNamespacedSessionId(sessionId)))
+                .doFinally(
+                        signalType ->
+                                agent.saveTo(
+                                        session,
+                                        sessionService.buildNamespacedSessionId(sessionId)))
                 .flatMapIterable(EventConverter::map);
     }
 
@@ -140,55 +130,11 @@ public class AgentService {
                         2. 生成 SQL 之前，必须先查看相关表结构，确认表名、列名、类型与可见范围。
                         3. 如果工具返回失败，不要跳过失败直接猜测表结构或继续执行 SQL。
                         """)
-                .model(modelFactory.createModel())
+                .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
+                .skillBox(skillBox)
                 .memory(new InMemoryMemory())
                 .maxIters(16)
                 .build();
-    }
-
-    public void clearSession(String sessionId) {
-        closeSessionStore(sessionCache.remove(sessionId));
-        MysqlSession sessionStore = createPersistentSessionStore();
-        try {
-            sessionStore.delete(namespacedSessionKey(sessionId));
-        } finally {
-            sessionStore.close();
-        }
-    }
-
-    public void clearAllSessions() {
-        sessionCache.values().forEach(this::closeSessionStore);
-        sessionCache.clear();
-
-        MysqlSession sessionStore = createPersistentSessionStore();
-        try {
-            Set<SessionKey> sessionKeys = sessionStore.listSessionKeys();
-            for (SessionKey sessionKey : sessionKeys) {
-                if (isManagedSessionKey(sessionKey)) {
-                    sessionStore.delete(sessionKey);
-                }
-            }
-        } finally {
-            sessionStore.close();
-        }
-    }
-
-    private SimpleSessionKey namespacedSessionKey(String sessionId) {
-        return SimpleSessionKey.of(buildNamespacedSessionId(sessionId));
-    }
-
-    private String buildNamespacedSessionId(String sessionId) {
-        return SESSION_KEY_PREFIX + sessionId;
-    }
-
-    private boolean isManagedSessionKey(SessionKey sessionKey) {
-        return sessionKey.toIdentifier().startsWith(SESSION_KEY_PREFIX);
-    }
-
-    private void closeSessionStore(Session session) {
-        if (session instanceof MysqlSession mysqlSession) {
-            mysqlSession.close();
-        }
     }
 }
