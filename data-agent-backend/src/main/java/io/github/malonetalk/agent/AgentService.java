@@ -23,9 +23,11 @@ import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.session.Session;
+import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.tool.Toolkit;
 import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
+import io.github.malonetalk.agent.skill.SkillLoaderService;
 import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatStreamEvent;
@@ -47,12 +49,15 @@ public class AgentService {
     private final List<MarkAgentTool> allToolBeans;
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
+    private final SkillLoaderService skillLoaderService;
     private Toolkit toolkit;
+    private SkillBox skillBox;
 
     @PostConstruct
     public void init() {
         this.toolkit = new Toolkit();
         allToolBeans.forEach(this.toolkit::registerTool);
+        this.skillBox = skillLoaderService.createSkillBox(toolkit);
     }
 
     public String chat(String sessionId, String userInput) {
@@ -94,18 +99,10 @@ public class AgentService {
     private ReActAgent createAgent() {
         return ReActAgent.builder()
                 .name("DataAgent")
-                .sysPrompt(
-                        """
-                        你是一个数据助手，可以帮助用户查询数据库中的数据。请按以下步骤操作：
-                        1. 使用 get_tables 工具获取可用的数据库表信息
-                        2. 根据用户问题，选择相关的表，使用 get_table_schema 工具获取表结构（列名、类型、主键等）
-                        3. 根据表结构信息，生成合适的 SELECT SQL 语句
-                        4. 使用 execute_sql 工具执行 SQL 查询
-                        5. 根据查询结果回答用户问题
-                        注意：仅支持 SELECT 查询，不支持修改操作。生成SQL时请务必先查看表结构，确保列名和类型正确。
-                        """)
+                .sysPrompt("你是一个数据助手，可以帮助用户查询数据库中的数据。")
                 .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
+                .skillBox(skillBox)
                 .memory(new InMemoryMemory())
                 .maxIters(10)
                 .build();
