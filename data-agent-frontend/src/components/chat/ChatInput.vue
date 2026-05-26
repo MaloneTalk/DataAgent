@@ -18,8 +18,11 @@
 <script setup lang="ts">
   import { ref, nextTick } from 'vue';
 
+  import type { PendingQuestion } from '@/composables/useAgentChat';
+
   const props = defineProps<{
     isStreaming: boolean;
+    pendingQuestion: PendingQuestion | null;
   }>();
 
   const emit = defineEmits<{
@@ -63,11 +66,21 @@
 
 <template>
   <div class="chat-input">
+    <div v-if="props.pendingQuestion && !isStreaming" class="chat-input__question-banner">
+      <span class="chat-input__question-label">Agent 提问：</span>
+      <span class="chat-input__question-text">{{ props.pendingQuestion.question }}</span>
+    </div>
     <textarea
       ref="textareaRef"
       v-model="inputText"
       class="chat-input__textarea"
-      :placeholder="isStreaming ? '正在回复中...' : '输入消息，Enter 发送，Shift+Enter 换行'"
+      :placeholder="
+        props.pendingQuestion && !isStreaming
+          ? '输入你的回答，Enter 发送...'
+          : isStreaming
+            ? '正在回复中...'
+            : '输入消息，Enter 发送，Shift+Enter 换行'
+      "
       :disabled="isStreaming"
       rows="1"
       @input="autoResize"
@@ -91,11 +104,30 @@
 <style scoped>
   .chat-input {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-end;
     gap: 10px;
     padding: 16px 20px;
     background: #fff;
     border-top: 1px solid #e5e7eb;
+  }
+
+  .chat-input__question-banner {
+    width: 100%;
+    padding: 8px 14px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #92400e;
+  }
+
+  .chat-input__question-label {
+    font-weight: 600;
+  }
+
+  .chat-input__question-text {
+    color: #78350f;
   }
 
   .chat-input__textarea {

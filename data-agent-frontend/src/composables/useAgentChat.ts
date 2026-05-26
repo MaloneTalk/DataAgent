@@ -18,6 +18,12 @@
 import { ref, shallowRef } from 'vue';
 import { streamChat, fetchSessionHistory, type ChatStreamEventType } from '@/api/agent';
 
+export interface PendingQuestion {
+  toolCallId: string;
+  toolName: string;
+  question: string;
+}
+
 export interface TraceStep {
   type: ChatStreamEventType;
   content: string | null;
@@ -48,6 +54,7 @@ export function useAgentChat(initialSessionId?: string) {
   const isStreaming = ref(false);
   const sessionId = ref(initialSessionId || generateSessionId());
   const abortController = shallowRef<AbortController | null>(null);
+  const pendingQuestion = ref<PendingQuestion | null>(null);
 
   function addUserMessage(text: string): ChatMessage {
     const msg: ChatMessage = {
@@ -111,18 +118,24 @@ export function useAgentChat(initialSessionId?: string) {
     abortController.value = controller;
     let summaryStarted = false;
 
+    const pq = pendingQuestion.value;
+    pendingQuestion.value = null;
+
+    const request =
+      pq != null
+        ? {
+            sessionId: sessionId.value,
+            toolResults: [{ toolCallId: pq.toolCallId, toolName: pq.toolName, output: text }],
+          }
+        : { sessionId: sessionId.value, message: text };
+
     try {
-      for await (const event of streamChat(
-        { sessionId: sessionId.value, message: text },
-        controller.signal,
-      )) {
+      for await (const event of streamChat(request, controller.signal)) {
         updateAgentMessage(agentMsg.id, msg => {
-          // text: append to content
           if (event.type === 'text' && event.content) {
             msg.content += event.content;
           }
 
-          // summary: merge into content with a marker so the template can split and render green
           if (event.type === 'summary' && event.content) {
             if (!summaryStarted) {
               msg.content += '\n\nSummary：\n' + event.content;
@@ -132,7 +145,6 @@ export function useAgentChat(initialSessionId?: string) {
             }
           }
 
-          // thinking: merge consecutive thought chunks into one step
           if (event.type === 'thinking') {
             const lastStep = msg.traceSteps[msg.traceSteps.length - 1];
             if (lastStep && lastStep.type === 'thinking') {
@@ -140,27 +152,25 @@ export function useAgentChat(initialSessionId?: string) {
             } else {
               msg.traceSteps = [
                 ...msg.traceSteps,
-                {
-                  type: event.type,
-                  content: event.content,
-                  toolCall: event.toolCall,
-                  toolResult: event.toolResult,
-                },
+                { type: event.type, content: event.content, toolCall: event.toolCall, toolResult: event.toolResult },
               ];
             }
           }
 
-          // tool_call / tool_result: push as individual trace steps
           if (event.type === 'tool_call' || event.type === 'tool_result') {
             msg.traceSteps = [
               ...msg.traceSteps,
-              {
-                type: event.type,
-                content: event.content,
-                toolCall: event.toolCall,
-                toolResult: event.toolResult,
-              },
+              { type: event.type, content: event.content, toolCall: event.toolCall, toolResult: event.toolResult },
             ];
+
+            if (event.type === 'tool_call' && event.toolCall?.name === 'ask_user') {
+              pendingQuestion.value = {
+                toolCallId: event.toolCall.id,
+                toolName: event.toolCall.name,
+                question: (event.toolCall.input.question as string) ?? '',
+              };
+              msg.isStreaming = false;
+            }
           }
 
           if (event.isLast) {
@@ -202,6 +212,7 @@ export function useAgentChat(initialSessionId?: string) {
     messages,
     isStreaming,
     sessionId,
+    pendingQuestion,
     loadHistory,
     sendMessage,
     stopStreaming,

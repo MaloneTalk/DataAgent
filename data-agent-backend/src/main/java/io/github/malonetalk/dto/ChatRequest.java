@@ -18,7 +18,12 @@
 package io.github.malonetalk.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 
 public record ChatRequest(
         @NotBlank(message = "sessionId 不能为空") String sessionId,
-        @NotBlank(message = "message 不能为空") String message) {}
+        String message,
+        List<ToolResultInput> toolResults) {
+
+    public record ToolResultInput(String toolCallId, String toolName, String output) {}
+}

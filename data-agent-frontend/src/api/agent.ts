@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export type ChatStreamEventType = 'summary' | 'tool_call' | 'tool_result' | 'thinking' | 'text';
+export type ChatStreamEventType = 'summary' | 'tool_call' | 'tool_result' | 'thinking' | 'text' | 'question';
 
 export interface ToolCallInfo {
   id: string;
@@ -26,6 +26,12 @@ export interface ToolCallInfo {
 export interface ToolResultInfo {
   id: string;
   name: string;
+  output: string;
+}
+
+export interface ToolResultInput {
+  toolCallId: string;
+  toolName: string;
   output: string;
 }
 
@@ -47,7 +53,8 @@ export interface SessionInfo {
 
 export interface ChatRequest {
   sessionId: string;
-  message: string;
+  message?: string;
+  toolResults?: ToolResultInput[];
 }
 
 export interface TurnItem {

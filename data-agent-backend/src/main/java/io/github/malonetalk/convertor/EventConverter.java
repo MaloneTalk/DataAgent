@@ -31,12 +31,14 @@ import io.github.malonetalk.dto.ChatStreamEvent.ToolResultInfo;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class EventConverter {
 
+    // TODO 2026/05/26后期优化下当前map函数的代码提高可读性和维护性
     public static List<ChatStreamEvent> map(Event event) {
         Msg msg = event.getMessage();
         String messageId = msg.getId();
@@ -110,15 +112,28 @@ public class EventConverter {
                                 new ToolCallInfo(tub.getId(), tub.getName(), tub.getInput()),
                                 null));
             } else if (block instanceof ToolResultBlock trb) {
-                String outputText = extractOutputText(trb);
-                results.add(
-                        new ChatStreamEvent(
-                                ChatStreamEventType.TOOL_RESULT,
-                                messageId,
-                                isLast,
-                                null,
-                                null,
-                                new ToolResultInfo(trb.getId(), trb.getName(), outputText)));
+                if (trb.isSuspended() && "ask_user".equals(trb.getName())) {
+                    String questionText = extractOutputText(trb);
+                    results.add(
+                            new ChatStreamEvent(
+                                    ChatStreamEventType.QUESTION,
+                                    messageId,
+                                    isLast,
+                                    questionText,
+                                    new ToolCallInfo(trb.getId(), trb.getName(), Map.of()),
+                                    null));
+                } else {
+                    String outputText = extractOutputText(trb);
+                    results.add(
+                            new ChatStreamEvent(
+                                    ChatStreamEventType.TOOL_RESULT,
+                                    messageId,
+                                    isLast,
+                                    null,
+                                    null,
+                                    new ToolResultInfo(
+                                            trb.getId(), trb.getName(), outputText, trb.isSuspended())));
+                }
             } else if (block instanceof TextBlock tb) {
                 String text = tb.getText();
                 if (text != null && !text.isEmpty()) {

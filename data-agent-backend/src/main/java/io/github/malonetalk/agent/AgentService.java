@@ -21,7 +21,11 @@ import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.EventType;
 import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.memory.InMemoryMemory;
+import io.agentscope.core.message.ContentBlock;
 import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.tool.Toolkit;
@@ -30,6 +34,7 @@ import io.github.malonetalk.agent.models.ModelProperties;
 import io.github.malonetalk.agent.skill.SkillLoaderService;
 import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
+import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
@@ -75,13 +80,30 @@ public class AgentService {
         return MsgUtils.getTextContent(response);
     }
 
-    public Flux<ChatStreamEvent> chatStream(String sessionId, String userInput) {
+    public Flux<ChatStreamEvent> chatStream(
+            String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
         ReActAgent agent = createAgent();
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
 
-        Msg userMsg = Msg.builder().textContent(userInput).build();
+        Msg userMsg;
+        if (toolResults != null && !toolResults.isEmpty()) {
+            List<ContentBlock> blocks =
+                    toolResults.stream()
+                            .<ContentBlock>map(
+                                    tr ->
+                                            ToolResultBlock.builder()
+                                                    .id(tr.toolCallId())
+                                                    .name(tr.toolName())
+                                                    .output(TextBlock.builder().text(tr.output()).build())
+                                                    .build())
+                            .toList();
+            userMsg = Msg.builder().role(MsgRole.TOOL).content(blocks).build();
+        } else {
+            String text = userInput != null ? userInput : "";
+            userMsg = Msg.builder().textContent(text).build();
+        }
 
         StreamOptions streamOptions =
                 StreamOptions.builder()
@@ -105,6 +127,7 @@ public class AgentService {
                 .skillBox(skillBox)
                 .memory(new InMemoryMemory())
                 .maxIters(10)
+                .enablePendingToolRecovery(true)
                 .build();
     }
 }

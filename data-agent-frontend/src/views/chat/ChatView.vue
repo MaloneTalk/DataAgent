@@ -26,8 +26,16 @@
   const route = useRoute();
   const router = useRouter();
 
-  const { messages, isStreaming, sessionId, sendMessage, stopStreaming, newSession, loadHistory } =
-    useAgentChat();
+  const {
+    messages,
+    isStreaming,
+    sessionId,
+    pendingQuestion,
+    sendMessage,
+    stopStreaming,
+    newSession,
+    loadHistory,
+  } = useAgentChat();
 
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
@@ -137,7 +145,12 @@
         <div v-if="isStreaming && messages.length === 0" class="chat-view__empty">思考中...</div>
       </div>
 
-      <ChatInput :is-streaming="isStreaming" @send="handleSend" @stop="stopStreaming" />
+      <ChatInput
+        :is-streaming="isStreaming"
+        :pending-question="pendingQuestion"
+        @send="handleSend"
+        @stop="stopStreaming"
+      />
     </div>
   </div>
 </template>
