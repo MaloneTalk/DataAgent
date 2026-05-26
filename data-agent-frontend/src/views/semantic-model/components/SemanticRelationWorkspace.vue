@@ -206,44 +206,44 @@
 
   const relationEdges = computed<RelationEdge[]>(() =>
     props.relations.reduce<RelationEdge[]>((edges, relation) => {
-        const sourceNode = renderedNodeMap.value.get(relation.sourceTableName);
-        const targetNode = renderedNodeMap.value.get(relation.targetTableName);
-        if (!sourceNode || !targetNode) {
-          return edges;
-        }
-
-        const geometry = resolveRelationGeometry(
-          sourceNode,
-          targetNode,
-          relation.sourceColumnNames,
-          relation.targetColumnNames,
-        );
-        const relationLabel = relation.sourceColumnNames.length > 1 ? '多列外键' : '外键';
-        const labelWidth = Math.max(96, relationLabel.length * 18 + 22);
-
-        edges.push({
-          id: `relation-${relation.relationKey}`,
-          relationId: relation.relationKey,
-          sourceX: geometry.sourceX,
-          sourceY: geometry.sourceY,
-          targetX: geometry.targetX,
-          targetY: geometry.targetY,
-          path: geometry.path,
-          labelX: geometry.labelX,
-          labelY: geometry.labelY,
-          sourceTableName: relation.sourceTableName,
-          targetTableName: relation.targetTableName,
-          sourceColumnNames: relation.sourceColumnNames,
-          targetColumnNames: relation.targetColumnNames,
-          label: relationLabel,
-          labelWidth,
-          enabled: relation.enabled,
-          source: relation.source,
-          effective: relation.effective,
-          invalidReason: relation.invalidReason,
-        } satisfies RelationEdge);
+      const sourceNode = renderedNodeMap.value.get(relation.sourceTableName);
+      const targetNode = renderedNodeMap.value.get(relation.targetTableName);
+      if (!sourceNode || !targetNode) {
         return edges;
-      }, []),
+      }
+
+      const geometry = resolveRelationGeometry(
+        sourceNode,
+        targetNode,
+        relation.sourceColumnNames,
+        relation.targetColumnNames,
+      );
+      const relationLabel = relation.sourceColumnNames.length > 1 ? '多列外键' : '外键';
+      const labelWidth = Math.max(96, relationLabel.length * 18 + 22);
+
+      edges.push({
+        id: `relation-${relation.relationKey}`,
+        relationId: relation.relationKey,
+        sourceX: geometry.sourceX,
+        sourceY: geometry.sourceY,
+        targetX: geometry.targetX,
+        targetY: geometry.targetY,
+        path: geometry.path,
+        labelX: geometry.labelX,
+        labelY: geometry.labelY,
+        sourceTableName: relation.sourceTableName,
+        targetTableName: relation.targetTableName,
+        sourceColumnNames: relation.sourceColumnNames,
+        targetColumnNames: relation.targetColumnNames,
+        label: relationLabel,
+        labelWidth,
+        enabled: relation.enabled,
+        source: relation.source,
+        effective: relation.effective,
+        invalidReason: relation.invalidReason,
+      } satisfies RelationEdge);
+      return edges;
+    }, []),
   );
 
   const relationListTotal = computed(() => props.relations.length);
@@ -559,11 +559,7 @@
     const availableHeight = Math.max(240, viewportElement.clientHeight - RELATION_FIT_PADDING * 2);
     const nextScale = Math.max(
       RELATION_MIN_SCALE,
-      Math.min(
-        RELATION_MAX_SCALE,
-        1,
-        Math.min(availableWidth / width, availableHeight / height),
-      ),
+      Math.min(RELATION_MAX_SCALE, 1, Math.min(availableWidth / width, availableHeight / height)),
     );
 
     viewport.scale = Number(nextScale.toFixed(3));
@@ -696,7 +692,9 @@
   function selectRelation(relationId: string, options: SelectRelationOptions = {}) {
     const { scrollList = true, focusCanvas = false } = options;
     selectedRelationId.value = relationId;
-    const relationIndex = props.relations.findIndex(relation => relation.relationKey === relationId);
+    const relationIndex = props.relations.findIndex(
+      relation => relation.relationKey === relationId,
+    );
     if (relationIndex >= 0) {
       relationListPage.value = Math.floor(relationIndex / RELATION_LIST_PAGE_SIZE) + 1;
     }
@@ -884,10 +882,7 @@
     };
   }
 
-  function handleNodePointerDown(
-    tableName: string,
-    event: RelationPointerLikeEvent,
-  ) {
+  function handleNodePointerDown(tableName: string, event: RelationPointerLikeEvent) {
     const target = event.target as ClosestCapableTarget | null;
     if (target?.closest?.('.relation-column-item, .el-button')) {
       return;
@@ -1168,66 +1163,68 @@
               <span>每页 {{ RELATION_LIST_PAGE_SIZE }} 条</span>
             </div>
             <div ref="relationListRef" class="relation-list">
-            <article
-              v-for="relation in pagedRelations"
-              :key="relation.relationKey"
-              class="relation-list-item"
-              :class="{ 'is-relation-selected': isRelationSelected(relation.relationKey) }"
-              :data-relation-id="relation.relationKey"
-              @click="selectRelation(relation.relationKey, { scrollList: false, focusCanvas: true })"
-            >
-              <div class="relation-list-head">
-                <div>
-                  <strong>{{ relation.sourceTableName }}</strong>
-                  <span class="relation-arrow-text">→</span>
-                  <strong>{{ relation.targetTableName }}</strong>
-                  <el-tag size="small" effect="plain" class="relation-source-tag">
-                    {{ relation.source === 'physical' ? '物理外键' : '逻辑外键' }}
+              <article
+                v-for="relation in pagedRelations"
+                :key="relation.relationKey"
+                class="relation-list-item"
+                :class="{ 'is-relation-selected': isRelationSelected(relation.relationKey) }"
+                :data-relation-id="relation.relationKey"
+                @click="
+                  selectRelation(relation.relationKey, { scrollList: false, focusCanvas: true })
+                "
+              >
+                <div class="relation-list-head">
+                  <div>
+                    <strong>{{ relation.sourceTableName }}</strong>
+                    <span class="relation-arrow-text">→</span>
+                    <strong>{{ relation.targetTableName }}</strong>
+                    <el-tag size="small" effect="plain" class="relation-source-tag">
+                      {{ relation.source === 'physical' ? '物理外键' : '逻辑外键' }}
+                    </el-tag>
+                  </div>
+                  <el-tag :type="relationStateTagType(relation)">
+                    {{ !relation.enabled ? '已禁用' : relation.effective ? '生效中' : '失效' }}
                   </el-tag>
                 </div>
-                <el-tag :type="relationStateTagType(relation)">
-                  {{ !relation.enabled ? '已禁用' : relation.effective ? '生效中' : '失效' }}
-                </el-tag>
-              </div>
-              <div class="relation-columns-line">
-                {{ relation.sourceColumnNames.join(', ') }} ->
-                {{ relation.targetColumnNames.join(', ') }}
-              </div>
-              <div class="relation-description">{{ relation.description || '无备注' }}</div>
-              <div v-if="relation.invalidReason" class="relation-invalid">
-                {{ relation.invalidReason }}
-              </div>
-              <div class="relation-list-actions">
-                <el-switch
-                  :model-value="relation.enabled"
-                  :disabled="relation.source === 'physical'"
-                  inline-prompt
-                  active-text="开"
-                  inactive-text="关"
-                  @click.stop
-                  @change="
-                    (value: boolean | string | number) =>
-                      emit('toggle-relation-enabled', relation, Boolean(value))
-                  "
-                />
-                <el-button
-                  link
-                  type="primary"
-                  :disabled="relation.source === 'physical'"
-                  @click.stop="emit('edit-relation', relation)"
-                >
-                  编辑
-                </el-button>
-                <el-button
-                  link
-                  type="danger"
-                  :disabled="relation.source === 'physical'"
-                  @click.stop="emit('delete-relation', relation)"
-                >
-                  删除
-                </el-button>
-              </div>
-            </article>
+                <div class="relation-columns-line">
+                  {{ relation.sourceColumnNames.join(', ') }} ->
+                  {{ relation.targetColumnNames.join(', ') }}
+                </div>
+                <div class="relation-description">{{ relation.description || '无备注' }}</div>
+                <div v-if="relation.invalidReason" class="relation-invalid">
+                  {{ relation.invalidReason }}
+                </div>
+                <div class="relation-list-actions">
+                  <el-switch
+                    :model-value="relation.enabled"
+                    :disabled="relation.source === 'physical'"
+                    inline-prompt
+                    active-text="开"
+                    inactive-text="关"
+                    @click.stop
+                    @change="
+                      (value: boolean | string | number) =>
+                        emit('toggle-relation-enabled', relation, Boolean(value))
+                    "
+                  />
+                  <el-button
+                    link
+                    type="primary"
+                    :disabled="relation.source === 'physical'"
+                    @click.stop="emit('edit-relation', relation)"
+                  >
+                    编辑
+                  </el-button>
+                  <el-button
+                    link
+                    type="danger"
+                    :disabled="relation.source === 'physical'"
+                    @click.stop="emit('delete-relation', relation)"
+                  >
+                    删除
+                  </el-button>
+                </div>
+              </article>
             </div>
             <div v-if="relationListTotalPages > 1" class="relation-pagination">
               <el-pagination
