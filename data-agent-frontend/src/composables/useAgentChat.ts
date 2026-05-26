@@ -152,7 +152,12 @@ export function useAgentChat(initialSessionId?: string) {
             } else {
               msg.traceSteps = [
                 ...msg.traceSteps,
-                { type: event.type, content: event.content, toolCall: event.toolCall, toolResult: event.toolResult },
+                {
+                  type: event.type,
+                  content: event.content,
+                  toolCall: event.toolCall,
+                  toolResult: event.toolResult,
+                },
               ];
             }
           }
@@ -160,7 +165,12 @@ export function useAgentChat(initialSessionId?: string) {
           if (event.type === 'tool_call' || event.type === 'tool_result') {
             msg.traceSteps = [
               ...msg.traceSteps,
-              { type: event.type, content: event.content, toolCall: event.toolCall, toolResult: event.toolResult },
+              {
+                type: event.type,
+                content: event.content,
+                toolCall: event.toolCall,
+                toolResult: event.toolResult,
+              },
             ];
 
             if (event.type === 'tool_call' && event.toolCall?.name === 'ask_user') {

@@ -132,7 +132,10 @@ public class EventConverter {
                                     null,
                                     null,
                                     new ToolResultInfo(
-                                            trb.getId(), trb.getName(), outputText, trb.isSuspended())));
+                                            trb.getId(),
+                                            trb.getName(),
+                                            outputText,
+                                            trb.isSuspended())));
                 }
             } else if (block instanceof TextBlock tb) {
                 String text = tb.getText();

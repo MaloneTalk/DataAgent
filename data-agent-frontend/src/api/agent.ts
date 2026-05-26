@@ -15,7 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export type ChatStreamEventType = 'summary' | 'tool_call' | 'tool_result' | 'thinking' | 'text' | 'question';
+export type ChatStreamEventType =
+  | 'summary'
+  | 'tool_call'
+  | 'tool_result'
+  | 'thinking'
+  | 'text'
+  | 'question';
 
 export interface ToolCallInfo {
   id: string;

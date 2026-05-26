@@ -96,7 +96,10 @@ public class AgentService {
                                             ToolResultBlock.builder()
                                                     .id(tr.toolCallId())
                                                     .name(tr.toolName())
-                                                    .output(TextBlock.builder().text(tr.output()).build())
+                                                    .output(
+                                                            TextBlock.builder()
+                                                                    .text(tr.output())
+                                                                    .build())
                                                     .build())
                             .toList();
             userMsg = Msg.builder().role(MsgRole.TOOL).content(blocks).build();
