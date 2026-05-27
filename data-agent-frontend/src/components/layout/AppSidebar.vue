@@ -16,16 +16,19 @@
  -->
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
+  import { ref, computed, type Component } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
+  import { ChatDotRound, Connection, Grid } from '@element-plus/icons-vue';
 
   const route = useRoute();
   const router = useRouter();
 
   const isCollapse = ref(false);
 
+  const iconMap: Record<string, Component> = { ChatDotRound, Connection, Grid };
+
   const menuItems = [
-    { path: '/chat', title: 'AI 智能分析', icon: 'ChatDotRound' },
+    { path: '/chat', title: '智能分析', icon: 'ChatDotRound' },
     { path: '/data-source', title: '数据源管理', icon: 'Connection' },
     { path: '/semantic-model', title: '语义模型管理', icon: 'Grid' },
   ];
@@ -43,12 +46,13 @@
 
 <template>
   <aside class="app-sidebar" :class="{ collapsed: isCollapse }">
-    <el-menu :default-active="activeMenu" :collapse="isCollapse" router @select="handleMenuSelect">
+    <el-menu :default-active="activeMenu" :collapse="isCollapse" @select="handleMenuSelect">
       <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
-        <span>{{ item.title }}</span>
+        <el-icon><component :is="iconMap[item.icon]" /></el-icon>
+        <template #title>{{ item.title }}</template>
       </el-menu-item>
     </el-menu>
-    <div class="sidebar-toggle" @click="toggleSidebar">
+    <div class="sidebar-toggle" role="button" aria-label="折叠侧边栏" @click="toggleSidebar">
       <span>{{ isCollapse ? '»' : '«' }}</span>
     </div>
   </aside>
@@ -57,8 +61,8 @@
 <style scoped>
   .app-sidebar {
     width: 200px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    border-right: 1px solid #e2e8f0;
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
     transition: width 0.3s;
@@ -84,13 +88,13 @@
 
   .app-sidebar :deep(.el-menu-item:hover) {
     background-color: #f1f5f9;
-    color: #3b82f6;
+    color: #1f2937;
   }
 
   .app-sidebar :deep(.el-menu-item.is-active) {
-    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    background: #1f2937;
     color: #ffffff;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .sidebar-toggle {
@@ -110,7 +114,7 @@
   }
 
   .sidebar-toggle:hover {
-    color: #3b82f6;
+    color: #1f2937;
     background-color: #f1f5f9;
   }
 </style>

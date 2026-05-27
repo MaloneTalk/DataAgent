@@ -19,6 +19,7 @@ package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
+import io.github.malonetalk.dto.DatasourceActivateRequest;
 import io.github.malonetalk.dto.DatasourceRequest;
 import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
@@ -53,12 +54,11 @@ public class DatasourceController {
 
     @GetMapping("/{id}")
     public Result<DatasourceResponse> findById(@PathVariable Integer id) {
-        Datasource dataSource = dataSourceService.findById(id);
-        if (dataSource != null) {
-            return Result.success(datasourceConverter.toResponse(dataSource));
-        } else {
+        Datasource datasource = dataSourceService.findById(id);
+        if (datasource == null) {
             return Result.error(404, "DataSource not found");
         }
+        return Result.success(datasourceConverter.toResponse(datasource));
     }
 
     @PostMapping
@@ -116,13 +116,16 @@ public class DatasourceController {
     }
 
     @PutMapping("/{id}/activate")
-    public Result<Boolean> activate(@PathVariable Integer id) {
+    public Result<Boolean> activate(
+            @PathVariable Integer id,
+            @RequestBody(required = false) DatasourceActivateRequest request) {
         Datasource datasource = dataSourceService.findById(id);
         if (datasource == null) {
             return Result.error(404, "DataSource not found");
         }
-        boolean success = dataSourceService.updateStatus(id, Status.ACTIVE.getCode());
-        return success ? Result.success(true) : Result.error("激活失败");
+        boolean success =
+                dataSourceService.activate(id, request == null ? null : request.activeDomains());
+        return success ? Result.success(true) : Result.error("Activate failed");
     }
 
     @PutMapping("/{id}/deactivate")
@@ -132,6 +135,6 @@ public class DatasourceController {
             return Result.error(404, "DataSource not found");
         }
         boolean success = dataSourceService.updateStatus(id, Status.INACTIVE.getCode());
-        return success ? Result.success(true) : Result.error("禁用失败");
+        return success ? Result.success(true) : Result.error("Deactivate failed");
     }
 }

@@ -99,6 +99,7 @@
 
   const props = defineProps<{
     datasourceId?: number;
+    active: boolean;
     loading: boolean;
     nodeLoading: boolean;
     relationError: string;
@@ -127,7 +128,7 @@
   const RELATION_MAX_SCALE = 1.8;
   const RELATION_LAYOUT_STORAGE_VERSION = 2;
   const RELATION_LAYOUT_STORAGE_PREFIX = 'semantic-model:relation-layout';
-  const RELATION_LIST_PAGE_SIZE = 6;
+  const RELATION_LIST_PAGE_SIZE = 8;
 
   const viewportRef = ref<{
     clientWidth: number;
@@ -155,6 +156,7 @@
     ) => { scrollIntoView?: (options?: { block?: string; behavior?: string }) => void } | null;
   } | null>(null);
   const relationListPage = ref(1);
+  const needsVisibleAutoFit = ref(false);
   let persistLayoutTimer: number | null = null;
   let autoFitFrame: number | null = null;
 
@@ -394,8 +396,23 @@
       initializeCanvasOrigin(restoredNodes, snapshot?.canvasOrigin);
       void nextTick(() => {
         if (snapshot?.viewport) {
+          needsVisibleAutoFit.value = false;
           return;
         }
+        needsVisibleAutoFit.value = true;
+        scheduleAutoFitViewport();
+      });
+    },
+    { immediate: true },
+  );
+
+  watch(
+    () => props.active,
+    active => {
+      if (!active || !needsVisibleAutoFit.value || !localNodes.value.length) {
+        return;
+      }
+      void nextTick(() => {
         scheduleAutoFitViewport();
       });
     },
@@ -543,6 +560,12 @@
   function fitCanvasToViewport() {
     const viewportElement = viewportRef.value;
     if (!viewportElement) {
+      needsVisibleAutoFit.value = true;
+      return;
+    }
+
+    if (viewportElement.clientWidth < 48 || viewportElement.clientHeight < 48) {
+      needsVisibleAutoFit.value = true;
       return;
     }
 
@@ -552,6 +575,7 @@
       viewport.scale = 1;
       viewport.offsetX = 0;
       viewport.offsetY = 0;
+      needsVisibleAutoFit.value = false;
       return;
     }
 
@@ -565,6 +589,7 @@
     viewport.scale = Number(nextScale.toFixed(3));
     viewport.offsetX = (viewportElement.clientWidth - width * viewport.scale) / 2;
     viewport.offsetY = (viewportElement.clientHeight - height * viewport.scale) / 2;
+    needsVisibleAutoFit.value = false;
   }
 
   function expandCanvasOriginToFit(nodes: TableNodeLayout[]) {
@@ -905,6 +930,35 @@
     fitCanvasToViewport();
   }
 
+  const zoomPercent = computed(() => Math.round(viewport.scale * 100));
+
+  function zoomAtCenter(factor: number) {
+    const viewportElement = viewportRef.value;
+    if (!viewportElement) {
+      return;
+    }
+    const centerX = viewportElement.clientWidth / 2;
+    const centerY = viewportElement.clientHeight / 2;
+    const worldX = (centerX - viewport.offsetX) / viewport.scale;
+    const worldY = (centerY - viewport.offsetY) / viewport.scale;
+    const nextScale = Math.max(
+      RELATION_MIN_SCALE,
+      Math.min(RELATION_MAX_SCALE, viewport.scale * factor),
+    );
+    viewport.offsetX = centerX - worldX * nextScale;
+    viewport.offsetY = centerY - worldY * nextScale;
+    viewport.scale = Number(nextScale.toFixed(3));
+    schedulePersistLayout();
+  }
+
+  function zoomIn() {
+    zoomAtCenter(1.2);
+  }
+
+  function zoomOut() {
+    zoomAtCenter(1 / 1.2);
+  }
+
   function relationStateTagType(relation: LogicalTableRelationResponse) {
     if (!relation.enabled) {
       return 'info';
@@ -965,7 +1019,7 @@
                 refY="3"
                 orient="auto"
               >
-                <path d="M0,0 L0,6 L9,3 z" fill="#1d4ed8" />
+                <path d="M0,0 L0,6 L9,3 z" fill="#374151" />
               </marker>
               <marker
                 id="relation-arrow-disabled"
@@ -975,7 +1029,7 @@
                 refY="3"
                 orient="auto"
               >
-                <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8" />
+                <path d="M0,0 L0,6 L9,3 z" fill="#d1d5db" />
               </marker>
               <marker
                 id="relation-arrow-selected"
@@ -985,7 +1039,7 @@
                 refY="3.5"
                 orient="auto"
               >
-                <path d="M0,0 L0,7 L10,3.5 z" fill="#0f766e" />
+                <path d="M0,0 L0,7 L10,3.5 z" fill="#1f2937" />
               </marker>
             </defs>
 
@@ -1006,14 +1060,14 @@
                 :d="edge.path"
                 :stroke="
                   isRelationSelected(edge.relationId)
-                    ? '#0f766e'
+                    ? '#1f2937'
                     : edge.enabled
                       ? edge.effective
-                        ? '#1d4ed8'
+                        ? '#374151'
                         : '#dc2626'
-                      : '#94a3b8'
+                      : '#d1d5db'
                 "
-                :stroke-width="isRelationSelected(edge.relationId) ? 4.5 : 3"
+                :stroke-width="isRelationSelected(edge.relationId) ? 3 : 2"
                 fill="none"
                 :marker-end="
                   isRelationSelected(edge.relationId)
@@ -1040,15 +1094,15 @@
                 :width="edge.labelWidth"
                 height="26"
                 rx="13"
-                :fill="isRelationSelected(edge.relationId) ? '#ecfeff' : 'white'"
+                :fill="isRelationSelected(edge.relationId) ? '#f3f4f6' : 'white'"
                 :stroke="
                   isRelationSelected(edge.relationId)
-                    ? '#14b8a6'
+                    ? '#374151'
                     : edge.enabled
                       ? edge.effective
-                        ? '#93c5fd'
+                        ? '#e5e7eb'
                         : '#fca5a5'
-                      : '#cbd5e1'
+                      : '#e5e7eb'
                 "
                 pointer-events="all"
               />
@@ -1148,6 +1202,19 @@
             </ul>
           </article>
         </div>
+        <div class="canvas-controls">
+          <button class="canvas-ctrl-btn" title="缩小" @click.stop="zoomOut">−</button>
+          <span class="canvas-ctrl-label">{{ zoomPercent }}%</span>
+          <button class="canvas-ctrl-btn" title="放大" @click.stop="zoomIn">+</button>
+          <button
+            class="canvas-ctrl-btn canvas-ctrl-fit"
+            title="适应画布"
+            @click.stop="resetViewport"
+          >
+            ⊡
+          </button>
+        </div>
+        <div class="canvas-hint">滚轮缩放 · 拖拽画布平移 · 拖拽列创建关系</div>
       </div>
 
       <div class="relation-side">
@@ -1259,9 +1326,10 @@
   }
 
   .section-header h3 {
-    font-size: 20px;
-    color: #0f172a;
+    font-size: 16px;
+    color: #1f2937;
     margin-bottom: 0;
+    font-weight: 600;
   }
 
   .relation-actions {
@@ -1272,27 +1340,27 @@
   .relation-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 20px;
-    align-items: start;
+    gap: 16px;
+    align-items: stretch;
   }
 
   .relation-canvas-wrap {
-    border: 1px solid #dbe7f3;
-    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     background:
-      linear-gradient(rgba(14, 165, 233, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(14, 165, 233, 0.06) 1px, transparent 1px), #f8fbff;
-    background-size: 32px 32px;
+      linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px), #fafafa;
+    background-size: 24px 24px;
     overflow: hidden;
-    min-height: 720px;
+    height: 100%;
     position: relative;
     cursor: grab;
   }
 
   .relation-canvas {
-    position: relative;
-    min-width: 100%;
-    min-height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
     transform-origin: 0 0;
     transition: transform 0.08s linear;
     will-change: transform;
@@ -1310,45 +1378,45 @@
   }
 
   .edge-label {
-    font-size: 12px;
-    fill: #334155;
-    font-weight: 600;
+    font-size: 11px;
+    fill: #6b7280;
+    font-weight: 500;
   }
 
   .edge-label-selected {
-    fill: #0f766e;
+    fill: #1f2937;
   }
 
   .edge-label-draft {
-    fill: #d97706;
+    fill: #92400e;
   }
 
   .edge-label-drag {
-    fill: #0284c7;
+    fill: #374151;
   }
 
   .relation-node {
     position: absolute;
-    padding: 16px;
-    border-radius: 20px;
-    border: 1px solid #cbd5e1;
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 18px 35px rgba(15, 23, 42, 0.08);
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     transition:
-      box-shadow 0.18s ease,
-      border-color 0.18s ease;
+      box-shadow 0.15s ease,
+      border-color 0.15s ease;
     user-select: none;
     cursor: grab;
   }
 
   .relation-node:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 22px 40px rgba(59, 130, 246, 0.12);
+    border-color: #d1d5db;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   }
 
   .relation-node.is-node-dragging {
-    border-color: #2563eb;
-    box-shadow: 0 26px 48px rgba(37, 99, 235, 0.18);
+    border-color: #6b7280;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     cursor: grabbing;
   }
 
@@ -1360,132 +1428,128 @@
   }
 
   .relation-node-header h4 {
-    font-size: 17px;
-    color: #0f172a;
-    margin-bottom: 4px;
+    font-size: 14px;
+    color: #1f2937;
+    margin-bottom: 2px;
+    font-weight: 600;
   }
 
   .relation-node-header p {
-    color: #64748b;
-    font-size: 13px;
+    color: #9ca3af;
+    font-size: 12px;
   }
 
   .relation-node-desc {
-    color: #475569;
-    line-height: 1.6;
-    margin-bottom: 12px;
-    min-height: 40px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    min-height: 32px;
   }
 
   .relation-node-columns {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
   }
 
   .relation-column-item {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    background-color: #f8fafc;
-    color: #1e293b;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background-color: #f9fafb;
+    color: #1f2937;
     cursor: crosshair;
-    transition:
-      transform 0.18s ease,
-      border-color 0.18s ease,
-      background-color 0.18s ease,
-      box-shadow 0.18s ease;
+    transition: all 0.12s ease;
     border: 1px solid transparent;
+    font-size: 12px;
   }
 
   .relation-column-item:hover {
-    transform: translateX(2px);
-    border-color: #7dd3fc;
-    background-color: #ecfeff;
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
   }
 
   .relation-column-item.is-drag-source {
-    border-color: #0ea5e9;
-    background-color: #e0f2fe;
-    box-shadow: 0 10px 18px rgba(14, 165, 233, 0.12);
+    border-color: #6b7280;
+    background-color: #f3f4f6;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 
   .relation-column-item.is-drag-target {
-    border-color: #22c55e;
+    border-color: #059669;
     background-color: #ecfdf5;
-    box-shadow: 0 10px 18px rgba(34, 197, 94, 0.12);
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.1);
   }
 
   .column-name {
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .column-type {
-    font-size: 12px;
-    color: #64748b;
+    font-size: 11px;
+    color: #9ca3af;
   }
 
   .relation-side {
     display: flex;
     flex-direction: column;
-    gap: 16px;
   }
 
   .relation-side-card {
-    border: 1px solid #dbe7f3;
-    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     background: #fff;
-    padding: 18px;
-    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
 
   .relation-side-card h4 {
-    font-size: 18px;
-    color: #0f172a;
-    margin-bottom: 14px;
+    font-size: 15px;
+    color: #1f2937;
+    margin-bottom: 12px;
+    font-weight: 600;
   }
 
   .relation-list {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
   }
 
   .relation-list-summary {
     display: flex;
     justify-content: space-between;
     gap: 12px;
-    color: #64748b;
-    font-size: 13px;
-    margin-bottom: 12px;
+    color: #9ca3af;
+    font-size: 12px;
+    margin-bottom: 10px;
   }
 
   .relation-list-item {
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 14px;
-    background: #f8fbff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px;
+    background: #fafafa;
     cursor: pointer;
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease,
-      background 0.2s ease,
-      transform 0.2s ease;
+    transition: all 0.15s ease;
   }
 
   .relation-list-item:hover {
-    border-color: #99f6e4;
-    box-shadow: 0 12px 26px rgba(20, 184, 166, 0.08);
+    border-color: #d1d5db;
+    background: #f5f5f5;
   }
 
   .relation-list-item.is-relation-selected {
-    border-color: #14b8a6;
-    background: linear-gradient(180deg, #f0fdfa 0%, #ecfeff 100%);
-    box-shadow: 0 18px 36px rgba(20, 184, 166, 0.14);
-    transform: translateY(-1px);
+    border-color: #374151;
+    background: #f9fafb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
 
   .relation-list-head {
@@ -1547,7 +1611,68 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: #9ca3af;
+    font-size: 13px;
+  }
+
+  .canvas-controls {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 4px 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    z-index: 10;
+  }
+
+  .canvas-ctrl-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 16px;
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s;
+  }
+
+  .canvas-ctrl-btn:hover {
+    background: #f3f4f6;
+  }
+
+  .canvas-ctrl-label {
+    font-size: 12px;
+    color: #6b7280;
+    min-width: 36px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .canvas-ctrl-fit {
+    margin-left: 4px;
+    border-left: 1px solid #e5e7eb;
+    padding-left: 4px;
+  }
+
+  .canvas-hint {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 11px;
+    color: #9ca3af;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 4px 8px;
+    border-radius: 6px;
+    z-index: 10;
   }
 
   @media (max-width: 1280px) {

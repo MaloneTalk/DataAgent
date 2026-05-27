@@ -16,27 +16,23 @@
  -->
 
 <script setup lang="ts">
-  // TODO: sidebar collapse feature not yet implemented
-  // import { ref } from 'vue';
-  // const isCollapse = ref(false);
-  // const toggleSidebar = () => {
-  //   isCollapse.value = !isCollapse.value;
-  // };
+  import { DataLine, User } from '@element-plus/icons-vue';
 </script>
 
 <template>
   <header class="app-header">
     <div class="header-left">
       <div class="logo">
-        <img src="/vite.svg" alt="logo" class="logo-icon" />
+        <el-icon :size="20" class="logo-icon"><DataLine /></el-icon>
         <span class="logo-text">Data Agent</span>
       </div>
     </div>
     <div class="header-right">
       <el-dropdown trigger="click">
         <div class="user-info">
-          <el-avatar :size="32">User</el-avatar>
-          <span class="username">Admin</span>
+          <el-avatar :size="30" class="user-avatar">
+            <el-icon><User /></el-icon>
+          </el-avatar>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
@@ -54,10 +50,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 60px;
+    height: 56px;
     padding: 0 20px;
     background-color: #fff;
-    box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+    border-bottom: 1px solid #f0f0f0;
   }
 
   .header-left {
@@ -68,18 +64,18 @@
   .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
 
   .logo-icon {
-    width: 32px;
-    height: 32px;
+    color: #1f2937;
   }
 
   .logo-text {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
-    color: #303133;
+    color: #1f2937;
+    letter-spacing: -0.01em;
   }
 
   .header-right {
@@ -88,13 +84,16 @@
   }
 
   .user-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     cursor: pointer;
+    transition: opacity 0.15s;
   }
 
-  .username {
-    color: #606266;
+  .user-info:hover {
+    opacity: 0.75;
+  }
+
+  .user-avatar {
+    background: #f3f4f6;
+    color: #4b5563;
   }
 </style>

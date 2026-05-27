@@ -18,27 +18,54 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import eslint from 'vite-plugin-eslint';
+import AutoImport from 'unplugin-auto-import/vite';
+import Components from 'unplugin-vue-components/vite';
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 
-/**
- * Vite configuration file
- * Similar to application.properties/application.yml in Spring Boot
- * Defines build, dev server, and plugin settings
- */
 export default defineConfig({
-  // Enable Vue 3 support
-  plugins: [vue(), eslint()],
-  // Path alias configuration: '@' -> 'src' directory
-  // Allows importing like: import xxx from '@/components/xxx'
+  plugins: [
+    vue(),
+    eslint(),
+    AutoImport({
+      resolvers: [ElementPlusResolver()],
+    }),
+    Components({
+      resolvers: [ElementPlusResolver()],
+    }),
+  ],
   resolve: {
     alias: {
       '@': '/src',
     },
   },
-  // Development server configuration
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('element-plus')) {
+              return 'element-plus';
+            }
+            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) {
+              return 'vue-vendor';
+            }
+            return 'vendor';
+          }
+          if (id.includes('/src/views/chat/')) {
+            return 'chat';
+          }
+          if (id.includes('/src/views/data-source/')) {
+            return 'data-source';
+          }
+          if (id.includes('/src/views/semantic-model/')) {
+            return 'semantic-model';
+          }
+        },
+      },
+    },
+  },
   server: {
     port: 3000,
-    // API proxy: forward /api requests to backend server
-    // This solves cross-origin issues during frontend-backend local development
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

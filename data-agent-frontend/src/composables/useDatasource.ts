@@ -23,6 +23,7 @@ import {
   deleteDatasource,
   activateDatasource,
   deactivateDatasource,
+  type DatasourceActivateRequest,
   type DatasourceRequest,
   type DatasourceResponse,
 } from '@/api/datasource';
@@ -60,8 +61,8 @@ export function useDatasource() {
     await fetchList();
   };
 
-  const activate = async (id: number) => {
-    await activateDatasource(id);
+  const activate = async (id: number, data?: DatasourceActivateRequest) => {
+    await activateDatasource(id, data);
     await fetchList();
   };
 

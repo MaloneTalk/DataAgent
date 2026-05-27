@@ -24,7 +24,7 @@
     message: ChatMessage;
   }>();
 
-  const isExpanded = ref(true);
+  const isExpanded = ref(false);
 
   function toggleExpand() {
     isExpanded.value = !isExpanded.value;
@@ -97,7 +97,7 @@
     <div class="trace-panel__header" @click="toggleExpand">
       <span class="trace-panel__arrow">▶</span>
       <span class="trace-panel__dot">●</span>
-      <span class="trace-panel__title">Agent 思考与执行链路</span>
+      <span class="trace-panel__title">处理详情</span>
       <span class="trace-panel__summary">{{ summaryLabel }}</span>
     </div>
     <div v-show="isExpanded" class="trace-panel__body">
@@ -124,9 +124,9 @@
 
 <style scoped>
   .trace-panel {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 10px;
     margin-bottom: 16px;
     overflow: hidden;
   }
@@ -134,13 +134,14 @@
   .trace-panel__header {
     padding: 10px 16px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    color: #475569;
+    color: #6b7280;
     display: flex;
     align-items: center;
     gap: 8px;
     user-select: none;
+    transition: background 0.15s;
   }
 
   .trace-panel__header:hover {
@@ -158,7 +159,7 @@
   }
 
   .trace-panel__dot {
-    color: #10b981;
+    color: #6b7280;
     font-size: 10px;
   }
 
@@ -174,9 +175,11 @@
 
   .trace-panel__body {
     padding: 0 16px 16px 16px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #f0f0f0;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 12px;
+    max-height: 400px;
+    overflow-y: auto;
   }
 
   .trace-step {
@@ -207,33 +210,18 @@
     color: #475569;
   }
 
-  /* Event type color variants — extend here for new ChatStreamEventType values */
-  .trace-step--thinking {
-    color: #64748b;
-  }
-  .trace-step--thinking .trace-step__label {
-    color: #64748b;
-  }
-
-  .trace-step--tool_call {
-    color: #0284c7;
-  }
-  .trace-step--tool_call .trace-step__label {
-    color: #0284c7;
-  }
-
-  .trace-step--tool_result {
-    color: #16a34a;
-  }
-  .trace-step--tool_result .trace-step__label {
-    color: #16a34a;
-  }
-
+  .trace-step--thinking,
+  .trace-step--tool_call,
+  .trace-step--tool_result,
   .trace-step--summary {
-    color: #7c3aed;
+    color: #6b7280;
   }
+
+  .trace-step--thinking .trace-step__label,
+  .trace-step--tool_call .trace-step__label,
+  .trace-step--tool_result .trace-step__label,
   .trace-step--summary .trace-step__label {
-    color: #7c3aed;
+    color: #1f2937;
   }
 
   .trace-step__code {
@@ -247,8 +235,8 @@
   }
 
   .code-block {
-    background: #1e293b;
-    color: #e2e8f0;
+    background: #f5f5f5;
+    color: #374151;
     padding: 10px;
     border-radius: 6px;
     overflow-x: auto;
@@ -257,5 +245,6 @@
     font-size: 12px;
     line-height: 1.5;
     margin: 0;
+    border: 1px solid #e5e7eb;
   }
 </style>

@@ -36,5 +36,7 @@ public interface DatasourceService {
 
     List<Datasource> findByType(String type);
 
+    boolean activate(Integer id, List<String> activeDomains);
+
     boolean updateStatus(Integer id, String status);
 }

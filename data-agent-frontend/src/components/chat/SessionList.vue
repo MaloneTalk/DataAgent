@@ -103,23 +103,23 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #f8fafc;
-    border-right: 1px solid #e5e7eb;
+    background: #fafafa;
+    border-right: 1px solid #f0f0f0;
   }
 
   .session-list__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f0f0f0;
     flex-shrink: 0;
   }
 
   .session-list__title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    color: #303133;
+    color: #374151;
   }
 
   .session-list__body {
@@ -139,21 +139,22 @@
     padding: 10px 12px;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: all 0.15s;
     margin-bottom: 2px;
   }
 
   .session-item:hover {
-    background: #e2e8f0;
+    background: #ebebeb;
   }
 
   .session-item.active {
-    background: #dbeafe;
+    background: #e5e7eb;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
   }
 
   .session-item__title {
     font-size: 13px;
-    color: #1e293b;
+    color: #1f2937;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -161,7 +162,7 @@
   }
 
   .session-item.active .session-item__title {
-    color: #1d4ed8;
+    color: #1f2937;
     font-weight: 500;
   }
 
@@ -173,7 +174,7 @@
 
   .session-list__footer {
     padding: 12px 16px;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid #f0f0f0;
     flex-shrink: 0;
   }
 

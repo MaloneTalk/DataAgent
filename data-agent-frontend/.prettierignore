@@ -12,3 +12,5 @@ Thumbs.db
 *.log
 *.tsbuildinfo
 vite.config.d.ts
+auto-imports.d.ts
+components.d.ts

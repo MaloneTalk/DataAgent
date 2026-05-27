@@ -55,6 +55,11 @@ public class TableSemanticController {
                         datasourceId, PageRequest.of(page, pageSize), keywordPrefix, sortOrder));
     }
 
+    @GetMapping("/tables/domains")
+    public Result<java.util.List<String>> listTableDomains(@RequestParam Integer datasourceId) {
+        return Result.success(tableSemanticService.listAvailableDomains(datasourceId));
+    }
+
     @PutMapping("/tables")
     public Result<Boolean> updateTableSemantic(
             @Valid @RequestBody TableSemanticUpdateRequest request) {

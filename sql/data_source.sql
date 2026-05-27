@@ -78,22 +78,3 @@ CREATE TABLE IF NOT EXISTS `logical_table_relation` (
             (`datasource_id`, `source_table_name`, `target_table_name`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表（查询依赖 ci collation 做大小写不敏感匹配）';
 
-CREATE TABLE IF NOT EXISTS `agentscope_skills` (
-    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    description TEXT NOT NULL,
-    skill_content LONGTEXT NOT NULL,
-    source VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `agentscope_skill_resources` (
-    id BIGINT NOT NULL,
-    resource_path VARCHAR(500) NOT NULL,
-    resource_content LONGTEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id, resource_path),
-    FOREIGN KEY (id) REFERENCES agentscope_skills(id) ON DELETE CASCADE
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

@@ -171,6 +171,16 @@ export function getTableSemanticPage(params: TableSemanticQuery) {
   }>('/tableinfo/semantic/tables', { params });
 }
 
+export function getTableDomainOptions(datasourceId: number) {
+  return request.get<{
+    code: number;
+    message: string;
+    data: string[];
+  }>('/tableinfo/semantic/tables/domains', {
+    params: { datasourceId },
+  });
+}
+
 export function updateTableSemantic(data: TableSemanticUpdateRequest) {
   return request.put<{ code: number; message: string; data: boolean }>(
     '/tableinfo/semantic/tables',

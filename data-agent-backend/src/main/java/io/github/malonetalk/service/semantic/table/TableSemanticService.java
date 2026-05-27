@@ -30,6 +30,8 @@ public interface TableSemanticService {
     PageResponse<TableSemanticResponse> getTablePage(
             Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder);
 
+    List<String> listAvailableDomains(Integer datasourceId);
+
     PageResponse<TablePromptResponse> getVisibleTablePromptPage(PageRequest pageRequest);
 
     void updateTableSemantic(TableSemanticUpdateRequest request);

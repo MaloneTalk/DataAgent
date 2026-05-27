@@ -28,6 +28,7 @@
     getLogicalRelationPage,
     getRelationCandidateColumnPage,
     getRelationCandidateTablePage,
+    getTableDomainOptions,
     getTableSemanticPage,
     resetColumnSemantic,
     resetTableSemantic,
@@ -99,6 +100,11 @@
   const tableDialogVisible = ref(false);
   const tableSubmitLoading = ref(false);
   const tableFormRef = ref<FormInstance>();
+  const domainDialogVisible = ref(false);
+  const domainSubmitLoading = ref(false);
+  const domainOptionsLoading = ref(false);
+  const visibleDomainOptions = ref<Array<{ label: string; value: string }>>([]);
+  const visibleDomains = ref<string[]>([]);
   const tableForm = reactive<TableEditForm>({
     datasourceId: 0,
     tableName: '',
@@ -125,6 +131,7 @@
   const relationNodes = ref<TableNodeLayout[]>([]);
   const relationRecords = ref<LogicalTableRelationResponse[]>([]);
   const selectedRelation = ref<LogicalTableRelationResponse | null>(null);
+  const relationLoadToken = ref(0);
 
   const relationDialogVisible = ref(false);
   const relationSubmitLoading = ref(false);
@@ -320,17 +327,15 @@
     });
   };
 
-  const loadRelationNodes = async () => {
-    if (typeof selectedDatasourceId.value !== 'number') {
-      relationNodes.value = [];
-      return;
-    }
-
+  const loadRelationNodes = async (
+    datasourceId: number,
+    loadToken: number,
+  ): Promise<TableNodeLayout[]> => {
     relationNodeLoading.value = true;
     try {
       const tables = await fetchAllPages<RelationCandidateTableResponse>((page, pageSize) =>
         getRelationCandidateTablePage({
-          datasourceId: selectedDatasourceId.value as number,
+          datasourceId,
           page,
           pageSize,
           sortOrder: 'asc',
@@ -340,7 +345,7 @@
         tables.map(table =>
           fetchAllPages<RelationCandidateColumnResponse>((page, pageSize) =>
             getRelationCandidateColumnPage({
-              datasourceId: selectedDatasourceId.value as number,
+              datasourceId,
               tableName: table.tableName,
               page,
               pageSize,
@@ -355,27 +360,33 @@
         columnsMap.set(table.tableName, columnResponses[index]);
       });
 
-      relationNodes.value = buildRelationLayouts(tables, columnsMap);
+      const nextNodes = buildRelationLayouts(tables, columnsMap);
+      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
+        return nextNodes;
+      }
+      relationNodes.value = nextNodes;
       await nextTick();
+      return nextNodes;
     } finally {
-      relationNodeLoading.value = false;
+      if (loadToken === relationLoadToken.value) {
+        relationNodeLoading.value = false;
+      }
     }
   };
 
-  const loadAllRelations = async () => {
-    if (typeof selectedDatasourceId.value !== 'number') {
-      relationRecords.value = [];
-      return;
-    }
-
+  const loadAllRelations = async (
+    datasourceId: number,
+    nodes: TableNodeLayout[],
+    loadToken: number,
+  ) => {
     relationLoading.value = true;
     relationError.value = '';
     try {
       const responses = await Promise.all(
-        relationNodes.value.map(node =>
+        nodes.map(node =>
           fetchAllPages<LogicalTableRelationResponse>((page, pageSize) =>
             getLogicalRelationPage({
-              datasourceId: selectedDatasourceId.value as number,
+              datasourceId,
               tableName: node.tableName,
               page,
               pageSize,
@@ -384,12 +395,20 @@
           ),
         ),
       );
+      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
+        return;
+      }
       relationRecords.value = responses.flatMap(items => items);
     } catch (error) {
+      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
+        return;
+      }
       relationError.value = (error as Error).message;
       relationRecords.value = [];
     } finally {
-      relationLoading.value = false;
+      if (loadToken === relationLoadToken.value) {
+        relationLoading.value = false;
+      }
     }
   };
 
@@ -406,11 +425,30 @@
   };
 
   const ensureRelationTabLoaded = async () => {
-    if (!canQuery.value) {
+    if (!canQuery.value || typeof selectedDatasourceId.value !== 'number') {
       return;
     }
-    await loadRelationNodes();
-    await loadAllRelations();
+
+    const datasourceId = selectedDatasourceId.value;
+    const loadToken = relationLoadToken.value + 1;
+    relationLoadToken.value = loadToken;
+
+    try {
+      const nodes = await loadRelationNodes(datasourceId, loadToken);
+      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
+        return;
+      }
+      await loadAllRelations(datasourceId, nodes, loadToken);
+    } catch (error) {
+      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
+        return;
+      }
+      relationError.value = (error as Error).message;
+      relationNodes.value = [];
+      relationRecords.value = [];
+      relationNodeLoading.value = false;
+      relationLoading.value = false;
+    }
   };
 
   onMounted(() => {
@@ -531,6 +569,94 @@
       isVisible: row.isVisible,
     });
     columnDialogVisible.value = true;
+  };
+
+  const handleOpenVisibleDomainDialog = async () => {
+    if (typeof selectedDatasourceId.value !== 'number') {
+      ElMessage.warning('请先选择数据源');
+      return;
+    }
+
+    domainDialogVisible.value = true;
+    domainOptionsLoading.value = true;
+    visibleDomainOptions.value = [];
+    visibleDomains.value = [];
+
+    try {
+      const [domainRes, tableRes] = await Promise.all([
+        getTableDomainOptions(selectedDatasourceId.value),
+        fetchAllPages<TableSemanticResponse>((page, pageSize) =>
+          getTableSemanticPage({
+            datasourceId: selectedDatasourceId.value,
+            page,
+            pageSize,
+            sortOrder: 'asc',
+          }),
+        ),
+      ]);
+
+      const domainValues = domainRes.data.data ?? [];
+      visibleDomainOptions.value = domainValues.map(domain => ({
+        value: domain,
+        label: domain.trim() ? domain : '未设置业务域',
+      }));
+
+      visibleDomains.value = domainValues.filter(domain =>
+        tableRes.some(row => (row.domain ?? '') === domain && row.isVisible),
+      );
+    } finally {
+      domainOptionsLoading.value = false;
+    }
+  };
+
+  const handleSubmitVisibleDomains = async () => {
+    if (typeof selectedDatasourceId.value !== 'number') {
+      return;
+    }
+
+    domainSubmitLoading.value = true;
+    try {
+      const allTables = await fetchAllPages<TableSemanticResponse>((page, pageSize) =>
+        getTableSemanticPage({
+          datasourceId: selectedDatasourceId.value,
+          page,
+          pageSize,
+          sortOrder: 'asc',
+        }),
+      );
+
+      const visibleDomainSet = new Set(visibleDomains.value);
+      await Promise.all(
+        allTables.map(row =>
+          updateTableSemantic({
+            datasourceId: selectedDatasourceId.value as number,
+            tableName: row.tableName,
+            domain: row.domain,
+            tableDescription: row.tableDescription,
+            isVisible: visibleDomainSet.has(row.domain ?? ''),
+          }),
+        ),
+      );
+
+      const refreshedSelectedTable = selectedTable.value
+        ? allTables.find(item => item.tableName === selectedTable.value?.tableName) ?? null
+        : null;
+
+      ElMessage.success('可见域已更新');
+      domainDialogVisible.value = false;
+      await loadTablePage();
+      if (selectedTable.value) {
+        selectedTable.value = refreshedSelectedTable;
+      }
+      if (columnDrawerVisible.value && refreshedSelectedTable) {
+        await loadColumnPage();
+      }
+      if (activeTab.value === 'relation') {
+        await ensureRelationTabLoaded();
+      }
+    } finally {
+      domainSubmitLoading.value = false;
+    }
   };
 
   const handleSubmitTable = async () => {
@@ -791,7 +917,7 @@
 
       relationDialogVisible.value = false;
       resetRelationForm();
-      await loadAllRelations();
+      await ensureRelationTabLoaded();
     } finally {
       relationSubmitLoading.value = false;
     }
@@ -825,7 +951,7 @@
         relation.id,
       );
       ElMessage.success('逻辑外键已删除');
-      await loadAllRelations();
+      await ensureRelationTabLoaded();
     } catch {
       // ignore cancel
     }
@@ -856,7 +982,7 @@
     );
     relation.enabled = value;
     ElMessage.success(value ? '逻辑外键已启用' : '逻辑外键已禁用');
-    await loadAllRelations();
+    await ensureRelationTabLoaded();
   };
 
   const formatTime = (value: string | null) => {
@@ -875,7 +1001,6 @@
   <div class="semantic-model-page">
     <section class="hero-card">
       <div>
-        <p class="hero-kicker">Semantic Model</p>
         <h2 class="hero-title">语义模型管理</h2>
         <p class="hero-desc">统一维护表语义、列语义以及逻辑外键，并通过可视化关系图辅助配置。</p>
       </div>
@@ -926,6 +1051,16 @@
     </section>
 
     <section class="content-card">
+      <div v-if="activeTab === 'semantic'" class="content-toolbar">
+        <div>
+          <h3 class="content-toolbar-title">语义模型</h3>
+          <p class="content-toolbar-desc">按业务域批量控制表可见性，默认全部开启。</p>
+        </div>
+        <div class="content-toolbar-actions">
+          <el-button plain @click="handleOpenVisibleDomainDialog">选择可见域</el-button>
+          <el-tag type="primary" effect="plain">共 {{ tablePage.total }} 张表</el-tag>
+        </div>
+      </div>
       <el-tabs v-model="activeTab" class="semantic-tabs">
         <el-tab-pane label="表与列语义" name="semantic">
           <section class="table-panel">
@@ -934,7 +1069,6 @@
                 <h3>表语义列表</h3>
                 <p>维护业务域、表描述以及表级可见性。</p>
               </div>
-              <el-tag type="primary" effect="plain">共 {{ tablePage.total }} 张表</el-tag>
             </div>
 
             <el-table v-loading="tableLoading" :data="tableRows" class="semantic-table">
@@ -1019,6 +1153,7 @@
         <el-tab-pane label="逻辑外键" name="relation">
           <SemanticRelationWorkspace
             :datasource-id="selectedDatasourceId"
+            :active="activeTab === 'relation'"
             :loading="relationLoading"
             :node-loading="relationNodeLoading"
             :relation-error="relationError"
@@ -1171,6 +1306,37 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="domainDialogVisible" title="选择可见域" width="520px">
+      <div class="domain-dialog-body">
+        <p class="domain-dialog-tip">未选中的业务域会将对应表的可见性批量设置为隐藏，默认全开启。</p>
+        <el-select
+          v-model="visibleDomains"
+          multiple
+          filterable
+          clearable
+          collapse-tags
+          collapse-tags-tooltip
+          :max-collapse-tags="2"
+          :loading="domainOptionsLoading"
+          placeholder="请选择可见的业务域"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="item in visibleDomainOptions"
+            :key="item.value || '__EMPTY__'"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </div>
+      <template #footer>
+        <el-button @click="domainDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="domainSubmitLoading" @click="handleSubmitVisibleDomains">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="columnDialogVisible" title="编辑列语义" width="640px">
       <el-form ref="columnFormRef" :model="columnForm" :rules="columnRules" label-width="110px">
         <el-form-item label="列名">
@@ -1298,39 +1464,29 @@
   .hero-card,
   .toolbar-card,
   .content-card {
-    background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%);
-    border: 1px solid #dbe7f3;
-    border-radius: 20px;
-    box-shadow: 0 20px 45px rgba(31, 41, 55, 0.06);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   }
 
   .hero-card {
     display: flex;
     justify-content: space-between;
     gap: 24px;
-    padding: 28px 32px;
-    background:
-      radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 30%),
-      linear-gradient(145deg, #ffffff 0%, #eef6ff 100%);
-  }
-
-  .hero-kicker {
-    color: #0369a1;
-    font-size: 12px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
+    padding: 24px 32px;
+    background: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
   }
 
   .hero-title {
-    font-size: 28px;
-    color: #0f172a;
-    margin-bottom: 10px;
+    font-size: 22px;
+    color: #1f2937;
+    margin-bottom: 8px;
   }
 
   .hero-desc {
     max-width: 680px;
-    color: #475569;
+    color: #6b7280;
     line-height: 1.7;
   }
 
@@ -1339,22 +1495,49 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 20px;
-    border-radius: 16px;
-    background-color: rgba(255, 255, 255, 0.75);
-    border: 1px solid rgba(14, 165, 233, 0.18);
-    color: #64748b;
+    padding: 16px 20px;
+    border-radius: 10px;
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
   }
 
   .hero-meta strong {
-    margin-top: 8px;
-    color: #0f172a;
-    font-size: 18px;
+    margin-top: 6px;
+    color: #1f2937;
+    font-size: 16px;
   }
 
   .toolbar-card,
   .content-card {
     padding: 24px;
+  }
+
+  .content-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .content-toolbar-title {
+    font-size: 16px;
+    color: #1f2937;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .content-toolbar-desc {
+    color: #64748b;
+    line-height: 1.6;
+  }
+
+  .content-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
 
   .toolbar-grid {
@@ -1386,13 +1569,20 @@
   }
 
   .section-header h3 {
-    font-size: 20px;
-    color: #0f172a;
+    font-size: 16px;
+    color: #1f2937;
     margin-bottom: 6px;
+    font-weight: 600;
   }
 
   .section-header p {
     color: #64748b;
+  }
+
+  .section-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   .semantic-table {
@@ -1414,25 +1604,44 @@
     display: flex;
     gap: 16px;
     margin-bottom: 20px;
-    padding: 18px 20px;
-    border-radius: 16px;
-    background: #f8fafc;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
   }
 
   .summary-item {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    color: #64748b;
+    color: #6b7280;
   }
 
   .summary-item strong {
-    color: #0f172a;
+    color: #1f2937;
+  }
+
+  .domain-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .domain-dialog-tip {
+    margin: 0;
+    color: #64748b;
+    line-height: 1.6;
+    font-size: 13px;
   }
 
   @media (max-width: 1024px) {
     .hero-card {
       flex-direction: column;
+    }
+
+    .content-toolbar {
+      flex-direction: column;
+      align-items: flex-start;
     }
 
     .toolbar-grid {

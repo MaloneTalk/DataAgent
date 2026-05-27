@@ -59,7 +59,7 @@
         "
         class="chat-message__thinking"
       >
-        思考中
+        处理中
         <span class="chat-message__cursor">...</span>
       </div>
       <span
@@ -75,7 +75,19 @@
 <style scoped>
   .chat-message {
     display: flex;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    animation: messageIn 0.3s ease-out;
+  }
+
+  @keyframes messageIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .chat-message--user {
@@ -87,26 +99,26 @@
   }
 
   .chat-message__bubble {
-    max-width: 100%;
+    max-width: 780px;
     padding: 16px 20px;
     border-radius: 12px;
     font-size: 14px;
-    line-height: 1.6;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    line-height: 1.7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
   .chat-message--user .chat-message__bubble {
-    background: #2563eb;
+    background: #1f2937;
     color: white;
-    border-bottom-right-radius: 2px;
+    border-bottom-right-radius: 4px;
+    max-width: 520px;
   }
 
   .chat-message--agent .chat-message__bubble {
     background: white;
     color: #1f2937;
-    border-bottom-left-radius: 2px;
-    border: 1px solid #e5e7eb;
-    width: 100%;
+    border-bottom-left-radius: 4px;
+    border: 1px solid #f0f0f0;
   }
 
   .chat-message__content {
@@ -147,22 +159,23 @@
     }
 
     :deep(pre) {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
       border-radius: 8px;
-      padding: 12px 16px;
+      padding: 14px 16px;
       overflow-x: auto;
-      margin: 8px 0;
+      margin: 10px 0;
 
       code {
         background: none;
         padding: 0;
         font-size: 13px;
+        color: #1f2937;
       }
     }
 
     :deep(blockquote) {
-      border-left: 3px solid #3b82f6;
+      border-left: 3px solid #6b7280;
       padding-left: 12px;
       margin: 8px 0;
       color: #64748b;
@@ -206,8 +219,10 @@
 
   .chat-message__summary {
     word-break: break-word;
-    color: #16a34a;
-    margin-top: 8px;
+    color: #1f2937;
+    margin-top: 12px;
+    padding-left: 12px;
+    border-left: 2px solid #e5e7eb;
 
     :deep(p) {
       margin: 0 0 8px;
@@ -236,7 +251,7 @@
   .chat-message__cursor {
     display: inline-block;
     animation: blink 1s step-end infinite;
-    color: #3b82f6;
+    color: #6b7280;
     font-weight: bold;
   }
 

@@ -1,16 +1,16 @@
 <!--
  * Copyright (C) 2026 github.com/MaloneTalk
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
@@ -19,6 +19,7 @@
   import { ref, reactive, onMounted } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import { Coin } from '@element-plus/icons-vue';
   import { useDatasource } from '@/composables/useDatasource';
   import type { DatasourceResponse } from '@/api/datasource';
 
@@ -134,7 +135,7 @@
   const handleDeactivate = async (row: DatasourceResponse) => {
     try {
       await deactivate(row.id);
-      ElMessage.success('禁用成功');
+      ElMessage.success('停用成功');
     } catch {
       // 错误已由 request 拦截器统一处理
     }
@@ -174,6 +175,14 @@
       <el-button type="primary" @click="handleAdd">新增数据源</el-button>
     </div>
     <el-table v-loading="loading" :data="dataSourceList" style="width: 100%">
+      <template #empty>
+        <div class="empty-state">
+          <el-icon class="empty-icon" :size="40"><Coin /></el-icon>
+          <div class="empty-title">暂无数据源</div>
+          <div class="empty-hint">添加数据源以开始管理你的数据库连接。</div>
+          <el-button type="primary" plain @click="handleAdd">新增数据源</el-button>
+        </div>
+      </template>
       <el-table-column type="expand">
         <template #default="{ row }">
           <div class="expand-content">
@@ -190,7 +199,7 @@
               <span>{{ row.username ?? '-' }}</span>
             </div>
             <div class="expand-item">
-              <span class="expand-label">连接URL：</span>
+              <span class="expand-label">连接 URL：</span>
               <span>{{ row.connectionUrl || '-' }}</span>
             </div>
             <div class="expand-item">
@@ -206,7 +215,7 @@
       <el-table-column prop="status" label="激活状态">
         <template #default="{ row }">
           <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'">
-            {{ row.status === 'ACTIVE' ? '已激活' : '已禁用' }}
+            {{ row.status === 'ACTIVE' ? '已激活' : '已停用' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -221,14 +230,13 @@
           >
             激活
           </el-button>
-          <el-button v-else link type="warning" @click="handleDeactivate(row)">禁用</el-button>
+          <el-button v-else link type="warning" @click="handleDeactivate(row)">停用</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
     <div v-if="error" class="error-tip">
-      数据加载失败，
-      <el-button type="primary" link @click="fetchList">点击重试</el-button>
+      数据加载失败。<el-button type="primary" link @click="fetchList">点击重试</el-button>
     </div>
   </div>
 
@@ -267,8 +275,8 @@
       <el-form-item label="密码" prop="password">
         <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
       </el-form-item>
-      <el-form-item label="连接URL">
-        <el-input v-model="form.connectionUrl" placeholder="请输入连接URL（可选）" />
+      <el-form-item label="连接 URL">
+        <el-input v-model="form.connectionUrl" placeholder="请输入连接 URL（可选）" />
       </el-form-item>
       <el-form-item label="描述">
         <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
@@ -296,9 +304,9 @@
   }
 
   .page-title {
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
-    color: #303133;
+    color: #1f2937;
     margin: 0;
   }
 
@@ -326,5 +334,30 @@
   .expand-label {
     color: #909399;
     white-space: nowrap;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 40px 20px;
+  }
+
+  .empty-icon {
+    color: #d1d5db;
+    margin-bottom: 4px;
+  }
+
+  .empty-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .empty-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 12px;
   }
 </style>

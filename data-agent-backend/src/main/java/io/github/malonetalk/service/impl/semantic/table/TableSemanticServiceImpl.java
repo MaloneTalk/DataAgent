@@ -110,6 +110,22 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     @Override
+    public List<String> listAvailableDomains(Integer datasourceId) {
+        Datasource datasource = semanticDatasourceService.findDatasourceOrNull(datasourceId);
+        if (datasource == null) {
+            return List.of();
+        }
+
+        SemanticContext context = semanticContextFactory.createContext(datasource);
+        return context.listTables().stream()
+                .map(ResolvedTable::domain)
+                .map(domain -> domain == null ? "" : domain.trim())
+                .distinct()
+                .sorted(String::compareToIgnoreCase)
+                .toList();
+    }
+
+    @Override
     public PageResponse<TablePromptResponse> getVisibleTablePromptPage(PageRequest pageRequest) {
         Datasource datasource = getActiveDatasource();
         if (datasource == null) {

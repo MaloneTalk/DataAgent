@@ -44,6 +44,10 @@ export interface DatasourceResponse {
   description?: string;
 }
 
+export interface DatasourceActivateRequest {
+  activeDomains?: string[];
+}
+
 export function getDatasourceList() {
   return request.get<{
     code: number;
@@ -67,9 +71,10 @@ export function deleteDatasource(id: number) {
   return request.delete<{ code: number; message: string; data: boolean }>(`/datasource/${id}`);
 }
 
-export function activateDatasource(id: number) {
+export function activateDatasource(id: number, data?: DatasourceActivateRequest) {
   return request.put<{ code: number; message: string; data: boolean }>(
     `/datasource/${id}/activate`,
+    data,
   );
 }
 
