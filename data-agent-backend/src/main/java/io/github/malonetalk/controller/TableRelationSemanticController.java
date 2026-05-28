@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/tableinfo/semantic/relations")
+@RequestMapping("/api/semantic")
 public class TableRelationSemanticController {
 
     private final RelationSemanticService relationSemanticService;
@@ -49,7 +49,7 @@ public class TableRelationSemanticController {
         this.relationSemanticService = relationSemanticService;
     }
 
-    @GetMapping("/candidate/tables")
+    @GetMapping("/relation-candidates/tables")
     public Result<PageResponse<RelationCandidateTableResponse>> listCandidateTables(
             @RequestParam Integer datasourceId,
             @RequestParam(defaultValue = "1") Integer page,
@@ -61,7 +61,7 @@ public class TableRelationSemanticController {
                         datasourceId, PageRequest.of(page, pageSize), keywordPrefix, sortOrder));
     }
 
-    @GetMapping("/candidate/{tableName}/columns")
+    @GetMapping("/relation-candidates/tables/{tableName}/columns")
     public Result<PageResponse<RelationCandidateColumnResponse>> listCandidateColumns(
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
@@ -78,7 +78,7 @@ public class TableRelationSemanticController {
                         sortOrder));
     }
 
-    @GetMapping("/{tableName}")
+    @GetMapping("/tables/{tableName}/relations")
     public Result<PageResponse<LogicalTableRelationResponse>> listByTable(
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
@@ -97,7 +97,7 @@ public class TableRelationSemanticController {
                         sortOrder));
     }
 
-    @PostMapping("/{tableName}")
+    @PostMapping("/tables/{tableName}/relations")
     public Result<LogicalTableRelationResponse> create(
             @PathVariable String tableName,
             @RequestParam Integer datasourceId,
@@ -106,7 +106,7 @@ public class TableRelationSemanticController {
                 relationSemanticService.createRelationSemantic(datasourceId, tableName, request));
     }
 
-    @PutMapping("/{tableName}/{relationId}")
+    @PutMapping("/tables/{tableName}/relations/{relationId}")
     public Result<LogicalTableRelationResponse> update(
             @PathVariable String tableName,
             @PathVariable Integer relationId,
@@ -117,7 +117,7 @@ public class TableRelationSemanticController {
                         datasourceId, tableName, relationId, request));
     }
 
-    @PutMapping("/{tableName}/{relationId}/enabled")
+    @PutMapping("/tables/{tableName}/relations/{relationId}/enabled")
     public Result<Boolean> updateEnabled(
             @PathVariable String tableName,
             @PathVariable Integer relationId,
@@ -128,7 +128,7 @@ public class TableRelationSemanticController {
                         datasourceId, tableName, relationId, request.enabled()));
     }
 
-    @DeleteMapping("/{tableName}/{relationId}")
+    @DeleteMapping("/tables/{tableName}/relations/{relationId}")
     public Result<Boolean> delete(
             @PathVariable String tableName,
             @PathVariable Integer relationId,
@@ -138,7 +138,7 @@ public class TableRelationSemanticController {
                         datasourceId, tableName, relationId));
     }
 
-    @DeleteMapping("/{tableName}/batch")
+    @DeleteMapping("/tables/{tableName}/relations/batch")
     public Result<Integer> deleteBatch(
             @PathVariable String tableName,
             @Valid @RequestBody BatchDeleteLogicalTableRelationRequest request) {

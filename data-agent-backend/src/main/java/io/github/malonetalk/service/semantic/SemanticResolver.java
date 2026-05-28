@@ -72,7 +72,7 @@ public class SemanticResolver {
         io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn = snapshot.physicalColumn();
         ColumnInfo semanticColumn = snapshot.semanticColumn();
         String physicalDescription =
-                normalizeBlankToNull(physicalColumn != null ? physicalColumn.getRemarks() : null);
+                normalizeBlankToNull(physicalColumn != null ? physicalColumn.remarks() : null);
         String semanticDescription =
                 normalizeBlankToNull(
                         semanticColumn != null ? semanticColumn.getColumnDescription() : null);
@@ -85,18 +85,18 @@ public class SemanticResolver {
                 semanticColumn != null ? semanticColumn.getId() : null,
                 tableName,
                 physicalColumn != null
-                        ? physicalColumn.getColumnName()
+                        ? physicalColumn.columnName()
                         : semanticColumn != null ? semanticColumn.getColumnName() : null,
                 physicalColumn,
                 semanticColumn,
                 semanticDescription != null ? semanticDescription : physicalDescription,
                 physicalDescription,
-                physicalColumn != null ? physicalColumn.getTypeName() : null,
+                physicalColumn != null ? physicalColumn.typeName() : null,
                 buildTypeText(physicalColumn),
-                physicalColumn != null && physicalColumn.isPrimaryKey(),
-                physicalColumn != null && physicalColumn.isNullable(),
+                physicalColumn != null && physicalColumn.primaryKey(),
+                physicalColumn != null && physicalColumn.nullable(),
                 normalizeBlankToNull(
-                        physicalColumn != null ? physicalColumn.getDefaultValue() : null),
+                        physicalColumn != null ? physicalColumn.defaultValue() : null),
                 updateTime,
                 semanticManager.isColumnVisible(semanticColumn, physicalColumn));
     }
@@ -119,9 +119,9 @@ public class SemanticResolver {
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        sb.append(physicalColumn.getTypeName());
-        if (physicalColumn.getColumnSize() > 0) {
-            sb.append("(").append(physicalColumn.getColumnSize()).append(")");
+        sb.append(physicalColumn.typeName());
+        if (physicalColumn.columnSize() > 0) {
+            sb.append("(").append(physicalColumn.columnSize()).append(")");
         }
         return sb.toString();
     }

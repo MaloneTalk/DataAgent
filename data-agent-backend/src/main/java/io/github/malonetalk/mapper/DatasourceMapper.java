@@ -40,4 +40,7 @@ public interface DatasourceMapper {
     List<Datasource> selectByType(@Param("type") String type);
 
     int updateStatus(@Param("id") Integer id, @Param("status") String status);
+
+    int activateIfNoOtherActive(
+            @Param("id") Integer id, @Param("activeStatus") String activeStatus);
 }

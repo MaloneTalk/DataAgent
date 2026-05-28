@@ -30,11 +30,6 @@ public interface ColumnSemanticInfoMapper {
     List<ColumnInfo> selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
-    List<ColumnInfo> selectByDatasourceIdAndTableNameAndColumnNames(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("tableName") String tableName,
-            @Param("columnNames") List<String> columnNames);
-
     ColumnInfo selectByDatasourceIdAndTableNameAndColumnName(
             @Param("datasourceId") Integer datasourceId,
             @Param("tableName") String tableName,
@@ -45,11 +40,6 @@ public interface ColumnSemanticInfoMapper {
     int update(ColumnInfo columnInfo);
 
     int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
-
-    int deleteByDatasourceIdAndTableNameAndColumnName(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("tableName") String tableName,
-            @Param("columnName") String columnName);
 
     int deleteByDatasourceIdAndIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);

@@ -54,8 +54,7 @@ public class SemanticManager {
 
     public boolean isTableVisible(TableInfo semanticTable, TableInfo physicalTable) {
         if (semanticTable != null) {
-            return Boolean.TRUE.equals(semanticTable.getIsVisible())
-                    && Boolean.TRUE.equals(semanticTable.getIsActive());
+            return Boolean.TRUE.equals(semanticTable.getIsVisible());
         }
         return physicalTable != null && Boolean.TRUE.equals(physicalTable.getIsVisible());
     }
@@ -67,8 +66,7 @@ public class SemanticManager {
             return false;
         }
         if (semanticColumn != null) {
-            return Boolean.TRUE.equals(semanticColumn.getIsVisible())
-                    && Boolean.TRUE.equals(semanticColumn.getIsActive());
+            return Boolean.TRUE.equals(semanticColumn.getIsVisible());
         }
         return true;
     }
@@ -136,7 +134,7 @@ public class SemanticManager {
 
         for (io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn : physicalColumns) {
             mergedColumns.put(
-                    normalizeName(physicalColumn.getColumnName()),
+                    normalizeName(physicalColumn.columnName()),
                     new ColumnMergeSnapshot(physicalColumn, null));
         }
 
@@ -227,7 +225,7 @@ public class SemanticManager {
 
         private String resolveColumnName(ColumnMergeSnapshot mergedColumn) {
             if (mergedColumn.physicalColumn() != null) {
-                return mergedColumn.physicalColumn().getColumnName();
+                return mergedColumn.physicalColumn().columnName();
             }
             if (mergedColumn.semanticColumn() != null) {
                 return mergedColumn.semanticColumn().getColumnName();

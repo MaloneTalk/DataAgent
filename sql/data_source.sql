@@ -21,20 +21,17 @@ CREATE TABLE IF NOT EXISTS `table_info` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `table_name` VARCHAR(255) NOT NULL COMMENT '表名',
     `table_description` VARCHAR(500) DEFAULT NULL COMMENT '表描述',
-    `domain` VARCHAR(255) DEFAULT NULL COMMENT '域',
+    `domain` VARCHAR(255) DEFAULT NULL COMMENT '领域',
     `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
-    `is_active` TINYINT(1) DEFAULT 1 COMMENT '是否激活',
     `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_datasource_table` (`datasource_id`, `table_name`),
     KEY `idx_datasource_id` (`datasource_id`),
-    KEY `idx_is_active` (`is_active`),
     KEY `idx_is_visible` (`is_visible`),
-    KEY `idx_datasource_active` (`datasource_id`, `is_active`),
-    KEY `idx_datasource_active_visible` (`datasource_id`, `is_active`, `is_visible`),
-    KEY `idx_datasource_visible_table` (`datasource_id`, `is_active`, `is_visible`, `table_name`)
+    KEY `idx_datasource_visible` (`datasource_id`, `is_visible`),
+    KEY `idx_datasource_visible_table` (`datasource_id`, `is_visible`, `table_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='表信息表';
 
 CREATE TABLE IF NOT EXISTS `column_info` (
@@ -43,15 +40,14 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     `table_name` VARCHAR(255) NOT NULL COMMENT '表名',
     `column_name` VARCHAR(255) NOT NULL COMMENT '列名',
     `column_description` VARCHAR(500) DEFAULT NULL COMMENT '列语义描述',
-    `is_active` TINYINT(1) DEFAULT 1 COMMENT '是否激活',
     `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_datasource_table_column` (`datasource_id`, `table_name`, `column_name`),
-    KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_active`, `is_visible`),
+    KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_visible`),
     KEY `idx_datasource_table_visible_column`
-            (`datasource_id`, `table_name`, `is_active`, `is_visible`, `column_name`)
+            (`datasource_id`, `table_name`, `is_visible`, `column_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='列语义信息表';
 
 CREATE TABLE IF NOT EXISTS `logical_table_relation` (
@@ -77,4 +73,3 @@ CREATE TABLE IF NOT EXISTS `logical_table_relation` (
     KEY `idx_relation_source_target_id`
             (`datasource_id`, `source_table_name`, `target_table_name`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表（查询依赖 ci collation 做大小写不敏感匹配）';
-

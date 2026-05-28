@@ -25,40 +25,17 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface TableInfoMapper {
 
-    List<TableInfo> selectAll();
-
-    TableInfo selectById(@Param("id") Integer id);
-
     int insert(TableInfo tableInfo);
 
     int update(TableInfo tableInfo);
 
-    int deleteById(@Param("id") Integer id);
-
     int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
-
-    int deleteByDatasourceIdAndTableName(
-            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
     int deleteByDatasourceIdAndIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
-    List<TableInfo> selectByDatasourceIdAndTableNames(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("tableNames") List<String> tableNames);
-
     TableInfo selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
-
-    List<TableInfo> selectByIsActive(@Param("isActive") Boolean isActive);
-
-    List<TableInfo> selectByDatasourceIdAndIsActive(
-            @Param("datasourceId") Integer datasourceId, @Param("isActive") Boolean isActive);
-
-    List<TableInfo> selectByDatasourceIdAndIsActiveAndIsVisible(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("isActive") Boolean isActive,
-            @Param("isVisible") Boolean isVisible);
 }

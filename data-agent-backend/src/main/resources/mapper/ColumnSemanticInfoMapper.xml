@@ -8,7 +8,6 @@
         <result column="table_name" property="tableName"/>
         <result column="column_name" property="columnName"/>
         <result column="column_description" property="columnDescription"/>
-        <result column="is_active" property="isActive"/>
         <result column="is_visible" property="isVisible"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
@@ -27,17 +26,6 @@
         ORDER BY update_time DESC, create_time DESC, id DESC
     </select>
 
-    <select id="selectByDatasourceIdAndTableNameAndColumnNames" resultMap="BaseResultMap">
-        SELECT * FROM column_info
-        WHERE datasource_id = #{datasourceId}
-          AND table_name = #{tableName}
-          AND column_name IN
-        <foreach collection="columnNames" item="columnName" open="(" separator="," close=")">
-            #{columnName}
-        </foreach>
-        ORDER BY update_time DESC, create_time DESC, id DESC
-    </select>
-
     <select id="selectByDatasourceIdAndTableNameAndColumnName" resultMap="BaseResultMap">
         SELECT * FROM column_info
         WHERE datasource_id = #{datasourceId}
@@ -50,10 +38,10 @@
     <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO column_info (
             datasource_id, table_name, column_name, column_description,
-            is_active, is_visible, create_time, update_time
+            is_visible, create_time, update_time
         ) VALUES (
             #{datasourceId}, #{tableName}, #{columnName}, #{columnDescription},
-            #{isActive}, #{isVisible}, #{createTime}, #{updateTime}
+            #{isVisible}, #{createTime}, #{updateTime}
         )
     </insert>
 
@@ -63,7 +51,6 @@
             <if test="tableName != null">table_name = #{tableName},</if>
             <if test="columnName != null">column_name = #{columnName},</if>
             column_description = #{columnDescription},
-            <if test="isActive != null">is_active = #{isActive},</if>
             <if test="isVisible != null">is_visible = #{isVisible},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
@@ -72,13 +59,6 @@
 
     <delete id="deleteByDatasourceId">
         DELETE FROM column_info WHERE datasource_id = #{datasourceId}
-    </delete>
-
-    <delete id="deleteByDatasourceIdAndTableNameAndColumnName">
-        DELETE FROM column_info
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(table_name) = LOWER(#{tableName})
-          AND LOWER(column_name) = LOWER(#{columnName})
     </delete>
 
     <delete id="deleteByDatasourceIdAndIds">

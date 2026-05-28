@@ -20,17 +20,11 @@ package io.github.malonetalk.service.semantic.column;
 import io.github.malonetalk.entity.ColumnInfo;
 import java.util.List;
 
-/**
- * 列语义信息持久化接口
- */
 public interface ColumnSemanticRepository {
 
     List<ColumnInfo> listByDatasourceId(Integer datasourceId);
 
     List<ColumnInfo> listByDatasourceIdAndTableName(Integer datasourceId, String tableName);
-
-    List<ColumnInfo> listByDatasourceIdAndTableNameAndColumnNames(
-            Integer datasourceId, String tableName, List<String> columnNames);
 
     ColumnInfo findByDatasourceIdAndTableNameAndColumnName(
             Integer datasourceId, String tableName, String columnName);
@@ -40,9 +34,6 @@ public interface ColumnSemanticRepository {
     boolean update(ColumnInfo columnInfo);
 
     int deleteByDatasourceId(Integer datasourceId);
-
-    boolean deleteByDatasourceIdAndTableNameAndColumnName(
-            Integer datasourceId, String tableName, String columnName);
 
     int deleteByDatasourceIdAndIds(Integer datasourceId, List<Integer> ids);
 }

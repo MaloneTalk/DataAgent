@@ -46,20 +46,16 @@ public class McpServerController {
 
     @GetMapping
     public Result<List<McpServerResponse>> findAll() {
-        List<McpServer> list = mcpServerService.findAll();
-        List<McpServerResponse> responses =
-                list.stream().map(mcpServerConverter::toResponse).toList();
-        return Result.success(responses);
+        return Result.success(toResponses(mcpServerService.findAll()));
     }
 
     @GetMapping("/{id}")
     public Result<McpServerResponse> findById(@PathVariable Integer id) {
         McpServer mcpServer = mcpServerService.findById(id);
-        if (mcpServer != null) {
-            return Result.success(mcpServerConverter.toResponse(mcpServer));
-        } else {
+        if (mcpServer == null) {
             return Result.error(404, "McpServer not found");
         }
+        return Result.success(mcpServerConverter.toResponse(mcpServer));
     }
 
     @PostMapping
@@ -107,31 +103,30 @@ public class McpServerController {
 
     @PutMapping("/{id}/enable")
     public Result<Boolean> enable(@PathVariable Integer id) {
-        McpServer mcpServer = mcpServerService.findById(id);
-        if (mcpServer == null) {
-            return Result.error(404, "McpServer not found");
-        }
-        mcpServer.setStatus(Status.ACTIVE.getCode());
-        boolean success = mcpServerService.update(mcpServer);
-        return success ? Result.success(true) : Result.error("Failed to enable");
+        return updateStatus(id, Status.ACTIVE, "Failed to enable");
     }
 
     @PutMapping("/{id}/disable")
     public Result<Boolean> disable(@PathVariable Integer id) {
-        McpServer mcpServer = mcpServerService.findById(id);
-        if (mcpServer == null) {
-            return Result.error(404, "McpServer not found");
-        }
-        mcpServer.setStatus(Status.INACTIVE.getCode());
-        boolean success = mcpServerService.update(mcpServer);
-        return success ? Result.success(true) : Result.error("Failed to disable");
+        return updateStatus(id, Status.INACTIVE, "Failed to disable");
     }
 
     @GetMapping("/status/{status}")
     public Result<List<McpServerResponse>> findByStatus(@PathVariable String status) {
-        List<McpServer> list = mcpServerService.findByStatus(status);
-        List<McpServerResponse> responses =
-                list.stream().map(mcpServerConverter::toResponse).toList();
-        return Result.success(responses);
+        return Result.success(toResponses(mcpServerService.findByStatus(status)));
+    }
+
+    private List<McpServerResponse> toResponses(List<McpServer> servers) {
+        return servers.stream().map(mcpServerConverter::toResponse).toList();
+    }
+
+    private Result<Boolean> updateStatus(Integer id, Status status, String failureMessage) {
+        McpServer mcpServer = mcpServerService.findById(id);
+        if (mcpServer == null) {
+            return Result.error(404, "McpServer not found");
+        }
+        mcpServer.setStatus(status.getCode());
+        boolean success = mcpServerService.update(mcpServer);
+        return success ? Result.success(true) : Result.error(failureMessage);
     }
 }

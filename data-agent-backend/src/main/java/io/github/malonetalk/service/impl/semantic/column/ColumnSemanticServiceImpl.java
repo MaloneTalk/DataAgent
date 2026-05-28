@@ -109,7 +109,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public void updateColumnSemantic(
             Integer datasourceId, String tableName, ColumnSemanticUpdateRequest request) {
-        Datasource datasource = loadUpdateDatasource(datasourceId);
+        Datasource datasource =
+                requireSemanticDatasource(
+                        datasourceId,
+                        "Cannot update column semantic because datasource does not exist: ");
         VisibilityContext visibilityContext =
                 semanticSnapshotFactory.createVisibilityContext(datasource);
         String canonicalTableName = resolveCanonicalTableName(visibilityContext, tableName);
@@ -138,7 +141,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     @Override
     public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
-        Datasource datasource = loadResetDatasource(datasourceId);
+        Datasource datasource =
+                requireSemanticDatasource(
+                        datasourceId,
+                        "Cannot reset column semantic because datasource does not exist: ");
         VisibilityContext visibilityContext =
                 semanticSnapshotFactory.createVisibilityContext(datasource);
         String canonicalTableName = resolveCanonicalTableName(visibilityContext, tableName);
@@ -225,14 +231,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 column.updateTime());
     }
 
-    private Datasource loadUpdateDatasource(Integer datasourceId) {
-        return semanticDatasourceService.requireSemanticDatasource(
-                datasourceId, "Cannot update column semantic because datasource does not exist: ");
-    }
-
-    private Datasource loadResetDatasource(Integer datasourceId) {
-        return semanticDatasourceService.requireSemanticDatasource(
-                datasourceId, "Cannot reset column semantic because datasource does not exist: ");
+    private Datasource requireSemanticDatasource(Integer datasourceId, String messagePrefix) {
+        return semanticDatasourceService.requireSemanticDatasource(datasourceId, messagePrefix);
     }
 
     private String resolveCanonicalTableName(
@@ -247,7 +247,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         var columnSnapshot =
                 semanticSnapshotFactory.requirePhysicalColumnSnapshotOrThrow(
                         visibilityContext, canonicalTableName, columnName);
-        return columnSnapshot.physicalColumn().getColumnName();
+        return columnSnapshot.physicalColumn().columnName();
     }
 
     private String resolveManagedColumnName(
@@ -292,7 +292,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         semanticColumn.setTableName(canonicalTableName);
         semanticColumn.setColumnName(canonicalColumnName);
         semanticColumn.setColumnDescription(normalizeBlankToNull(request.columnDescription()));
-        semanticColumn.setIsActive(true);
         semanticColumn.setIsVisible(request.isVisible());
         return semanticColumn;
     }

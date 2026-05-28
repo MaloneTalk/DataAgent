@@ -18,7 +18,9 @@
 package io.github.malonetalk.entity;
 
 import java.time.LocalDateTime;
+import lombok.Data;
 
+@Data
 public class ColumnInfo {
 
     private Integer id;
@@ -26,80 +28,7 @@ public class ColumnInfo {
     private String tableName;
     private String columnName;
     private String columnDescription;
-    private Boolean isActive;
     private Boolean isVisible;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public Integer getDatasourceId() {
-        return datasourceId;
-    }
-
-    public void setDatasourceId(Integer datasourceId) {
-        this.datasourceId = datasourceId;
-    }
-
-    public String getTableName() {
-        return tableName;
-    }
-
-    public void setTableName(String tableName) {
-        this.tableName = tableName;
-    }
-
-    public String getColumnName() {
-        return columnName;
-    }
-
-    public void setColumnName(String columnName) {
-        this.columnName = columnName;
-    }
-
-    public String getColumnDescription() {
-        return columnDescription;
-    }
-
-    public void setColumnDescription(String columnDescription) {
-        this.columnDescription = columnDescription;
-    }
-
-    public Boolean getIsActive() {
-        return isActive;
-    }
-
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
-    }
-
-    public Boolean getIsVisible() {
-        return isVisible;
-    }
-
-    public void setIsVisible(Boolean isVisible) {
-        this.isVisible = isVisible;
-    }
-
-    public LocalDateTime getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(LocalDateTime createTime) {
-        this.createTime = createTime;
-    }
-
-    public LocalDateTime getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(LocalDateTime updateTime) {
-        this.updateTime = updateTime;
-    }
 }

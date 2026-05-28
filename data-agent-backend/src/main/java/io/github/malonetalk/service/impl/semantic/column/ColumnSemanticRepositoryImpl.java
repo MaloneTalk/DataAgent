@@ -44,16 +44,6 @@ public class ColumnSemanticRepositoryImpl implements ColumnSemanticRepository {
     }
 
     @Override
-    public List<ColumnInfo> listByDatasourceIdAndTableNameAndColumnNames(
-            Integer datasourceId, String tableName, List<String> columnNames) {
-        if (columnNames == null || columnNames.isEmpty()) {
-            return List.of();
-        }
-        return columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnNames(
-                datasourceId, tableName, columnNames);
-    }
-
-    @Override
     public ColumnInfo findByDatasourceIdAndTableNameAndColumnName(
             Integer datasourceId, String tableName, String columnName) {
         return columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
@@ -76,14 +66,6 @@ public class ColumnSemanticRepositoryImpl implements ColumnSemanticRepository {
     @Override
     public int deleteByDatasourceId(Integer datasourceId) {
         return columnSemanticInfoMapper.deleteByDatasourceId(datasourceId);
-    }
-
-    @Override
-    public boolean deleteByDatasourceIdAndTableNameAndColumnName(
-            Integer datasourceId, String tableName, String columnName) {
-        return columnSemanticInfoMapper.deleteByDatasourceIdAndTableNameAndColumnName(
-                        datasourceId, tableName, columnName)
-                > 0;
     }
 
     @Override

@@ -23,7 +23,6 @@ import io.github.malonetalk.entity.ResolvedTable;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.mapper.DatasourceMapper;
-import io.github.malonetalk.service.ActiveDatasourceLockManager;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticContext;
 import io.github.malonetalk.service.semantic.SemanticContextFactory;
@@ -49,7 +48,6 @@ public class DatasourceServiceImpl implements DatasourceService {
     private final ColumnSemanticRepository columnSemanticRepository;
     private final RelationSemanticRepository relationSemanticRepository;
     private final DynamicDataSourceManager dynamicDataSourceManager;
-    private final ActiveDatasourceLockManager activeDatasourceLockManager;
     private final SemanticContextFactory semanticContextFactory;
     private final io.github.malonetalk.agent.datasource.SchemaReader schemaReader;
 
@@ -59,7 +57,6 @@ public class DatasourceServiceImpl implements DatasourceService {
             ColumnSemanticRepository columnSemanticRepository,
             @Lazy RelationSemanticRepository relationSemanticRepository,
             DynamicDataSourceManager dynamicDataSourceManager,
-            ActiveDatasourceLockManager activeDatasourceLockManager,
             SemanticContextFactory semanticContextFactory,
             io.github.malonetalk.agent.datasource.SchemaReader schemaReader) {
         this.dataSourceMapper = dataSourceMapper;
@@ -67,7 +64,6 @@ public class DatasourceServiceImpl implements DatasourceService {
         this.columnSemanticRepository = columnSemanticRepository;
         this.relationSemanticRepository = relationSemanticRepository;
         this.dynamicDataSourceManager = dynamicDataSourceManager;
-        this.activeDatasourceLockManager = activeDatasourceLockManager;
         this.semanticContextFactory = semanticContextFactory;
         this.schemaReader = schemaReader;
     }
@@ -85,19 +81,26 @@ public class DatasourceServiceImpl implements DatasourceService {
     @Override
     @Transactional
     public boolean save(Datasource dataSource) {
-        guardActiveDatasourceTransition(null, dataSource.getStatus());
+        boolean needsExclusiveActivation =
+                Status.ACTIVE.getCode().equalsIgnoreCase(dataSource.getStatus());
+        if (needsExclusiveActivation) {
+            dataSource.setStatus(Status.INACTIVE.getCode());
+        }
         dataSource.setCreateTime(LocalDateTime.now());
         dataSource.setUpdateTime(LocalDateTime.now());
-        return dataSourceMapper.insert(dataSource) > 0;
+        boolean saved = dataSourceMapper.insert(dataSource) > 0;
+        if (!saved || !needsExclusiveActivation) {
+            return saved;
+        }
+        activateExclusivelyOrThrow(dataSource.getId());
+        invalidateDatasourceRuntimeState(dataSource.getId());
+        return true;
     }
 
     @Override
     @Transactional
     public boolean update(Datasource dataSource) {
-        if (dataSource.getId() == null) {
-            return false;
-        }
-        Datasource existingDatasource = dataSourceMapper.selectById(dataSource.getId());
+        Datasource existingDatasource = findExistingDatasource(dataSource.getId());
         if (existingDatasource == null) {
             return false;
         }
@@ -105,19 +108,28 @@ public class DatasourceServiceImpl implements DatasourceService {
                 dataSource.getStatus() != null
                         ? dataSource.getStatus()
                         : existingDatasource.getStatus();
-        guardActiveDatasourceTransition(existingDatasource.getId(), targetStatus);
+        boolean needsExclusiveActivation =
+                Status.ACTIVE.getCode().equalsIgnoreCase(targetStatus)
+                        && !Status.ACTIVE.getCode().equalsIgnoreCase(existingDatasource.getStatus());
+        if (needsExclusiveActivation) {
+            dataSource.setStatus(null);
+        }
         dataSource.setUpdateTime(LocalDateTime.now());
         boolean updated = dataSourceMapper.update(dataSource) > 0;
-        if (updated) {
-            invalidateDatasourceRuntimeState(existingDatasource.getId());
+        if (!updated) {
+            return false;
         }
-        return updated;
+        if (needsExclusiveActivation) {
+            activateExclusivelyOrThrow(existingDatasource.getId());
+        }
+        invalidateDatasourceRuntimeState(existingDatasource.getId());
+        return true;
     }
 
     @Override
     @Transactional
     public boolean deleteById(Integer id) {
-        Datasource existingDatasource = dataSourceMapper.selectById(id);
+        Datasource existingDatasource = findExistingDatasource(id);
         if (existingDatasource == null) {
             return false;
         }
@@ -144,15 +156,11 @@ public class DatasourceServiceImpl implements DatasourceService {
     @Override
     @Transactional
     public boolean activate(Integer id, List<String> activeDomains) {
-        Datasource existingDatasource = dataSourceMapper.selectById(id);
+        Datasource existingDatasource = findExistingDatasource(id);
         if (existingDatasource == null) {
             return false;
         }
-        guardActiveDatasourceTransition(existingDatasource.getId(), Status.ACTIVE.getCode());
-        boolean updated = dataSourceMapper.updateStatus(id, Status.ACTIVE.getCode()) > 0;
-        if (!updated) {
-            return false;
-        }
+        activateExclusivelyOrThrow(id);
         applyDomainVisibility(existingDatasource, activeDomains);
         invalidateDatasourceRuntimeState(id);
         return true;
@@ -161,43 +169,35 @@ public class DatasourceServiceImpl implements DatasourceService {
     @Override
     @Transactional
     public boolean updateStatus(Integer id, String status) {
-        Datasource existingDatasource = dataSourceMapper.selectById(id);
+        Datasource existingDatasource = findExistingDatasource(id);
         if (existingDatasource == null) {
             return false;
         }
-        guardActiveDatasourceTransition(existingDatasource.getId(), status);
-        boolean updated = dataSourceMapper.updateStatus(id, status) > 0;
+        boolean updated;
+        if (Status.ACTIVE.getCode().equalsIgnoreCase(status)) {
+            activateExclusivelyOrThrow(id);
+            updated = true;
+        } else {
+            updated = dataSourceMapper.updateStatus(id, status) > 0;
+        }
         if (updated) {
             invalidateDatasourceRuntimeState(id);
         }
         return updated;
     }
 
-    private void validateActiveDatasourceConstraint(Integer currentDatasourceId, String status) {
-        if (!Status.ACTIVE.getCode().equalsIgnoreCase(status)) {
-            return;
-        }
-        List<Integer> conflictingDatasourceIds =
-                dataSourceMapper.selectByStatus(Status.ACTIVE.getCode()).stream()
-                        .map(Datasource::getId)
-                        .filter(
-                                id ->
-                                        currentDatasourceId == null
-                                                || !currentDatasourceId.equals(id))
-                        .toList();
-        if (!conflictingDatasourceIds.isEmpty()) {
+    private void activateExclusivelyOrThrow(Integer datasourceId) {
+        if (dataSourceMapper.activateIfNoOtherActive(datasourceId, Status.ACTIVE.getCode()) == 0) {
             throw new IllegalStateException(
-                    "Only one active datasource is allowed. Existing active datasource ids: "
-                            + conflictingDatasourceIds);
+                    "Only one active datasource is allowed. Please deactivate the current active datasource first.");
         }
     }
 
-    private void guardActiveDatasourceTransition(Integer currentDatasourceId, String targetStatus) {
-        if (!Status.ACTIVE.getCode().equalsIgnoreCase(targetStatus)) {
-            return;
+    private Datasource findExistingDatasource(Integer datasourceId) {
+        if (datasourceId == null) {
+            return null;
         }
-        activeDatasourceLockManager.acquireLock();
-        validateActiveDatasourceConstraint(currentDatasourceId, targetStatus);
+        return dataSourceMapper.selectById(datasourceId);
     }
 
     private void invalidateDatasourceRuntimeState(Integer datasourceId) {
@@ -242,7 +242,6 @@ public class DatasourceServiceImpl implements DatasourceService {
                 overlay.setTableName(table.canonicalName());
                 overlay.setDomain(normalizeDomainValue(table.domain()));
                 overlay.setTableDescription(null);
-                overlay.setIsActive(true);
                 overlay.setIsVisible(false);
                 tableSemanticRepository.save(overlay);
             }

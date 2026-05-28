@@ -28,7 +28,6 @@ public class TableInfo {
     private String tableDescription;
     private String domain;
     private Integer datasourceId;
-    private Boolean isActive;
     private Boolean isVisible;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

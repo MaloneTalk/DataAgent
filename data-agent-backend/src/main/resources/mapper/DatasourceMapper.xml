@@ -75,4 +75,20 @@
         UPDATE datasource SET status = #{status}, update_time = NOW() WHERE id = #{id}
     </update>
 
+    <update id="activateIfNoOtherActive">
+        UPDATE datasource
+        SET status = #{activeStatus}, update_time = NOW()
+        WHERE id = #{id}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM (
+                SELECT id
+                FROM datasource
+                WHERE status = #{activeStatus}
+                  AND id != #{id}
+                LIMIT 1
+            ) active_conflict
+          )
+    </update>
+
 </mapper>

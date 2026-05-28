@@ -34,20 +34,7 @@ public class TableSemanticRepositoryImpl implements TableSemanticRepository {
     }
 
     @Override
-    public List<TableInfo> findAll() {
-        return tableInfoMapper.selectAll();
-    }
-
-    @Override
-    public TableInfo findById(Integer id) {
-        return tableInfoMapper.selectById(id);
-    }
-
-    @Override
     public boolean save(TableInfo tableInfo) {
-        if (tableInfo.getIsActive() == null) {
-            tableInfo.setIsActive(true);
-        }
         if (tableInfo.getIsVisible() == null) {
             tableInfo.setIsVisible(true);
         }
@@ -63,18 +50,8 @@ public class TableSemanticRepositoryImpl implements TableSemanticRepository {
     }
 
     @Override
-    public boolean deleteById(Integer id) {
-        return tableInfoMapper.deleteById(id) > 0;
-    }
-
-    @Override
     public int deleteByDatasourceId(Integer datasourceId) {
         return tableInfoMapper.deleteByDatasourceId(datasourceId);
-    }
-
-    @Override
-    public boolean deleteByDatasourceIdAndTableName(Integer datasourceId, String tableName) {
-        return tableInfoMapper.deleteByDatasourceIdAndTableName(datasourceId, tableName) > 0;
     }
 
     @Override
@@ -91,33 +68,7 @@ public class TableSemanticRepositoryImpl implements TableSemanticRepository {
     }
 
     @Override
-    public List<TableInfo> listByDatasourceIdAndTableNames(
-            Integer datasourceId, List<String> tableNames) {
-        if (tableNames == null || tableNames.isEmpty()) {
-            return List.of();
-        }
-        return tableInfoMapper.selectByDatasourceIdAndTableNames(datasourceId, tableNames);
-    }
-
-    @Override
     public TableInfo findByDatasourceIdAndTableName(Integer datasourceId, String tableName) {
         return tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
-    }
-
-    @Override
-    public List<TableInfo> listByIsActive(Boolean isActive) {
-        return tableInfoMapper.selectByIsActive(isActive);
-    }
-
-    @Override
-    public List<TableInfo> listByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive) {
-        return tableInfoMapper.selectByDatasourceIdAndIsActive(datasourceId, isActive);
-    }
-
-    @Override
-    public List<TableInfo> listByDatasourceIdAndIsActiveAndIsVisible(
-            Integer datasourceId, Boolean isActive, Boolean isVisible) {
-        return tableInfoMapper.selectByDatasourceIdAndIsActiveAndIsVisible(
-                datasourceId, isActive, isVisible);
     }
 }

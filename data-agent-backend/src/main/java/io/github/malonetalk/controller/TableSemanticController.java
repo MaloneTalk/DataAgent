@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/tableinfo/semantic")
+@RequestMapping("/api/semantic/tables")
 public class TableSemanticController {
 
     private final TableSemanticService tableSemanticService;
@@ -43,7 +43,7 @@ public class TableSemanticController {
         this.tableSemanticService = tableSemanticService;
     }
 
-    @GetMapping("/tables")
+    @GetMapping
     public Result<PageResponse<TableSemanticResponse>> findAllTables(
             @RequestParam(required = false) Integer datasourceId,
             @RequestParam(defaultValue = "1") Integer page,
@@ -55,26 +55,26 @@ public class TableSemanticController {
                         datasourceId, PageRequest.of(page, pageSize), keywordPrefix, sortOrder));
     }
 
-    @GetMapping("/tables/domains")
+    @GetMapping("/domains")
     public Result<java.util.List<String>> listTableDomains(@RequestParam Integer datasourceId) {
         return Result.success(tableSemanticService.listAvailableDomains(datasourceId));
     }
 
-    @PutMapping("/tables")
+    @PutMapping
     public Result<Boolean> updateTableSemantic(
             @Valid @RequestBody TableSemanticUpdateRequest request) {
         tableSemanticService.updateTableSemantic(request);
         return Result.success(true);
     }
 
-    @DeleteMapping("/tables")
+    @DeleteMapping
     public Result<Boolean> resetTableSemantic(
             @RequestParam Integer datasourceId, @RequestParam String tableName) {
         tableSemanticService.resetTableSemantic(datasourceId, tableName);
         return Result.success(true);
     }
 
-    @DeleteMapping("/tables/batch")
+    @DeleteMapping("/batch")
     public Result<Integer> resetTableSemantics(
             @Valid @RequestBody BatchResetTableSemanticRequest request) {
         return Result.success(

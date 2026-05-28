@@ -183,7 +183,6 @@ public class SchemaReader {
                 tableInfo.setTableName(rs.getString("TABLE_NAME"));
                 tableInfo.setTableDescription(rs.getString("REMARKS"));
                 tableInfo.setDatasourceId(datasource.getId());
-                tableInfo.setIsActive(true);
                 tableInfo.setIsVisible(true);
                 tables.add(tableInfo);
             }
@@ -258,7 +257,6 @@ public class SchemaReader {
         target.setTableDescription(source.getTableDescription());
         target.setDomain(source.getDomain());
         target.setDatasourceId(source.getDatasourceId());
-        target.setIsActive(source.getIsActive());
         target.setIsVisible(source.getIsVisible());
         target.setCreateTime(source.getCreateTime());
         target.setUpdateTime(source.getUpdateTime());

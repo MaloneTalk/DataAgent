@@ -168,7 +168,7 @@ export function getTableSemanticPage(params: TableSemanticQuery) {
     code: number;
     message: string;
     data: PageResponse<TableSemanticResponse>;
-  }>('/tableinfo/semantic/tables', { params });
+  }>('/semantic/tables', { params });
 }
 
 export function getTableDomainOptions(datasourceId: number) {
@@ -176,21 +176,21 @@ export function getTableDomainOptions(datasourceId: number) {
     code: number;
     message: string;
     data: string[];
-  }>('/tableinfo/semantic/tables/domains', {
+  }>('/semantic/tables/domains', {
     params: { datasourceId },
   });
 }
 
 export function updateTableSemantic(data: TableSemanticUpdateRequest) {
   return request.put<{ code: number; message: string; data: boolean }>(
-    '/tableinfo/semantic/tables',
+    '/semantic/tables',
     data,
   );
 }
 
 export function resetTableSemantic(datasourceId: number, tableName: string) {
   return request.delete<{ code: number; message: string; data: boolean }>(
-    '/tableinfo/semantic/tables',
+    '/semantic/tables',
     {
       params: { datasourceId, tableName },
     },
@@ -199,7 +199,7 @@ export function resetTableSemantic(datasourceId: number, tableName: string) {
 
 export function resetTableSemantics(data: BatchResetTableSemanticRequest) {
   return request.delete<{ code: number; message: string; data: number }>(
-    '/tableinfo/semantic/tables/batch',
+    '/semantic/tables/batch',
     {
       data,
     },
@@ -212,7 +212,7 @@ export function getColumnSemanticPage(params: ColumnSemanticQuery) {
     code: number;
     message: string;
     data: PageResponse<ColumnSemanticResponse>;
-  }>(`/tableinfo/${encodeURIComponent(tableName)}/semantic/columns`, { params: query });
+  }>(`/semantic/tables/${encodeURIComponent(tableName)}/columns`, { params: query });
 }
 
 export function updateColumnSemantic(
@@ -221,7 +221,7 @@ export function updateColumnSemantic(
   data: ColumnSemanticUpdateRequest,
 ) {
   return request.put<{ code: number; message: string; data: boolean }>(
-    `/tableinfo/${encodeURIComponent(tableName)}/semantic/columns`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/columns`,
     data,
     { params: { datasourceId } },
   );
@@ -229,7 +229,7 @@ export function updateColumnSemantic(
 
 export function resetColumnSemantic(datasourceId: number, tableName: string, columnName: string) {
   return request.delete<{ code: number; message: string; data: boolean }>(
-    `/tableinfo/${encodeURIComponent(tableName)}/semantic/columns`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/columns`,
     {
       params: { datasourceId, columnName },
     },
@@ -242,7 +242,7 @@ export function resetColumnSemantics(
   data: BatchResetColumnSemanticRequest,
 ) {
   return request.delete<{ code: number; message: string; data: number }>(
-    `/tableinfo/${encodeURIComponent(tableName)}/semantic/columns/batch`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/columns/batch`,
     {
       data: {
         datasourceId,
@@ -257,7 +257,7 @@ export function getRelationCandidateTablePage(params: RelationCandidateTableQuer
     code: number;
     message: string;
     data: PageResponse<RelationCandidateTableResponse>;
-  }>('/tableinfo/semantic/relations/candidate/tables', { params });
+  }>('/semantic/relation-candidates/tables', { params });
 }
 
 export function getRelationCandidateColumnPage(params: RelationCandidateColumnQuery) {
@@ -266,7 +266,7 @@ export function getRelationCandidateColumnPage(params: RelationCandidateColumnQu
     code: number;
     message: string;
     data: PageResponse<RelationCandidateColumnResponse>;
-  }>(`/tableinfo/semantic/relations/candidate/${encodeURIComponent(tableName)}/columns`, {
+  }>(`/semantic/relation-candidates/tables/${encodeURIComponent(tableName)}/columns`, {
     params: query,
   });
 }
@@ -277,7 +277,7 @@ export function getLogicalRelationPage(params: LogicalRelationQuery) {
     code: number;
     message: string;
     data: PageResponse<LogicalTableRelationResponse>;
-  }>(`/tableinfo/semantic/relations/${encodeURIComponent(tableName)}`, { params: query });
+  }>(`/semantic/tables/${encodeURIComponent(tableName)}/relations`, { params: query });
 }
 
 export function createLogicalRelation(
@@ -286,7 +286,7 @@ export function createLogicalRelation(
   data: BindLogicalTableRelationRequest,
 ) {
   return request.post<{ code: number; message: string; data: LogicalTableRelationResponse }>(
-    `/tableinfo/semantic/relations/${encodeURIComponent(tableName)}`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/relations`,
     data,
     { params: { datasourceId } },
   );
@@ -299,7 +299,7 @@ export function updateLogicalRelation(
   data: UpdateLogicalTableRelationRequest,
 ) {
   return request.put<{ code: number; message: string; data: LogicalTableRelationResponse }>(
-    `/tableinfo/semantic/relations/${encodeURIComponent(tableName)}/${relationId}`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/relations/${relationId}`,
     data,
     { params: { datasourceId } },
   );
@@ -312,7 +312,7 @@ export function updateLogicalRelationEnabled(
   data: UpdateLogicalTableRelationEnabledRequest,
 ) {
   return request.put<{ code: number; message: string; data: boolean }>(
-    `/tableinfo/semantic/relations/${encodeURIComponent(tableName)}/${relationId}/enabled`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/relations/${relationId}/enabled`,
     data,
     { params: { datasourceId } },
   );
@@ -320,7 +320,7 @@ export function updateLogicalRelationEnabled(
 
 export function deleteLogicalRelation(datasourceId: number, tableName: string, relationId: number) {
   return request.delete<{ code: number; message: string; data: boolean }>(
-    `/tableinfo/semantic/relations/${encodeURIComponent(tableName)}/${relationId}`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/relations/${relationId}`,
     {
       params: { datasourceId },
     },
@@ -332,7 +332,7 @@ export function deleteLogicalRelations(
   data: BatchDeleteLogicalTableRelationRequest,
 ) {
   return request.delete<{ code: number; message: string; data: number }>(
-    `/tableinfo/semantic/relations/${encodeURIComponent(tableName)}/batch`,
+    `/semantic/tables/${encodeURIComponent(tableName)}/relations/batch`,
     {
       data,
     },

@@ -20,7 +20,10 @@ package io.github.malonetalk.convertor;
 import io.github.malonetalk.dto.DatasourceRequest;
 import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
 public interface DatasourceConverter {
@@ -28,4 +31,7 @@ public interface DatasourceConverter {
     Datasource toEntity(DatasourceRequest request);
 
     DatasourceResponse toResponse(Datasource datasource);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateEntityFromRequest(DatasourceRequest request, @MappingTarget Datasource datasource);
 }

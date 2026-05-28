@@ -20,37 +20,17 @@ package io.github.malonetalk.service.semantic.table;
 import io.github.malonetalk.entity.TableInfo;
 import java.util.List;
 
-/**
- * 表语义信息持久化接口
- */
 public interface TableSemanticRepository {
-
-    List<TableInfo> findAll();
-
-    TableInfo findById(Integer id);
 
     boolean save(TableInfo tableInfo);
 
     boolean update(TableInfo tableInfo);
 
-    boolean deleteById(Integer id);
-
     int deleteByDatasourceId(Integer datasourceId);
-
-    boolean deleteByDatasourceIdAndTableName(Integer datasourceId, String tableName);
 
     int deleteByDatasourceIdAndIds(Integer datasourceId, List<Integer> ids);
 
     List<TableInfo> listByDatasourceId(Integer datasourceId);
 
-    List<TableInfo> listByDatasourceIdAndTableNames(Integer datasourceId, List<String> tableNames);
-
     TableInfo findByDatasourceIdAndTableName(Integer datasourceId, String tableName);
-
-    List<TableInfo> listByIsActive(Boolean isActive);
-
-    List<TableInfo> listByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive);
-
-    List<TableInfo> listByDatasourceIdAndIsActiveAndIsVisible(
-            Integer datasourceId, Boolean isActive, Boolean isVisible);
 }

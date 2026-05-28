@@ -151,7 +151,10 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
-        Datasource datasource = loadUpdateDatasource(request.datasourceId());
+        Datasource datasource =
+                requireSemanticDatasource(
+                        request.datasourceId(),
+                        "Cannot update table semantic because datasource does not exist: ");
         TableInfo existingOverlay = loadExistingOverlay(request.datasourceId(), request.tableName());
         String canonicalTableName =
                 resolveManagedTableName(datasource, request.tableName(), existingOverlay);
@@ -165,7 +168,10 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
-        Datasource datasource = loadResetDatasource(datasourceId);
+        Datasource datasource =
+                requireSemanticDatasource(
+                        datasourceId,
+                        "Cannot reset table semantic because datasource does not exist: ");
         TableInfo existingOverlay = loadExistingOverlay(datasourceId, tableName);
         String canonicalTableName =
                 resolveManagedTableName(datasource, tableName, existingOverlay);
@@ -302,14 +308,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         return activeDatasourceSupport.getActiveDatasource();
     }
 
-    private Datasource loadUpdateDatasource(Integer datasourceId) {
-        return semanticDatasourceService.requireSemanticDatasource(
-                datasourceId, "Cannot update table semantic because datasource does not exist: ");
-    }
-
-    private Datasource loadResetDatasource(Integer datasourceId) {
-        return semanticDatasourceService.requireSemanticDatasource(
-                datasourceId, "Cannot reset table semantic because datasource does not exist: ");
+    private Datasource requireSemanticDatasource(Integer datasourceId, String messagePrefix) {
+        return semanticDatasourceService.requireSemanticDatasource(datasourceId, messagePrefix);
     }
 
     private String resolveCanonicalTableName(Datasource datasource, String tableName) {
@@ -354,7 +354,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         semanticTable.setDomain(normalizeBlankToNull(request.domain()));
         semanticTable.setTableDescription(normalizeBlankToNull(request.tableDescription()));
         semanticTable.setDatasourceId(request.datasourceId());
-        semanticTable.setIsActive(true);
         semanticTable.setIsVisible(request.isVisible());
         return semanticTable;
     }

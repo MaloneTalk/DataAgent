@@ -406,24 +406,6 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         return relation;
     }
 
-    private Comparator<ResolvedRelation> buildResolvedRelationComparator(String sortOrder) {
-        Comparator<ResolvedRelation> comparator =
-                Comparator.comparing(
-                                (ResolvedRelation relation) ->
-                                        relation.logicalId() == null ? 0 : 1)
-                        .thenComparing(
-                                relation -> relation.targetTableName().toLowerCase(Locale.ROOT))
-                        .thenComparing(
-                                relation ->
-                                        logicalTableRelationHelper.buildColumnSignature(
-                                                relation.sourceColumnNames()))
-                        .thenComparing(
-                                relation ->
-                                        logicalTableRelationHelper.buildColumnSignature(
-                                                relation.targetColumnNames()));
-        return "desc".equalsIgnoreCase(sortOrder) ? comparator.reversed() : comparator;
-    }
-
     private List<LogicalTableRelationResponse> buildRelationManagementResponses(
             SemanticContext readContext,
             Integer datasourceId,

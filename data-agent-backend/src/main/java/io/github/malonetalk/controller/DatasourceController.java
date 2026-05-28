@@ -47,9 +47,7 @@ public class DatasourceController {
 
     @GetMapping
     public Result<List<DatasourceResponse>> findAll() {
-        List<DatasourceResponse> list =
-                dataSourceService.findAll().stream().map(datasourceConverter::toResponse).toList();
-        return Result.success(list);
+        return Result.success(toResponses(dataSourceService.findAll()));
     }
 
     @GetMapping("/{id}")
@@ -76,17 +74,10 @@ public class DatasourceController {
         if (datasource == null) {
             return Result.error(404, "DataSource not found");
         }
-        datasource.setName(request.name());
-        datasource.setType(request.type());
-        datasource.setHost(request.host());
-        datasource.setPort(request.port());
-        datasource.setDatabaseName(request.databaseName());
-        datasource.setUsername(request.username());
+        datasourceConverter.updateEntityFromRequest(request, datasource);
         if (request.password() != null && !request.password().isEmpty()) {
             datasource.setPassword(request.password());
         }
-        datasource.setConnectionUrl(request.connectionUrl());
-        datasource.setDescription(request.description());
         boolean success = dataSourceService.update(datasource);
         return success ? Result.success(true) : Result.error("Failed to update");
     }
@@ -99,29 +90,21 @@ public class DatasourceController {
 
     @GetMapping("/status/{status}")
     public Result<List<DatasourceResponse>> findByStatus(@PathVariable String status) {
-        List<DatasourceResponse> list =
-                dataSourceService.findByStatus(status).stream()
-                        .map(datasourceConverter::toResponse)
-                        .toList();
-        return Result.success(list);
+        return Result.success(toResponses(dataSourceService.findByStatus(status)));
     }
 
     @GetMapping("/type/{type}")
     public Result<List<DatasourceResponse>> findByType(@PathVariable String type) {
-        List<DatasourceResponse> list =
-                dataSourceService.findByType(type).stream()
-                        .map(datasourceConverter::toResponse)
-                        .toList();
-        return Result.success(list);
+        return Result.success(toResponses(dataSourceService.findByType(type)));
     }
 
     @PutMapping("/{id}/activate")
     public Result<Boolean> activate(
             @PathVariable Integer id,
             @RequestBody(required = false) DatasourceActivateRequest request) {
-        Datasource datasource = dataSourceService.findById(id);
-        if (datasource == null) {
-            return Result.error(404, "DataSource not found");
+        Result<Boolean> notFound = validateDatasourceExists(id);
+        if (notFound != null) {
+            return notFound;
         }
         boolean success =
                 dataSourceService.activate(id, request == null ? null : request.activeDomains());
@@ -130,11 +113,21 @@ public class DatasourceController {
 
     @PutMapping("/{id}/deactivate")
     public Result<Boolean> deactivate(@PathVariable Integer id) {
-        Datasource datasource = dataSourceService.findById(id);
-        if (datasource == null) {
-            return Result.error(404, "DataSource not found");
+        Result<Boolean> notFound = validateDatasourceExists(id);
+        if (notFound != null) {
+            return notFound;
         }
         boolean success = dataSourceService.updateStatus(id, Status.INACTIVE.getCode());
         return success ? Result.success(true) : Result.error("Deactivate failed");
+    }
+
+    private List<DatasourceResponse> toResponses(List<Datasource> datasources) {
+        return datasources.stream().map(datasourceConverter::toResponse).toList();
+    }
+
+    private Result<Boolean> validateDatasourceExists(Integer id) {
+        return dataSourceService.findById(id) == null
+                ? Result.error(404, "DataSource not found")
+                : null;
     }
 }

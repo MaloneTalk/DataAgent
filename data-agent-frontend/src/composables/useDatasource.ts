@@ -46,29 +46,29 @@ export function useDatasource() {
     }
   };
 
-  const addDatasource = async (data: DatasourceRequest) => {
-    await createDatasource(data);
+  const runAndRefresh = async <T>(action: () => Promise<T>) => {
+    await action();
     await fetchList();
+  };
+
+  const addDatasource = async (data: DatasourceRequest) => {
+    await runAndRefresh(() => createDatasource(data));
   };
 
   const editDatasource = async (data: DatasourceRequest) => {
-    await updateDatasource(data);
-    await fetchList();
+    await runAndRefresh(() => updateDatasource(data));
   };
 
   const removeDatasource = async (id: number) => {
-    await deleteDatasource(id);
-    await fetchList();
+    await runAndRefresh(() => deleteDatasource(id));
   };
 
   const activate = async (id: number, data?: DatasourceActivateRequest) => {
-    await activateDatasource(id, data);
-    await fetchList();
+    await runAndRefresh(() => activateDatasource(id, data));
   };
 
   const deactivate = async (id: number) => {
-    await deactivateDatasource(id);
-    await fetchList();
+    await runAndRefresh(() => deactivateDatasource(id));
   };
 
   return {

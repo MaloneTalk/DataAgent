@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/tableinfo/{tableName}/semantic/columns")
+@RequestMapping("/api/semantic/tables/{tableName}/columns")
 public class TableColumnSemanticController {
 
     private final ColumnSemanticService columnSemanticService;
