@@ -32,5 +32,10 @@ public record ChatStreamEvent(
 
     public record ToolCallInfo(String id, String name, Map<String, Object> input) {}
 
-    public record ToolResultInfo(String id, String name, String output) {}
+    public record ToolResultInfo(String id, String name, String output, boolean suspended) {
+
+        public ToolResultInfo(String id, String name, String output) {
+            this(id, name, output, false);
+        }
+    }
 }
