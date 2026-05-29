@@ -306,8 +306,8 @@ public class SemanticContext {
         }
         if (visibleOnly
                 && !isRelationEndpointVisible(
-                entity.getSourceTableName(), sourceColumnNames,
-                entity.getTargetTableName(), targetColumnNames)) {
+                        entity.getSourceTableName(), sourceColumnNames,
+                        entity.getTargetTableName(), targetColumnNames)) {
             return null;
         }
         return new ResolvedRelation(

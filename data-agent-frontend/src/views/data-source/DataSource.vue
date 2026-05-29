@@ -236,7 +236,8 @@
       </el-table-column>
     </el-table>
     <div v-if="error" class="error-tip">
-      数据加载失败。<el-button type="primary" link @click="fetchList">点击重试</el-button>
+      数据加载失败。
+      <el-button type="primary" link @click="fetchList">点击重试</el-button>
     </div>
   </div>
 

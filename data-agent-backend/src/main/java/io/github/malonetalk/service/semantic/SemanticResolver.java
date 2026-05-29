@@ -95,8 +95,7 @@ public class SemanticResolver {
                 buildTypeText(physicalColumn),
                 physicalColumn != null && physicalColumn.primaryKey(),
                 physicalColumn != null && physicalColumn.nullable(),
-                normalizeBlankToNull(
-                        physicalColumn != null ? physicalColumn.defaultValue() : null),
+                normalizeBlankToNull(physicalColumn != null ? physicalColumn.defaultValue() : null),
                 updateTime,
                 semanticManager.isColumnVisible(semanticColumn, physicalColumn));
     }

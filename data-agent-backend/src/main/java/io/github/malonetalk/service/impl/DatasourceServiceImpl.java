@@ -110,7 +110,9 @@ public class DatasourceServiceImpl implements DatasourceService {
                         : existingDatasource.getStatus();
         boolean needsExclusiveActivation =
                 Status.ACTIVE.getCode().equalsIgnoreCase(targetStatus)
-                        && !Status.ACTIVE.getCode().equalsIgnoreCase(existingDatasource.getStatus());
+                        && !Status.ACTIVE
+                                .getCode()
+                                .equalsIgnoreCase(existingDatasource.getStatus());
         if (needsExclusiveActivation) {
             dataSource.setStatus(null);
         }
@@ -189,7 +191,8 @@ public class DatasourceServiceImpl implements DatasourceService {
     private void activateExclusivelyOrThrow(Integer datasourceId) {
         if (dataSourceMapper.activateIfNoOtherActive(datasourceId, Status.ACTIVE.getCode()) == 0) {
             throw new IllegalStateException(
-                    "Only one active datasource is allowed. Please deactivate the current active datasource first.");
+                    "Only one active datasource is allowed. Please deactivate the current active"
+                            + " datasource first.");
         }
     }
 

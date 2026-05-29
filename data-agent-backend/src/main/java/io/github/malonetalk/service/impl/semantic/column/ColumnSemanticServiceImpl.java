@@ -100,10 +100,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
 
         return semanticPageService.paginateMapped(
-                sortedColumns,
-                pageRequest,
-                column -> true,
-                this::mapColumnResponse);
+                sortedColumns, pageRequest, column -> true, this::mapColumnResponse);
     }
 
     @Override
@@ -127,7 +124,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         ColumnInfo existingOverlay =
                 existingOverlayByRequestName != null
                         ? existingOverlayByRequestName
-                        : loadExistingOverlay(datasourceId, canonicalTableName, canonicalColumnName);
+                        : loadExistingOverlay(
+                                datasourceId, canonicalTableName, canonicalColumnName);
         if (existingOverlay != null) {
             applyUpdate(existingOverlay, canonicalTableName, canonicalColumnName, request);
             persistUpdatedOverlay(existingOverlay, canonicalTableName, canonicalColumnName);
@@ -207,7 +205,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                             + normalizedTableName
                             + ".");
         }
-        int deletedCount = columnSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        int deletedCount =
+                columnSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
         semanticDatasourceService.ensureWriteSuccess(
                 deletedCount == matchedIds.size(),
                 "Failed to reset all requested column semantic metadata for table "
@@ -257,7 +256,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             ColumnInfo existingOverlay) {
         if (existingOverlay != null) {
             try {
-                return resolveCanonicalColumnName(visibilityContext, canonicalTableName, columnName);
+                return resolveCanonicalColumnName(
+                        visibilityContext, canonicalTableName, columnName);
             } catch (SemanticSchemaException e) {
                 return existingOverlay.getColumnName();
             }

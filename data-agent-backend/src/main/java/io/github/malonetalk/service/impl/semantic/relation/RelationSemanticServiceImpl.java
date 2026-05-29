@@ -39,8 +39,8 @@ import io.github.malonetalk.service.semantic.relation.RelationSemanticPolicyServ
 import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
@@ -104,10 +104,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             return PageResponse.empty(pageRequest);
         }
         return semanticPageService.paginateMapped(
-                relations,
-                pageRequest,
-                relation -> true,
-                relation -> relation);
+                relations, pageRequest, relation -> true, relation -> relation);
     }
 
     @Override
@@ -158,13 +155,18 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         String normalizedTableName =
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         semanticDatasourceService.requireDatasource(datasourceId);
-        LogicalTableRelation relation = requireRelation(datasourceId, normalizedTableName, relationId);
+        LogicalTableRelation relation =
+                requireRelation(datasourceId, normalizedTableName, relationId);
         if (Boolean.valueOf(enabled).equals(relation.getIsEnabled())) {
             return true;
         }
         semanticDatasourceService.ensureWriteSuccess(
                 relationSemanticRepository.updateEnabled(
-                        relationId, datasourceId, normalizedTableName, enabled, LocalDateTime.now()),
+                        relationId,
+                        datasourceId,
+                        normalizedTableName,
+                        enabled,
+                        LocalDateTime.now()),
                 "Failed to update logical relation enabled state for relation " + relationId + ".");
         return true;
     }
@@ -178,7 +180,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         semanticDatasourceService.requireDatasource(datasourceId);
         requireRelation(datasourceId, normalizedTableName, relationId);
         semanticDatasourceService.ensureWriteSuccess(
-                relationSemanticRepository.deleteById(relationId, datasourceId, normalizedTableName),
+                relationSemanticRepository.deleteById(
+                        relationId, datasourceId, normalizedTableName),
                 "Failed to delete logical relation " + relationId + ".");
         return true;
     }
@@ -197,7 +200,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         }
         List<Integer> matchedRelationIds =
                 relationSemanticRepository
-                        .listByDatasourceIdAndSourceTable(datasourceId, normalizedTableName).stream()
+                        .listByDatasourceIdAndSourceTable(datasourceId, normalizedTableName)
+                        .stream()
                         .map(LogicalTableRelation::getId)
                         .filter(normalizedRelationIds::contains)
                         .distinct()
@@ -353,7 +357,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .anyMatch(relation -> sameRelationEndpoints(relation, draft));
         if (duplicated) {
             throw new IllegalArgumentException(
-                    "A physical foreign key already exists for the same source and target columns.");
+                    "A physical foreign key already exists for the same source and target"
+                            + " columns.");
         }
     }
 
@@ -371,9 +376,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         relation.sourceTableName(), draft.sourceTableName())
                 && logicalTableRelationHelper.sameTableName(
                         relation.targetTableName(), draft.targetTableName())
-                && logicalTableRelationHelper.buildColumnSignature(relation.sourceColumnNames())
+                && logicalTableRelationHelper
+                        .buildColumnSignature(relation.sourceColumnNames())
                         .equals(draft.sourceColumnSignature())
-                && logicalTableRelationHelper.buildColumnSignature(relation.targetColumnNames())
+                && logicalTableRelationHelper
+                        .buildColumnSignature(relation.targetColumnNames())
                         .equals(draft.targetColumnSignature());
     }
 
@@ -426,7 +433,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                         readContext, datasourceId, relation))
                 .forEach(responses::add);
         readContext.listLogicalRelations(canonicalTableName).stream()
-                .filter(relation -> enabled == null || Boolean.valueOf(enabled).equals(relation.getIsEnabled()))
+                .filter(
+                        relation ->
+                                enabled == null
+                                        || Boolean.valueOf(enabled).equals(relation.getIsEnabled()))
                 .map(relation -> relationSemanticPolicyService.mapResponse(readContext, relation))
                 .filter(
                         relation ->
@@ -437,7 +447,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         return List.copyOf(responses);
     }
 
-    private Comparator<LogicalTableRelationResponse> buildRelationResponseComparator(String sortOrder) {
+    private Comparator<LogicalTableRelationResponse> buildRelationResponseComparator(
+            String sortOrder) {
         Comparator<LogicalTableRelationResponse> comparator =
                 Comparator.comparing(
                                 (LogicalTableRelationResponse relation) ->
@@ -445,7 +456,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                                         relation.source())
                                                 ? 0
                                                 : 1)
-                        .thenComparing(relation -> relation.targetTableName().toLowerCase(Locale.ROOT))
+                        .thenComparing(
+                                relation -> relation.targetTableName().toLowerCase(Locale.ROOT))
                         .thenComparing(
                                 relation ->
                                         logicalTableRelationHelper.buildColumnSignature(

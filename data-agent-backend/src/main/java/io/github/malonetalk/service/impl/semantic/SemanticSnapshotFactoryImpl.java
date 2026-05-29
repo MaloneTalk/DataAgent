@@ -64,7 +64,8 @@ public class SemanticSnapshotFactoryImpl implements SemanticSnapshotFactory {
     @Override
     public TableMergeSnapshot requirePhysicalTableSnapshotOrThrow(
             VisibilityContext visibilityContext, String tableName) {
-        TableMergeSnapshot tableSnapshot = requireTableSnapshotOrThrow(visibilityContext, tableName);
+        TableMergeSnapshot tableSnapshot =
+                requireTableSnapshotOrThrow(visibilityContext, tableName);
         if (tableSnapshot.physicalTable() == null) {
             throw new SemanticSchemaException("Table " + tableName + " does not exist.");
         }

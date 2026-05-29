@@ -639,7 +639,7 @@
       );
 
       const refreshedSelectedTable = selectedTable.value
-        ? allTables.find(item => item.tableName === selectedTable.value?.tableName) ?? null
+        ? (allTables.find(item => item.tableName === selectedTable.value?.tableName) ?? null)
         : null;
 
       ElMessage.success('可见域已更新');
@@ -1308,7 +1308,9 @@
 
     <el-dialog v-model="domainDialogVisible" title="选择可见域" width="520px">
       <div class="domain-dialog-body">
-        <p class="domain-dialog-tip">未选中的业务域会将对应表的可见性批量设置为隐藏，默认全开启。</p>
+        <p class="domain-dialog-tip">
+          未选中的业务域会将对应表的可见性批量设置为隐藏，默认全开启。
+        </p>
         <el-select
           v-model="visibleDomains"
           multiple
@@ -1331,7 +1333,11 @@
       </div>
       <template #footer>
         <el-button @click="domainDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="domainSubmitLoading" @click="handleSubmitVisibleDomains">
+        <el-button
+          type="primary"
+          :loading="domainSubmitLoading"
+          @click="handleSubmitVisibleDomains"
+        >
           保存
         </el-button>
       </template>

@@ -162,7 +162,11 @@ export function useAgentChat(initialSessionId?: string) {
             }
           }
 
-          if (event.type === 'tool_call' || event.type === 'tool_result') {
+          if (
+            event.type === 'tool_call' ||
+            event.type === 'tool_result' ||
+            event.type === 'question'
+          ) {
             msg.traceSteps = [
               ...msg.traceSteps,
               {
@@ -178,6 +182,14 @@ export function useAgentChat(initialSessionId?: string) {
                 toolCallId: event.toolCall.id,
                 toolName: event.toolCall.name,
                 question: (event.toolCall.input.question as string) ?? '',
+              };
+              msg.isStreaming = false;
+            }
+
+            if (event.type === 'question' && pendingQuestion.value && event.content) {
+              pendingQuestion.value = {
+                ...pendingQuestion.value,
+                question: event.content,
               };
               msg.isStreaming = false;
             }

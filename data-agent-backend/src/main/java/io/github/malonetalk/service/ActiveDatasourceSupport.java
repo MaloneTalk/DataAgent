@@ -64,7 +64,8 @@ public class ActiveDatasourceSupport {
         return ActiveDatasourceResolution.success(activeDataSources.get(0));
     }
 
-    public record ActiveDatasourceResolution(boolean success, Datasource datasource, String message) {
+    public record ActiveDatasourceResolution(
+            boolean success, Datasource datasource, String message) {
 
         public static ActiveDatasourceResolution success(Datasource datasource) {
             return new ActiveDatasourceResolution(true, datasource, null);

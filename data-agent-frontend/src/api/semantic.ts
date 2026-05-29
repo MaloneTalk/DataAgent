@@ -182,28 +182,19 @@ export function getTableDomainOptions(datasourceId: number) {
 }
 
 export function updateTableSemantic(data: TableSemanticUpdateRequest) {
-  return request.put<{ code: number; message: string; data: boolean }>(
-    '/semantic/tables',
-    data,
-  );
+  return request.put<{ code: number; message: string; data: boolean }>('/semantic/tables', data);
 }
 
 export function resetTableSemantic(datasourceId: number, tableName: string) {
-  return request.delete<{ code: number; message: string; data: boolean }>(
-    '/semantic/tables',
-    {
-      params: { datasourceId, tableName },
-    },
-  );
+  return request.delete<{ code: number; message: string; data: boolean }>('/semantic/tables', {
+    params: { datasourceId, tableName },
+  });
 }
 
 export function resetTableSemantics(data: BatchResetTableSemanticRequest) {
-  return request.delete<{ code: number; message: string; data: number }>(
-    '/semantic/tables/batch',
-    {
-      data,
-    },
-  );
+  return request.delete<{ code: number; message: string; data: number }>('/semantic/tables/batch', {
+    data,
+  });
 }
 
 export function getColumnSemanticPage(params: ColumnSemanticQuery) {

@@ -155,7 +155,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 requireSemanticDatasource(
                         request.datasourceId(),
                         "Cannot update table semantic because datasource does not exist: ");
-        TableInfo existingOverlay = loadExistingOverlay(request.datasourceId(), request.tableName());
+        TableInfo existingOverlay =
+                loadExistingOverlay(request.datasourceId(), request.tableName());
         String canonicalTableName =
                 resolveManagedTableName(datasource, request.tableName(), existingOverlay);
         if (existingOverlay != null) {
@@ -173,8 +174,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                         datasourceId,
                         "Cannot reset table semantic because datasource does not exist: ");
         TableInfo existingOverlay = loadExistingOverlay(datasourceId, tableName);
-        String canonicalTableName =
-                resolveManagedTableName(datasource, tableName, existingOverlay);
+        String canonicalTableName = resolveManagedTableName(datasource, tableName, existingOverlay);
         List<Integer> matchedIds = findResetIds(datasourceId, canonicalTableName);
         if (matchedIds.isEmpty()) {
             throw new SemanticSchemaException(
@@ -205,9 +205,12 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         if (matchedIds.size() != normalizedTableKeys.size()) {
             throw new SemanticSchemaException(
-                    "Some table semantic metadata does not exist for datasource " + datasourceId + ".");
+                    "Some table semantic metadata does not exist for datasource "
+                            + datasourceId
+                            + ".");
         }
-        int deletedCount = tableSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        int deletedCount =
+                tableSemanticRepository.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
         semanticDatasourceService.ensureWriteSuccess(
                 deletedCount == matchedIds.size(),
                 "Failed to reset all requested table semantic metadata for datasource "

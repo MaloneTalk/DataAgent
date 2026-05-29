@@ -19,9 +19,9 @@ package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticRepository;
-import io.github.malonetalk.service.semantic.SemanticManager.VisibilityContext;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -47,7 +47,8 @@ public class SemanticContextFactory {
     }
 
     public SemanticContext createContext(Datasource datasource) {
-        return createContext(datasource, semanticSnapshotFactory.createVisibilityContext(datasource));
+        return createContext(
+                datasource, semanticSnapshotFactory.createVisibilityContext(datasource));
     }
 
     public SemanticContext createContext(

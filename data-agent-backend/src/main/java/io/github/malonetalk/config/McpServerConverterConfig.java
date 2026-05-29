@@ -46,8 +46,7 @@ public class McpServerConverterConfig {
                 mcpServer.setTransportType(request.transportType());
                 mcpServer.setClientType(request.clientType());
                 mcpServer.setCommand(request.command());
-                mcpServer.setArgs(
-                        request.args() != null ? String.join(",", request.args()) : null);
+                mcpServer.setArgs(request.args() != null ? String.join(",", request.args()) : null);
                 mcpServer.setUrl(request.url());
                 mcpServer.setTimeout(request.timeout());
                 mcpServer.setInitializationTimeout(request.initializationTimeout());

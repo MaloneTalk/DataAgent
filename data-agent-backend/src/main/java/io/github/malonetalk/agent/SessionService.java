@@ -66,7 +66,9 @@ public class SessionService {
     public Session getOrCreateSession(String sessionId) {
         return sessionCache.computeIfAbsent(
                 sessionId,
-                k -> new MysqlSession(dataSource, SESSION_DATABASE_NAME, SESSION_TABLE_NAME, false));
+                k ->
+                        new MysqlSession(
+                                dataSource, SESSION_DATABASE_NAME, SESSION_TABLE_NAME, false));
     }
 
     public String buildNamespacedSessionId(String sessionId) {
@@ -260,10 +262,7 @@ public class SessionService {
                 }
             }
             if (title.isEmpty()) {
-                title =
-                        sessionId.length() > 20
-                                ? sessionId.substring(0, 20)
-                                : sessionId;
+                title = sessionId.length() > 20 ? sessionId.substring(0, 20) : sessionId;
             }
 
             String[] times = timestamps.getOrDefault(sid, new String[] {"", ""});
