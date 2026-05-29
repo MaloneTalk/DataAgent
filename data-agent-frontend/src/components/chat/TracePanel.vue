@@ -63,6 +63,7 @@
     thinking: { label: 'Thought' },
     tool_call: { label: 'Action' },
     tool_result: { label: 'Observation' },
+    question: { label: 'Question' },
   };
 
   function getStepRenderer(type: ChatStreamEventType): StepRenderer {
@@ -70,15 +71,24 @@
   }
 
   function stepLabel(step: TraceStep): string {
+    if (step.type === 'tool_call' && step.toolCall?.name === 'ask_user') {
+      return '[向用户提问]';
+    }
     return `[${getStepRenderer(step.type).label}]`;
   }
 
   function stepContent(step: TraceStep): string {
     if (step.type === 'tool_call' && step.toolCall) {
+      if (step.toolCall.name === 'ask_user') {
+        return (step.toolCall.input.question as string) ?? '等待用户输入...';
+      }
       return `调用工具: ${step.toolCall.name}`;
     }
     if (step.type === 'tool_result' && step.toolResult) {
       return `工具 ${step.toolResult.name} 返回结果`;
+    }
+    if (step.type === 'question') {
+      return `等待用户回答: ${step.content ?? ''}`;
     }
     return step.content ?? '';
   }
@@ -89,6 +99,11 @@
     } catch {
       return String(obj);
     }
+  }
+
+  function displayMultiline(text: string | null): string {
+    if (!text) return '';
+    return text.replace(/\\n/g, '\n');
   }
 </script>
 
@@ -108,14 +123,14 @@
         :class="`trace-step--${step.type}`"
       >
         <span class="trace-step__label">{{ stepLabel(step) }}</span>
-        <span class="trace-step__content">{{ stepContent(step) }}</span>
+        <span class="trace-step__content">{{ displayMultiline(stepContent(step)) }}</span>
         <div v-if="step.type === 'tool_call' && step.toolCall" class="trace-step__code">
           <div class="code-label">Input:</div>
-          <pre class="code-block">{{ formatJson(step.toolCall.input) }}</pre>
+          <pre class="code-block">{{ displayMultiline(formatJson(step.toolCall.input)) }}</pre>
         </div>
         <div v-if="step.type === 'tool_result' && step.toolResult" class="trace-step__code">
           <div class="code-label">Output:</div>
-          <pre class="code-block">{{ step.toolResult.output }}</pre>
+          <pre class="code-block">{{ displayMultiline(step.toolResult.output) }}</pre>
         </div>
       </div>
     </div>
@@ -208,18 +223,46 @@
 
   .trace-step__content {
     color: #475569;
+    white-space: pre-wrap;
   }
 
-  .trace-step--thinking,
-  .trace-step--tool_call,
-  .trace-step--tool_result,
+  /* Event type color variants */
+  .trace-step--thinking {
+    color: #64748b;
+  }
+
+  .trace-step--thinking .trace-step__label {
+    color: #64748b;
+  }
+
+  .trace-step--tool_call {
+    color: #0284c7;
+  }
+
+  .trace-step--tool_call .trace-step__label {
+    color: #0284c7;
+  }
+
+  .trace-step--tool_result {
+    color: #16a34a;
+  }
+
+  .trace-step--tool_result .trace-step__label {
+    color: #16a34a;
+  }
+
+  .trace-step--question {
+    color: #d97706;
+  }
+
+  .trace-step--question .trace-step__label {
+    color: #d97706;
+  }
+
   .trace-step--summary {
     color: #6b7280;
   }
 
-  .trace-step--thinking .trace-step__label,
-  .trace-step--tool_call .trace-step__label,
-  .trace-step--tool_result .trace-step__label,
   .trace-step--summary .trace-step__label {
     color: #1f2937;
   }
