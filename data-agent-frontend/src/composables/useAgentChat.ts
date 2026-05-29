@@ -56,6 +56,13 @@ export function useAgentChat(initialSessionId?: string) {
   const abortController = shallowRef<AbortController | null>(null);
   const pendingQuestion = ref<PendingQuestion | null>(null);
 
+  function resetTransientState() {
+    abortController.value?.abort();
+    abortController.value = null;
+    isStreaming.value = false;
+    pendingQuestion.value = null;
+  }
+
   function addUserMessage(text: string): ChatMessage {
     const msg: ChatMessage = {
       id: nextId(),
@@ -92,7 +99,7 @@ export function useAgentChat(initialSessionId?: string) {
   }
 
   async function loadHistory(sid: string) {
-    stopStreaming();
+    resetTransientState();
     messages.value = [];
     sessionId.value = sid;
 
@@ -225,7 +232,7 @@ export function useAgentChat(initialSessionId?: string) {
   }
 
   function newSession() {
-    stopStreaming();
+    resetTransientState();
     clearMessages();
     sessionId.value = generateSessionId();
   }
