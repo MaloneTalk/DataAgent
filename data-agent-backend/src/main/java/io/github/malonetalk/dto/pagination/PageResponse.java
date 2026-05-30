@@ -17,7 +17,6 @@
  */
 package io.github.malonetalk.dto.pagination;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -32,20 +31,6 @@ public record PageResponse<T>(
 
     public PageResponse {
         items = items == null ? Collections.emptyList() : List.copyOf(items);
-    }
-
-    public static <T> PageResponse<T> from(List<T> allItems, PageRequest pageRequest) {
-        if (allItems == null || allItems.isEmpty()) {
-            return empty(pageRequest);
-        }
-        long total = allItems.size();
-        int start = (int) Math.min(pageRequest.offset(), allItems.size());
-        int end = Math.min(start + pageRequest.pageSize(), allItems.size());
-        List<T> pageItems =
-                start >= end
-                        ? Collections.emptyList()
-                        : new ArrayList<>(allItems.subList(start, end));
-        return of(pageItems, total, pageRequest);
     }
 
     public static <T> PageResponse<T> of(List<T> items, long total, PageRequest pageRequest) {

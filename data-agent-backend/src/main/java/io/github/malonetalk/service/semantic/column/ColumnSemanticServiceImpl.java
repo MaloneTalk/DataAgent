@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.column;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -27,7 +29,6 @@ import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -55,23 +56,23 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             String keywordPrefix,
             String sortOrder) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        SemanticUtils.requireName(tableName, "tableName");
+        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
         if (datasourceService.findById(datasourceId) == null) {
             return PageResponse.empty(pageRequest);
         }
         SemanticUtils.validateSortOrder(sortOrder);
-        List<ColumnSemanticResponse> responses =
-                columnSemanticInfoMapper
-                        .selectByDatasourceIdAndTableName(datasourceId, tableName)
-                        .stream()
-                        .filter(
-                                column ->
-                                        SemanticUtils.matchesKeywordPrefix(
-                                                column.getColumnName(), keywordPrefix))
-                        .sorted(buildColumnComparator(sortOrder))
-                        .map(this::mapResponse)
-                        .toList();
-        return PageResponse.from(responses, pageRequest);
+        boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
+        String normalizedPrefix = SemanticUtils.normalizeBlankToNull(keywordPrefix);
+        PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
+        Page<ColumnInfo> page =
+                (Page<ColumnInfo>)
+                        columnSemanticInfoMapper.selectPageByDatasourceIdAndTableName(
+                                datasourceId,
+                                normalizedTableName,
+                                normalizedPrefix,
+                                sortDescending);
+        List<ColumnSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
+        return PageResponse.of(responses, page.getTotal(), pageRequest);
     }
 
     @Override
@@ -162,16 +163,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private Comparator<ColumnInfo> buildColumnComparator(String sortOrder) {
-        Comparator<ColumnInfo> comparator =
-                Comparator.comparing(ColumnInfo::getColumnName, String.CASE_INSENSITIVE_ORDER)
-                        .thenComparing(ColumnInfo::getId);
-        if (SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
-            return comparator.reversed();
-        }
-        return comparator;
     }
 
     private ColumnSemanticResponse mapResponse(ColumnInfo columnInfo) {

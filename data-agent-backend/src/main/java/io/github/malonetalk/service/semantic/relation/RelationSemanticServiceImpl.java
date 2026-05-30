@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.relation;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -62,26 +64,20 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         SemanticUtils.validateSortOrder(sortOrder);
         String normalizedPrefix = SemanticUtils.normalizeBlankToNull(keywordPrefix);
         boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
-        long total =
-                logicalTableRelationMapper.countByDatasourceIdAndSourceTable(
-                        datasourceId, normalizedTableName, normalizedPrefix, enabled);
-        if (total == 0L) {
-            return PageResponse.empty(pageRequest);
-        }
-        List<LogicalTableRelationResponse> items =
-                logicalTableRelationMapper
-                        .selectPageByDatasourceIdAndSourceTable(
+        PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
+        Page<LogicalTableRelation> page =
+                (Page<LogicalTableRelation>)
+                        logicalTableRelationMapper.selectPageByDatasourceIdAndSourceTable(
                                 datasourceId,
                                 normalizedTableName,
                                 normalizedPrefix,
                                 enabled,
-                                sortDescending,
-                                pageRequest.offset(),
-                                pageRequest.pageSize())
-                        .stream()
-                        .map(this::mapResponse)
-                        .toList();
-        return PageResponse.of(items, total, pageRequest);
+                                sortDescending);
+        if (page.getTotal() == 0L) {
+            return PageResponse.empty(pageRequest);
+        }
+        List<LogicalTableRelationResponse> items = page.stream().map(this::mapResponse).toList();
+        return PageResponse.of(items, page.getTotal(), pageRequest);
     }
 
     @Override

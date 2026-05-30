@@ -56,6 +56,7 @@
         <spotless.version>3.4.0</spotless.version>
         <google-java-format.version>1.28.0</google-java-format.version>
         <mybatis-springboot-starter.version>4.0.0</mybatis-springboot-starter.version>
+        <pagehelper-spring-boot.version>2.1.1</pagehelper-spring-boot.version>
         <lombok.version>1.18.42</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
     </properties>
@@ -81,6 +82,12 @@
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>${mybatis-springboot-starter.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.pagehelper</groupId>
+            <artifactId>pagehelper-spring-boot-starter</artifactId>
+            <version>${pagehelper-spring-boot.version}</version>
         </dependency>
 
         <dependency>

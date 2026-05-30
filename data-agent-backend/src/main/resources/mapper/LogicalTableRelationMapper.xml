@@ -35,24 +35,12 @@
         ORDER BY id DESC
     </select>
 
-    <select id="countByDatasourceIdAndSourceTable" resultType="long">
-        SELECT COUNT(1) FROM logical_table_relation
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
-        <if test="keywordPrefix != null and keywordPrefix != ''">
-            AND LOWER(target_table_name) LIKE CONCAT(LOWER(#{keywordPrefix}), '%')
-        </if>
-        <if test="isEnabled != null">
-            AND is_enabled = #{isEnabled}
-        </if>
-    </select>
-
     <select id="selectPageByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
           AND LOWER(source_table_name) = LOWER(#{sourceTableName})
         <if test="keywordPrefix != null and keywordPrefix != ''">
-            AND LOWER(target_table_name) LIKE CONCAT(LOWER(#{keywordPrefix}), '%')
+            AND target_table_name LIKE CONCAT(#{keywordPrefix}, '%')
         </if>
         <if test="isEnabled != null">
             AND is_enabled = #{isEnabled}
@@ -65,7 +53,6 @@
                 ORDER BY id ASC
             </otherwise>
         </choose>
-        LIMIT #{limit} OFFSET #{offset}
     </select>
 
     <select id="selectByUniqueSourceKey" resultMap="BaseResultMap">

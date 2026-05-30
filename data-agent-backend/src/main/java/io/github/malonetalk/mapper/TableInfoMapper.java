@@ -34,6 +34,11 @@ public interface TableInfoMapper {
 
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
+    List<TableInfo> selectPageByDatasourceId(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("keywordPrefix") String keywordPrefix,
+            @Param("sortDescending") boolean sortDescending);
+
     TableInfo selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

@@ -41,8 +41,4 @@ public record PageRequest(int page, int pageSize) {
         int resolvedPageSize = pageSize == null ? DEFAULT_PAGE_SIZE : pageSize;
         return new PageRequest(resolvedPage, resolvedPageSize);
     }
-
-    public long offset() {
-        return (long) (page - 1) * pageSize;
-    }
 }

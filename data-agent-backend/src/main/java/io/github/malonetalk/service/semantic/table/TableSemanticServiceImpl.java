@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.table;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -27,7 +29,6 @@ import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -54,16 +55,16 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return PageResponse.empty(pageRequest);
         }
         SemanticUtils.validateSortOrder(sortOrder);
-        List<TableSemanticResponse> responses =
-                tableInfoMapper.selectByDatasourceId(datasourceId).stream()
-                        .filter(
-                                table ->
-                                        SemanticUtils.matchesKeywordPrefix(
-                                                table.getTableName(), keywordPrefix))
-                        .sorted(buildTableComparator(sortOrder))
-                        .map(this::mapResponse)
-                        .toList();
-        return PageResponse.from(responses, pageRequest);
+        boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
+        String normalizedPrefix = SemanticUtils.normalizeBlankToNull(keywordPrefix);
+        PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
+        Page<TableInfo> page =
+                (Page<TableInfo>)
+                        tableInfoMapper.selectPageByDatasourceId(
+                                datasourceId, normalizedPrefix, sortDescending);
+        List<TableSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
+        long total = page.getTotal();
+        return PageResponse.of(responses, total, pageRequest);
     }
 
     @Override
@@ -167,16 +168,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private Comparator<TableInfo> buildTableComparator(String sortOrder) {
-        Comparator<TableInfo> comparator =
-                Comparator.comparing(TableInfo::getTableName, String.CASE_INSENSITIVE_ORDER)
-                        .thenComparing(TableInfo::getId);
-        if (SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
-            return comparator.reversed();
-        }
-        return comparator;
     }
 
     private TableSemanticResponse mapResponse(TableInfo tableInfo) {

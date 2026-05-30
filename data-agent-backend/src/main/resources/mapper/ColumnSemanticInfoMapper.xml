@@ -26,6 +26,23 @@
         ORDER BY column_name ASC, id ASC
     </select>
 
+    <select id="selectPageByDatasourceIdAndTableName" resultMap="BaseResultMap">
+        SELECT * FROM column_info
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(table_name) = LOWER(#{tableName})
+        <if test="keywordPrefix != null and keywordPrefix != ''">
+            AND column_name LIKE CONCAT(#{keywordPrefix}, '%')
+        </if>
+        <choose>
+            <when test="sortDescending">
+                ORDER BY column_name DESC, id DESC
+            </when>
+            <otherwise>
+                ORDER BY column_name ASC, id ASC
+            </otherwise>
+        </choose>
+    </select>
+
     <select id="selectByDatasourceIdAndTableNameAndColumnName" resultMap="BaseResultMap">
         SELECT * FROM column_info
         WHERE datasource_id = #{datasourceId}

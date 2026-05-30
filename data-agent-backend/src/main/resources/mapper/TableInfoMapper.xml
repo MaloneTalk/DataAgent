@@ -14,7 +14,25 @@
     </resultMap>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM table_info WHERE datasource_id = #{datasourceId} ORDER BY create_time DESC
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+        ORDER BY table_name ASC, id ASC
+    </select>
+
+    <select id="selectPageByDatasourceId" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+        <if test="keywordPrefix != null and keywordPrefix != ''">
+            AND table_name LIKE CONCAT(#{keywordPrefix}, '%')
+        </if>
+        <choose>
+            <when test="sortDescending">
+                ORDER BY table_name DESC, id DESC
+            </when>
+            <otherwise>
+                ORDER BY table_name ASC, id ASC
+            </otherwise>
+        </choose>
     </select>
 
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">

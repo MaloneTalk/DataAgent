@@ -30,6 +30,12 @@ public interface ColumnSemanticInfoMapper {
     List<ColumnInfo> selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
+    List<ColumnInfo> selectPageByDatasourceIdAndTableName(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableName") String tableName,
+            @Param("keywordPrefix") String keywordPrefix,
+            @Param("sortDescending") boolean sortDescending);
+
     ColumnInfo selectByDatasourceIdAndTableNameAndColumnName(
             @Param("datasourceId") Integer datasourceId,
             @Param("tableName") String tableName,
