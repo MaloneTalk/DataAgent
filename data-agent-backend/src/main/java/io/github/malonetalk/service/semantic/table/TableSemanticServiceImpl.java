@@ -93,13 +93,14 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
+        String normalizedTableName = SemanticUtils.requireName(request.tableName(), "tableName");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
-                        request.datasourceId(), request.tableName());
+                        request.datasourceId(), normalizedTableName);
         if (existing == null) {
             TableInfo tableInfo = new TableInfo();
             tableInfo.setDatasourceId(request.datasourceId());
-            tableInfo.setTableName(request.tableName().trim());
+            tableInfo.setTableName(normalizedTableName);
             tableInfo.setTableDescription(
                     SemanticUtils.normalizeBlankToNull(request.tableDescription()));
             tableInfo.setDomain(SemanticUtils.normalizeBlankToNull(request.domain()));
@@ -109,7 +110,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             tableInfoMapper.insert(tableInfo);
             return;
         }
-        existing.setTableName(request.tableName().trim());
+        existing.setTableName(normalizedTableName);
         existing.setTableDescription(
                 SemanticUtils.normalizeBlankToNull(request.tableDescription()));
         existing.setDomain(SemanticUtils.normalizeBlankToNull(request.domain()));
@@ -121,7 +122,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
-        TableInfo existing = tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
+        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
+        TableInfo existing =
+                tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
             throw new IllegalArgumentException("Table semantic metadata does not exist.");
         }
@@ -152,7 +155,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         if (matchedIds.size() != normalizedNames.size()) {
             throw new IllegalArgumentException(
-                    "Some table semantic metadata does not exist for datasource " + datasourceId + ".");
+                    "Some table semantic metadata does not exist for datasource "
+                            + datasourceId
+                            + ".");
         }
         return tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
     }
@@ -166,9 +171,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     private Comparator<TableInfo> buildTableComparator(String sortOrder) {
         Comparator<TableInfo> comparator =
-                Comparator.comparing(
-                                TableInfo::getTableName,
-                                String.CASE_INSENSITIVE_ORDER)
+                Comparator.comparing(TableInfo::getTableName, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(TableInfo::getId);
         if (SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
             return comparator.reversed();

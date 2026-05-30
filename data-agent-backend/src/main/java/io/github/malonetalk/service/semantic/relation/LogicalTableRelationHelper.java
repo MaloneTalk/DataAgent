@@ -111,7 +111,8 @@ public class LogicalTableRelationHelper {
 
     public String toJson(List<String> columnNames) {
         try {
-            return objectMapper.writeValueAsString(normalizeColumnNames(columnNames, "columnNames"));
+            return objectMapper.writeValueAsString(
+                    normalizeColumnNames(columnNames, "columnNames"));
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Failed to serialize relation columns.", e);
         }

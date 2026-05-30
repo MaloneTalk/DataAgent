@@ -41,7 +41,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
 
     public ColumnSemanticServiceImpl(
-            DatasourceService datasourceService, ColumnSemanticInfoMapper columnSemanticInfoMapper) {
+            DatasourceService datasourceService,
+            ColumnSemanticInfoMapper columnSemanticInfoMapper) {
         this.datasourceService = datasourceService;
         this.columnSemanticInfoMapper = columnSemanticInfoMapper;
     }
@@ -60,7 +61,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
         SemanticUtils.validateSortOrder(sortOrder);
         List<ColumnSemanticResponse> responses =
-                columnSemanticInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName).stream()
+                columnSemanticInfoMapper
+                        .selectByDatasourceIdAndTableName(datasourceId, tableName)
+                        .stream()
                         .filter(
                                 column ->
                                         SemanticUtils.matchesKeywordPrefix(
@@ -76,8 +79,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             Integer datasourceId, String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(datasourceId);
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
-        String normalizedColumnName =
-                SemanticUtils.requireName(request.columnName(), "columnName");
+        String normalizedColumnName = SemanticUtils.requireName(request.columnName(), "columnName");
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, normalizedTableName, normalizedColumnName);
@@ -112,7 +114,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (existing == null) {
             throw new IllegalArgumentException("Column semantic metadata does not exist.");
         }
-        columnSemanticInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
+        columnSemanticInfoMapper.deleteByDatasourceIdAndIds(
+                datasourceId, List.of(existing.getId()));
     }
 
     @Override
@@ -132,7 +135,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                         columnName, "columnName")))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
-                columnSemanticInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName)
+                columnSemanticInfoMapper
+                        .selectByDatasourceIdAndTableName(datasourceId, normalizedTableName)
                         .stream()
                         .filter(
                                 column ->
@@ -162,9 +166,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private Comparator<ColumnInfo> buildColumnComparator(String sortOrder) {
         Comparator<ColumnInfo> comparator =
-                Comparator.comparing(
-                                ColumnInfo::getColumnName,
-                                String.CASE_INSENSITIVE_ORDER)
+                Comparator.comparing(ColumnInfo::getColumnName, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(ColumnInfo::getId);
         if (SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
             return comparator.reversed();

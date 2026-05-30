@@ -90,7 +90,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId, String tableName, BindLogicalTableRelationRequest request) {
         requireDatasource(datasourceId);
         LogicalTableRelation relation = buildRelation(datasourceId, tableName, request);
-        ensureUniqueSourceKey(datasourceId, relation.getSourceTableName(), relation.getSourceColumnSignature(), null);
+        ensureUniqueSourceKey(
+                datasourceId,
+                relation.getSourceTableName(),
+                relation.getSourceColumnSignature(),
+                null);
         logicalTableRelationMapper.insert(relation);
         return mapResponse(relation);
     }
@@ -197,7 +201,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         relation.setTargetColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(request.targetColumnNames()));
         relation.setRelationType(LogicalTableRelationHelper.RELATION_TYPE_FOREIGN_KEY);
-        relation.setDescription(logicalTableRelationHelper.normalizeDescription(request.description()));
+        relation.setDescription(
+                logicalTableRelationHelper.normalizeDescription(request.description()));
         relation.setIsEnabled(request.enabled());
         relation.setCreateTime(LocalDateTime.now());
         relation.setUpdateTime(LocalDateTime.now());
@@ -205,7 +210,9 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private void applyRelationUpdate(
-            LogicalTableRelation relation, String tableName, UpdateLogicalTableRelationRequest request) {
+            LogicalTableRelation relation,
+            String tableName,
+            UpdateLogicalTableRelationRequest request) {
         relation.setSourceTableName(
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
         relation.setSourceColumnNamesJson(
@@ -220,7 +227,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         relation.setTargetColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(request.targetColumnNames()));
         relation.setRelationType(LogicalTableRelationHelper.RELATION_TYPE_FOREIGN_KEY);
-        relation.setDescription(logicalTableRelationHelper.normalizeDescription(request.description()));
+        relation.setDescription(
+                logicalTableRelationHelper.normalizeDescription(request.description()));
         relation.setIsEnabled(request.enabled());
     }
 
@@ -250,7 +258,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
-                || !logicalTableRelationHelper.sameTableName(relation.getSourceTableName(), tableName)) {
+                || !logicalTableRelationHelper.sameTableName(
+                        relation.getSourceTableName(), tableName)) {
             throw new IllegalArgumentException("Logical relation does not exist.");
         }
         return relation;
@@ -284,5 +293,4 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 relation.getCreateTime(),
                 relation.getUpdateTime());
     }
-
 }
