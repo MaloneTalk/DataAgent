@@ -15,14 +15,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.entity;
 
-import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-public record TableInfoRequest(
-        Integer id,
-        @NotBlank(message = "tableName 不能为空") String tableName,
-        String tableDescription,
-        String domain,
-        Integer datasourceId,
-        Boolean isActive) {}
+@Data
+public class ColumnInfo {
+
+    private Integer id;
+    private Integer datasourceId;
+    private String tableName;
+    private String columnName;
+    private String columnDescription;
+    private Boolean isVisible;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
+}

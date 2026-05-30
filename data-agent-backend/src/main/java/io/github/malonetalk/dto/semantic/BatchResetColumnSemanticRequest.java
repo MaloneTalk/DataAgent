@@ -15,26 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.entity.TableInfo;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
-public interface TableInfoService {
-
-    List<TableInfo> findAll();
-
-    TableInfo findById(Integer id);
-
-    boolean save(TableInfo tableInfo);
-
-    boolean update(TableInfo tableInfo);
-
-    boolean deleteById(Integer id);
-
-    List<TableInfo> findByDatasourceId(Integer datasourceId);
-
-    List<TableInfo> findByIsActive(Boolean isActive);
-
-    List<TableInfo> findByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive);
-}
+public record BatchResetColumnSemanticRequest(
+        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
+        @NotEmpty(message = "columnNames 不能为空") List<String> columnNames) {}

@@ -17,23 +17,30 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.entity.ColumnInfo;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
-public interface TableInfoMapper {
+public interface ColumnSemanticInfoMapper {
 
-    int insert(TableInfo tableInfo);
+    List<ColumnInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
-    int update(TableInfo tableInfo);
+    List<ColumnInfo> selectByDatasourceIdAndTableName(
+            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
+
+    ColumnInfo selectByDatasourceIdAndTableNameAndColumnName(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableName") String tableName,
+            @Param("columnName") String columnName);
+
+    int insert(ColumnInfo columnInfo);
+
+    int update(ColumnInfo columnInfo);
+
+    int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
     int deleteByDatasourceIdAndIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
-
-    List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
-
-    TableInfo selectByDatasourceIdAndTableName(
-            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

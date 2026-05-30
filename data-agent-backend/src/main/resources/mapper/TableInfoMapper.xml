@@ -4,41 +4,33 @@
 
     <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.TableInfo">
         <id column="id" property="id"/>
-        <result column="table_name" property="tableName"/>
-        <result column="table_description" property="tableDescription"/>
-        <result column="domain" property="domain"/>
-        <result column="datasource_id" property="datasourceId"/>
-        <result column="is_active" property="isActive"/>
-        <result column="create_time" property="createTime"/>
-        <result column="update_time" property="updateTime"/>
+    <result column="table_name" property="tableName"/>
+    <result column="table_description" property="tableDescription"/>
+    <result column="domain" property="domain"/>
+    <result column="datasource_id" property="datasourceId"/>
+    <result column="is_visible" property="isVisible"/>
+    <result column="create_time" property="createTime"/>
+    <result column="update_time" property="updateTime"/>
     </resultMap>
-
-    <select id="selectAll" resultMap="BaseResultMap">
-        SELECT * FROM table_info ORDER BY create_time DESC
-    </select>
-
-    <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM table_info WHERE id = #{id}
-    </select>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
         SELECT * FROM table_info WHERE datasource_id = #{datasourceId} ORDER BY create_time DESC
     </select>
 
-    <select id="selectByIsActive" resultMap="BaseResultMap">
-        SELECT * FROM table_info WHERE is_active = #{isActive} ORDER BY create_time DESC
-    </select>
-
-    <select id="selectByDatasourceIdAndIsActive" resultMap="BaseResultMap">
-        SELECT * FROM table_info WHERE datasource_id = #{datasourceId} AND is_active = #{isActive} ORDER BY create_time DESC
+    <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(table_name) = LOWER(#{tableName})
+        ORDER BY update_time DESC, create_time DESC, id DESC
+        LIMIT 1
     </select>
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO table_info (
-            table_name, table_description, domain, datasource_id, is_active,
+            table_name, table_description, domain, datasource_id, is_visible,
             create_time, update_time
         ) VALUES (
-            #{tableName}, #{tableDescription}, #{domain}, #{datasourceId}, #{isActive},
+            #{tableName}, #{tableDescription}, #{domain}, #{datasourceId}, #{isVisible},
             #{createTime}, #{updateTime}
         )
     </insert>
@@ -47,17 +39,22 @@
         UPDATE table_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
-            <if test="tableDescription != null">table_description = #{tableDescription},</if>
-            <if test="domain != null">domain = #{domain},</if>
+            table_description = #{tableDescription},
+            domain = #{domain},
             <if test="datasourceId != null">datasource_id = #{datasourceId},</if>
-            <if test="isActive != null">is_active = #{isActive},</if>
+            <if test="isVisible != null">is_visible = #{isVisible},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
     </update>
 
-    <delete id="deleteById">
-        DELETE FROM table_info WHERE id = #{id}
+    <delete id="deleteByDatasourceIdAndIds">
+        DELETE FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </delete>
 
 </mapper>

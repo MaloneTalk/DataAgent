@@ -15,20 +15,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.dto.semantic;
 
 import java.time.LocalDateTime;
-import lombok.Data;
 
-@Data
-public class TableInfo {
-
-    private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+public record TableSemanticResponse(
+        Integer id,
+        String tableName,
+        String domain,
+        String physicalTableDescription,
+        String tableDescription,
+        Boolean isVisible,
+        Boolean hasPhysicalTable,
+        Boolean effective,
+        String invalidReason,
+        LocalDateTime updateTime) {}

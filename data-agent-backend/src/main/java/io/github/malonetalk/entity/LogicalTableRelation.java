@@ -21,14 +21,19 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 @Data
-public class TableInfo {
+public class LogicalTableRelation {
 
     private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
     private Integer datasourceId;
-    private Boolean isVisible;
+    private String sourceTableName;
+    private String sourceColumnNamesJson;
+    private String sourceColumnSignature;
+    private String targetTableName;
+    private String targetColumnNamesJson;
+    private String targetColumnSignature;
+    private String relationType;
+    private String description;
+    private Boolean isEnabled;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
