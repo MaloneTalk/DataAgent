@@ -50,14 +50,16 @@ public class TableRelationSemanticController {
 
     @GetMapping
     public Result<PageResponse<LogicalTableRelationResponse>> listByTable(
-            @PathVariable @NotBlank String tableName,
-            @Valid RelationSemanticPageQuery query) {
+            @PathVariable @NotBlank String tableName, @Valid RelationSemanticPageQuery query) {
         return Result.success(
                 relationSemanticService.getRelationPage(
                         new RelationSemanticPageQuery(
-                                query.datasourceId(), tableName,
-                                query.page(), query.pageSize(),
-                                query.keyword(), query.enabled(),
+                                query.datasourceId(),
+                                tableName,
+                                query.page(),
+                                query.pageSize(),
+                                query.keyword(),
+                                query.enabled(),
                                 query.sortOrder())));
     }
 

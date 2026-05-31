@@ -47,8 +47,7 @@ public class TableColumnSemanticController {
 
     @GetMapping
     public Result<PageResponse<ColumnSemanticResponse>> findAllColumns(
-            @PathVariable @NotBlank String tableName,
-            @Valid ColumnSemanticPageQuery query) {
+            @PathVariable @NotBlank String tableName, @Valid ColumnSemanticPageQuery query) {
         return Result.success(
                 columnSemanticService.getColumnPage(
                         new ColumnSemanticPageQuery(

@@ -27,4 +27,5 @@ public record ColumnSemanticPageQuery(
         @Min(1) Integer page,
         @Min(1) Integer pageSize,
         String keyword,
-        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.") String sortOrder) {}
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                String sortOrder) {}

@@ -28,4 +28,5 @@ public record RelationSemanticPageQuery(
         @Min(1) Integer pageSize,
         String keyword,
         Boolean enabled,
-        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.") String sortOrder) {}
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                String sortOrder) {}
