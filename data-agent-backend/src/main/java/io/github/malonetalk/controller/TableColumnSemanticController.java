@@ -54,7 +54,9 @@ public class TableColumnSemanticController {
             @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
             @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
             @RequestParam(defaultValue = "asc")
-                    @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                    @Pattern(
+                            regexp = "^(?i)(asc|desc)$",
+                            message = "sortOrder must be asc or desc.")
                     String sortOrder) {
         return Result.success(
                 columnSemanticService.getColumnPage(

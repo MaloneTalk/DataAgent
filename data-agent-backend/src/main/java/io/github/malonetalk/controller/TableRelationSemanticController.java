@@ -58,7 +58,9 @@ public class TableRelationSemanticController {
             @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
             @RequestParam(required = false) Boolean enabled,
             @RequestParam(defaultValue = "desc")
-                    @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                    @Pattern(
+                            regexp = "^(?i)(asc|desc)$",
+                            message = "sortOrder must be asc or desc.")
                     String sortOrder) {
         return Result.success(
                 relationSemanticService.getRelationPage(
