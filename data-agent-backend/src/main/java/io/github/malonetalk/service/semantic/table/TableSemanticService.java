@@ -15,30 +15,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.mapper;
+package io.github.malonetalk.service.semantic.table;
 
+import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
+import io.github.malonetalk.dto.semantic.TableSemanticResponse;
+import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
 import io.github.malonetalk.entity.TableInfo;
 import java.util.List;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
-@Mapper
-public interface TableInfoMapper {
+public interface TableSemanticService {
 
-    int insert(TableInfo tableInfo);
+    PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query);
 
-    int update(TableInfo tableInfo);
+    List<String> listAvailableDomains(Integer datasourceId);
 
-    int deleteByDatasourceIdAndIds(
-            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
+    List<TableInfo> listTableInfosByDatasourceId(Integer datasourceId);
 
-    List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
+    void updateTableSemantic(TableSemanticUpdateRequest request);
 
-    List<TableInfo> selectPageByDatasourceId(
-            @Param("query") TableSemanticPageQuery query,
-            @Param("sortDescending") boolean sortDescending);
+    void resetTableSemantic(Integer datasourceId, String tableName);
 
-    TableInfo selectByDatasourceIdAndTableName(
-            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
+    int resetTableSemantics(Integer datasourceId, List<String> tableNames);
 }

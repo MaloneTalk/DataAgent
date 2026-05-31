@@ -15,20 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.dto.semantic;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import jakarta.validation.constraints.NotNull;
 
-@Data
-public class TableInfo {
-
-    private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+public record UpdateLogicalTableRelationEnabledRequest(
+        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
+        @NotNull(message = "relationId 不能为空") Integer relationId,
+        @NotNull(message = "enabled 不能为空") Boolean enabled) {}

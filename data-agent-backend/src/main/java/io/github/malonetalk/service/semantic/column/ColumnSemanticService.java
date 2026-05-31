@@ -15,20 +15,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.service.semantic.column;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
+import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
+import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
+import java.util.List;
 
-@Data
-public class TableInfo {
+public interface ColumnSemanticService {
 
-    private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query);
+
+    void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request);
+
+    void resetColumnSemantic(Integer datasourceId, String tableName, String columnName);
+
+    int resetColumnSemantics(Integer datasourceId, String tableName, List<String> columnNames);
 }

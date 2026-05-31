@@ -15,20 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.common;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+public final class SemanticConstants {
 
-@Data
-public class TableInfo {
+    public static final String RELATION_KEY_SEPARATOR = "|";
+    public static final String SORT_ORDER_ASC = "asc";
+    public static final String SORT_ORDER_DESC = "desc";
 
-    private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    private SemanticConstants() {}
 }

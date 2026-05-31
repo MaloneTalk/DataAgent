@@ -15,16 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.dto.semantic;
 
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
-public record TableInfoResponse(
-        Integer id,
+public record ColumnSemanticPageQuery(
+        @NotNull @Min(1) Integer datasourceId,
         String tableName,
-        String tableDescription,
-        String domain,
-        Integer datasourceId,
-        Boolean isActive,
-        LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+        @Min(1) Integer page,
+        @Min(1) Integer pageSize,
+        String keyword,
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                String sortOrder) {}

@@ -15,26 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.entity.TableInfo;
-import java.util.List;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
-public interface TableInfoService {
-
-    List<TableInfo> findAll();
-
-    TableInfo findById(Integer id);
-
-    boolean save(TableInfo tableInfo);
-
-    boolean update(TableInfo tableInfo);
-
-    boolean deleteById(Integer id);
-
-    List<TableInfo> findByDatasourceId(Integer datasourceId);
-
-    List<TableInfo> findByIsActive(Boolean isActive);
-
-    List<TableInfo> findByDatasourceIdAndIsActive(Integer datasourceId, Boolean isActive);
-}
+public record TableSemanticPageQuery(
+        @NotNull @Min(1) Integer datasourceId,
+        @Min(1) Integer page,
+        @Min(1) Integer pageSize,
+        String keyword,
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                String sortOrder) {}

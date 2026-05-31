@@ -15,14 +15,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.dto.semantic;
 
-import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDateTime;
+import java.util.List;
 
-public record TableInfoRequest(
+public record LogicalTableRelationResponse(
         Integer id,
-        @NotBlank(message = "tableName 不能为空") String tableName,
-        String tableDescription,
-        String domain,
+        String relationKey,
         Integer datasourceId,
-        Boolean isActive) {}
+        String source,
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        String relationType,
+        String description,
+        Boolean enabled,
+        Boolean effective,
+        String invalidReason,
+        LocalDateTime createTime,
+        LocalDateTime updateTime) {}

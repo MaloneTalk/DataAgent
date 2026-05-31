@@ -15,20 +15,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.dto.semantic;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
-@Data
-public class TableInfo {
-
-    private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+public record RelationSemanticPageQuery(
+        @NotNull @Min(1) Integer datasourceId,
+        String tableName,
+        @Min(1) Integer page,
+        @Min(1) Integer pageSize,
+        String keyword,
+        Boolean enabled,
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                String sortOrder) {}

@@ -15,20 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.dto.semantic;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
-@Data
-public class TableInfo {
-
-    private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+public record BatchResetColumnSemanticRequest(
+        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
+        @NotEmpty(message = "columnNames 不能为空") List<String> columnNames) {}

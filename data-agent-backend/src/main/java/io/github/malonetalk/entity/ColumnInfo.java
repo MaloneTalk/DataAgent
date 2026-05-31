@@ -21,13 +21,13 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 @Data
-public class TableInfo {
+public class ColumnInfo {
 
     private Integer id;
-    private String tableName;
-    private String tableDescription;
-    private String domain;
     private Integer datasourceId;
+    private String tableName;
+    private String columnName;
+    private String columnDescription;
     private Boolean isVisible;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

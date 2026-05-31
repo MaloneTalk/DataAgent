@@ -22,7 +22,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
-import io.github.malonetalk.service.TableInfoService;
+import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.Collections;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -35,7 +35,7 @@ import org.springframework.stereotype.Component;
 public class GetTablesTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
-    private final TableInfoService tableInfoService;
+    private final TableSemanticService tableSemanticService;
 
     @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
     public List<TableInfo> getTables() {
@@ -54,6 +54,6 @@ public class GetTablesTool implements MarkAgentTool {
         }
 
         Datasource dataSource = activeDataSources.get(0);
-        return tableInfoService.findByDatasourceId(dataSource.getId());
+        return tableSemanticService.listTableInfosByDatasourceId(dataSource.getId());
     }
 }
