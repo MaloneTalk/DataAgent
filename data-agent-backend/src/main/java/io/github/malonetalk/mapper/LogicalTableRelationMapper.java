@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
+import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,10 +36,7 @@ public interface LogicalTableRelationMapper {
             @Param("sourceTableName") String sourceTableName);
 
     List<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName,
-            @Param("keyword") String keyword,
-            @Param("isEnabled") Boolean isEnabled,
+            @Param("query") RelationSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
     LogicalTableRelation selectByUniqueSourceKey(

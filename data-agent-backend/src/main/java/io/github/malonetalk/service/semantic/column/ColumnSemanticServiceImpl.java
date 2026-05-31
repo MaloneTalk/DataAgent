@@ -20,8 +20,8 @@ package io.github.malonetalk.service.semantic.column;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
@@ -44,30 +44,28 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
 
     @Override
-    public PageResponse<ColumnSemanticResponse> getColumnPage(
-            Integer datasourceId,
-            String tableName,
-            PageRequest pageRequest,
-            String keyword,
-            String sortOrder) {
-        SemanticUtils.requireDatasourceId(datasourceId);
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
-        if (datasourceService.findById(datasourceId) == null) {
-            return PageResponse.empty(pageRequest);
+    public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
+        SemanticUtils.requireDatasourceId(query.datasourceId());
+        String normalizedTableName = SemanticUtils.requireName(query.tableName(), "tableName");
+        if (datasourceService.findById(query.datasourceId()) == null) {
+            return PageResponse.empty(query.pageRequest());
         }
-        SemanticUtils.validateSortOrder(sortOrder);
-        boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
-        String normalizedKeyword = SemanticUtils.normalizeBlankToNull(keyword);
-        PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
+        SemanticUtils.validateSortOrder(query.sortOrder());
+        boolean sortDescending =
+                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        PageHelper.startPage(query.pageRequest().page(), query.pageRequest().pageSize());
         Page<ColumnInfo> page =
                 (Page<ColumnInfo>)
                         columnSemanticInfoMapper.selectPageByDatasourceIdAndTableName(
-                                datasourceId,
-                                normalizedTableName,
-                                normalizedKeyword,
+                                new ColumnSemanticPageQuery(
+                                        query.datasourceId(),
+                                        normalizedTableName,
+                                        query.pageRequest(),
+                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        query.sortOrder()),
                                 sortDescending);
         List<ColumnSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
-        return PageResponse.of(responses, page.getTotal(), pageRequest);
+        return PageResponse.of(responses, page.getTotal(), query.pageRequest());
     }
 
     @Override

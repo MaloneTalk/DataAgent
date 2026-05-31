@@ -20,8 +20,8 @@ package io.github.malonetalk.service.semantic.table;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
 import io.github.malonetalk.entity.TableInfo;
@@ -44,23 +44,27 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     private final TableInfoMapper tableInfoMapper;
 
     @Override
-    public PageResponse<TableSemanticResponse> getTablePage(
-            Integer datasourceId, PageRequest pageRequest, String keyword, String sortOrder) {
-        SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
-            return PageResponse.empty(pageRequest);
+    public PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query) {
+        SemanticUtils.requireDatasourceId(query.datasourceId());
+        if (datasourceService.findById(query.datasourceId()) == null) {
+            return PageResponse.empty(query.pageRequest());
         }
-        SemanticUtils.validateSortOrder(sortOrder);
-        boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
-        String normalizedKeyword = SemanticUtils.normalizeBlankToNull(keyword);
-        PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
+        SemanticUtils.validateSortOrder(query.sortOrder());
+        boolean sortDescending =
+                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        PageHelper.startPage(query.pageRequest().page(), query.pageRequest().pageSize());
         Page<TableInfo> page =
                 (Page<TableInfo>)
                         tableInfoMapper.selectPageByDatasourceId(
-                                datasourceId, normalizedKeyword, sortDescending);
+                                new TableSemanticPageQuery(
+                                        query.datasourceId(),
+                                        query.pageRequest(),
+                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        query.sortOrder()),
+                                sortDescending);
         List<TableSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
         long total = page.getTotal();
-        return PageResponse.of(responses, total, pageRequest);
+        return PageResponse.of(responses, total, query.pageRequest());
     }
 
     @Override

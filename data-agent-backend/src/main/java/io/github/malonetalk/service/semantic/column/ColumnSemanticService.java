@@ -17,20 +17,15 @@
  */
 package io.github.malonetalk.service.semantic.column;
 
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import java.util.List;
 
 public interface ColumnSemanticService {
 
-    PageResponse<ColumnSemanticResponse> getColumnPage(
-            Integer datasourceId,
-            String tableName,
-            PageRequest pageRequest,
-            String keyword,
-            String sortOrder);
+    PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query);
 
     void updateColumnSemantic(
             Integer datasourceId, String tableName, ColumnSemanticUpdateRequest request);

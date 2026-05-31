@@ -28,10 +28,10 @@
 
     <select id="selectPageByDatasourceIdAndTableName" resultMap="BaseResultMap">
         SELECT * FROM column_info
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(table_name) = LOWER(#{tableName})
-        <if test="keyword != null and keyword != ''">
-            AND LOWER(column_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+        WHERE datasource_id = #{query.datasourceId}
+          AND LOWER(table_name) = LOWER(#{query.tableName})
+        <if test="query.keyword != null and query.keyword != ''">
+            AND LOWER(column_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
         </if>
         <choose>
             <when test="sortDescending">

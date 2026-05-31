@@ -23,6 +23,7 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchDeleteLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
+import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
@@ -64,12 +65,13 @@ public class TableRelationSemanticController {
                     String sortOrder) {
         return Result.success(
                 relationSemanticService.getRelationPage(
-                        datasourceId,
-                        tableName,
-                        PageRequest.of(page, pageSize),
-                        keyword,
-                        enabled,
-                        sortOrder));
+                        new RelationSemanticPageQuery(
+                                datasourceId,
+                                tableName,
+                                PageRequest.of(page, pageSize),
+                                keyword,
+                                enabled,
+                                sortOrder)));
     }
 
     @PostMapping

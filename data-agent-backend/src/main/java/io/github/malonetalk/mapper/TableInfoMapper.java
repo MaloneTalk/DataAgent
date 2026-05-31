@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
+import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.entity.TableInfo;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -35,8 +36,7 @@ public interface TableInfoMapper {
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
     List<TableInfo> selectPageByDatasourceId(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("keyword") String keyword,
+            @Param("query") TableSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
     TableInfo selectByDatasourceIdAndTableName(

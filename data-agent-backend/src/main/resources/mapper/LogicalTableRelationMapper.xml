@@ -37,13 +37,13 @@
 
     <select id="selectPageByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
-        <if test="keyword != null and keyword != ''">
-            AND LOWER(target_table_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+        WHERE datasource_id = #{query.datasourceId}
+          AND LOWER(source_table_name) = LOWER(#{query.tableName})
+        <if test="query.keyword != null and query.keyword != ''">
+            AND LOWER(target_table_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
         </if>
-        <if test="isEnabled != null">
-            AND is_enabled = #{isEnabled}
+        <if test="query.enabled != null">
+            AND is_enabled = #{query.enabled}
         </if>
         <choose>
             <when test="sortDescending">

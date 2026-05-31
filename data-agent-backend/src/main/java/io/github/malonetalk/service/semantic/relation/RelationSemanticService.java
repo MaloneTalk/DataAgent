@@ -17,22 +17,16 @@
  */
 package io.github.malonetalk.service.semantic.relation;
 
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
+import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import java.util.List;
 
 public interface RelationSemanticService {
 
-    PageResponse<LogicalTableRelationResponse> getRelationPage(
-            Integer datasourceId,
-            String tableName,
-            PageRequest pageRequest,
-            String keyword,
-            Boolean enabled,
-            String sortOrder);
+    PageResponse<LogicalTableRelationResponse> getRelationPage(RelationSemanticPageQuery query);
 
     LogicalTableRelationResponse createRelationSemantic(
             Integer datasourceId, String tableName, BindLogicalTableRelationRequest request);

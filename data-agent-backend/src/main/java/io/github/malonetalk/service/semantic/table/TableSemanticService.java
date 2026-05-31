@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.table;
 
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
 import io.github.malonetalk.entity.TableInfo;
@@ -26,8 +26,7 @@ import java.util.List;
 
 public interface TableSemanticService {
 
-    PageResponse<TableSemanticResponse> getTablePage(
-            Integer datasourceId, PageRequest pageRequest, String keyword, String sortOrder);
+    PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query);
 
     List<String> listAvailableDomains(Integer datasourceId);
 

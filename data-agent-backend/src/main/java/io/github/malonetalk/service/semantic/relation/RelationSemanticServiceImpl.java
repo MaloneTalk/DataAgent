@@ -20,10 +20,10 @@ package io.github.malonetalk.service.semantic.relation;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
+import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
@@ -45,32 +45,30 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     @Override
     public PageResponse<LogicalTableRelationResponse> getRelationPage(
-            Integer datasourceId,
-            String tableName,
-            PageRequest pageRequest,
-            String keyword,
-            Boolean enabled,
-            String sortOrder) {
-        requireDatasource(datasourceId);
+            RelationSemanticPageQuery query) {
+        requireDatasource(query.datasourceId());
         String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
-        SemanticUtils.validateSortOrder(sortOrder);
-        String normalizedKeyword = SemanticUtils.normalizeBlankToNull(keyword);
-        boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
-        PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
+                logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
+        SemanticUtils.validateSortOrder(query.sortOrder());
+        boolean sortDescending =
+                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        PageHelper.startPage(query.pageRequest().page(), query.pageRequest().pageSize());
         Page<LogicalTableRelation> page =
                 (Page<LogicalTableRelation>)
                         logicalTableRelationMapper.selectPageByDatasourceIdAndSourceTable(
-                                datasourceId,
-                                normalizedTableName,
-                                normalizedKeyword,
-                                enabled,
+                                new RelationSemanticPageQuery(
+                                        query.datasourceId(),
+                                        normalizedTableName,
+                                        query.pageRequest(),
+                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        query.enabled(),
+                                        query.sortOrder()),
                                 sortDescending);
         if (page.getTotal() == 0L) {
-            return PageResponse.empty(pageRequest);
+            return PageResponse.empty(query.pageRequest());
         }
         List<LogicalTableRelationResponse> items = page.stream().map(this::mapResponse).toList();
-        return PageResponse.of(items, page.getTotal(), pageRequest);
+        return PageResponse.of(items, page.getTotal(), query.pageRequest());
     }
 
     @Override
