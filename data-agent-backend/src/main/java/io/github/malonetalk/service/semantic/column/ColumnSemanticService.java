@@ -27,8 +27,7 @@ public interface ColumnSemanticService {
 
     PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query);
 
-    void updateColumnSemantic(
-            Integer datasourceId, String tableName, ColumnSemanticUpdateRequest request);
+    void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request);
 
     void resetColumnSemantic(Integer datasourceId, String tableName, String columnName);
 

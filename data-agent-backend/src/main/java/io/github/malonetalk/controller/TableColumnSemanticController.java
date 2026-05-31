@@ -18,7 +18,6 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchResetColumnSemanticRequest;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
@@ -62,19 +61,14 @@ public class TableColumnSemanticController {
         return Result.success(
                 columnSemanticService.getColumnPage(
                         new ColumnSemanticPageQuery(
-                                datasourceId,
-                                tableName,
-                                PageRequest.of(page, pageSize),
-                                keyword,
-                                sortOrder)));
+                                datasourceId, tableName, page, pageSize, keyword, sortOrder)));
     }
 
     @PutMapping
     public Result<Boolean> updateColumnSemantic(
             @PathVariable @NotBlank String tableName,
-            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody ColumnSemanticUpdateRequest request) {
-        columnSemanticService.updateColumnSemantic(datasourceId, tableName, request);
+        columnSemanticService.updateColumnSemantic(tableName, request);
         return Result.success(true);
     }
 

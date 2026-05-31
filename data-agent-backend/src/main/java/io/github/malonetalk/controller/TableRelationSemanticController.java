@@ -18,7 +18,6 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchDeleteLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
@@ -68,7 +67,8 @@ public class TableRelationSemanticController {
                         new RelationSemanticPageQuery(
                                 datasourceId,
                                 tableName,
-                                PageRequest.of(page, pageSize),
+                                page,
+                                pageSize,
                                 keyword,
                                 enabled,
                                 sortOrder)));
@@ -77,32 +77,25 @@ public class TableRelationSemanticController {
     @PostMapping
     public Result<LogicalTableRelationResponse> create(
             @PathVariable @NotBlank String tableName,
-            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody BindLogicalTableRelationRequest request) {
         return Result.success(
-                relationSemanticService.createRelationSemantic(datasourceId, tableName, request));
+                relationSemanticService.createRelationSemantic(tableName, request));
     }
 
-    @PutMapping("/{relationId}")
+    @PutMapping
     public Result<LogicalTableRelationResponse> update(
             @PathVariable @NotBlank String tableName,
-            @PathVariable @NotNull @Min(1) Integer relationId,
-            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody UpdateLogicalTableRelationRequest request) {
         return Result.success(
-                relationSemanticService.updateRelationSemantic(
-                        datasourceId, tableName, relationId, request));
+                relationSemanticService.updateRelationSemantic(tableName, request));
     }
 
-    @PutMapping("/{relationId}/enabled")
+    @PutMapping("/enabled")
     public Result<Boolean> updateEnabled(
             @PathVariable @NotBlank String tableName,
-            @PathVariable @NotNull @Min(1) Integer relationId,
-            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody UpdateLogicalTableRelationEnabledRequest request) {
         return Result.success(
-                relationSemanticService.updateRelationSemanticEnabled(
-                        datasourceId, tableName, relationId, request.enabled()));
+                relationSemanticService.updateRelationSemanticEnabled(tableName, request));
     }
 
     @DeleteMapping("/{relationId}")

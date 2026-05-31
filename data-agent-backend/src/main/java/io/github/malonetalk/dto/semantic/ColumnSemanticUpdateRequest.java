@@ -21,6 +21,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record ColumnSemanticUpdateRequest(
+        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
         @NotBlank(message = "columnName 不能为空") String columnName,
         String columnDescription,
         @NotNull(message = "isVisible 不能为空") Boolean isVisible) {}

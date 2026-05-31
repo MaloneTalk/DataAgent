@@ -24,6 +24,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record BindLogicalTableRelationRequest(
+        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
         @NotEmpty(message = "sourceColumnNames 不能为空") List<String> sourceColumnNames,
         @NotBlank(message = "targetTableName 不能为空") String targetTableName,
         @NotEmpty(message = "targetColumnNames 不能为空") List<String> targetColumnNames,

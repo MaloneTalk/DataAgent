@@ -17,11 +17,10 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.dto.pagination.PageRequest;
-
 public record ColumnSemanticPageQuery(
         Integer datasourceId,
         String tableName,
-        PageRequest pageRequest,
+        Integer page,
+        Integer pageSize,
         String keyword,
         String sortOrder) {}

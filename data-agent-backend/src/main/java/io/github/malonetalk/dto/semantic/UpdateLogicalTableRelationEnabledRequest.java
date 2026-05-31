@@ -20,4 +20,6 @@ package io.github.malonetalk.dto.semantic;
 import jakarta.validation.constraints.NotNull;
 
 public record UpdateLogicalTableRelationEnabledRequest(
+        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
+        @NotNull(message = "relationId 不能为空") Integer relationId,
         @NotNull(message = "enabled 不能为空") Boolean enabled) {}

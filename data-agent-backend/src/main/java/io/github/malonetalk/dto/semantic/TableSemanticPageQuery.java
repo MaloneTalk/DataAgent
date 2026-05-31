@@ -17,7 +17,5 @@
  */
 package io.github.malonetalk.dto.semantic;
 
-import io.github.malonetalk.dto.pagination.PageRequest;
-
 public record TableSemanticPageQuery(
-        Integer datasourceId, PageRequest pageRequest, String keyword, String sortOrder) {}
+        Integer datasourceId, Integer page, Integer pageSize, String keyword, String sortOrder) {}

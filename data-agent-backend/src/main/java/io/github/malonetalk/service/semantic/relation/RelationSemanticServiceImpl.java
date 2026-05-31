@@ -24,6 +24,7 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
+import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
@@ -49,36 +50,39 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         requireDatasource(query.datasourceId());
         String normalizedTableName =
                 logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
+        int pageNumber = PageResponse.resolvePage(query.page());
+        int pageSize = PageResponse.resolvePageSize(query.pageSize());
         SemanticUtils.validateSortOrder(query.sortOrder());
         boolean sortDescending =
                 SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
-        PageHelper.startPage(query.pageRequest().page(), query.pageRequest().pageSize());
+        PageHelper.startPage(pageNumber, pageSize);
         Page<LogicalTableRelation> page =
                 (Page<LogicalTableRelation>)
                         logicalTableRelationMapper.selectPageByDatasourceIdAndSourceTable(
                                 new RelationSemanticPageQuery(
                                         query.datasourceId(),
                                         normalizedTableName,
-                                        query.pageRequest(),
+                                        pageNumber,
+                                        pageSize,
                                         SemanticUtils.normalizeBlankToNull(query.keyword()),
                                         query.enabled(),
                                         query.sortOrder()),
                                 sortDescending);
         if (page.getTotal() == 0L) {
-            return PageResponse.empty(query.pageRequest());
+            return PageResponse.empty(pageNumber, pageSize);
         }
         List<LogicalTableRelationResponse> items = page.stream().map(this::mapResponse).toList();
-        return PageResponse.of(items, page.getTotal(), query.pageRequest());
+        return PageResponse.of(items, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override
     @Transactional
     public LogicalTableRelationResponse createRelationSemantic(
-            Integer datasourceId, String tableName, BindLogicalTableRelationRequest request) {
-        requireDatasource(datasourceId);
-        LogicalTableRelation relation = buildRelation(datasourceId, tableName, request);
+            String tableName, BindLogicalTableRelationRequest request) {
+        requireDatasource(request.datasourceId());
+        LogicalTableRelation relation = buildRelation(request.datasourceId(), tableName, request);
         ensureUniqueSourceKey(
-                datasourceId,
+                request.datasourceId(),
                 relation.getSourceTableName(),
                 relation.getSourceColumnSignature(),
                 null);
@@ -89,15 +93,12 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     @Override
     @Transactional
     public LogicalTableRelationResponse updateRelationSemantic(
-            Integer datasourceId,
-            String tableName,
-            Integer relationId,
-            UpdateLogicalTableRelationRequest request) {
-        requireDatasource(datasourceId);
-        LogicalTableRelation existing = requireRelation(datasourceId, tableName, relationId);
+            String tableName, UpdateLogicalTableRelationRequest request) {
+        requireDatasource(request.datasourceId());
+        LogicalTableRelation existing = requireRelation(request.datasourceId(), tableName, request.relationId());
         applyRelationUpdate(existing, tableName, request);
         ensureUniqueSourceKey(
-                datasourceId,
+                request.datasourceId(),
                 existing.getSourceTableName(),
                 existing.getSourceColumnSignature(),
                 existing.getId());
@@ -109,17 +110,17 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     @Override
     @Transactional
     public boolean updateRelationSemanticEnabled(
-            Integer datasourceId, String tableName, Integer relationId, Boolean enabled) {
-        requireDatasource(datasourceId);
-        if (enabled == null) {
+            String tableName, UpdateLogicalTableRelationEnabledRequest request) {
+        requireDatasource(request.datasourceId());
+        if (request.enabled() == null) {
             throw new IllegalArgumentException("enabled cannot be null.");
         }
-        LogicalTableRelation relation = requireRelation(datasourceId, tableName, relationId);
+        LogicalTableRelation relation = requireRelation(request.datasourceId(), tableName, request.relationId());
         return logicalTableRelationMapper.updateEnabled(
-                        relationId,
-                        datasourceId,
+                        request.relationId(),
+                        request.datasourceId(),
                         relation.getSourceTableName(),
-                        enabled,
+                        request.enabled(),
                         LocalDateTime.now())
                 > 0;
     }

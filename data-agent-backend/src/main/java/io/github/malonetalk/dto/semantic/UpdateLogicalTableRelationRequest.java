@@ -24,6 +24,8 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record UpdateLogicalTableRelationRequest(
+        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
+        @NotNull(message = "relationId 不能为空") Integer relationId,
         @NotEmpty(message = "sourceColumnNames 不能为空") List<String> sourceColumnNames,
         @NotBlank(message = "targetTableName 不能为空") String targetTableName,
         @NotEmpty(message = "targetColumnNames 不能为空") List<String> targetColumnNames,

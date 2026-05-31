@@ -47,39 +47,42 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
         SemanticUtils.requireDatasourceId(query.datasourceId());
         String normalizedTableName = SemanticUtils.requireName(query.tableName(), "tableName");
+        int pageNumber = PageResponse.resolvePage(query.page());
+        int pageSize = PageResponse.resolvePageSize(query.pageSize());
         if (datasourceService.findById(query.datasourceId()) == null) {
-            return PageResponse.empty(query.pageRequest());
+            return PageResponse.empty(pageNumber, pageSize);
         }
         SemanticUtils.validateSortOrder(query.sortOrder());
         boolean sortDescending =
                 SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
-        PageHelper.startPage(query.pageRequest().page(), query.pageRequest().pageSize());
+        PageHelper.startPage(pageNumber, pageSize);
         Page<ColumnInfo> page =
                 (Page<ColumnInfo>)
                         columnSemanticInfoMapper.selectPageByDatasourceIdAndTableName(
                                 new ColumnSemanticPageQuery(
                                         query.datasourceId(),
                                         normalizedTableName,
-                                        query.pageRequest(),
+                                        pageNumber,
+                                        pageSize,
                                         SemanticUtils.normalizeBlankToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
         List<ColumnSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
-        return PageResponse.of(responses, page.getTotal(), query.pageRequest());
+        return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override
     public void updateColumnSemantic(
-            Integer datasourceId, String tableName, ColumnSemanticUpdateRequest request) {
-        requireDatasource(datasourceId);
+            String tableName, ColumnSemanticUpdateRequest request) {
+        requireDatasource(request.datasourceId());
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
         String normalizedColumnName = SemanticUtils.requireName(request.columnName(), "columnName");
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
-                        datasourceId, normalizedTableName, normalizedColumnName);
+                        request.datasourceId(), normalizedTableName, normalizedColumnName);
         if (existing == null) {
             ColumnInfo columnInfo = new ColumnInfo();
-            columnInfo.setDatasourceId(datasourceId);
+            columnInfo.setDatasourceId(request.datasourceId());
             columnInfo.setTableName(normalizedTableName);
             columnInfo.setColumnName(normalizedColumnName);
             columnInfo.setColumnDescription(

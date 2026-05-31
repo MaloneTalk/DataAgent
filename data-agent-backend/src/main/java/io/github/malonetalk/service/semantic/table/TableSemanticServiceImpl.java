@@ -46,25 +46,28 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query) {
         SemanticUtils.requireDatasourceId(query.datasourceId());
+        int pageNumber = PageResponse.resolvePage(query.page());
+        int pageSize = PageResponse.resolvePageSize(query.pageSize());
         if (datasourceService.findById(query.datasourceId()) == null) {
-            return PageResponse.empty(query.pageRequest());
+            return PageResponse.empty(pageNumber, pageSize);
         }
         SemanticUtils.validateSortOrder(query.sortOrder());
         boolean sortDescending =
                 SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
-        PageHelper.startPage(query.pageRequest().page(), query.pageRequest().pageSize());
+        PageHelper.startPage(pageNumber, pageSize);
         Page<TableInfo> page =
                 (Page<TableInfo>)
                         tableInfoMapper.selectPageByDatasourceId(
                                 new TableSemanticPageQuery(
                                         query.datasourceId(),
-                                        query.pageRequest(),
+                                        pageNumber,
+                                        pageSize,
                                         SemanticUtils.normalizeBlankToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
         List<TableSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
         long total = page.getTotal();
-        return PageResponse.of(responses, total, query.pageRequest());
+        return PageResponse.of(responses, total, pageNumber, pageSize);
     }
 
     @Override

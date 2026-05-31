@@ -18,7 +18,6 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.pagination.PageRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchResetTableSemanticRequest;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
@@ -61,7 +60,7 @@ public class TableSemanticController {
         return Result.success(
                 tableSemanticService.getTablePage(
                         new TableSemanticPageQuery(
-                                datasourceId, PageRequest.of(page, pageSize), keyword, sortOrder)));
+                                datasourceId, page, pageSize, keyword, sortOrder)));
     }
 
     @GetMapping("/domains")
