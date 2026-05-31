@@ -27,6 +27,11 @@ import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledReques
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,24 +43,23 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/semantic/tables/{tableName}/relations")
+@RequestMapping("/api/semantic/tables/relations/{tableName}")
+@RequiredArgsConstructor
 public class TableRelationSemanticController {
 
     private final RelationSemanticService relationSemanticService;
 
-    public TableRelationSemanticController(RelationSemanticService relationSemanticService) {
-        this.relationSemanticService = relationSemanticService;
-    }
-
     @GetMapping
     public Result<PageResponse<LogicalTableRelationResponse>> listByTable(
-            @PathVariable String tableName,
-            @RequestParam Integer datasourceId,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize,
+            @PathVariable @NotBlank String tableName,
+            @RequestParam @NotNull @Min(1) Integer datasourceId,
+            @RequestParam(defaultValue = "1") @Min(1) Integer page,
+            @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
             @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
             @RequestParam(required = false) Boolean enabled,
-            @RequestParam(defaultValue = "desc") String sortOrder) {
+            @RequestParam(defaultValue = "desc")
+                    @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                    String sortOrder) {
         return Result.success(
                 relationSemanticService.getRelationPage(
                         datasourceId,
@@ -68,8 +72,8 @@ public class TableRelationSemanticController {
 
     @PostMapping
     public Result<LogicalTableRelationResponse> create(
-            @PathVariable String tableName,
-            @RequestParam Integer datasourceId,
+            @PathVariable @NotBlank String tableName,
+            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody BindLogicalTableRelationRequest request) {
         return Result.success(
                 relationSemanticService.createRelationSemantic(datasourceId, tableName, request));
@@ -77,9 +81,9 @@ public class TableRelationSemanticController {
 
     @PutMapping("/{relationId}")
     public Result<LogicalTableRelationResponse> update(
-            @PathVariable String tableName,
-            @PathVariable Integer relationId,
-            @RequestParam Integer datasourceId,
+            @PathVariable @NotBlank String tableName,
+            @PathVariable @NotNull @Min(1) Integer relationId,
+            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody UpdateLogicalTableRelationRequest request) {
         return Result.success(
                 relationSemanticService.updateRelationSemantic(
@@ -88,9 +92,9 @@ public class TableRelationSemanticController {
 
     @PutMapping("/{relationId}/enabled")
     public Result<Boolean> updateEnabled(
-            @PathVariable String tableName,
-            @PathVariable Integer relationId,
-            @RequestParam Integer datasourceId,
+            @PathVariable @NotBlank String tableName,
+            @PathVariable @NotNull @Min(1) Integer relationId,
+            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody UpdateLogicalTableRelationEnabledRequest request) {
         return Result.success(
                 relationSemanticService.updateRelationSemanticEnabled(
@@ -99,9 +103,9 @@ public class TableRelationSemanticController {
 
     @DeleteMapping("/{relationId}")
     public Result<Boolean> delete(
-            @PathVariable String tableName,
-            @PathVariable Integer relationId,
-            @RequestParam Integer datasourceId) {
+            @PathVariable @NotBlank String tableName,
+            @PathVariable @NotNull @Min(1) Integer relationId,
+            @RequestParam @NotNull @Min(1) Integer datasourceId) {
         return Result.success(
                 relationSemanticService.deleteRelationSemantic(
                         datasourceId, tableName, relationId));
@@ -109,7 +113,7 @@ public class TableRelationSemanticController {
 
     @DeleteMapping("/batch")
     public Result<Integer> deleteBatch(
-            @PathVariable String tableName,
+            @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BatchDeleteLogicalTableRelationRequest request) {
         return Result.success(
                 relationSemanticService.deleteRelationSemantics(

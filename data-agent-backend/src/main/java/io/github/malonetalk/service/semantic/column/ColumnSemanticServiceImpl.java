@@ -33,20 +33,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
-
-    public ColumnSemanticServiceImpl(
-            DatasourceService datasourceService,
-            ColumnSemanticInfoMapper columnSemanticInfoMapper) {
-        this.datasourceService = datasourceService;
-        this.columnSemanticInfoMapper = columnSemanticInfoMapper;
-    }
 
     @Override
     public PageResponse<ColumnSemanticResponse> getColumnPage(

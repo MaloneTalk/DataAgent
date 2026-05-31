@@ -33,19 +33,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class TableSemanticServiceImpl implements TableSemanticService {
 
     private final DatasourceService datasourceService;
     private final TableInfoMapper tableInfoMapper;
-
-    public TableSemanticServiceImpl(
-            DatasourceService datasourceService, TableInfoMapper tableInfoMapper) {
-        this.datasourceService = datasourceService;
-        this.tableInfoMapper = tableInfoMapper;
-    }
 
     @Override
     public PageResponse<TableSemanticResponse> getTablePage(

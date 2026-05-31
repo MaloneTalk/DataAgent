@@ -31,24 +31,17 @@ import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private final DatasourceService datasourceService;
     private final LogicalTableRelationMapper logicalTableRelationMapper;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
-
-    public RelationSemanticServiceImpl(
-            DatasourceService datasourceService,
-            LogicalTableRelationMapper logicalTableRelationMapper,
-            LogicalTableRelationHelper logicalTableRelationHelper) {
-        this.datasourceService = datasourceService;
-        this.logicalTableRelationMapper = logicalTableRelationMapper;
-        this.logicalTableRelationHelper = logicalTableRelationHelper;
-    }
 
     @Override
     public PageResponse<LogicalTableRelationResponse> getRelationPage(

@@ -25,6 +25,11 @@ import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,23 +40,22 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/semantic/tables/{tableName}/columns")
+@RequestMapping("/api/semantic/tables/columns/{tableName}")
+@RequiredArgsConstructor
 public class TableColumnSemanticController {
 
     private final ColumnSemanticService columnSemanticService;
 
-    public TableColumnSemanticController(ColumnSemanticService columnSemanticService) {
-        this.columnSemanticService = columnSemanticService;
-    }
-
     @GetMapping
     public Result<PageResponse<ColumnSemanticResponse>> findAllColumns(
-            @PathVariable String tableName,
-            @RequestParam Integer datasourceId,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize,
+            @PathVariable @NotBlank String tableName,
+            @RequestParam @NotNull @Min(1) Integer datasourceId,
+            @RequestParam(defaultValue = "1") @Min(1) Integer page,
+            @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
             @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
-            @RequestParam(defaultValue = "asc") String sortOrder) {
+            @RequestParam(defaultValue = "asc")
+                    @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                    String sortOrder) {
         return Result.success(
                 columnSemanticService.getColumnPage(
                         datasourceId,
@@ -63,8 +67,8 @@ public class TableColumnSemanticController {
 
     @PutMapping
     public Result<Boolean> updateColumnSemantic(
-            @PathVariable String tableName,
-            @RequestParam Integer datasourceId,
+            @PathVariable @NotBlank String tableName,
+            @RequestParam @NotNull @Min(1) Integer datasourceId,
             @Valid @RequestBody ColumnSemanticUpdateRequest request) {
         columnSemanticService.updateColumnSemantic(datasourceId, tableName, request);
         return Result.success(true);
@@ -72,16 +76,16 @@ public class TableColumnSemanticController {
 
     @DeleteMapping
     public Result<Boolean> resetColumnSemantic(
-            @PathVariable String tableName,
-            @RequestParam Integer datasourceId,
-            @RequestParam String columnName) {
+            @PathVariable @NotBlank String tableName,
+            @RequestParam @NotNull @Min(1) Integer datasourceId,
+            @RequestParam @NotBlank String columnName) {
         columnSemanticService.resetColumnSemantic(datasourceId, tableName, columnName);
         return Result.success(true);
     }
 
     @DeleteMapping("/batch")
     public Result<Integer> resetColumnSemantics(
-            @PathVariable String tableName,
+            @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BatchResetColumnSemanticRequest request) {
         return Result.success(
                 columnSemanticService.resetColumnSemantics(
