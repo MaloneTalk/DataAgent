@@ -29,7 +29,7 @@ public interface ColumnSemanticService {
             Integer datasourceId,
             String tableName,
             PageRequest pageRequest,
-            String keywordPrefix,
+            String keyword,
             String sortOrder);
 
     void updateColumnSemantic(

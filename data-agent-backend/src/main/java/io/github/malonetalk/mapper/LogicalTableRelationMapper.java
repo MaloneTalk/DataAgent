@@ -37,7 +37,7 @@ public interface LogicalTableRelationMapper {
     List<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
             @Param("datasourceId") Integer datasourceId,
             @Param("sourceTableName") String sourceTableName,
-            @Param("keywordPrefix") String keywordPrefix,
+            @Param("keyword") String keyword,
             @Param("isEnabled") Boolean isEnabled,
             @Param("sortDescending") boolean sortDescending);
 

@@ -55,7 +55,7 @@ public class TableRelationSemanticController {
             @RequestParam @NotNull @Min(1) Integer datasourceId,
             @RequestParam(defaultValue = "1") @Min(1) Integer page,
             @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
-            @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
+            @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(required = false) Boolean enabled,
             @RequestParam(defaultValue = "desc")
                     @Pattern(
@@ -67,7 +67,7 @@ public class TableRelationSemanticController {
                         datasourceId,
                         tableName,
                         PageRequest.of(page, pageSize),
-                        keywordPrefix,
+                        keyword,
                         enabled,
                         sortOrder));
     }

@@ -48,7 +48,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             Integer datasourceId,
             String tableName,
             PageRequest pageRequest,
-            String keywordPrefix,
+            String keyword,
             String sortOrder) {
         SemanticUtils.requireDatasourceId(datasourceId);
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
@@ -57,14 +57,14 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
         SemanticUtils.validateSortOrder(sortOrder);
         boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
-        String normalizedPrefix = SemanticUtils.normalizeBlankToNull(keywordPrefix);
+        String normalizedKeyword = SemanticUtils.normalizeBlankToNull(keyword);
         PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
         Page<ColumnInfo> page =
                 (Page<ColumnInfo>)
                         columnSemanticInfoMapper.selectPageByDatasourceIdAndTableName(
                                 datasourceId,
                                 normalizedTableName,
-                                normalizedPrefix,
+                                normalizedKeyword,
                                 sortDescending);
         List<ColumnSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageRequest);

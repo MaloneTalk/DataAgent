@@ -27,7 +27,7 @@ import java.util.List;
 public interface TableSemanticService {
 
     PageResponse<TableSemanticResponse> getTablePage(
-            Integer datasourceId, PageRequest pageRequest, String keywordPrefix, String sortOrder);
+            Integer datasourceId, PageRequest pageRequest, String keyword, String sortOrder);
 
     List<String> listAvailableDomains(Integer datasourceId);
 

@@ -30,7 +30,7 @@ public interface RelationSemanticService {
             Integer datasourceId,
             String tableName,
             PageRequest pageRequest,
-            String keywordPrefix,
+            String keyword,
             Boolean enabled,
             String sortOrder);
 

@@ -51,7 +51,7 @@ public class TableSemanticController {
             @RequestParam @NotNull @Min(1) Integer datasourceId,
             @RequestParam(defaultValue = "1") @Min(1) Integer page,
             @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
-            @RequestParam(name = "keywordPrefix", required = false) String keywordPrefix,
+            @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(defaultValue = "asc")
                     @Pattern(
                             regexp = "^(?i)(asc|desc)$",
@@ -59,7 +59,7 @@ public class TableSemanticController {
                     String sortOrder) {
         return Result.success(
                 tableSemanticService.getTablePage(
-                        datasourceId, PageRequest.of(page, pageSize), keywordPrefix, sortOrder));
+                        datasourceId, PageRequest.of(page, pageSize), keyword, sortOrder));
     }
 
     @GetMapping("/domains")

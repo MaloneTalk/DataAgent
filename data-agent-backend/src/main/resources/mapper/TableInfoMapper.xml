@@ -22,8 +22,8 @@
     <select id="selectPageByDatasourceId" resultMap="BaseResultMap">
         SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}
-        <if test="keywordPrefix != null and keywordPrefix != ''">
-            AND table_name LIKE CONCAT(#{keywordPrefix}, '%')
+        <if test="keyword != null and keyword != ''">
+            AND LOWER(table_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
         </if>
         <choose>
             <when test="sortDescending">

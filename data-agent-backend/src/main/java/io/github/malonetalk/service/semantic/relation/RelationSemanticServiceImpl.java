@@ -48,14 +48,14 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId,
             String tableName,
             PageRequest pageRequest,
-            String keywordPrefix,
+            String keyword,
             Boolean enabled,
             String sortOrder) {
         requireDatasource(datasourceId);
         String normalizedTableName =
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         SemanticUtils.validateSortOrder(sortOrder);
-        String normalizedPrefix = SemanticUtils.normalizeBlankToNull(keywordPrefix);
+        String normalizedKeyword = SemanticUtils.normalizeBlankToNull(keyword);
         boolean sortDescending = SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder);
         PageHelper.startPage(pageRequest.page(), pageRequest.pageSize());
         Page<LogicalTableRelation> page =
@@ -63,7 +63,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         logicalTableRelationMapper.selectPageByDatasourceIdAndSourceTable(
                                 datasourceId,
                                 normalizedTableName,
-                                normalizedPrefix,
+                                normalizedKeyword,
                                 enabled,
                                 sortDescending);
         if (page.getTotal() == 0L) {

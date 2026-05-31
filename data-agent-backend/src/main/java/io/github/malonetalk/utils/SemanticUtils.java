@@ -57,15 +57,4 @@ public final class SemanticUtils {
     public static String normalizeIdentifierKey(String value) {
         return requireName(value, "value").toLowerCase(Locale.ROOT);
     }
-
-    public static boolean matchesKeywordPrefix(String value, String keywordPrefix) {
-        if (keywordPrefix == null || keywordPrefix.isBlank()) {
-            return true;
-        }
-        if (value == null) {
-            return false;
-        }
-        return value.toLowerCase(Locale.ROOT)
-                .startsWith(keywordPrefix.trim().toLowerCase(Locale.ROOT));
-    }
 }
