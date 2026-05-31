@@ -95,7 +95,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public LogicalTableRelationResponse updateRelationSemantic(
             String tableName, UpdateLogicalTableRelationRequest request) {
         requireDatasource(request.datasourceId());
-        LogicalTableRelation existing = requireRelation(request.datasourceId(), tableName, request.relationId());
+        LogicalTableRelation existing =
+                requireRelation(request.datasourceId(), tableName, request.relationId());
         applyRelationUpdate(existing, tableName, request);
         ensureUniqueSourceKey(
                 request.datasourceId(),
@@ -115,7 +116,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         if (request.enabled() == null) {
             throw new IllegalArgumentException("enabled cannot be null.");
         }
-        LogicalTableRelation relation = requireRelation(request.datasourceId(), tableName, request.relationId());
+        LogicalTableRelation relation =
+                requireRelation(request.datasourceId(), tableName, request.relationId());
         return logicalTableRelationMapper.updateEnabled(
                         request.relationId(),
                         request.datasourceId(),

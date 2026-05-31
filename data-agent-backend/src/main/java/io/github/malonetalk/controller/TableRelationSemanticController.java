@@ -78,16 +78,14 @@ public class TableRelationSemanticController {
     public Result<LogicalTableRelationResponse> create(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BindLogicalTableRelationRequest request) {
-        return Result.success(
-                relationSemanticService.createRelationSemantic(tableName, request));
+        return Result.success(relationSemanticService.createRelationSemantic(tableName, request));
     }
 
     @PutMapping
     public Result<LogicalTableRelationResponse> update(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody UpdateLogicalTableRelationRequest request) {
-        return Result.success(
-                relationSemanticService.updateRelationSemantic(tableName, request));
+        return Result.success(relationSemanticService.updateRelationSemantic(tableName, request));
     }
 
     @PutMapping("/enabled")

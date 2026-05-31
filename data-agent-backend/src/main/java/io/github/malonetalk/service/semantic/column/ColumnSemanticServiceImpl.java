@@ -72,8 +72,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     }
 
     @Override
-    public void updateColumnSemantic(
-            String tableName, ColumnSemanticUpdateRequest request) {
+    public void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
         String normalizedColumnName = SemanticUtils.requireName(request.columnName(), "columnName");
