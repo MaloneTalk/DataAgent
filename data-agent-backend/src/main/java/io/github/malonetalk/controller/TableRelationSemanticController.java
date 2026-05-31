@@ -30,7 +30,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,26 +51,14 @@ public class TableRelationSemanticController {
     @GetMapping
     public Result<PageResponse<LogicalTableRelationResponse>> listByTable(
             @PathVariable @NotBlank String tableName,
-            @RequestParam @NotNull @Min(1) Integer datasourceId,
-            @RequestParam(defaultValue = "1") @Min(1) Integer page,
-            @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
-            @RequestParam(name = "keyword", required = false) String keyword,
-            @RequestParam(required = false) Boolean enabled,
-            @RequestParam(defaultValue = "desc")
-                    @Pattern(
-                            regexp = "^(?i)(asc|desc)$",
-                            message = "sortOrder must be asc or desc.")
-                    String sortOrder) {
+            @Valid RelationSemanticPageQuery query) {
         return Result.success(
                 relationSemanticService.getRelationPage(
                         new RelationSemanticPageQuery(
-                                datasourceId,
-                                tableName,
-                                page,
-                                pageSize,
-                                keyword,
-                                enabled,
-                                sortOrder)));
+                                query.datasourceId(), tableName,
+                                query.page(), query.pageSize(),
+                                query.keyword(), query.enabled(),
+                                query.sortOrder())));
     }
 
     @PostMapping

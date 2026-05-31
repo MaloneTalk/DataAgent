@@ -28,7 +28,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,19 +48,13 @@ public class TableColumnSemanticController {
     @GetMapping
     public Result<PageResponse<ColumnSemanticResponse>> findAllColumns(
             @PathVariable @NotBlank String tableName,
-            @RequestParam @NotNull @Min(1) Integer datasourceId,
-            @RequestParam(defaultValue = "1") @Min(1) Integer page,
-            @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
-            @RequestParam(name = "keyword", required = false) String keyword,
-            @RequestParam(defaultValue = "asc")
-                    @Pattern(
-                            regexp = "^(?i)(asc|desc)$",
-                            message = "sortOrder must be asc or desc.")
-                    String sortOrder) {
+            @Valid ColumnSemanticPageQuery query) {
         return Result.success(
                 columnSemanticService.getColumnPage(
                         new ColumnSemanticPageQuery(
-                                datasourceId, tableName, page, pageSize, keyword, sortOrder)));
+                                query.datasourceId(), tableName,
+                                query.page(), query.pageSize(),
+                                query.keyword(), query.sortOrder())));
     }
 
     @PutMapping

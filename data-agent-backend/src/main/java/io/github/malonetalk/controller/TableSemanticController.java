@@ -28,7 +28,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,19 +47,8 @@ public class TableSemanticController {
 
     @GetMapping
     public Result<PageResponse<TableSemanticResponse>> findAllTables(
-            @RequestParam @NotNull @Min(1) Integer datasourceId,
-            @RequestParam(defaultValue = "1") @Min(1) Integer page,
-            @RequestParam(defaultValue = "20") @Min(1) Integer pageSize,
-            @RequestParam(name = "keyword", required = false) String keyword,
-            @RequestParam(defaultValue = "asc")
-                    @Pattern(
-                            regexp = "^(?i)(asc|desc)$",
-                            message = "sortOrder must be asc or desc.")
-                    String sortOrder) {
-        return Result.success(
-                tableSemanticService.getTablePage(
-                        new TableSemanticPageQuery(
-                                datasourceId, page, pageSize, keyword, sortOrder)));
+            @Valid TableSemanticPageQuery query) {
+        return Result.success(tableSemanticService.getTablePage(query));
     }
 
     @GetMapping("/domains")

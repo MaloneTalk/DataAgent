@@ -17,11 +17,15 @@
  */
 package io.github.malonetalk.dto.semantic;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+
 public record RelationSemanticPageQuery(
-        Integer datasourceId,
+        @NotNull @Min(1) Integer datasourceId,
         String tableName,
-        Integer page,
-        Integer pageSize,
+        @Min(1) Integer page,
+        @Min(1) Integer pageSize,
         String keyword,
         Boolean enabled,
-        String sortOrder) {}
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.") String sortOrder) {}
