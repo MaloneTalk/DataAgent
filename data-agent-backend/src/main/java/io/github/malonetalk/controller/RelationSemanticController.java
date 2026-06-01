@@ -44,7 +44,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/semantic/tables/relations/{tableName}")
 @RequiredArgsConstructor
-public class TableRelationSemanticController {
+public class RelationSemanticController {
 
     private final RelationSemanticService relationSemanticService;
 

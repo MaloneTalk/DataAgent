@@ -53,7 +53,7 @@ public class LogicalTableRelationConverter {
                 relation.getRelationType(),
                 relation.getDescription(),
                 relation.getIsEnabled(),
-                relation.getIsEnabled(),
+                Boolean.TRUE.equals(relation.getIsEnabled()),
                 null,
                 relation.getCreateTime(),
                 relation.getUpdateTime());
