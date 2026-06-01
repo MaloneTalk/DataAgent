@@ -15,28 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.convertor;
 
-import io.github.malonetalk.entity.Datasource;
-import java.util.List;
+import io.github.malonetalk.dto.semantic.TableSemanticResponse;
+import io.github.malonetalk.entity.TableInfo;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-public interface DatasourceService {
+@Mapper(componentModel = "spring")
+public interface TableSemanticConverter {
 
-    List<Datasource> findAll();
-
-    Datasource findById(Integer id);
-
-    boolean save(Datasource dataSource);
-
-    boolean update(Datasource dataSource);
-
-    boolean deleteById(Integer id);
-
-    List<Datasource> findByStatus(String status);
-
-    List<Datasource> findByType(String type);
-
-    boolean updateStatus(Integer id, String status);
-
-    Datasource requireActiveDatasource();
+    @Mapping(target = "physicalTableDescription", expression = "java(null)")
+    @Mapping(target = "hasPhysicalTable", constant = "true")
+    @Mapping(target = "effective", expression = "java(Boolean.TRUE.equals(tableInfo.getIsVisible()))")
+    @Mapping(target = "invalidReason", expression = "java(null)")
+    TableSemanticResponse toResponse(TableInfo tableInfo);
 }

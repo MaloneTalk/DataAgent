@@ -20,6 +20,7 @@ package io.github.malonetalk.service.semantic.table;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.TableSemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
@@ -42,6 +43,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     private final DatasourceService datasourceService;
     private final TableInfoMapper tableInfoMapper;
+    private final TableSemanticConverter tableSemanticConverter;
 
     @Override
     public PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query) {
@@ -65,7 +67,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                         SemanticUtils.normalizeBlankToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
-        List<TableSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
+        List<TableSemanticResponse> responses =
+                page.stream().map(tableSemanticConverter::toResponse).toList();
         long total = page.getTotal();
         return PageResponse.of(responses, total, pageNumber, pageSize);
     }
@@ -83,15 +86,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 .distinct()
                 .sorted(String::compareToIgnoreCase)
                 .toList();
-    }
-
-    @Override
-    public List<TableInfo> listTableInfosByDatasourceId(Integer datasourceId) {
-        SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
-            return List.of();
-        }
-        return tableInfoMapper.selectByDatasourceId(datasourceId);
     }
 
     @Override
@@ -171,20 +165,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private TableSemanticResponse mapResponse(TableInfo tableInfo) {
-        return new TableSemanticResponse(
-                tableInfo.getId(),
-                tableInfo.getTableName(),
-                tableInfo.getDomain(),
-                null,
-                tableInfo.getTableDescription(),
-                tableInfo.getIsVisible(),
-                true,
-                Boolean.TRUE.equals(tableInfo.getIsVisible()),
-                null,
-                tableInfo.getUpdateTime());
     }
 
     private String normalizeName(String value) {

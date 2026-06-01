@@ -19,69 +19,50 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.agent.datasource.ColumnInfo;
-import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
-import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.enums.Status;
-import io.github.malonetalk.service.DatasourceService;
-import java.util.List;
-import lombok.AllArgsConstructor;
+import io.github.malonetalk.common.ToolResult;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
+import io.github.malonetalk.service.semantic.SemanticMergeService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class GetTableSchemaTool implements MarkAgentTool {
 
-    private final DatasourceService dataSourceService;
-    private final SchemaReader schemaReader;
+    private final SemanticMergeService semanticMergeService;
 
     @Tool(
             name = "get_table_schema",
             description =
-                    "Get the schema information of the specified table, including column name, data"
-                        + " type, whether it is primary key, whether it allows null, default value"
-                        + " and column comments. This tool should be called to understand the table"
-                        + " structure before generating SQL.")
-    public String getTableSchema(
-            @ToolParam(name = "table_name", description = "The table name to query schema for")
-                    String tableName) {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-        if (activeDataSources.isEmpty()) {
-            return "No active datasource available, cannot get table schema.";
-        }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one.", activeDataSources.size());
-        }
-
-        Datasource datasource = activeDataSources.get(0);
-
+                    "获取指定表的语义 Schema 信息，包含表元数据和分页可见列信息。"
+                            + "语义描述优先于物理元数据作为兜底。"
+                            + "表关系通过 get_tables 工具获取，不通过本工具返回。"
+                            + "在生成 SQL 之前应调用此工具了解表结构。")
+    public ToolResult<TableSchemaSemanticPrompt> getTableSchema(
+            @ToolParam(name = "table_name", description = "要查询 Schema 的表名")
+                    String tableName,
+            @ToolParam(name = "column_page", description = "可选列页码，默认为1")
+                    Integer columnPage,
+            @ToolParam(
+                            name = "column_page_size",
+                            description = "可选列每页大小，默认20，最大100")
+                    Integer columnPageSize) {
         try {
-            List<ColumnInfo> columns = schemaReader.getTableSchema(datasource, tableName);
-            return formatSchema(tableName, columns);
-        } catch (SchemaReadException e) {
-            return "Failed to get table schema: " + e.getMessage();
+            int resolvedPage = PageResponse.resolvePage(columnPage);
+            int resolvedPageSize = PageResponse.resolvePageSize(columnPageSize);
+            return ToolResult.success(
+                    semanticMergeService.getTableSchema(
+                            tableName, resolvedPage, resolvedPageSize));
+        } catch (IllegalStateException e) {
+            return ToolResult.error("数据源解析失败", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ToolResult.error("参数错误", e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("获取表 {} 的 Schema 失败: {}", tableName, e.getMessage(), e);
+            return ToolResult.error("获取 Schema 失败", e.getMessage());
         }
-    }
-
-    private String formatSchema(String tableName, List<ColumnInfo> columns) {
-        if (columns.isEmpty()) {
-            return "Table " + tableName + " does not exist or has no column information.";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("Schema of table ").append(tableName).append(":\n");
-
-        for (ColumnInfo col : columns) {
-            sb.append("  - ").append(col.toString()).append("\n");
-        }
-
-        return sb.toString();
     }
 }

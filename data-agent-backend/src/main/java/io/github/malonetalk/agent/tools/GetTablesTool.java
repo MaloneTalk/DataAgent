@@ -18,42 +18,47 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
-import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.enums.Status;
-import io.github.malonetalk.service.DatasourceService;
-import io.github.malonetalk.service.semantic.table.TableSemanticService;
-import java.util.Collections;
-import java.util.List;
-import lombok.AllArgsConstructor;
+import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.agent.tools.response.TablePromptResponse;
+import io.github.malonetalk.common.ToolResult;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.service.semantic.SemanticMergeService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class GetTablesTool implements MarkAgentTool {
 
-    private final DatasourceService dataSourceService;
-    private final TableSemanticService tableSemanticService;
+    private final SemanticMergeService semanticMergeService;
 
-    @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
-    public List<TableInfo> getTables() {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-        if (activeDataSources.isEmpty()) {
-            return Collections.emptyList();
+    @Tool(
+            name = "get_tables",
+            description =
+                    "获取可见的表信息，包含表名、领域、描述以及该表与其他表的逻辑关系。"
+                            + "返回 success/data/error 包装结构，data 包含分页的表项。")
+    public ToolResult<PageResponse<TablePromptResponse>> getTables(
+            @ToolParam(name = "page", description = "可选页码，默认为1")
+                    Integer page,
+            @ToolParam(
+                            name = "page_size",
+                            description = "可选每页大小，默认20，最大100")
+                    Integer pageSize) {
+        try {
+            int resolvedPage = PageResponse.resolvePage(page);
+            int resolvedPageSize = PageResponse.resolvePageSize(pageSize);
+            return ToolResult.success(
+                    semanticMergeService.getVisibleTablePromptPage(
+                            resolvedPage, resolvedPageSize));
+        } catch (IllegalStateException e) {
+            return ToolResult.error("数据源解析失败", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ToolResult.error("参数错误", e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("获取可见表失败: {}", e.getMessage(), e);
+            return ToolResult.error("获取表失败", e.getMessage());
         }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one. This may cause data"
-                            + " inconsistency.",
-                    activeDataSources.size());
-        }
-
-        Datasource dataSource = activeDataSources.get(0);
-        return tableSemanticService.listTableInfosByDatasourceId(dataSource.getId());
     }
 }

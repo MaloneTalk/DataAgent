@@ -20,6 +20,7 @@ package io.github.malonetalk.service.semantic.column;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.ColumnSemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
@@ -42,6 +43,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
+    private final ColumnSemanticConverter columnSemanticConverter;
 
     @Override
     public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
@@ -67,7 +69,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                         SemanticUtils.normalizeBlankToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
-        List<ColumnSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
+        List<ColumnSemanticResponse> responses =
+                page.stream().map(columnSemanticConverter::toResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
@@ -158,21 +161,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private ColumnSemanticResponse mapResponse(ColumnInfo columnInfo) {
-        return new ColumnSemanticResponse(
-                columnInfo.getId(),
-                columnInfo.getColumnName(),
-                null,
-                columnInfo.getColumnDescription(),
-                null,
-                null,
-                columnInfo.getIsVisible(),
-                true,
-                Boolean.TRUE.equals(columnInfo.getIsVisible()),
-                null,
-                columnInfo.getUpdateTime());
     }
 
     private String normalizeKey(String value) {

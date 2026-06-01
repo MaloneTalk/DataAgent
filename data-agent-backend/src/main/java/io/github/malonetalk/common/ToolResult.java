@@ -15,28 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.common;
 
-import io.github.malonetalk.entity.Datasource;
-import java.util.List;
+public record ToolResult<T>(boolean success, T data, ToolError error) {
 
-public interface DatasourceService {
+    public static <T> ToolResult<T> success(T data) {
+        return new ToolResult<>(true, data, null);
+    }
 
-    List<Datasource> findAll();
-
-    Datasource findById(Integer id);
-
-    boolean save(Datasource dataSource);
-
-    boolean update(Datasource dataSource);
-
-    boolean deleteById(Integer id);
-
-    List<Datasource> findByStatus(String status);
-
-    List<Datasource> findByType(String type);
-
-    boolean updateStatus(Integer id, String status);
-
-    Datasource requireActiveDatasource();
+    public static <T> ToolResult<T> error(String code, String message) {
+        return new ToolResult<>(false, null, new ToolError(code, message));
+    }
 }

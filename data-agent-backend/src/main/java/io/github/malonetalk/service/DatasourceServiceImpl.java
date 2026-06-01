@@ -18,12 +18,15 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class DatasourceServiceImpl implements DatasourceService {
@@ -71,5 +74,21 @@ public class DatasourceServiceImpl implements DatasourceService {
     @Override
     public boolean updateStatus(Integer id, String status) {
         return dataSourceMapper.updateStatus(id, status) > 0;
+    }
+
+    @Override
+    public Datasource requireActiveDatasource() {
+        List<Datasource> activeDataSources =
+                dataSourceMapper.selectByStatus(Status.ACTIVE.getCode());
+        if (activeDataSources.isEmpty()) {
+            throw new IllegalStateException("没有活跃的数据源，请先激活一个数据源。");
+        }
+        if (activeDataSources.size() > 1) {
+            List<Integer> activeIds = activeDataSources.stream().map(Datasource::getId).toList();
+            String message = "存在多个活跃数据源 " + activeIds + "，请仅保留一个活跃数据源。";
+            log.error("发现 {} 个活跃数据源，拒绝隐式选择。activeIds={}", activeDataSources.size(), activeIds);
+            throw new IllegalStateException(message);
+        }
+        return activeDataSources.get(0);
     }
 }

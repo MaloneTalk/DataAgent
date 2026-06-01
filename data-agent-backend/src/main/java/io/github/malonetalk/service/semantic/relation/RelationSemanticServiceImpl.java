@@ -20,6 +20,7 @@ package io.github.malonetalk.service.semantic.relation;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.LogicalTableRelationConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
@@ -43,6 +44,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private final DatasourceService datasourceService;
     private final LogicalTableRelationMapper logicalTableRelationMapper;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
+    private final LogicalTableRelationConverter logicalTableRelationConverter;
 
     @Override
     public PageResponse<LogicalTableRelationResponse> getRelationPage(
@@ -71,7 +73,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         if (page.getTotal() == 0L) {
             return PageResponse.empty(pageNumber, pageSize);
         }
-        List<LogicalTableRelationResponse> items = page.stream().map(this::mapResponse).toList();
+        List<LogicalTableRelationResponse> items =
+                page.stream().map(logicalTableRelationConverter::toResponse).toList();
         return PageResponse.of(items, page.getTotal(), pageNumber, pageSize);
     }
 
@@ -87,7 +90,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 relation.getSourceColumnSignature(),
                 null);
         logicalTableRelationMapper.insert(relation);
-        return mapResponse(relation);
+        return logicalTableRelationConverter.toResponse(relation);
     }
 
     @Override
@@ -105,7 +108,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 existing.getId());
         existing.setUpdateTime(LocalDateTime.now());
         logicalTableRelationMapper.update(existing);
-        return mapResponse(existing);
+        return logicalTableRelationConverter.toResponse(existing);
     }
 
     @Override
@@ -255,32 +258,4 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         return relation;
     }
 
-    private LogicalTableRelationResponse mapResponse(LogicalTableRelation relation) {
-        List<String> sourceColumns =
-                logicalTableRelationHelper.fromJson(
-                        relation.getSourceColumnNamesJson(), "sourceColumnNames");
-        List<String> targetColumns =
-                logicalTableRelationHelper.fromJson(
-                        relation.getTargetColumnNamesJson(), "targetColumnNames");
-        return new LogicalTableRelationResponse(
-                relation.getId(),
-                logicalTableRelationHelper.buildRelationKey(
-                        relation.getSourceTableName(),
-                        sourceColumns,
-                        relation.getTargetTableName(),
-                        targetColumns),
-                relation.getDatasourceId(),
-                LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
-                relation.getSourceTableName(),
-                sourceColumns,
-                relation.getTargetTableName(),
-                targetColumns,
-                relation.getRelationType(),
-                relation.getDescription(),
-                relation.getIsEnabled(),
-                relation.getIsEnabled(),
-                null,
-                relation.getCreateTime(),
-                relation.getUpdateTime());
-    }
 }
