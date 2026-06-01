@@ -18,7 +18,7 @@
 package io.github.malonetalk.convertor;
 
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
-import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.entity.TableSemantic;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -27,7 +27,9 @@ public interface TableSemanticConverter {
 
     @Mapping(target = "physicalTableDescription", expression = "java(null)")
     @Mapping(target = "hasPhysicalTable", constant = "true")
-    @Mapping(target = "effective", expression = "java(Boolean.TRUE.equals(tableInfo.getIsVisible()))")
+    @Mapping(
+            target = "effective",
+            expression = "java(Boolean.TRUE.equals(tableSemantic.getIsVisible()))")
     @Mapping(target = "invalidReason", expression = "java(null)")
-    TableSemanticResponse toResponse(TableInfo tableInfo);
+    TableSemanticResponse toResponse(TableSemantic tableSemantic);
 }

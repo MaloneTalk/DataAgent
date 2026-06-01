@@ -19,8 +19,6 @@ package io.github.malonetalk.service.semantic;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.entity.Column;
-import io.github.malonetalk.infrastructure.SchemaReader;
 import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.agent.tools.response.TablePromptResponse;
 import io.github.malonetalk.agent.tools.response.TableRelationResponse;
@@ -28,13 +26,15 @@ import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
-import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.entity.Column;
+import io.github.malonetalk.entity.ColumnSemantic;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
-import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.entity.TableSemantic;
+import io.github.malonetalk.infrastructure.SchemaReader;
+import io.github.malonetalk.mapper.ColumnSemanticMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
-import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.mapper.TableSemanticMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -55,17 +55,17 @@ public class SemanticMergeService {
 
     private final DatasourceService datasourceService;
     private final SchemaReader schemaReader;
-    private final TableInfoMapper tableInfoMapper;
-    private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
+    private final TableSemanticMapper tableSemanticMapper;
+    private final ColumnSemanticMapper columnSemanticMapper;
     private final LogicalTableRelationMapper logicalTableRelationMapper;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
 
     public PageResponse<TablePromptResponse> getVisibleTablePromptPage(int page, int pageSize) {
         Datasource datasource = datasourceService.requireActiveDatasource();
         PageHelper.startPage(page, pageSize);
-        Page<TableInfo> pageResult =
-                (Page<TableInfo>)
-                        tableInfoMapper.selectVisiblePageByDatasourceId(
+        Page<TableSemantic> pageResult =
+                (Page<TableSemantic>)
+                        tableSemanticMapper.selectVisiblePageByDatasourceId(
                                 new TableSemanticPageQuery(
                                         datasource.getId(), page, pageSize, null, "asc"),
                                 false);
@@ -94,8 +94,8 @@ public class SemanticMergeService {
         Datasource datasource = datasourceService.requireActiveDatasource();
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
 
-        TableInfo semanticTable =
-                tableInfoMapper.selectByDatasourceIdAndTableName(
+        TableSemantic semanticTable =
+                tableSemanticMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
         if (semanticTable == null || !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
             throw new IllegalArgumentException("表 " + normalizedTableName + " 不存在或不可见。");
@@ -103,8 +103,7 @@ public class SemanticMergeService {
 
         Map<String, Column> physicalByKey = new HashMap<>();
         try {
-            for (Column col :
-                    schemaReader.getTableSchema(datasource, normalizedTableName)) {
+            for (Column col : schemaReader.getTableSchema(datasource, normalizedTableName)) {
                 physicalByKey.put(col.columnName().toLowerCase(Locale.ROOT), col);
             }
         } catch (SchemaReader.SchemaReadException e) {
@@ -112,14 +111,13 @@ public class SemanticMergeService {
                     "无法读取表 " + normalizedTableName + " 的 Schema: " + e.getMessage(), e);
         }
         if (physicalByKey.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "表 " + normalizedTableName + " 不存在或没有可读列。");
+            throw new IllegalArgumentException("表 " + normalizedTableName + " 不存在或没有可读列。");
         }
 
         PageHelper.startPage(page, pageSize);
-        Page<io.github.malonetalk.entity.ColumnInfo> pageResult =
-                (Page<io.github.malonetalk.entity.ColumnInfo>)
-                        columnSemanticInfoMapper.selectVisiblePageByDatasourceIdAndTableName(
+        Page<ColumnSemantic> pageResult =
+                (Page<ColumnSemantic>)
+                        columnSemanticMapper.selectVisiblePageByDatasourceIdAndTableName(
                                 new ColumnSemanticPageQuery(
                                         datasource.getId(),
                                         normalizedTableName,
@@ -130,9 +128,7 @@ public class SemanticMergeService {
                                 false);
 
         List<ColumnPromptResponse> items =
-                pageResult.stream()
-                        .map(c -> mapColumnPrompt(c, physicalByKey))
-                        .toList();
+                pageResult.stream().map(c -> mapColumnPrompt(c, physicalByKey)).toList();
 
         String description =
                 SemanticUtils.normalizeBlankToNull(semanticTable.getTableDescription());
@@ -140,8 +136,7 @@ public class SemanticMergeService {
 
         PageResponse<ColumnPromptResponse> columnPage =
                 PageResponse.of(items, pageResult.getTotal(), page, pageSize);
-        return new TableSchemaSemanticPrompt(
-                normalizedTableName, domain, description, columnPage);
+        return new TableSchemaSemanticPrompt(normalizedTableName, domain, description, columnPage);
     }
 
     private List<TableRelationResponse> resolveVisibleRelations(
@@ -185,8 +180,7 @@ public class SemanticMergeService {
     }
 
     private ColumnPromptResponse mapColumnPrompt(
-            ColumnInfo semanticColumn,
-            Map<String, Column> physicalByKey) {
+            ColumnSemantic semanticColumn, Map<String, Column> physicalByKey) {
         Column physicalColumn =
                 physicalByKey.get(semanticColumn.getColumnName().toLowerCase(Locale.ROOT));
         String description =

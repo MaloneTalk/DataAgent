@@ -40,18 +40,13 @@ public class GetTablesTool implements MarkAgentTool {
                     "获取可见的表信息，包含表名、领域、描述以及该表与其他表的逻辑关系。"
                             + "返回 success/data/error 包装结构，data 包含分页的表项。")
     public ToolResult<PageResponse<TablePromptResponse>> getTables(
-            @ToolParam(name = "page", description = "可选页码，默认为1")
-                    Integer page,
-            @ToolParam(
-                            name = "page_size",
-                            description = "可选每页大小，默认20，最大100")
-                    Integer pageSize) {
+            @ToolParam(name = "page", description = "可选页码，默认为1") Integer page,
+            @ToolParam(name = "page_size", description = "可选每页大小，默认20，最大100") Integer pageSize) {
         try {
             int resolvedPage = PageResponse.resolvePage(page);
             int resolvedPageSize = PageResponse.resolvePageSize(pageSize);
             return ToolResult.success(
-                    semanticMergeService.getVisibleTablePromptPage(
-                            resolvedPage, resolvedPageSize));
+                    semanticMergeService.getVisibleTablePromptPage(resolvedPage, resolvedPageSize));
         } catch (IllegalStateException e) {
             return ToolResult.error("数据源解析失败", e.getMessage());
         } catch (IllegalArgumentException e) {

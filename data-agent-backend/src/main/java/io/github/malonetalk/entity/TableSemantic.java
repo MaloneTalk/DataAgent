@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 @Data
-public class TableInfo {
+public class TableSemantic {
 
     private Integer id;
     private String tableName;

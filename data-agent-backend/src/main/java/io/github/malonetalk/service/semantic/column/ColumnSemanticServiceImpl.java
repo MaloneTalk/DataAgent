@@ -25,8 +25,8 @@ import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
-import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.entity.ColumnSemantic;
+import io.github.malonetalk.mapper.ColumnSemanticMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
@@ -42,7 +42,7 @@ import org.springframework.stereotype.Service;
 public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
-    private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
+    private final ColumnSemanticMapper columnSemanticMapper;
     private final ColumnSemanticConverter columnSemanticConverter;
 
     @Override
@@ -58,9 +58,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         boolean sortDescending =
                 SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
-        Page<ColumnInfo> page =
-                (Page<ColumnInfo>)
-                        columnSemanticInfoMapper.selectPageByDatasourceIdAndTableName(
+        Page<ColumnSemantic> page =
+                (Page<ColumnSemantic>)
+                        columnSemanticMapper.selectPageByDatasourceIdAndTableName(
                                 new ColumnSemanticPageQuery(
                                         query.datasourceId(),
                                         normalizedTableName,
@@ -79,20 +79,20 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         requireDatasource(request.datasourceId());
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
         String normalizedColumnName = SemanticUtils.requireName(request.columnName(), "columnName");
-        ColumnInfo existing =
-                columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
+        ColumnSemantic existing =
+                columnSemanticMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
         if (existing == null) {
-            ColumnInfo columnInfo = new ColumnInfo();
-            columnInfo.setDatasourceId(request.datasourceId());
-            columnInfo.setTableName(normalizedTableName);
-            columnInfo.setColumnName(normalizedColumnName);
-            columnInfo.setColumnDescription(
+            ColumnSemantic columnSemantic = new ColumnSemantic();
+            columnSemantic.setDatasourceId(request.datasourceId());
+            columnSemantic.setTableName(normalizedTableName);
+            columnSemantic.setColumnName(normalizedColumnName);
+            columnSemantic.setColumnDescription(
                     SemanticUtils.normalizeBlankToNull(request.columnDescription()));
-            columnInfo.setIsVisible(request.isVisible());
-            columnInfo.setCreateTime(LocalDateTime.now());
-            columnInfo.setUpdateTime(LocalDateTime.now());
-            columnSemanticInfoMapper.insert(columnInfo);
+            columnSemantic.setIsVisible(request.isVisible());
+            columnSemantic.setCreateTime(LocalDateTime.now());
+            columnSemantic.setUpdateTime(LocalDateTime.now());
+            columnSemanticMapper.insert(columnSemantic);
             return;
         }
         existing.setTableName(normalizedTableName);
@@ -101,20 +101,19 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 SemanticUtils.normalizeBlankToNull(request.columnDescription()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
-        columnSemanticInfoMapper.update(existing);
+        columnSemanticMapper.update(existing);
     }
 
     @Override
     public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
         requireDatasource(datasourceId);
-        ColumnInfo existing =
-                columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
+        ColumnSemantic existing =
+                columnSemanticMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName);
         if (existing == null) {
             throw new IllegalArgumentException("Column semantic metadata does not exist.");
         }
-        columnSemanticInfoMapper.deleteByDatasourceIdAndIds(
-                datasourceId, List.of(existing.getId()));
+        columnSemanticMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
     }
 
     @Override
@@ -134,14 +133,14 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                         columnName, "columnName")))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
-                columnSemanticInfoMapper
+                columnSemanticMapper
                         .selectByDatasourceIdAndTableName(datasourceId, normalizedTableName)
                         .stream()
                         .filter(
                                 column ->
                                         normalizedColumnNames.contains(
                                                 normalizeKey(column.getColumnName())))
-                        .map(ColumnInfo::getId)
+                        .map(ColumnSemantic::getId)
                         .distinct()
                         .toList();
         if (matchedIds.isEmpty()) {
@@ -153,7 +152,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                             + normalizedTableName
                             + ".");
         }
-        return columnSemanticInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        return columnSemanticMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
     }
 
     private void requireDatasource(Integer datasourceId) {

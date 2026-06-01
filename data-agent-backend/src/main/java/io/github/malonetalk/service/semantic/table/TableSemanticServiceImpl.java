@@ -25,8 +25,8 @@ import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
-import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.entity.TableSemantic;
+import io.github.malonetalk.mapper.TableSemanticMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
@@ -42,7 +42,7 @@ import org.springframework.stereotype.Service;
 public class TableSemanticServiceImpl implements TableSemanticService {
 
     private final DatasourceService datasourceService;
-    private final TableInfoMapper tableInfoMapper;
+    private final TableSemanticMapper tableSemanticMapper;
     private final TableSemanticConverter tableSemanticConverter;
 
     @Override
@@ -57,9 +57,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         boolean sortDescending =
                 SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
-        Page<TableInfo> page =
-                (Page<TableInfo>)
-                        tableInfoMapper.selectPageByDatasourceId(
+        Page<TableSemantic> page =
+                (Page<TableSemantic>)
+                        tableSemanticMapper.selectPageByDatasourceId(
                                 new TableSemanticPageQuery(
                                         query.datasourceId(),
                                         pageNumber,
@@ -79,8 +79,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             return List.of();
         }
-        return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
-                .map(TableInfo::getDomain)
+        return tableSemanticMapper.selectByDatasourceId(datasourceId).stream()
+                .map(TableSemantic::getDomain)
                 .filter(domain -> domain != null && !domain.isBlank())
                 .map(String::trim)
                 .distinct()
@@ -92,20 +92,20 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName = SemanticUtils.requireName(request.tableName(), "tableName");
-        TableInfo existing =
-                tableInfoMapper.selectByDatasourceIdAndTableName(
+        TableSemantic existing =
+                tableSemanticMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
         if (existing == null) {
-            TableInfo tableInfo = new TableInfo();
-            tableInfo.setDatasourceId(request.datasourceId());
-            tableInfo.setTableName(normalizedTableName);
-            tableInfo.setTableDescription(
+            TableSemantic tableSemantic = new TableSemantic();
+            tableSemantic.setDatasourceId(request.datasourceId());
+            tableSemantic.setTableName(normalizedTableName);
+            tableSemantic.setTableDescription(
                     SemanticUtils.normalizeBlankToNull(request.tableDescription()));
-            tableInfo.setDomain(SemanticUtils.normalizeBlankToNull(request.domain()));
-            tableInfo.setIsVisible(request.isVisible());
-            tableInfo.setCreateTime(LocalDateTime.now());
-            tableInfo.setUpdateTime(LocalDateTime.now());
-            tableInfoMapper.insert(tableInfo);
+            tableSemantic.setDomain(SemanticUtils.normalizeBlankToNull(request.domain()));
+            tableSemantic.setIsVisible(request.isVisible());
+            tableSemantic.setCreateTime(LocalDateTime.now());
+            tableSemantic.setUpdateTime(LocalDateTime.now());
+            tableSemanticMapper.insert(tableSemantic);
             return;
         }
         existing.setTableName(normalizedTableName);
@@ -114,19 +114,20 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         existing.setDomain(SemanticUtils.normalizeBlankToNull(request.domain()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
-        tableInfoMapper.update(existing);
+        tableSemanticMapper.update(existing);
     }
 
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
-        TableInfo existing =
-                tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
+        TableSemantic existing =
+                tableSemanticMapper.selectByDatasourceIdAndTableName(
+                        datasourceId, normalizedTableName);
         if (existing == null) {
             throw new IllegalArgumentException("Table semantic metadata does not exist.");
         }
-        tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
+        tableSemanticMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
     }
 
     @Override
@@ -140,12 +141,12 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                         .map(this::normalizeName)
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
-                tableInfoMapper.selectByDatasourceId(datasourceId).stream()
+                tableSemanticMapper.selectByDatasourceId(datasourceId).stream()
                         .filter(
                                 table ->
                                         normalizedNames.contains(
                                                 normalizeName(table.getTableName())))
-                        .map(TableInfo::getId)
+                        .map(TableSemantic::getId)
                         .distinct()
                         .toList();
         if (matchedIds.isEmpty()) {
@@ -157,7 +158,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                             + datasourceId
                             + ".");
         }
-        return tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        return tableSemanticMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
     }
 
     private void requireDatasource(Integer datasourceId) {

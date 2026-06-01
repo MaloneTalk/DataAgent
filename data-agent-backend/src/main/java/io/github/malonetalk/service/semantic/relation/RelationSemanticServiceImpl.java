@@ -257,5 +257,4 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         }
         return relation;
     }
-
 }

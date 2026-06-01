@@ -18,7 +18,7 @@
 package io.github.malonetalk.convertor;
 
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
-import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.entity.ColumnSemantic;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -29,7 +29,9 @@ public interface ColumnSemanticConverter {
     @Mapping(target = "typeName", expression = "java(null)")
     @Mapping(target = "primaryKey", expression = "java(null)")
     @Mapping(target = "hasPhysicalColumn", constant = "true")
-    @Mapping(target = "effective", expression = "java(Boolean.TRUE.equals(columnInfo.getIsVisible()))")
+    @Mapping(
+            target = "effective",
+            expression = "java(Boolean.TRUE.equals(columnSemantic.getIsVisible()))")
     @Mapping(target = "invalidReason", expression = "java(null)")
-    ColumnSemanticResponse toResponse(ColumnInfo columnInfo);
+    ColumnSemanticResponse toResponse(ColumnSemantic columnSemantic);
 }

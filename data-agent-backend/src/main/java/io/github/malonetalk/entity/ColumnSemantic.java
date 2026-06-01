@@ -15,9 +15,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools.response;
+package io.github.malonetalk.entity;
 
-import java.util.List;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-public record TablePromptResponse(
-        String name, String domain, String description, List<TableRelationResponse> relations) {}
+@Data
+public class ColumnSemantic {
+
+    private Integer id;
+    private Integer datasourceId;
+    private String tableName;
+    private String columnName;
+    private String columnDescription;
+    private Boolean isVisible;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
+}

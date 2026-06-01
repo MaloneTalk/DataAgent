@@ -18,35 +18,35 @@
 package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
-import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.entity.ColumnSemantic;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
-public interface ColumnSemanticInfoMapper {
+public interface ColumnSemanticMapper {
 
-    List<ColumnInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
+    List<ColumnSemantic> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
-    List<ColumnInfo> selectByDatasourceIdAndTableName(
+    List<ColumnSemantic> selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
-    List<ColumnInfo> selectPageByDatasourceIdAndTableName(
+    List<ColumnSemantic> selectPageByDatasourceIdAndTableName(
             @Param("query") ColumnSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
-    List<ColumnInfo> selectVisiblePageByDatasourceIdAndTableName(
+    List<ColumnSemantic> selectVisiblePageByDatasourceIdAndTableName(
             @Param("query") ColumnSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
-    ColumnInfo selectByDatasourceIdAndTableNameAndColumnName(
+    ColumnSemantic selectByDatasourceIdAndTableNameAndColumnName(
             @Param("datasourceId") Integer datasourceId,
             @Param("tableName") String tableName,
             @Param("columnName") String columnName);
 
-    int insert(ColumnInfo columnInfo);
+    int insert(ColumnSemantic columnSemantic);
 
-    int update(ColumnInfo columnInfo);
+    int update(ColumnSemantic columnSemantic);
 
     int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
 

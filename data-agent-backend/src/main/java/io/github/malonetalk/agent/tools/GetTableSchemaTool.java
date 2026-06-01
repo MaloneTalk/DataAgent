@@ -42,20 +42,15 @@ public class GetTableSchemaTool implements MarkAgentTool {
                             + "表关系通过 get_tables 工具获取，不通过本工具返回。"
                             + "在生成 SQL 之前应调用此工具了解表结构。")
     public ToolResult<TableSchemaSemanticPrompt> getTableSchema(
-            @ToolParam(name = "table_name", description = "要查询 Schema 的表名")
-                    String tableName,
-            @ToolParam(name = "column_page", description = "可选列页码，默认为1")
-                    Integer columnPage,
-            @ToolParam(
-                            name = "column_page_size",
-                            description = "可选列每页大小，默认20，最大100")
+            @ToolParam(name = "table_name", description = "要查询 Schema 的表名") String tableName,
+            @ToolParam(name = "column_page", description = "可选列页码，默认为1") Integer columnPage,
+            @ToolParam(name = "column_page_size", description = "可选列每页大小，默认20，最大100")
                     Integer columnPageSize) {
         try {
             int resolvedPage = PageResponse.resolvePage(columnPage);
             int resolvedPageSize = PageResponse.resolvePageSize(columnPageSize);
             return ToolResult.success(
-                    semanticMergeService.getTableSchema(
-                            tableName, resolvedPage, resolvedPageSize));
+                    semanticMergeService.getTableSchema(tableName, resolvedPage, resolvedPageSize));
         } catch (IllegalStateException e) {
             return ToolResult.error("数据源解析失败", e.getMessage());
         } catch (IllegalArgumentException e) {

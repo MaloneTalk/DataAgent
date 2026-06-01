@@ -17,18 +17,12 @@
  */
 package io.github.malonetalk.entity;
 
-import java.time.LocalDateTime;
 import lombok.Data;
 
 @Data
-public class ColumnInfo {
+public class PhysicalTable {
 
-    private Integer id;
-    private Integer datasourceId;
     private String tableName;
-    private String columnName;
-    private String columnDescription;
-    private Boolean isVisible;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    private String tableDescription;
+    private Integer datasourceId;
 }

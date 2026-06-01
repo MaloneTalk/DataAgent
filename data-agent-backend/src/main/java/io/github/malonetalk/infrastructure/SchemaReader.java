@@ -17,6 +17,10 @@
  */
 package io.github.malonetalk.infrastructure;
 
+import io.github.malonetalk.entity.Column;
+import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.PhysicalTable;
+import io.github.malonetalk.entity.TableRelationInfo;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -27,8 +31,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import io.github.malonetalk.entity.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -53,11 +55,11 @@ public class SchemaReader {
         }
     }
 
-    public List<TableInfo> getTables(Datasource datasource) {
+    public List<PhysicalTable> getTables(Datasource datasource) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
         try (Connection conn = ds.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            List<TableInfo> tables = new ArrayList<>();
+            List<PhysicalTable> tables = new ArrayList<>();
             try (ResultSet rs =
                     metaData.getTables(
                             conn.getCatalog(), conn.getSchema(), null, new String[] {"TABLE"})) {
@@ -66,10 +68,9 @@ public class SchemaReader {
                     if (tableName == null || tableName.isBlank()) {
                         continue;
                     }
-                    TableInfo tableInfo = new TableInfo();
+                    PhysicalTable tableInfo = new PhysicalTable();
                     tableInfo.setTableName(tableName);
-                    tableInfo.setTableDescription(
-                            normalizeBlankToNull(rs.getString("REMARKS")));
+                    tableInfo.setTableDescription(normalizeBlankToNull(rs.getString("REMARKS")));
                     tableInfo.setDatasourceId(datasource.getId());
                     tables.add(tableInfo);
                 }
@@ -90,15 +91,13 @@ public class SchemaReader {
         }
     }
 
-    public List<TableRelationInfo> getImportedRelations(
-            Datasource datasource, String tableName) {
+    public List<TableRelationInfo> getImportedRelations(Datasource datasource, String tableName) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
         try (Connection conn = ds.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             Map<String, TableRelationInfo> relationMap = new LinkedHashMap<>();
             try (ResultSet rs =
-                    metaData.getImportedKeys(
-                            conn.getCatalog(), conn.getSchema(), tableName)) {
+                    metaData.getImportedKeys(conn.getCatalog(), conn.getSchema(), tableName)) {
                 while (rs.next()) {
                     String sourceTable = rs.getString("FKTABLE_NAME");
                     String sourceColumn = rs.getString("FKCOLUMN_NAME");
@@ -123,15 +122,22 @@ public class SchemaReader {
                         relationMap.put(
                                 key,
                                 new TableRelationInfo(
-                                        sourceTable, mergedSource, targetTable, mergedTarget,
-                                        "foreign_key", null));
+                                        sourceTable,
+                                        mergedSource,
+                                        targetTable,
+                                        mergedTarget,
+                                        "foreign_key",
+                                        null));
                     } else {
                         relationMap.put(
                                 key,
                                 new TableRelationInfo(
-                                        sourceTable, List.of(sourceColumn),
-                                        targetTable, List.of(targetColumn),
-                                        "foreign_key", null));
+                                        sourceTable,
+                                        List.of(sourceColumn),
+                                        targetTable,
+                                        List.of(targetColumn),
+                                        "foreign_key",
+                                        null));
                     }
                 }
             }

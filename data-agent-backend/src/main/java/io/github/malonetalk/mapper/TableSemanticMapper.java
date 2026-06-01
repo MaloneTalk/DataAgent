@@ -18,31 +18,31 @@
 package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
-import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.entity.TableSemantic;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
-public interface TableInfoMapper {
+public interface TableSemanticMapper {
 
-    int insert(TableInfo tableInfo);
+    int insert(TableSemantic tableSemantic);
 
-    int update(TableInfo tableInfo);
+    int update(TableSemantic tableSemantic);
 
     int deleteByDatasourceIdAndIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
-    List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
+    List<TableSemantic> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
-    List<TableInfo> selectPageByDatasourceId(
+    List<TableSemantic> selectPageByDatasourceId(
             @Param("query") TableSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
-    List<TableInfo> selectVisiblePageByDatasourceId(
+    List<TableSemantic> selectVisiblePageByDatasourceId(
             @Param("query") TableSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
-    TableInfo selectByDatasourceIdAndTableName(
+    TableSemantic selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

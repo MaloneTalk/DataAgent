@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="io.github.malonetalk.mapper.TableInfoMapper">
+<mapper namespace="io.github.malonetalk.mapper.TableSemanticMapper">
 
-    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.TableInfo">
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.TableSemantic">
         <id column="id" property="id"/>
         <result column="table_name" property="tableName"/>
         <result column="table_description" property="tableDescription"/>
@@ -60,7 +60,7 @@
         LIMIT 1
     </select>
 
-    <insert id="insert" parameterType="io.github.malonetalk.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="io.github.malonetalk.entity.TableSemantic" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO table_info (
             table_name, table_description, domain, datasource_id, is_visible,
             create_time, update_time
@@ -70,7 +70,7 @@
         )
     </insert>
 
-    <update id="update" parameterType="io.github.malonetalk.entity.TableInfo">
+    <update id="update" parameterType="io.github.malonetalk.entity.TableSemantic">
         UPDATE table_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
