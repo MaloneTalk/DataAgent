@@ -18,7 +18,7 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchResetColumnSemanticRequest;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;

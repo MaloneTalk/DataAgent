@@ -20,7 +20,7 @@ package io.github.malonetalk.agent.tools;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.common.ToolResult;
-import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import lombok.RequiredArgsConstructor;

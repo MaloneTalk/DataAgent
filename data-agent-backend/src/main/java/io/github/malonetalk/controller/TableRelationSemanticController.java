@@ -18,7 +18,7 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchDeleteLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;

@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.pagination;
+package io.github.malonetalk.dto;
 
 import java.util.Collections;
 import java.util.List;

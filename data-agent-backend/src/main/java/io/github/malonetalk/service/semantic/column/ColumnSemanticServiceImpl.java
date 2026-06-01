@@ -21,7 +21,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.ColumnSemanticConverter;
-import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;

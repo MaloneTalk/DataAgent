@@ -19,10 +19,10 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.agent.datasource.QueryResult;
-import io.github.malonetalk.agent.datasource.SqlExecutor;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
+import io.github.malonetalk.common.QueryResult;
+import io.github.malonetalk.infrastructure.SqlExecutor;
+import io.github.malonetalk.infrastructure.SqlExecutor.SqlExecutionException;
+import io.github.malonetalk.infrastructure.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;

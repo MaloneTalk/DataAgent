@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.service.semantic.relation;
 
-import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;

@@ -15,11 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.datasource;
+package io.github.malonetalk.infrastructure;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.DataSourceType;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;

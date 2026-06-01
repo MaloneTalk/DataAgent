@@ -15,9 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.datasource;
+package io.github.malonetalk.entity;
 
-public record ColumnInfo(
+public record Column(
         String columnName,
         String typeName,
         int columnSize,

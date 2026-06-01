@@ -39,6 +39,10 @@ public interface TableInfoMapper {
             @Param("query") TableSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
+    List<TableInfo> selectVisiblePageByDatasourceId(
+            @Param("query") TableSemanticPageQuery query,
+            @Param("sortDescending") boolean sortDescending);
+
     TableInfo selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

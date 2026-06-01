@@ -15,10 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.datasource;
+package io.github.malonetalk.infrastructure;
 
-import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.TableInfo;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -29,6 +27,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import io.github.malonetalk.entity.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -40,7 +40,7 @@ public class SchemaReader {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
-    public List<ColumnInfo> getTableSchema(Datasource datasource, String tableName) {
+    public List<Column> getTableSchema(Datasource datasource, String tableName) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
@@ -166,9 +166,9 @@ public class SchemaReader {
         return pkColumns;
     }
 
-    private List<ColumnInfo> getColumns(Connection conn, String tableName, Set<String> primaryKeys)
+    private List<Column> getColumns(Connection conn, String tableName, Set<String> primaryKeys)
             throws SQLException {
-        List<ColumnInfo> columns = new ArrayList<>();
+        List<Column> columns = new ArrayList<>();
         DatabaseMetaData metaData = conn.getMetaData();
 
         try (ResultSet rs =
@@ -184,7 +184,7 @@ public class SchemaReader {
                 boolean isPk = primaryKeys.contains(columnName);
 
                 columns.add(
-                        new ColumnInfo(
+                        new Column(
                                 columnName,
                                 typeName,
                                 columnSize,

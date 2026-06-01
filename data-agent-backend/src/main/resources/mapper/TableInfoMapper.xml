@@ -35,6 +35,23 @@
         </choose>
     </select>
 
+    <select id="selectVisiblePageByDatasourceId" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{query.datasourceId}
+          AND is_visible = 1
+        <if test="query.keyword != null and query.keyword != ''">
+            AND LOWER(table_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
+        </if>
+        <choose>
+            <when test="sortDescending">
+                ORDER BY table_name DESC, id DESC
+            </when>
+            <otherwise>
+                ORDER BY table_name ASC, id ASC
+            </otherwise>
+        </choose>
+    </select>
+
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
         SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}

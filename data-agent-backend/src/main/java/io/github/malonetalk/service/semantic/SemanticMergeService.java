@@ -17,13 +17,18 @@
  */
 package io.github.malonetalk.service.semantic;
 
-import io.github.malonetalk.agent.datasource.ColumnInfo;
-import io.github.malonetalk.agent.datasource.SchemaReader;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.entity.Column;
+import io.github.malonetalk.infrastructure.SchemaReader;
 import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.agent.tools.response.TablePromptResponse;
 import io.github.malonetalk.agent.tools.response.TableRelationResponse;
-import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.PageResponse;
+import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSchemaSemanticPrompt;
+import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
+import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
@@ -36,8 +41,8 @@ import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,119 +62,94 @@ public class SemanticMergeService {
 
     public PageResponse<TablePromptResponse> getVisibleTablePromptPage(int page, int pageSize) {
         Datasource datasource = datasourceService.requireActiveDatasource();
-        List<TableInfo> physicalTables = schemaReader.getTables(datasource);
-        List<TableInfo> semanticTables =
-                tableInfoMapper.selectByDatasourceId(datasource.getId());
-        Map<String, TableInfo> semanticByKey =
-                toTableKeyMap(semanticTables);
+        PageHelper.startPage(page, pageSize);
+        Page<TableInfo> pageResult =
+                (Page<TableInfo>)
+                        tableInfoMapper.selectVisiblePageByDatasourceId(
+                                new TableSemanticPageQuery(
+                                        datasource.getId(), page, pageSize, null, "asc"),
+                                false);
 
-        List<TablePromptResponse> visibleTables = new ArrayList<>();
-        for (TableInfo physicalTable : physicalTables) {
-            String key = normalizeKey(physicalTable.getTableName());
-            TableInfo semanticTable = semanticByKey.get(key);
-            if (!isTableVisible(semanticTable)) {
-                continue;
-            }
-            String description =
-                    resolveSemanticFirst(
-                            semanticTable != null ? semanticTable.getTableDescription() : null,
-                            physicalTable.getTableDescription());
-            String domain =
-                    resolveSemanticFirst(
-                            semanticTable != null ? semanticTable.getDomain() : null, null);
-            visibleTables.add(
-                    new TablePromptResponse(
-                            physicalTable.getTableName(),
-                            domain,
-                            description,
-                            Collections.emptyList()));
-        }
-
-        // 为每个可见表附加关系
         Map<String, List<LogicalTableRelation>> logicalRelationsBySource =
                 buildLogicalRelationsBySource(datasource.getId());
-        for (int i = 0; i < visibleTables.size(); i++) {
-            TablePromptResponse item = visibleTables.get(i);
-            List<TableRelationResponse> relations =
-                    resolveVisibleRelations(
-                            item.name(), logicalRelationsBySource, datasource.getId());
-            visibleTables.set(
-                    i,
-                    new TablePromptResponse(
-                            item.name(),
-                            item.domain(),
-                            item.description(),
-                            relations));
-        }
 
-        // 内存分页
-        return paginateInMemory(visibleTables, page, pageSize);
+        List<TablePromptResponse> items =
+                pageResult.stream()
+                        .map(
+                                t ->
+                                        new TablePromptResponse(
+                                                t.getTableName(),
+                                                SemanticUtils.normalizeBlankToNull(t.getDomain()),
+                                                SemanticUtils.normalizeBlankToNull(
+                                                        t.getTableDescription()),
+                                                resolveVisibleRelations(
+                                                        t.getTableName(),
+                                                        logicalRelationsBySource)))
+                        .toList();
+
+        return PageResponse.of(items, pageResult.getTotal(), page, pageSize);
     }
 
     public TableSchemaSemanticPrompt getTableSchema(String tableName, int page, int pageSize) {
         Datasource datasource = datasourceService.requireActiveDatasource();
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
 
-        // 校验表存在且可见
         TableInfo semanticTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
-        if (!isTableVisible(semanticTable)) {
+        if (semanticTable == null || !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
             throw new IllegalArgumentException("表 " + normalizedTableName + " 不存在或不可见。");
         }
 
-        // 读物理列
-        List<ColumnInfo> physicalColumns;
+        Map<String, Column> physicalByKey = new HashMap<>();
         try {
-            physicalColumns = schemaReader.getTableSchema(datasource, normalizedTableName);
+            for (Column col :
+                    schemaReader.getTableSchema(datasource, normalizedTableName)) {
+                physicalByKey.put(col.columnName().toLowerCase(Locale.ROOT), col);
+            }
         } catch (SchemaReader.SchemaReadException e) {
             throw new IllegalArgumentException(
                     "无法读取表 " + normalizedTableName + " 的 Schema: " + e.getMessage(), e);
         }
-
-        // 读语义列
-        if (physicalColumns.isEmpty()) {
+        if (physicalByKey.isEmpty()) {
             throw new IllegalArgumentException(
                     "表 " + normalizedTableName + " 不存在或没有可读列。");
         }
 
-        List<io.github.malonetalk.entity.ColumnInfo> semanticColumns =
-                columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
-                        datasource.getId(), normalizedTableName);
-        Map<String, io.github.malonetalk.entity.ColumnInfo> semanticByKey =
-                toColumnKeyMap(semanticColumns);
+        PageHelper.startPage(page, pageSize);
+        Page<io.github.malonetalk.entity.ColumnInfo> pageResult =
+                (Page<io.github.malonetalk.entity.ColumnInfo>)
+                        columnSemanticInfoMapper.selectVisiblePageByDatasourceIdAndTableName(
+                                new ColumnSemanticPageQuery(
+                                        datasource.getId(),
+                                        normalizedTableName,
+                                        page,
+                                        pageSize,
+                                        null,
+                                        "asc"),
+                                false);
 
-        // 合并列
-        List<ColumnPromptResponse> visibleColumns = new ArrayList<>();
-        for (ColumnInfo physicalColumn : physicalColumns) {
-            String key = normalizeKey(physicalColumn.columnName());
-            io.github.malonetalk.entity.ColumnInfo semanticColumn = semanticByKey.get(key);
-            if (!isColumnVisible(semanticColumn)) {
-                continue;
-            }
-            visibleColumns.add(mapColumnPrompt(physicalColumn, semanticColumn));
-        }
+        List<ColumnPromptResponse> items =
+                pageResult.stream()
+                        .map(c -> mapColumnPrompt(c, physicalByKey))
+                        .toList();
 
         String description =
-                resolveSemanticFirst(
-                        semanticTable != null ? semanticTable.getTableDescription() : null, null);
-        String domain =
-                resolveSemanticFirst(
-                        semanticTable != null ? semanticTable.getDomain() : null, null);
+                SemanticUtils.normalizeBlankToNull(semanticTable.getTableDescription());
+        String domain = SemanticUtils.normalizeBlankToNull(semanticTable.getDomain());
 
         PageResponse<ColumnPromptResponse> columnPage =
-                paginateInMemory(visibleColumns, page, pageSize);
+                PageResponse.of(items, pageResult.getTotal(), page, pageSize);
         return new TableSchemaSemanticPrompt(
                 normalizedTableName, domain, description, columnPage);
     }
 
     private List<TableRelationResponse> resolveVisibleRelations(
             String sourceTableName,
-            Map<String, List<LogicalTableRelation>> logicalRelationsBySource,
-            Integer datasourceId) {
+            Map<String, List<LogicalTableRelation>> logicalRelationsBySource) {
         List<LogicalTableRelation> logicalRelations =
                 logicalRelationsBySource.getOrDefault(
-                        normalizeKey(sourceTableName), Collections.emptyList());
+                        sourceTableName.toLowerCase(Locale.ROOT), Collections.emptyList());
         if (logicalRelations.isEmpty()) {
             return Collections.emptyList();
         }
@@ -188,8 +168,7 @@ public class SemanticMergeService {
                         logicalTableRelationHelper.fromJson(
                                 relation.getTargetColumnNamesJson(), "targetColumnNames");
             } catch (IllegalArgumentException e) {
-                log.warn(
-                        "跳过无效的逻辑关系 id={}: {}", relation.getId(), e.getMessage());
+                log.warn("跳过无效的逻辑关系 id={}: {}", relation.getId(), e.getMessage());
                 continue;
             }
             result.add(
@@ -206,37 +185,36 @@ public class SemanticMergeService {
     }
 
     private ColumnPromptResponse mapColumnPrompt(
-            ColumnInfo physicalColumn,
-            io.github.malonetalk.entity.ColumnInfo semanticColumn) {
+            ColumnInfo semanticColumn,
+            Map<String, Column> physicalByKey) {
+        Column physicalColumn =
+                physicalByKey.get(semanticColumn.getColumnName().toLowerCase(Locale.ROOT));
         String description =
-                resolveSemanticFirst(
-                        semanticColumn != null ? semanticColumn.getColumnDescription() : null,
-                        physicalColumn.remarks());
-        StringBuilder typeText = new StringBuilder(physicalColumn.typeName());
-        if (physicalColumn.columnSize() > 0) {
-            typeText.append("(").append(physicalColumn.columnSize()).append(")");
+                SemanticUtils.normalizeBlankToNull(semanticColumn.getColumnDescription());
+        if (description == null && physicalColumn != null) {
+            description = SemanticUtils.normalizeBlankToNull(physicalColumn.remarks());
+        }
+        String typeText = "";
+        boolean primaryKey = false;
+        boolean nullable = true;
+        String defaultValue = null;
+        if (physicalColumn != null) {
+            StringBuilder typeBuilder = new StringBuilder(physicalColumn.typeName());
+            if (physicalColumn.columnSize() > 0) {
+                typeBuilder.append("(").append(physicalColumn.columnSize()).append(")");
+            }
+            typeText = typeBuilder.toString();
+            primaryKey = physicalColumn.primaryKey();
+            nullable = physicalColumn.nullable();
+            defaultValue = SemanticUtils.normalizeBlankToNull(physicalColumn.defaultValue());
         }
         return new ColumnPromptResponse(
-                physicalColumn.columnName(),
-                typeText.toString(),
-                physicalColumn.primaryKey(),
-                physicalColumn.nullable(),
-                SemanticUtils.normalizeBlankToNull(physicalColumn.defaultValue()),
+                semanticColumn.getColumnName(),
+                typeText,
+                primaryKey,
+                nullable,
+                defaultValue,
                 description);
-    }
-
-    private boolean isTableVisible(TableInfo semanticTable) {
-        if (semanticTable != null) {
-            return Boolean.TRUE.equals(semanticTable.getIsVisible());
-        }
-        return true;
-    }
-
-    private boolean isColumnVisible(io.github.malonetalk.entity.ColumnInfo semanticColumn) {
-        if (semanticColumn != null) {
-            return Boolean.TRUE.equals(semanticColumn.getIsVisible());
-        }
-        return true;
     }
 
     private Map<String, List<LogicalTableRelation>> buildLogicalRelationsBySource(
@@ -245,52 +223,9 @@ public class SemanticMergeService {
                 logicalTableRelationMapper.selectByDatasourceId(datasourceId);
         Map<String, List<LogicalTableRelation>> result = new HashMap<>();
         for (LogicalTableRelation relation : allRelations) {
-            String key = normalizeKey(relation.getSourceTableName());
+            String key = relation.getSourceTableName().toLowerCase(Locale.ROOT);
             result.computeIfAbsent(key, k -> new ArrayList<>()).add(relation);
         }
         return result;
-    }
-
-    private Map<String, TableInfo> toTableKeyMap(List<TableInfo> tables) {
-        Map<String, TableInfo> map = new LinkedHashMap<>();
-        for (TableInfo table : tables) {
-            map.put(normalizeKey(table.getTableName()), table);
-        }
-        return map;
-    }
-
-    private Map<String, io.github.malonetalk.entity.ColumnInfo> toColumnKeyMap(
-            List<io.github.malonetalk.entity.ColumnInfo> columns) {
-        Map<String, io.github.malonetalk.entity.ColumnInfo> map = new LinkedHashMap<>();
-        for (io.github.malonetalk.entity.ColumnInfo column : columns) {
-            map.put(normalizeKey(column.getColumnName()), column);
-        }
-        return map;
-    }
-
-    private <T> PageResponse<T> paginateInMemory(
-            List<T> items, int page, int pageSize) {
-        if (items.isEmpty()) {
-            return PageResponse.empty(page, pageSize);
-        }
-        int start = (page - 1) * pageSize;
-        if (start >= items.size()) {
-            return PageResponse.empty(page, pageSize);
-        }
-        int end = Math.min(start + pageSize, items.size());
-        List<T> pageItems = items.subList(start, end);
-        return PageResponse.of(pageItems, items.size(), page, pageSize);
-    }
-
-    private String normalizeKey(String value) {
-        return logicalTableRelationHelper.normalizeIdentifierKey(value);
-    }
-
-    private String resolveSemanticFirst(String semanticValue, String physicalValue) {
-        String resolved = SemanticUtils.normalizeBlankToNull(semanticValue);
-        if (resolved != null) {
-            return resolved;
-        }
-        return SemanticUtils.normalizeBlankToNull(physicalValue);
     }
 }

@@ -35,6 +35,10 @@ public interface ColumnSemanticInfoMapper {
             @Param("query") ColumnSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
+    List<ColumnInfo> selectVisiblePageByDatasourceIdAndTableName(
+            @Param("query") ColumnSemanticPageQuery query,
+            @Param("sortDescending") boolean sortDescending);
+
     ColumnInfo selectByDatasourceIdAndTableNameAndColumnName(
             @Param("datasourceId") Integer datasourceId,
             @Param("tableName") String tableName,
