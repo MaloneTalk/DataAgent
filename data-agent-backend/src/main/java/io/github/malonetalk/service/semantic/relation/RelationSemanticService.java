@@ -20,6 +20,8 @@ package io.github.malonetalk.service.semantic.relation;
 import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
+import io.github.malonetalk.dto.semantic.RelationCandidateColumnResponse;
+import io.github.malonetalk.dto.semantic.RelationCandidateTableResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
@@ -41,4 +43,10 @@ public interface RelationSemanticService {
     boolean deleteRelationSemantic(Integer datasourceId, String tableName, Integer relationId);
 
     int deleteRelationSemantics(Integer datasourceId, String tableName, List<Integer> relationIds);
+
+    PageResponse<RelationCandidateTableResponse> getCandidateTablePage(
+            RelationSemanticPageQuery query);
+
+    PageResponse<RelationCandidateColumnResponse> getCandidateColumnPage(
+            RelationSemanticPageQuery query);
 }

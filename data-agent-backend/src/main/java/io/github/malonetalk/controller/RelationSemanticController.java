@@ -22,6 +22,8 @@ import io.github.malonetalk.dto.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchDeleteLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
+import io.github.malonetalk.dto.semantic.RelationCandidateColumnResponse;
+import io.github.malonetalk.dto.semantic.RelationCandidateTableResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
@@ -42,13 +44,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/semantic/tables/relations/{tableName}")
+@RequestMapping("/api/semantic/tables")
 @RequiredArgsConstructor
 public class RelationSemanticController {
 
     private final RelationSemanticService relationSemanticService;
 
-    @GetMapping
+    @GetMapping("/{tableName}/relations")
     public Result<PageResponse<LogicalTableRelationResponse>> listByTable(
             @PathVariable @NotBlank String tableName, @Valid RelationSemanticPageQuery query) {
         return Result.success(
@@ -63,21 +65,21 @@ public class RelationSemanticController {
                                 query.sortOrder())));
     }
 
-    @PostMapping
+    @PostMapping("/{tableName}/relations")
     public Result<LogicalTableRelationResponse> create(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BindLogicalTableRelationRequest request) {
         return Result.success(relationSemanticService.createRelationSemantic(tableName, request));
     }
 
-    @PutMapping
+    @PutMapping("/{tableName}/relations")
     public Result<LogicalTableRelationResponse> update(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody UpdateLogicalTableRelationRequest request) {
         return Result.success(relationSemanticService.updateRelationSemantic(tableName, request));
     }
 
-    @PutMapping("/enabled")
+    @PutMapping("/{tableName}/relations/enabled")
     public Result<Boolean> updateEnabled(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody UpdateLogicalTableRelationEnabledRequest request) {
@@ -85,7 +87,7 @@ public class RelationSemanticController {
                 relationSemanticService.updateRelationSemanticEnabled(tableName, request));
     }
 
-    @DeleteMapping("/{relationId}")
+    @DeleteMapping("/{tableName}/relations/{relationId}")
     public Result<Boolean> delete(
             @PathVariable @NotBlank String tableName,
             @PathVariable @NotNull @Min(1) Integer relationId,
@@ -95,12 +97,33 @@ public class RelationSemanticController {
                         datasourceId, tableName, relationId));
     }
 
-    @DeleteMapping("/batch")
+    @DeleteMapping("/{tableName}/relations/batch")
     public Result<Integer> deleteBatch(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BatchDeleteLogicalTableRelationRequest request) {
         return Result.success(
                 relationSemanticService.deleteRelationSemantics(
                         request.datasourceId(), tableName, request.relationIds()));
+    }
+
+    @GetMapping("/relations/candidate/tables")
+    public Result<PageResponse<RelationCandidateTableResponse>> candidateTables(
+            @Valid RelationSemanticPageQuery query) {
+        return Result.success(relationSemanticService.getCandidateTablePage(query));
+    }
+
+    @GetMapping("/{tableName}/relations/candidate/columns")
+    public Result<PageResponse<RelationCandidateColumnResponse>> candidateColumns(
+            @PathVariable @NotBlank String tableName, @Valid RelationSemanticPageQuery query) {
+        return Result.success(
+                relationSemanticService.getCandidateColumnPage(
+                        new RelationSemanticPageQuery(
+                                query.datasourceId(),
+                                tableName,
+                                query.page(),
+                                query.pageSize(),
+                                query.keyword(),
+                                query.enabled(),
+                                query.sortOrder())));
     }
 }

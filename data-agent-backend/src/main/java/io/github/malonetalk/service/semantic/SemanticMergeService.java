@@ -30,6 +30,7 @@ import io.github.malonetalk.entity.Column;
 import io.github.malonetalk.entity.ColumnSemantic;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
+import io.github.malonetalk.entity.TableRelationInfo;
 import io.github.malonetalk.entity.TableSemantic;
 import io.github.malonetalk.infrastructure.SchemaReader;
 import io.github.malonetalk.mapper.ColumnSemanticMapper;
@@ -41,6 +42,7 @@ import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -84,7 +86,8 @@ public class SemanticMergeService {
                                                         t.getTableDescription()),
                                                 resolveVisibleRelations(
                                                         t.getTableName(),
-                                                        logicalRelationsBySource)))
+                                                        logicalRelationsBySource,
+                                                        datasource)))
                         .toList();
 
         return PageResponse.of(items, pageResult.getTotal(), page, pageSize);
@@ -141,14 +144,39 @@ public class SemanticMergeService {
 
     private List<TableRelationResponse> resolveVisibleRelations(
             String sourceTableName,
-            Map<String, List<LogicalTableRelation>> logicalRelationsBySource) {
+            Map<String, List<LogicalTableRelation>> logicalRelationsBySource,
+            Datasource datasource) {
+        LinkedHashMap<String, TableRelationResponse> merged = new LinkedHashMap<>();
+
+        // 先添加物理 FK 关系
+        List<TableRelationInfo> physicalRelations =
+                schemaReader.getImportedRelations(datasource, sourceTableName);
+        for (TableRelationInfo phys : physicalRelations) {
+            if (!areEndpointsVisible(datasource.getId(), phys)) {
+                continue;
+            }
+            String key =
+                    buildRelationMergeKey(
+                            phys.sourceTableName(),
+                            phys.sourceColumnNames(),
+                            phys.targetTableName(),
+                            phys.targetColumnNames());
+            merged.put(
+                    key,
+                    new TableRelationResponse(
+                            phys.relationType(),
+                            "physical",
+                            phys.sourceTableName(),
+                            phys.sourceColumnNames(),
+                            phys.targetTableName(),
+                            phys.targetColumnNames(),
+                            phys.description()));
+        }
+
+        // 逻辑关系覆盖物理关系
         List<LogicalTableRelation> logicalRelations =
                 logicalRelationsBySource.getOrDefault(
                         sourceTableName.toLowerCase(Locale.ROOT), Collections.emptyList());
-        if (logicalRelations.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<TableRelationResponse> result = new ArrayList<>();
         for (LogicalTableRelation relation : logicalRelations) {
             if (!Boolean.TRUE.equals(relation.getIsEnabled())) {
                 continue;
@@ -166,7 +194,14 @@ public class SemanticMergeService {
                 log.warn("跳过无效的逻辑关系 id={}: {}", relation.getId(), e.getMessage());
                 continue;
             }
-            result.add(
+            String key =
+                    buildRelationMergeKey(
+                            relation.getSourceTableName(),
+                            sourceColumns,
+                            relation.getTargetTableName(),
+                            targetColumns);
+            merged.put(
+                    key,
                     new TableRelationResponse(
                             relation.getRelationType(),
                             LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
@@ -176,7 +211,66 @@ public class SemanticMergeService {
                             targetColumns,
                             relation.getDescription()));
         }
-        return result;
+
+        return List.copyOf(merged.values());
+    }
+
+    private boolean areEndpointsVisible(Integer datasourceId, TableRelationInfo relation) {
+        TableSemantic sourceTable =
+                tableSemanticMapper.selectByDatasourceIdAndTableName(
+                        datasourceId, relation.sourceTableName());
+        if (sourceTable != null && !Boolean.TRUE.equals(sourceTable.getIsVisible())) {
+            return false;
+        }
+        TableSemantic targetTable =
+                tableSemanticMapper.selectByDatasourceIdAndTableName(
+                        datasourceId, relation.targetTableName());
+        if (targetTable != null && !Boolean.TRUE.equals(targetTable.getIsVisible())) {
+            return false;
+        }
+        for (String colName : relation.sourceColumnNames()) {
+            ColumnSemantic col =
+                    columnSemanticMapper.selectByDatasourceIdAndTableNameAndColumnName(
+                            datasourceId, relation.sourceTableName(), colName);
+            if (col != null && !Boolean.TRUE.equals(col.getIsVisible())) {
+                return false;
+            }
+        }
+        for (String colName : relation.targetColumnNames()) {
+            ColumnSemantic col =
+                    columnSemanticMapper.selectByDatasourceIdAndTableNameAndColumnName(
+                            datasourceId, relation.targetTableName(), colName);
+            if (col != null && !Boolean.TRUE.equals(col.getIsVisible())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String buildRelationMergeKey(
+            String sourceTable,
+            List<String> sourceColumns,
+            String targetTable,
+            List<String> targetColumns) {
+        String sourceColSig =
+                sourceColumns.stream()
+                        .map(c -> c.toLowerCase(Locale.ROOT))
+                        .sorted()
+                        .reduce((a, b) -> a + "|" + b)
+                        .orElse("");
+        String targetColSig =
+                targetColumns.stream()
+                        .map(c -> c.toLowerCase(Locale.ROOT))
+                        .sorted()
+                        .reduce((a, b) -> a + "|" + b)
+                        .orElse("");
+        return sourceTable.toLowerCase(Locale.ROOT)
+                + "|"
+                + sourceColSig
+                + "|"
+                + targetTable.toLowerCase(Locale.ROOT)
+                + "|"
+                + targetColSig;
     }
 
     private ColumnPromptResponse mapColumnPrompt(

@@ -39,4 +39,11 @@ public class GlobalExceptionHandler {
         String message = exception.getMessage() == null ? "Bad request" : exception.getMessage();
         return Result.error(400, message);
     }
+
+    @ExceptionHandler(SemanticSchemaException.class)
+    public Result<Boolean> handleSemanticSchema(SemanticSchemaException exception) {
+        String message =
+                exception.getMessage() == null ? "Semantic schema error" : exception.getMessage();
+        return Result.error(400, message);
+    }
 }
