@@ -36,8 +36,12 @@ public class GetTablesTool implements MarkAgentTool {
 
     @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
     public ToolResult<PageResponse<TablePromptResponse>> getTables(
-            @ToolParam(name = "page", description = "Optional page number, default is 1") Integer page,
-            @ToolParam(name = "page_size", description = "Optional page size, default is 20, maximum is 100") Integer pageSize) {
+            @ToolParam(name = "page", description = "Optional page number, default is 1")
+                    Integer page,
+            @ToolParam(
+                            name = "page_size",
+                            description = "Optional page size, default is 20, maximum is 100")
+                    Integer pageSize) {
         try {
             int resolvedPage = PageResponse.resolvePage(page);
             int resolvedPageSize = PageResponse.resolvePageSize(pageSize);

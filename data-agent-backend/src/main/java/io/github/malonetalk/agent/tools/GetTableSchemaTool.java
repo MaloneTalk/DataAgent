@@ -44,8 +44,14 @@ public class GetTableSchemaTool implements MarkAgentTool {
     public ToolResult<TableSchemaSemanticPrompt> getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName,
-            @ToolParam(name = "column_page", description = "Optional column page number, default is 1") Integer columnPage,
-            @ToolParam(name = "column_page_size", description = "Optional column page size, default is 20, maximum is 100")
+            @ToolParam(
+                            name = "column_page",
+                            description = "Optional column page number, default is 1")
+                    Integer columnPage,
+            @ToolParam(
+                            name = "column_page_size",
+                            description =
+                                    "Optional column page size, default is 20, maximum is 100")
                     Integer columnPageSize) {
         try {
             int resolvedPage = PageResponse.resolvePage(columnPage);
