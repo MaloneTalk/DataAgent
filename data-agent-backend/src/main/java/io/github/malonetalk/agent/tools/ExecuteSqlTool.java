@@ -42,15 +42,17 @@ public class ExecuteSqlTool implements MarkAgentTool {
     @Tool(
             name = "execute_sql",
             description =
-                    "在当前活跃数据源上执行 SELECT SQL 查询，并返回查询结果。"
-                            + "仅支持 SELECT 查询，不支持 INSERT、UPDATE、DELETE 或其他修改数据的操作。")
+                    "Execute SELECT SQL query on the target datasource and return the query result."
+                        + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
+                        + " other modification operations.")
     public String executeSql(
-            @ToolParam(name = "sql", description = "要执行的 SELECT SQL 查询语句") String sql) {
+            @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
+                    String sql) {
         List<Datasource> activeDataSources =
                 dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
         if (activeDataSources.isEmpty()) {
-            return "没有可用的活跃数据源，无法执行 SQL。";
+            return "No active datasource available, cannot execute SQL.";
         }
 
         if (activeDataSources.size() > 1) {
@@ -64,28 +66,28 @@ public class ExecuteSqlTool implements MarkAgentTool {
             QueryResult result = sqlExecutor.execute(datasource, sql);
             return formatResult(result);
         } catch (SqlSecurityException e) {
-            return "SQL 执行被拒绝：" + e.getMessage();
+            return "SQL execution denied: " + e.getMessage();
         } catch (SqlExecutionException e) {
-            return "SQL 执行失败：" + e.getMessage();
+            return "SQL execution failed: " + e.getMessage();
         }
     }
 
     private String formatResult(QueryResult result) {
         if (result.rows().isEmpty()) {
-            return "查询结果为空。";
+            return "Query result is empty.";
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("查询结果（共 ").append(result.totalRows()).append(" 行）");
+        sb.append("Query result (total ").append(result.totalRows()).append(" rows)");
         if (result.truncated()) {
-            sb.append("，结果已截断，仅展示前 ").append(result.rows().size()).append(" 行");
+            sb.append(", truncated to show first ").append(result.rows().size()).append(" rows");
         }
         sb.append(":\n");
 
-        sb.append("列：").append(result.columns()).append("\n");
+        sb.append("Columns: ").append(result.columns()).append("\n");
 
         for (int i = 0; i < result.rows().size(); i++) {
-            sb.append("第 ").append(i + 1).append(" 行：").append(result.rows().get(i)).append("\n");
+            sb.append("Row ").append(i + 1).append(": ").append(result.rows().get(i)).append("\n");
         }
 
         return sb.toString();
