@@ -37,14 +37,15 @@ public class GetTableSchemaTool implements MarkAgentTool {
     @Tool(
             name = "get_table_schema",
             description =
-                    "获取指定表的语义 Schema 信息，包含表元数据和分页可见列信息。"
-                            + "语义描述优先于物理元数据作为兜底。"
-                            + "表关系通过 get_tables 工具获取，不通过本工具返回。"
-                            + "在生成 SQL 之前应调用此工具了解表结构。")
+                    "Get the schema information of the specified table, including column name, data"
+                        + " type, whether it is primary key, whether it allows null, default value"
+                        + " and column comments. This tool should be called to understand the table"
+                        + " structure before generating SQL.")
     public ToolResult<TableSchemaSemanticPrompt> getTableSchema(
-            @ToolParam(name = "table_name", description = "要查询 Schema 的表名") String tableName,
-            @ToolParam(name = "column_page", description = "可选列页码，默认为1") Integer columnPage,
-            @ToolParam(name = "column_page_size", description = "可选列每页大小，默认20，最大100")
+            @ToolParam(name = "table_name", description = "The table name to query schema for")
+                    String tableName,
+            @ToolParam(name = "column_page", description = "Optional column page number, default is 1") Integer columnPage,
+            @ToolParam(name = "column_page_size", description = "Optional column page size, default is 20, maximum is 100")
                     Integer columnPageSize) {
         try {
             int resolvedPage = PageResponse.resolvePage(columnPage);
@@ -52,12 +53,12 @@ public class GetTableSchemaTool implements MarkAgentTool {
             return ToolResult.success(
                     semanticMergeService.getTableSchema(tableName, resolvedPage, resolvedPageSize));
         } catch (IllegalStateException e) {
-            return ToolResult.error("数据源解析失败", e.getMessage());
+            return ToolResult.error("Data source parsing failed", e.getMessage());
         } catch (IllegalArgumentException e) {
-            return ToolResult.error("参数错误", e.getMessage());
+            return ToolResult.error("Invalid arguments", e.getMessage());
         } catch (RuntimeException e) {
-            log.error("获取表 {} 的 Schema 失败: {}", tableName, e.getMessage(), e);
-            return ToolResult.error("获取 Schema 失败", e.getMessage());
+            log.error("Failed to get schema for table {}: {}", tableName, e.getMessage(), e);
+            return ToolResult.error("Failed to retrieve schema", e.getMessage());
         }
     }
 }
