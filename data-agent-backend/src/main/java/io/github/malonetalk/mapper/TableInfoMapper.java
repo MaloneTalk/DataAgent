@@ -43,6 +43,5 @@ public interface TableInfoMapper {
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
     List<TableInfo> selectByDatasourceIdAndDomains(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("domains") List<String> domains);
+            @Param("datasourceId") Integer datasourceId, @Param("domains") List<String> domains);
 }
