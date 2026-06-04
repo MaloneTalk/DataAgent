@@ -34,6 +34,8 @@ public interface TableSemanticService {
 
     void updateTableSemantic(TableSemanticUpdateRequest request);
 
+    List<TableInfo> listTableInfosByDomains(Integer datasourceId, List<String> domains);
+
     void resetTableSemantic(Integer datasourceId, String tableName);
 
     int resetTableSemantics(Integer datasourceId, List<String> tableNames);

@@ -18,6 +18,7 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.Status;
@@ -37,8 +38,22 @@ public class GetTablesTool implements MarkAgentTool {
     private final DatasourceService dataSourceService;
     private final TableSemanticService tableSemanticService;
 
-    @Tool(name = "get_tables", description = "获取数据库中的表信息，包括表名和表描述")
-    public List<TableInfo> getTables() {
+    @Tool(
+            name = "get_tables",
+            description =
+                    "Get table information from the database, including table name and description."
+                            + " Optionally filter by domains; returns all tables if domains is not"
+                            + " provided. It is recommended to call get_domains first to discover"
+                            + " available domains.")
+    public List<TableInfo> getTables(
+            @ToolParam(
+                            name = "domains",
+                            description =
+                                    "Optional list of domain names. Only tables belonging to these"
+                                            + " domains will be returned. If not provided or empty,"
+                                            + " returns all tables.",
+                            required = false)
+                    List<String> domains) {
         List<Datasource> activeDataSources =
                 dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
@@ -54,6 +69,6 @@ public class GetTablesTool implements MarkAgentTool {
         }
 
         Datasource dataSource = activeDataSources.get(0);
-        return tableSemanticService.listTableInfosByDatasourceId(dataSource.getId());
+        return tableSemanticService.listTableInfosByDomains(dataSource.getId(), domains);
     }
 }

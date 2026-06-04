@@ -74,3 +74,17 @@ CREATE TABLE IF NOT EXISTS `logical_table_relation` (
         (`datasource_id`, `source_table_name`, `target_table_name`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表';
 
+CREATE TABLE IF NOT EXISTS `domain_info` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `name` VARCHAR(255) NOT NULL COMMENT '领域名称',
+    `description` VARCHAR(500) DEFAULT NULL COMMENT '领域描述',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_domain_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='数据领域表';
+
+INSERT INTO `domain_info` (`name`, `description`, `create_time`, `update_time`)
+SELECT 'default', '默认领域', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM `domain_info` WHERE `name` = 'default');
+

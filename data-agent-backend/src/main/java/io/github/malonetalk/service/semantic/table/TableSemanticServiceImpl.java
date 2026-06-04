@@ -95,6 +95,18 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     @Override
+    public List<TableInfo> listTableInfosByDomains(Integer datasourceId, List<String> domains) {
+        SemanticUtils.requireDatasourceId(datasourceId);
+        if (datasourceService.findById(datasourceId) == null) {
+            return List.of();
+        }
+        if (domains == null || domains.isEmpty()) {
+            return listTableInfosByDatasourceId(datasourceId);
+        }
+        return tableInfoMapper.selectByDatasourceIdAndDomains(datasourceId, domains);
+    }
+
+    @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName = SemanticUtils.requireName(request.tableName(), "tableName");
