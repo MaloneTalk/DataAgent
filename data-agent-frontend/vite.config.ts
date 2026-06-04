@@ -18,7 +18,6 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import eslint from 'vite-plugin-eslint';
-import { resolve } from 'path';
 
 /**
  * Vite configuration file
@@ -32,7 +31,7 @@ export default defineConfig({
   // Allows importing like: import xxx from '@/components/xxx'
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': '/src',
     },
   },
   // Development server configuration
