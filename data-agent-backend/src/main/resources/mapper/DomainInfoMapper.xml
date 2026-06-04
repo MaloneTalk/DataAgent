@@ -32,6 +32,12 @@
         </choose>
     </select>
 
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM domain_info
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
     <select id="selectByName" resultMap="BaseResultMap">
         SELECT * FROM domain_info
         WHERE LOWER(name) = LOWER(#{name})

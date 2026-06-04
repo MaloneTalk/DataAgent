@@ -37,5 +37,7 @@ public interface DomainInfoMapper {
     List<DomainInfo> selectPage(
             @Param("query") DomainPageQuery query, @Param("sortDescending") boolean sortDescending);
 
+    DomainInfo selectById(@Param("id") Integer id);
+
     DomainInfo selectByName(@Param("name") String name);
 }

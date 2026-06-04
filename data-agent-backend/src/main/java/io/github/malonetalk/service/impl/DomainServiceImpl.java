@@ -26,6 +26,7 @@ import io.github.malonetalk.dto.DomainUpdateRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.DomainInfo;
 import io.github.malonetalk.mapper.DomainInfoMapper;
+import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DomainService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
@@ -38,6 +39,7 @@ import org.springframework.stereotype.Service;
 public class DomainServiceImpl implements DomainService {
 
     private final DomainInfoMapper domainInfoMapper;
+    private final TableInfoMapper tableInfoMapper;
 
     @Override
     public PageResponse<DomainInfo> getDomainPage(DomainPageQuery query) {
@@ -67,10 +69,7 @@ public class DomainServiceImpl implements DomainService {
         if (id == null) {
             throw new IllegalArgumentException("id 不能为空");
         }
-        return domainInfoMapper.selectAll().stream()
-                .filter(d -> d.getId().equals(id))
-                .findFirst()
-                .orElse(null);
+        return domainInfoMapper.selectById(id);
     }
 
     @Override
@@ -118,6 +117,10 @@ public class DomainServiceImpl implements DomainService {
         DomainInfo existing = findById(id);
         if (existing == null) {
             throw new IllegalArgumentException("领域不存在: id=" + id);
+        }
+        int referenceCount = tableInfoMapper.countByDomain(existing.getName());
+        if (referenceCount > 0) {
+            throw new IllegalArgumentException("领域正在被占用" + existing.getName());
         }
         domainInfoMapper.deleteByIds(List.of(id));
     }

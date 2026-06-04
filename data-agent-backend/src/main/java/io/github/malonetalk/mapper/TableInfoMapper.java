@@ -44,4 +44,6 @@ public interface TableInfoMapper {
 
     List<TableInfo> selectByDatasourceIdAndDomains(
             @Param("datasourceId") Integer datasourceId, @Param("domains") List<String> domains);
+
+    int countByDomain(@Param("domain") String domain);
 }
