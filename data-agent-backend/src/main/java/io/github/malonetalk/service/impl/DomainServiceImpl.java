@@ -118,6 +118,9 @@ public class DomainServiceImpl implements DomainService {
         if (existing == null) {
             throw new IllegalArgumentException("领域不存在: id=" + id);
         }
+        if (SemanticConstants.DEFAULT_DOMAIN.equalsIgnoreCase(existing.getName())) {
+            throw new IllegalArgumentException("无法删除的领域" + existing.getName());
+        }
         int referenceCount = tableInfoMapper.countByDomain(existing.getName());
         if (referenceCount > 0) {
             throw new IllegalArgumentException("领域正在被占用" + existing.getName());
