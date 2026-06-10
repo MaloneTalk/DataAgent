@@ -15,14 +15,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.mapper;
 
-public final class SemanticConstants {
+import io.github.malonetalk.dto.DomainPageQuery;
+import io.github.malonetalk.entity.DomainInfo;
+import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
-    public static final String RELATION_KEY_SEPARATOR = "|";
-    public static final String SORT_ORDER_ASC = "asc";
-    public static final String SORT_ORDER_DESC = "desc";
-    public static final String DEFAULT_DOMAIN = "default";
+@Mapper
+public interface DomainInfoMapper {
 
-    private SemanticConstants() {}
+    int insert(DomainInfo domainInfo);
+
+    int update(DomainInfo domainInfo);
+
+    int deleteByIds(@Param("ids") List<Integer> ids);
+
+    List<DomainInfo> selectAll();
+
+    List<DomainInfo> selectPage(
+            @Param("query") DomainPageQuery query, @Param("sortDescending") boolean sortDescending);
+
+    DomainInfo selectById(@Param("id") Integer id);
+
+    DomainInfo selectByName(@Param("name") String name);
 }

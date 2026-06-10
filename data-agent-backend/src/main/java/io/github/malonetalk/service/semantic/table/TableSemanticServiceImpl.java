@@ -95,6 +95,18 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     @Override
+    public List<TableInfo> listTableInfosByDomains(Integer datasourceId, List<String> domains) {
+        SemanticUtils.requireDatasourceId(datasourceId);
+        if (datasourceService.findById(datasourceId) == null) {
+            return List.of();
+        }
+        if (domains == null || domains.isEmpty()) {
+            return listTableInfosByDatasourceId(datasourceId);
+        }
+        return tableInfoMapper.selectByDatasourceIdAndDomains(datasourceId, domains);
+    }
+
+    @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName = SemanticUtils.requireName(request.tableName(), "tableName");
@@ -107,7 +119,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             tableInfo.setTableName(normalizedTableName);
             tableInfo.setTableDescription(
                     SemanticUtils.normalizeBlankToNull(request.tableDescription()));
-            tableInfo.setDomain(SemanticUtils.normalizeBlankToNull(request.domain()));
+            tableInfo.setDomain(normalizeDomain(request.domain()));
             tableInfo.setIsVisible(request.isVisible());
             tableInfo.setCreateTime(LocalDateTime.now());
             tableInfo.setUpdateTime(LocalDateTime.now());
@@ -117,7 +129,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         existing.setTableName(normalizedTableName);
         existing.setTableDescription(
                 SemanticUtils.normalizeBlankToNull(request.tableDescription()));
-        existing.setDomain(SemanticUtils.normalizeBlankToNull(request.domain()));
+        existing.setDomain(normalizeDomain(request.domain()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
         tableInfoMapper.update(existing);
@@ -189,5 +201,10 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     private String normalizeName(String value) {
         return SemanticUtils.requireName(value, "tableName").toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeDomain(String value) {
+        String normalized = SemanticUtils.normalizeBlankToNull(value);
+        return normalized == null ? SemanticConstants.DEFAULT_DOMAIN : normalized;
     }
 }

@@ -15,14 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.dto;
 
-public final class SemanticConstants {
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 
-    public static final String RELATION_KEY_SEPARATOR = "|";
-    public static final String SORT_ORDER_ASC = "asc";
-    public static final String SORT_ORDER_DESC = "desc";
-    public static final String DEFAULT_DOMAIN = "default";
-
-    private SemanticConstants() {}
-}
+public record DomainPageQuery(
+        @Min(1) Integer page,
+        @Min(1) Integer pageSize,
+        String keyword,
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                String sortOrder) {}

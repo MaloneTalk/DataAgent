@@ -41,6 +41,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/data-source/DataSource.vue'),
     meta: { title: '数据源管理' },
   },
+  {
+    path: '/semantic',
+    name: 'SemanticManage',
+    component: () => import('@/views/semantic/SemanticManage.vue'),
+    meta: { title: '语义管理' },
+  },
 ];
 
 const router = createRouter({

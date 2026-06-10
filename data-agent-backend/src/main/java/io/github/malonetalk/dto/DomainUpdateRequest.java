@@ -15,14 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.dto;
 
-public final class SemanticConstants {
+import jakarta.validation.constraints.NotBlank;
 
-    public static final String RELATION_KEY_SEPARATOR = "|";
-    public static final String SORT_ORDER_ASC = "asc";
-    public static final String SORT_ORDER_DESC = "desc";
-    public static final String DEFAULT_DOMAIN = "default";
-
-    private SemanticConstants() {}
-}
+public record DomainUpdateRequest(
+        @NotBlank(message = "领域名称不能为空") String name, String description) {}

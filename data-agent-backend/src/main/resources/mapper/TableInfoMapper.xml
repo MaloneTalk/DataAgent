@@ -66,6 +66,21 @@
         WHERE id = #{id}
     </update>
 
+    <select id="selectByDatasourceIdAndDomains" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND domain IN
+        <foreach collection="domains" item="domain" open="(" separator="," close=")">
+            #{domain}
+        </foreach>
+        ORDER BY table_name ASC, id ASC
+    </select>
+
+    <select id="countByDomain" resultType="int">
+        SELECT COUNT(1) FROM table_info
+        WHERE LOWER(domain) = LOWER(#{domain})
+    </select>
+
     <delete id="deleteByDatasourceIdAndIds">
         DELETE FROM table_info
         WHERE datasource_id = #{datasourceId}

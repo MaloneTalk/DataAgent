@@ -15,14 +15,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.service;
 
-public final class SemanticConstants {
+import io.github.malonetalk.dto.DomainCreateRequest;
+import io.github.malonetalk.dto.DomainPageQuery;
+import io.github.malonetalk.dto.DomainUpdateRequest;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.entity.DomainInfo;
+import java.util.List;
 
-    public static final String RELATION_KEY_SEPARATOR = "|";
-    public static final String SORT_ORDER_ASC = "asc";
-    public static final String SORT_ORDER_DESC = "desc";
-    public static final String DEFAULT_DOMAIN = "default";
+public interface DomainService {
 
-    private SemanticConstants() {}
+    PageResponse<DomainInfo> getDomainPage(DomainPageQuery query);
+
+    DomainInfo findById(Integer id);
+
+    DomainInfo create(DomainCreateRequest request);
+
+    DomainInfo update(Integer id, DomainUpdateRequest request);
+
+    void delete(Integer id);
+
+    List<String> listDomainNames();
 }

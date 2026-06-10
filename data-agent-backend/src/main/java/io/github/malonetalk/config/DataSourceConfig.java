@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import javax.sql.DataSource;
@@ -65,5 +66,10 @@ public class DataSourceConfig {
         config.setConnectionTimeout(connectionTimeout);
 
         return new HikariDataSource(config);
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }
