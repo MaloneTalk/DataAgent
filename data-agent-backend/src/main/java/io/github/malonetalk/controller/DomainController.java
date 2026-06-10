@@ -49,6 +49,9 @@ public class DomainController {
 
     @GetMapping("/{id}")
     public Result<DomainInfo> findById(@PathVariable Integer id) {
+        if (id == null || id < 0) {
+            return Result.error(400, "ID必须为非负数");
+        }
         DomainInfo domain = domainService.findById(id);
         if (domain == null) {
             return Result.error(404, "领域不存在");
@@ -64,11 +67,17 @@ public class DomainController {
     @PutMapping("/{id}")
     public Result<DomainInfo> update(
             @PathVariable Integer id, @Valid @RequestBody DomainUpdateRequest request) {
+        if (id == null || id < 0) {
+            return Result.error(400, "ID必须为非负数");
+        }
         return Result.success(domainService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Integer id) {
+        if (id == null || id < 0) {
+            return Result.error(400, "ID必须为非负数");
+        }
         domainService.delete(id);
         return Result.success(true);
     }
