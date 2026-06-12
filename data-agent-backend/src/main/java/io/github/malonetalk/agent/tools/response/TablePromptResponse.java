@@ -20,4 +20,40 @@ package io.github.malonetalk.agent.tools.response;
 import java.util.List;
 
 public record TablePromptResponse(
-        String name, String domain, String description, List<TableRelationResponse> relations) {}
+        String name, String domain, String description, List<TableRelationResponse> relations) {
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private String name;
+        private String domain;
+        private String description;
+        private List<TableRelationResponse> relations;
+
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder domain(String domain) {
+            this.domain = domain;
+            return this;
+        }
+
+        public Builder description(String description) {
+            this.description = description;
+            return this;
+        }
+
+        public Builder relations(List<TableRelationResponse> relations) {
+            this.relations = relations;
+            return this;
+        }
+
+        public TablePromptResponse build() {
+            return new TablePromptResponse(name, domain, description, relations);
+        }
+    }
+}

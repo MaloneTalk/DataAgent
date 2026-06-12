@@ -265,10 +265,28 @@ public class SemanticMergeService {
             return null;
         }
 
-        String domain =
-                semanticTable == null
-                        ? SemanticConstants.DEFAULT_DOMAIN
-                        : normalizeDomain(semanticTable.getDomain());
+        return TablePromptResponse.builder()
+                .name(physicalTable.tableName())
+                .domain(resolveDomain(semanticTable))
+                .description(resolveDescription(physicalTable, semanticTable))
+                .relations(
+                        resolveVisibleRelations(
+                                physicalTable.tableName(),
+                                semanticByKey,
+                                semanticColumnsByTable,
+                                logicalRelationsBySource))
+                .build();
+    }
+
+    private String resolveDomain(TableInfo semanticTable) {
+        return semanticTable == null
+                ? SemanticConstants.DEFAULT_DOMAIN
+                : normalizeDomain(semanticTable.getDomain());
+    }
+
+    private String resolveDescription(
+            io.github.malonetalk.agent.datasource.TableInfo physicalTable,
+            TableInfo semanticTable) {
         String description =
                 semanticTable == null
                         ? null
@@ -276,16 +294,7 @@ public class SemanticMergeService {
         if (description == null) {
             description = SemanticUtils.normalizeBlankToNull(physicalTable.remarks());
         }
-
-        return new TablePromptResponse(
-                physicalTable.tableName(),
-                domain,
-                description,
-                resolveVisibleRelations(
-                        physicalTable.tableName(),
-                        semanticByKey,
-                        semanticColumnsByTable,
-                        logicalRelationsBySource));
+        return description;
     }
 
     private String normalizeDomain(String domain) {
