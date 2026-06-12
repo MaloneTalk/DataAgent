@@ -52,7 +52,8 @@ public class TableSemanticController {
     }
 
     @GetMapping("/names")
-    public Result<List<String>> listTableNames(@RequestParam @NotNull @Min(1) Integer datasourceId) {
+    public Result<List<String>> listTableNames(
+            @RequestParam @NotNull @Min(1) Integer datasourceId) {
         return Result.success(tableSemanticService.listTableNames(datasourceId));
     }
 

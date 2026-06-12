@@ -41,12 +41,17 @@ public class GetTablesTool implements MarkAgentTool {
     @Tool(
             name = "get_tables",
             description =
-                    "Get table information from the database, including table name, domain, description and relations. Returns semantic-first merged table information (uses semantic layer if available, falls back to physical layer otherwise).")
+                    "Get table information from the database, including table name, domain,"
+                        + " description and relations. Returns semantic-first merged table"
+                        + " information (uses semantic layer if available, falls back to physical"
+                        + " layer otherwise).")
     public List<TablePromptResponse> getTables(
             @ToolParam(
                             name = "domains",
                             description =
-                                    "Optional list of domain names. Only tables belonging to these domains will be returned. If not provided or empty, returns all tables.",
+                                    "Optional list of domain names. Only tables belonging to these"
+                                            + " domains will be returned. If not provided or empty,"
+                                            + " returns all tables.",
                             required = false)
                     List<String> domains) {
         List<Datasource> activeDataSources =
@@ -58,7 +63,8 @@ public class GetTablesTool implements MarkAgentTool {
 
         if (activeDataSources.size() > 1) {
             log.warn(
-                    "Found {} active data sources, using the first one. This may cause data inconsistency.",
+                    "Found {} active data sources, using the first one. This may cause data"
+                            + " inconsistency.",
                     activeDataSources.size());
         }
 

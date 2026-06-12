@@ -69,10 +69,7 @@ public class SchemaReader {
                 metaData.getTables(
                         conn.getCatalog(), conn.getSchema(), "%", new String[] {"TABLE"})) {
             while (rs.next()) {
-                tables.add(
-                        new TableInfo(
-                                rs.getString("TABLE_NAME"),
-                                rs.getString("REMARKS")));
+                tables.add(new TableInfo(rs.getString("TABLE_NAME"), rs.getString("REMARKS")));
             }
         }
 

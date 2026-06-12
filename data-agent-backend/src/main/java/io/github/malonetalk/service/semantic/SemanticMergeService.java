@@ -81,9 +81,7 @@ public class SemanticMergeService {
                 schemaReader.getTableSchema(datasource, normalizedTableName);
         if (physicalColumns.isEmpty()) {
             throw new IllegalArgumentException(
-                    "Table "
-                            + normalizedTableName
-                            + " does not exist or has no readable columns.");
+                    "Table " + normalizedTableName + " does not exist or has no readable columns.");
         }
 
         TableInfo semanticTable =
@@ -97,9 +95,9 @@ public class SemanticMergeService {
                 buildSemanticColumnsByKey(datasource.getId(), normalizedTableName);
 
         return physicalColumns.stream()
-                        .map(physical -> mapColumnPrompt(physical, semanticByKey))
-                        .filter(java.util.Objects::nonNull)
-                        .toList();
+                .map(physical -> mapColumnPrompt(physical, semanticByKey))
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     private List<TableRelationResponse> resolveVisibleRelations(
@@ -136,8 +134,7 @@ public class SemanticMergeService {
                         e.getMessage());
                 continue;
             }
-            if (columnsHidden(
-                            relation.getSourceTableName(), sourceColumns, semanticColumnsByTable)
+            if (columnsHidden(relation.getSourceTableName(), sourceColumns, semanticColumnsByTable)
                     || columnsHidden(
                             relation.getTargetTableName(), targetColumns, semanticColumnsByTable)) {
                 continue;
@@ -184,8 +181,7 @@ public class SemanticMergeService {
         String description =
                 semanticColumn == null
                         ? null
-                        : SemanticUtils.normalizeBlankToNull(
-                                semanticColumn.getColumnDescription());
+                        : SemanticUtils.normalizeBlankToNull(semanticColumn.getColumnDescription());
         if (description == null) {
             description = SemanticUtils.normalizeBlankToNull(physicalColumn.remarks());
         }
@@ -312,7 +308,8 @@ public class SemanticMergeService {
     private boolean columnsHidden(
             String tableName,
             List<String> columnNames,
-            Map<String, Map<String, io.github.malonetalk.entity.ColumnInfo>> semanticColumnsByTable) {
+            Map<String, Map<String, io.github.malonetalk.entity.ColumnInfo>>
+                    semanticColumnsByTable) {
         Map<String, io.github.malonetalk.entity.ColumnInfo> semanticColumns =
                 semanticColumnsByTable.getOrDefault(
                         tableName.toLowerCase(Locale.ROOT), Collections.emptyMap());
