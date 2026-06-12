@@ -18,21 +18,33 @@
 <script setup lang="ts">
   import { ref, watch } from 'vue';
   import DomainManage from './components/DomainManage.vue';
+  import TableSemanticManage from './components/TableSemanticManage.vue';
+  import ColumnSemanticManage from './components/ColumnSemanticManage.vue';
 
-  const activeTab = ref<'domain'>('domain');
+  const activeTab = ref<'domain' | 'table' | 'column'>('domain');
   const keyword = ref('');
   const sortOrder = ref<'asc' | 'desc'>('asc');
   const domainManageRef = ref<InstanceType<typeof DomainManage>>();
+  const tableManageRef = ref<InstanceType<typeof TableSemanticManage>>();
+  const columnManageRef = ref<InstanceType<typeof ColumnSemanticManage>>();
 
   const handleSearch = async () => {
     if (activeTab.value === 'domain' && domainManageRef.value) {
       await domainManageRef.value.loadDomainPage();
+    } else if (activeTab.value === 'table' && tableManageRef.value) {
+      await tableManageRef.value.loadPage();
+    } else if (activeTab.value === 'column' && columnManageRef.value) {
+      await columnManageRef.value.loadPage();
     }
   };
 
   watch(activeTab, async tab => {
     if (tab === 'domain' && domainManageRef.value) {
       await domainManageRef.value.loadDomainPage();
+    } else if (tab === 'table' && tableManageRef.value) {
+      await tableManageRef.value.loadPage();
+    } else if (tab === 'column' && columnManageRef.value) {
+      await columnManageRef.value.loadPage();
     }
   });
 </script>
@@ -42,7 +54,7 @@
     <section class="hero-card">
       <div>
         <h2 class="hero-title">语义管理</h2>
-        <p class="hero-desc">管理数据领域标签，用于分类和组织表。</p>
+        <p class="hero-desc">管理数据领域标签、表语义信息和列语义信息，用于分类和组织表结构。</p>
       </div>
     </section>
 
@@ -73,6 +85,12 @@
       <el-tabs v-model="activeTab" class="semantic-tabs">
         <el-tab-pane label="数据领域管理" name="domain">
           <DomainManage ref="domainManageRef" :keyword="keyword" :sort-order="sortOrder" />
+        </el-tab-pane>
+        <el-tab-pane label="表语义管理" name="table">
+          <TableSemanticManage ref="tableManageRef" :keyword="keyword" :sort-order="sortOrder" />
+        </el-tab-pane>
+        <el-tab-pane label="列语义管理" name="column">
+          <ColumnSemanticManage ref="columnManageRef" :keyword="keyword" :sort-order="sortOrder" />
         </el-tab-pane>
       </el-tabs>
     </section>

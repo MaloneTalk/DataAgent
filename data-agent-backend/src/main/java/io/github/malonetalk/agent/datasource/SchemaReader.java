@@ -37,6 +37,17 @@ public class SchemaReader {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
+    public List<TableInfo> getTables(Datasource datasource) {
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+
+        try (Connection conn = ds.getConnection()) {
+            return getTables(conn);
+        } catch (SQLException e) {
+            log.error("Failed to read tables: {}", e.getMessage(), e);
+            throw new SchemaReadException("Failed to read tables: " + e.getMessage(), e);
+        }
+    }
+
     public List<ColumnInfo> getTableSchema(Datasource datasource, String tableName) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
@@ -48,6 +59,24 @@ public class SchemaReader {
             throw new SchemaReadException(
                     "Failed to read schema for table " + tableName + ": " + e.getMessage(), e);
         }
+    }
+
+    private List<TableInfo> getTables(Connection conn) throws SQLException {
+        List<TableInfo> tables = new ArrayList<>();
+        DatabaseMetaData metaData = conn.getMetaData();
+
+        try (ResultSet rs =
+                metaData.getTables(
+                        conn.getCatalog(), conn.getSchema(), "%", new String[] {"TABLE"})) {
+            while (rs.next()) {
+                tables.add(
+                        new TableInfo(
+                                rs.getString("TABLE_NAME"),
+                                rs.getString("REMARKS")));
+            }
+        }
+
+        return tables;
     }
 
     private Set<String> getPrimaryKeys(Connection conn, String tableName) throws SQLException {

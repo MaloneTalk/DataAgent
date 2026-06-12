@@ -19,14 +19,17 @@ package io.github.malonetalk.service.semantic.column;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +45,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
+    private final SemanticMergeService semanticMergeService;
 
     @Override
     public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
@@ -49,7 +53,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String normalizedTableName = SemanticUtils.requireName(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        if (datasourceService.findById(query.datasourceId()) == null) {
+        Datasource datasource = datasourceService.findById(query.datasourceId());
+        if (datasource == null) {
             return PageResponse.empty(pageNumber, pageSize);
         }
         SemanticUtils.validateSortOrder(query.sortOrder());
@@ -99,6 +104,13 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
         columnSemanticInfoMapper.update(existing);
+    }
+
+    @Override
+    public List<ColumnPromptResponse> getMergedTableSchema(Integer datasourceId, String tableName) {
+        requireDatasource(datasourceId);
+        Datasource datasource = datasourceService.findById(datasourceId);
+        return semanticMergeService.getTableSchema(datasource, tableName);
     }
 
     @Override
@@ -160,6 +172,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
     }
 
+    private String normalizeKey(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
     private ColumnSemanticResponse mapResponse(ColumnInfo columnInfo) {
         return new ColumnSemanticResponse(
                 columnInfo.getId(),
@@ -173,9 +189,5 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 Boolean.TRUE.equals(columnInfo.getIsVisible()),
                 null,
                 columnInfo.getUpdateTime());
-    }
-
-    private String normalizeKey(String value) {
-        return value.trim().toLowerCase(Locale.ROOT);
     }
 }

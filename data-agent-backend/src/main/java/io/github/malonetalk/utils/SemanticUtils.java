@@ -17,7 +17,9 @@
  */
 package io.github.malonetalk.utils;
 
+import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.common.SemanticConstants;
+import java.util.List;
 import java.util.Locale;
 
 public final class SemanticUtils {
@@ -56,5 +58,22 @@ public final class SemanticUtils {
 
     public static String normalizeIdentifierKey(String value) {
         return requireName(value, "value").toLowerCase(Locale.ROOT);
+    }
+
+    public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Schema of table %s:%n", tableName));
+        sb.append("  Columns:\n");
+        for (ColumnPromptResponse col : columns) {
+            sb.append(String.format("    - %s (%s)", col.name(), col.type()));
+            if (Boolean.TRUE.equals(col.primaryKey())) {
+                sb.append(" [PRIMARY KEY]");
+            }
+            if (col.description() != null) {
+                sb.append(String.format(" - %s", col.description()));
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 }

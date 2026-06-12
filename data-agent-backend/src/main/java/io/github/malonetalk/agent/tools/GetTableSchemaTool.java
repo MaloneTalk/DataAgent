@@ -19,12 +19,12 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.agent.datasource.ColumnInfo;
-import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
+import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
+import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,52 +36,38 @@ import org.springframework.stereotype.Component;
 public class GetTableSchemaTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
-    private final SchemaReader schemaReader;
+    private final ColumnSemanticService columnSemanticService;
 
     @Tool(
             name = "get_table_schema",
             description =
-                    "Get the schema information of the specified table, including column name, data"
-                        + " type, whether it is primary key, whether it allows null, default value"
-                        + " and column comments. This tool should be called to understand the table"
-                        + " structure before generating SQL.")
+                    "Get the schema information of the specified table, including column name, data type, whether it is primary key, whether it allows null, default value and column comments. Returns semantic-first merged column information (uses semantic layer if available, falls back to physical layer otherwise). This tool should be called to understand the table structure before generating SQL.")
     public String getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-        if (activeDataSources.isEmpty()) {
-            return "No active datasource available, cannot get table schema.";
-        }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one.", activeDataSources.size());
-        }
-
-        Datasource datasource = activeDataSources.get(0);
-
         try {
-            List<ColumnInfo> columns = schemaReader.getTableSchema(datasource, tableName);
-            return formatSchema(tableName, columns);
-        } catch (SchemaReadException e) {
+            java.util.List<Datasource> activeDataSources =
+                    dataSourceService.findByStatus(Status.ACTIVE.getCode());
+
+            if (activeDataSources.isEmpty()) {
+                return "No active datasource available, cannot get table schema.";
+            }
+
+            if (activeDataSources.size() > 1) {
+                log.warn(
+                        "Found {} active data sources, using the first one.",
+                        activeDataSources.size());
+            }
+
+            Datasource datasource = activeDataSources.get(0);
+
+            List<ColumnPromptResponse> columns =
+                    columnSemanticService.getMergedTableSchema(datasource.getId(), tableName);
+            return SemanticUtils.formatTableSchema(tableName, columns);
+        } catch (Exception e) {
+            log.error("Failed to get table schema: " + tableName, e);
             return "Failed to get table schema: " + e.getMessage();
         }
     }
 
-    private String formatSchema(String tableName, List<ColumnInfo> columns) {
-        if (columns.isEmpty()) {
-            return "Table " + tableName + " does not exist or has no column information.";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("Schema of table ").append(tableName).append(":\n");
-
-        for (ColumnInfo col : columns) {
-            sb.append("  - ").append(col.toString()).append("\n");
-        }
-
-        return sb.toString();
-    }
 }
