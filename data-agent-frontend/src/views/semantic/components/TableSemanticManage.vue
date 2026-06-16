@@ -16,16 +16,18 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref } from 'vue';
+  import { onMounted, reactive, ref, nextTick } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import {
     getActiveDatasourceId,
     getTableSemanticPage,
+    getTableDomains,
     resetTableSemantic,
     updateTableSemantic,
     type TableSemanticInfo,
   } from '@/api/semantic';
+  import ColumnSemanticManage from './ColumnSemanticManage.vue';
 
   interface TableEditForm {
     tableName: string;
@@ -43,6 +45,7 @@
   const error = ref('');
   const rows = ref<TableSemanticInfo[]>([]);
   const datasourceId = ref<number | null>(null);
+  const domainOptions = ref<string[]>([]);
   const page = reactive({
     page: 1,
     pageSize: 10,
@@ -62,6 +65,10 @@
     tableName: [{ required: true, message: '表名不能为空', trigger: 'blur' }],
   };
 
+  const columnDrawerVisible = ref(false);
+  const selectedTableForColumns = ref('');
+  const columnManageRef = ref<InstanceType<typeof ColumnSemanticManage>>();
+
   const ensureDatasourceId = async () => {
     if (datasourceId.value !== null) {
       return datasourceId.value;
@@ -73,6 +80,20 @@
       page.total = 0;
     }
     return datasourceId.value;
+  };
+
+  const loadDomainOptions = async () => {
+    const activeDatasourceId = await ensureDatasourceId();
+    if (activeDatasourceId === null) {
+      domainOptions.value = [];
+      return;
+    }
+    try {
+      const response = await getTableDomains(activeDatasourceId);
+      domainOptions.value = response.data.data;
+    } catch {
+      domainOptions.value = [];
+    }
   };
 
   const loadPage = async () => {
@@ -117,9 +138,11 @@
     Object.assign(form, {
       tableName: row.tableName,
       domain: row.domain,
-      tableDescription: row.tableDescription ?? '',
+      tableDescription: row.tableDescription ?? row.physicalTableDescription ?? '',
       isVisible: row.isVisible,
     });
+    // 加载领域选项
+    loadDomainOptions();
     dialogVisible.value = true;
   };
 
@@ -165,6 +188,16 @@
     }
   };
 
+  const handleManageColumns = async (row: TableSemanticInfo) => {
+    selectedTableForColumns.value = row.tableName;
+    columnDrawerVisible.value = true;
+    // 等待 drawer 打开
+    await nextTick();
+    if (columnManageRef.value) {
+      await columnManageRef.value.handleTableChange(row.tableName);
+    }
+  };
+
   defineExpose({
     loadPage,
   });
@@ -183,9 +216,14 @@
     <el-table v-loading="loading" :data="rows" border stripe>
       <el-table-column prop="tableName" label="表名" min-width="150" />
       <el-table-column prop="domain" label="领域" min-width="120" />
-      <el-table-column label="描述" min-width="200" show-overflow-tooltip>
+      <el-table-column label="物理描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.tableDescription || row.physicalTableDescription || '-' }}
+          {{ row.physicalTableDescription || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.tableDescription || '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="isVisible" label="可见性" width="100" align="center">
@@ -203,10 +241,13 @@
         </template>
       </el-table-column>
       <el-table-column prop="updateTime" label="更新时间" width="180" />
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="handleOpenEdit(row)">
             编辑
+          </el-button>
+          <el-button link type="primary" size="small" @click="handleManageColumns(row)">
+            管理列
           </el-button>
           <el-button
             v-if="row.id !== null"
@@ -244,14 +285,28 @@
           <el-input v-model="form.tableName" disabled placeholder="请输入表名" />
         </el-form-item>
         <el-form-item label="领域" prop="domain">
-          <el-input v-model="form.domain" placeholder="请输入领域" />
+          <el-select
+            v-model="form.domain"
+            placeholder="请选择领域"
+            filterable
+            allow-create
+            default-first-option
+            clearable
+          >
+            <el-option
+              v-for="domain in domainOptions"
+              :key="domain"
+              :label="domain"
+              :value="domain"
+            />
+          </el-select>
         </el-form-item>
-        <el-form-item label="描述" prop="tableDescription">
+        <el-form-item label="语义描述" prop="tableDescription">
           <el-input
             v-model="form.tableDescription"
             type="textarea"
             :rows="4"
-            placeholder="请输入表的描述信息"
+            placeholder="请输入表的语义描述信息（为空时将使用物理描述）"
           />
         </el-form-item>
         <el-form-item label="可见性" prop="isVisible">
@@ -265,6 +320,20 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <el-drawer
+      v-model="columnDrawerVisible"
+      :title="`列语义管理 - ${selectedTableForColumns}`"
+      direction="rtl"
+      size="65%"
+    >
+      <ColumnSemanticManage
+        ref="columnManageRef"
+        :keyword="''"
+        :sort-order="'asc'"
+        :table-name="selectedTableForColumns"
+      />
+    </el-drawer>
   </div>
 </template>
 

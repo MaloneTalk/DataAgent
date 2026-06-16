@@ -16,13 +16,12 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref } from 'vue';
+  import { onMounted, reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import {
     getActiveDatasourceId,
     getColumnSemanticPage,
-    getTableSemanticNames,
     resetColumnSemantic,
     updateColumnSemantic,
     type ColumnSemanticInfo,
@@ -38,13 +37,13 @@
   const props = defineProps<{
     keyword: string;
     sortOrder: 'asc' | 'desc';
+    tableName?: string;
   }>();
 
   const loading = ref(false);
   const error = ref('');
   const rows = ref<ColumnSemanticInfo[]>([]);
   const datasourceId = ref<number | null>(null);
-  const tableOptions = ref<string[]>([]);
   const page = reactive({
     page: 1,
     pageSize: 10,
@@ -66,6 +65,17 @@
     columnName: [{ required: true, message: '列名不能为空', trigger: 'blur' }],
   };
 
+  // 监听 props.tableName 变化
+  watch(
+    () => props.tableName,
+    (newTableName) => {
+      if (newTableName) {
+        selectedTableName.value = newTableName;
+      }
+    },
+    { immediate: true }
+  );
+
   const ensureDatasourceId = async () => {
     if (datasourceId.value !== null) {
       return datasourceId.value;
@@ -79,28 +89,7 @@
     return datasourceId.value;
   };
 
-  const loadTableOptions = async () => {
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) {
-      tableOptions.value = [];
-      selectedTableName.value = '';
-      return;
-    }
-    const response = await getTableSemanticNames(activeDatasourceId);
-    tableOptions.value = response.data.data;
-    if (
-      selectedTableName.value &&
-      tableOptions.value.includes(selectedTableName.value)
-    ) {
-      return;
-    }
-    selectedTableName.value = tableOptions.value[0] ?? '';
-  };
-
   const loadPage = async () => {
-    if (tableOptions.value.length === 0) {
-      await loadTableOptions();
-    }
     if (!selectedTableName.value) {
       rows.value = [];
       page.total = 0;
@@ -153,7 +142,7 @@
     Object.assign(form, {
       tableName: selectedTableName.value,
       columnName: row.columnName,
-      columnDescription: row.columnDescription ?? '',
+      columnDescription: row.columnDescription ?? row.physicalColumnDescription ?? '',
       isVisible: row.isVisible,
     });
     dialogVisible.value = true;
@@ -204,35 +193,18 @@
 
   defineExpose({
     loadPage,
-    loadTableOptions,
     handleTableChange,
   });
 
   onMounted(async () => {
-    await loadTableOptions();
-    await loadPage();
+    if (selectedTableName.value) {
+      await loadPage();
+    }
   });
 </script>
 
 <template>
   <div class="column-semantic-container">
-    <div class="table-selector">
-      <el-select
-        v-model="selectedTableName"
-        placeholder="请选择表"
-        filterable
-        clearable
-        @change="handleTableChange"
-      >
-        <el-option
-          v-for="table in tableOptions"
-          :key="table"
-          :label="table"
-          :value="table"
-        />
-      </el-select>
-    </div>
-
     <div v-if="error" class="error-banner">
       <el-alert type="error" :closable="false" show-icon>{{ error }}</el-alert>
     </div>
@@ -249,9 +221,14 @@
           <el-tag v-if="row.primaryKey" type="danger" size="small">PK</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="描述" min-width="200" show-overflow-tooltip>
+      <el-table-column label="物理描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.columnDescription || row.physicalColumnDescription || '-' }}
+          {{ row.physicalColumnDescription || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.columnDescription || '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="isVisible" label="可见性" width="100" align="center">
@@ -312,12 +289,12 @@
         <el-form-item label="列名" prop="columnName">
           <el-input v-model="form.columnName" disabled />
         </el-form-item>
-        <el-form-item label="描述" prop="columnDescription">
+        <el-form-item label="语义描述" prop="columnDescription">
           <el-input
             v-model="form.columnDescription"
             type="textarea"
             :rows="4"
-            placeholder="请输入列的描述信息"
+            placeholder="请输入列的语义描述信息（为空时将使用物理描述）"
           />
         </el-form-item>
         <el-form-item label="可见性" prop="isVisible">
@@ -339,10 +316,6 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-  }
-
-  .table-selector {
-    width: 300px;
   }
 
   .error-banner {

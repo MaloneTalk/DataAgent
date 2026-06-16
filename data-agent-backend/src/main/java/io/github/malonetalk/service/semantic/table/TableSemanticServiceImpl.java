@@ -225,83 +225,18 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
     }
 
-    private List<TableSemanticResponse> listMergedTableResponses(Datasource datasource) {
-        Map<String, TableInfo> semanticByKey = new LinkedHashMap<>();
-        for (TableInfo tableInfo : tableInfoMapper.selectByDatasourceId(datasource.getId())) {
-            semanticByKey.put(normalizeName(tableInfo.getTableName()), tableInfo);
-        }
-
-        Map<String, TableSemanticResponse> responsesByKey = new LinkedHashMap<>();
-        for (io.github.malonetalk.agent.datasource.TableInfo physicalTable :
-                schemaReader.getTables(datasource)) {
-            String key = normalizeName(physicalTable.tableName());
-            TableInfo semanticTable = semanticByKey.remove(key);
-            responsesByKey.put(key, mapTableResponse(physicalTable, semanticTable, true));
-        }
-        for (TableInfo semanticTable : semanticByKey.values()) {
-            responsesByKey.put(
-                    normalizeName(semanticTable.getTableName()),
-                    mapTableResponse(null, semanticTable, false));
-        }
-        return List.copyOf(responsesByKey.values());
-    }
-
-    private TableSemanticResponse mapTableResponse(
-            io.github.malonetalk.agent.datasource.TableInfo physicalTable,
-            TableInfo semanticTable,
-            boolean hasPhysicalTable) {
-        String tableName =
-                physicalTable == null ? semanticTable.getTableName() : physicalTable.tableName();
-        Boolean isVisible = semanticTable == null ? Boolean.TRUE : semanticTable.getIsVisible();
-        boolean visible = Boolean.TRUE.equals(isVisible);
-        String physicalDescription =
-                physicalTable == null
-                        ? null
-                        : SemanticUtils.normalizeBlankToNull(physicalTable.remarks());
+    private TableSemanticResponse mapResponse(TableInfo tableInfo) {
+        Boolean isVisible = tableInfo.getIsVisible();
         return new TableSemanticResponse(
-                semanticTable == null ? null : semanticTable.getId(),
-                tableName,
-                semanticTable == null
-                        ? SemanticConstants.DEFAULT_DOMAIN
-                        : normalizeDomain(semanticTable.getDomain()),
-                physicalDescription,
-                semanticTable == null
-                        ? null
-                        : SemanticUtils.normalizeBlankToNull(semanticTable.getTableDescription()),
+                tableInfo.getId(),
+                tableInfo.getTableName(),
+                normalizeDomain(tableInfo.getDomain()),
+                null,
+                SemanticUtils.normalizeBlankToNull(tableInfo.getTableDescription()),
                 isVisible,
-                hasPhysicalTable,
-                hasPhysicalTable && visible,
-                hasPhysicalTable ? null : "物理表不存在",
-                semanticTable == null ? null : semanticTable.getUpdateTime());
-    }
-
-    private boolean tableMatchesKeyword(TableSemanticResponse table, String keyword) {
-        if (keyword == null) {
-            return true;
-        }
-        String normalizedKeyword = keyword.toLowerCase(Locale.ROOT);
-        return containsIgnoreCase(table.tableName(), normalizedKeyword)
-                || containsIgnoreCase(table.domain(), normalizedKeyword)
-                || containsIgnoreCase(table.tableDescription(), normalizedKeyword)
-                || containsIgnoreCase(table.physicalTableDescription(), normalizedKeyword);
-    }
-
-    private boolean containsIgnoreCase(String value, String normalizedKeyword) {
-        return value != null && value.toLowerCase(Locale.ROOT).contains(normalizedKeyword);
-    }
-
-    private Comparator<TableSemanticResponse> tableComparator(boolean sortDescending) {
-        Comparator<TableSemanticResponse> comparator =
-                Comparator.comparing(
-                        table -> table.tableName().toLowerCase(Locale.ROOT),
-                        Comparator.naturalOrder());
-        return sortDescending ? comparator.reversed() : comparator;
-    }
-
-    private List<TableSemanticResponse> pageItems(
-            List<TableSemanticResponse> responses, int pageNumber, int pageSize) {
-        int fromIndex = Math.min((pageNumber - 1) * pageSize, responses.size());
-        int toIndex = Math.min(fromIndex + pageSize, responses.size());
-        return responses.subList(fromIndex, toIndex);
+                true,
+                Boolean.TRUE.equals(isVisible),
+                null,
+                tableInfo.getUpdateTime());
     }
 }

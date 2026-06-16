@@ -89,6 +89,12 @@ export function getTableSemanticNames(datasourceId: number) {
   });
 }
 
+export function getTableDomains(datasourceId: number) {
+  return request.get<ApiResponse<string[]>>('/semantic/tables/domains', {
+    params: { datasourceId },
+  });
+}
+
 export function updateTableSemantic(data: TableSemanticUpdateRequest) {
   return request.put<ApiResponse<boolean>>('/semantic/tables', data);
 }

@@ -19,22 +19,18 @@
   import { ref, watch } from 'vue';
   import DomainManage from './components/DomainManage.vue';
   import TableSemanticManage from './components/TableSemanticManage.vue';
-  import ColumnSemanticManage from './components/ColumnSemanticManage.vue';
 
-  const activeTab = ref<'domain' | 'table' | 'column'>('domain');
+  const activeTab = ref<'domain' | 'table'>('domain');
   const keyword = ref('');
   const sortOrder = ref<'asc' | 'desc'>('asc');
   const domainManageRef = ref<InstanceType<typeof DomainManage>>();
   const tableManageRef = ref<InstanceType<typeof TableSemanticManage>>();
-  const columnManageRef = ref<InstanceType<typeof ColumnSemanticManage>>();
 
   const handleSearch = async () => {
     if (activeTab.value === 'domain' && domainManageRef.value) {
       await domainManageRef.value.loadDomainPage();
     } else if (activeTab.value === 'table' && tableManageRef.value) {
       await tableManageRef.value.loadPage();
-    } else if (activeTab.value === 'column' && columnManageRef.value) {
-      await columnManageRef.value.loadPage();
     }
   };
 
@@ -43,8 +39,6 @@
       await domainManageRef.value.loadDomainPage();
     } else if (tab === 'table' && tableManageRef.value) {
       await tableManageRef.value.loadPage();
-    } else if (tab === 'column' && columnManageRef.value) {
-      await columnManageRef.value.loadPage();
     }
   });
 </script>
@@ -88,9 +82,6 @@
         </el-tab-pane>
         <el-tab-pane label="表语义管理" name="table">
           <TableSemanticManage ref="tableManageRef" :keyword="keyword" :sort-order="sortOrder" />
-        </el-tab-pane>
-        <el-tab-pane label="列语义管理" name="column">
-          <ColumnSemanticManage ref="columnManageRef" :keyword="keyword" :sort-order="sortOrder" />
         </el-tab-pane>
       </el-tabs>
     </section>
