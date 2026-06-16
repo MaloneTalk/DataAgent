@@ -243,9 +243,7 @@
       <el-table-column prop="updateTime" label="更新时间" width="180" />
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">
-            编辑
-          </el-button>
+          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
           <el-button link type="primary" size="small" @click="handleManageColumns(row)">
             管理列
           </el-button>
@@ -315,9 +313,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-          确定
-        </el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
 

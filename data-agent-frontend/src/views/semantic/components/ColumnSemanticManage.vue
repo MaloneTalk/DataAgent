@@ -68,12 +68,12 @@
   // 监听 props.tableName 变化
   watch(
     () => props.tableName,
-    (newTableName) => {
+    newTableName => {
       if (newTableName) {
         selectedTableName.value = newTableName;
       }
     },
-    { immediate: true }
+    { immediate: true },
   );
 
   const ensureDatasourceId = async () => {
@@ -174,11 +174,9 @@
 
   const handleReset = async (row: ColumnSemanticInfo) => {
     try {
-      await ElMessageBox.confirm(
-        `确认重置列 ${row.columnName} 的语义信息吗？`,
-        '确认重置',
-        { type: 'warning' }
-      );
+      await ElMessageBox.confirm(`确认重置列 ${row.columnName} 的语义信息吗？`, '确认重置', {
+        type: 'warning',
+      });
       const activeDatasourceId = await ensureDatasourceId();
       if (activeDatasourceId === null) return;
       await resetColumnSemantic(activeDatasourceId, selectedTableName.value, row.columnName);
@@ -248,9 +246,7 @@
       <el-table-column prop="updateTime" label="更新时间" width="180" />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">
-            编辑
-          </el-button>
+          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
           <el-button
             v-if="row.id !== null"
             link
@@ -303,9 +299,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-          确定
-        </el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
