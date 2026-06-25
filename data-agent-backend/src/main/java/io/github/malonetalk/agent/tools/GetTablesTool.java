@@ -19,7 +19,7 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.agent.tools.response.TablePromptResponse;
+import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
@@ -41,17 +41,21 @@ public class GetTablesTool implements MarkAgentTool {
     @Tool(
             name = "get_tables",
             description =
-                    "Get table information from the database, including table name, domain,"
-                        + " description and relations. Returns semantic-first merged table"
-                        + " information (uses semantic layer if available, falls back to physical"
-                        + " layer otherwise).")
+                    """
+                    Get table information from the database, including table name, domain, \
+                    description and relations. Returns semantic-first merged table \
+                    information (uses semantic layer if available, falls back to physical \
+                    layer otherwise).\
+                    """)
     public List<TablePromptResponse> getTables(
             @ToolParam(
                             name = "domains",
                             description =
-                                    "Optional list of domain names. Only tables belonging to these"
-                                            + " domains will be returned. If not provided or empty,"
-                                            + " returns all tables.",
+                                    """
+                                    Optional list of domain names. Only tables belonging to these \
+                                    domains will be returned. If not provided or empty, \
+                                    returns all tables.\
+                                    """,
                             required = false)
                     List<String> domains) {
         List<Datasource> activeDataSources =

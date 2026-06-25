@@ -18,10 +18,10 @@
 package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
-import io.github.malonetalk.agent.tools.response.TablePromptResponse;
-import io.github.malonetalk.agent.tools.response.TableRelationResponse;
-import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.PromptConverter;
+import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
+import io.github.malonetalk.dto.prompt.TablePromptResponse;
+import io.github.malonetalk.dto.prompt.TableRelationPromptResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
@@ -64,11 +64,14 @@ public class SemanticMergeService {
         return schemaReader.getTables(datasource).stream()
                 .map(
                         physical ->
-                                mapTablePrompt(
+                                PromptConverter.mapTablePrompt(
                                         physical,
                                         semanticByKey,
-                                        semanticColumnsByTable,
-                                        logicalRelationsBySource))
+                                        resolveVisibleRelations(
+                                                physical.tableName(),
+                                                semanticByKey,
+                                                semanticColumnsByTable,
+                                                logicalRelationsBySource)))
                 .filter(java.util.Objects::nonNull)
                 .filter(table -> domainMatches(table.domain(), normalizedDomains))
                 .toList();
@@ -77,7 +80,7 @@ public class SemanticMergeService {
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
         String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
 
-        List<io.github.malonetalk.agent.datasource.ColumnInfo> physicalColumns =
+        List<io.github.malonetalk.dto.datasource.ColumnInfo> physicalColumns =
                 schemaReader.getTableSchema(datasource, normalizedTableName);
         if (physicalColumns.isEmpty()) {
             throw new IllegalArgumentException(
@@ -95,17 +98,17 @@ public class SemanticMergeService {
                 buildSemanticColumnsByKey(datasource.getId(), normalizedTableName);
 
         return physicalColumns.stream()
-                .map(physical -> mapColumnPrompt(physical, semanticByKey))
+                .map(physical -> PromptConverter.mapColumnPrompt(physical, semanticByKey))
                 .filter(java.util.Objects::nonNull)
                 .toList();
     }
 
-    private List<TableRelationResponse> resolveVisibleRelations(
+    private List<TableRelationPromptResponse> resolveVisibleRelations(
             String sourceTableName,
             Map<String, TableInfo> semanticByKey,
             Map<String, Map<String, io.github.malonetalk.entity.ColumnInfo>> semanticColumnsByTable,
             Map<String, List<LogicalTableRelation>> logicalRelationsBySource) {
-        LinkedHashMap<String, TableRelationResponse> merged = new LinkedHashMap<>();
+        LinkedHashMap<String, TableRelationPromptResponse> merged = new LinkedHashMap<>();
 
         List<LogicalTableRelation> logicalRelations =
                 logicalRelationsBySource.getOrDefault(
@@ -147,7 +150,7 @@ public class SemanticMergeService {
                             targetColumns);
             merged.put(
                     key,
-                    new TableRelationResponse(
+                    new TableRelationPromptResponse(
                             relation.getRelationType(),
                             LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
                             relation.getSourceTableName(),
@@ -167,37 +170,6 @@ public class SemanticMergeService {
             List<String> targetColumns) {
         return logicalTableRelationHelper.buildRelationKey(
                 sourceTable, sourceColumns, targetTable, targetColumns);
-    }
-
-    private ColumnPromptResponse mapColumnPrompt(
-            io.github.malonetalk.agent.datasource.ColumnInfo physicalColumn,
-            Map<String, io.github.malonetalk.entity.ColumnInfo> semanticByKey) {
-        io.github.malonetalk.entity.ColumnInfo semanticColumn =
-                semanticByKey.get(physicalColumn.columnName().toLowerCase(Locale.ROOT));
-        if (semanticColumn != null && !Boolean.TRUE.equals(semanticColumn.getIsVisible())) {
-            return null;
-        }
-
-        String description =
-                semanticColumn == null
-                        ? null
-                        : SemanticUtils.normalizeBlankToNull(semanticColumn.getColumnDescription());
-        if (description == null) {
-            description = SemanticUtils.normalizeBlankToNull(physicalColumn.remarks());
-        }
-
-        StringBuilder typeBuilder = new StringBuilder(physicalColumn.typeName());
-        if (physicalColumn.columnSize() > 0) {
-            typeBuilder.append("(").append(physicalColumn.columnSize()).append(")");
-        }
-
-        return new ColumnPromptResponse(
-                physicalColumn.columnName(),
-                typeBuilder.toString(),
-                physicalColumn.primaryKey(),
-                physicalColumn.nullable(),
-                SemanticUtils.normalizeBlankToNull(physicalColumn.defaultValue()),
-                description);
     }
 
     private Map<String, io.github.malonetalk.entity.ColumnInfo> buildSemanticColumnsByKey(
@@ -252,54 +224,6 @@ public class SemanticMergeService {
                 .filter(java.util.Objects::nonNull)
                 .distinct()
                 .toList();
-    }
-
-    private TablePromptResponse mapTablePrompt(
-            io.github.malonetalk.agent.datasource.TableInfo physicalTable,
-            Map<String, TableInfo> semanticByKey,
-            Map<String, Map<String, io.github.malonetalk.entity.ColumnInfo>> semanticColumnsByTable,
-            Map<String, List<LogicalTableRelation>> logicalRelationsBySource) {
-        TableInfo semanticTable =
-                semanticByKey.get(physicalTable.tableName().toLowerCase(Locale.ROOT));
-        if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
-            return null;
-        }
-
-        return TablePromptResponse.builder()
-                .name(physicalTable.tableName())
-                .domain(resolveDomain(semanticTable))
-                .description(resolveDescription(physicalTable, semanticTable))
-                .relations(
-                        resolveVisibleRelations(
-                                physicalTable.tableName(),
-                                semanticByKey,
-                                semanticColumnsByTable,
-                                logicalRelationsBySource))
-                .build();
-    }
-
-    private String resolveDomain(TableInfo semanticTable) {
-        return semanticTable == null
-                ? SemanticConstants.DEFAULT_DOMAIN
-                : normalizeDomain(semanticTable.getDomain());
-    }
-
-    private String resolveDescription(
-            io.github.malonetalk.agent.datasource.TableInfo physicalTable,
-            TableInfo semanticTable) {
-        String description =
-                semanticTable == null
-                        ? null
-                        : SemanticUtils.normalizeBlankToNull(semanticTable.getTableDescription());
-        if (description == null) {
-            description = SemanticUtils.normalizeBlankToNull(physicalTable.remarks());
-        }
-        return description;
-    }
-
-    private String normalizeDomain(String domain) {
-        String normalized = SemanticUtils.normalizeBlankToNull(domain);
-        return normalized == null ? SemanticConstants.DEFAULT_DOMAIN : normalized;
     }
 
     private boolean domainMatches(String domain, List<String> domains) {

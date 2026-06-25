@@ -15,15 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools.response;
+package io.github.malonetalk.dto.prompt;
 
-import java.util.List;
-
-public record TableRelationResponse(
-        String relationType,
-        String source,
-        String sourceTableName,
-        List<String> sourceColumnNames,
-        String targetTableName,
-        List<String> targetColumnNames,
+/** Agent-facing DTO for LLM prompt formatting. */
+public record ColumnPromptResponse(
+        String name,
+        String type,
+        Boolean primaryKey,
+        Boolean nullable,
+        String defaultValue,
         String description) {}

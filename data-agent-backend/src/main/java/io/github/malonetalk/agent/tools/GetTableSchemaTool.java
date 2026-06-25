@@ -19,7 +19,7 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
+import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
@@ -41,12 +41,14 @@ public class GetTableSchemaTool implements MarkAgentTool {
     @Tool(
             name = "get_table_schema",
             description =
-                    "Get the schema information of the specified table, including column name, data"
-                        + " type, whether it is primary key, whether it allows null, default value"
-                        + " and column comments. Returns semantic-first merged column information"
-                        + " (uses semantic layer if available, falls back to physical layer"
-                        + " otherwise). This tool should be called to understand the table"
-                        + " structure before generating SQL.")
+                    """
+                    Get the schema information of the specified table, including column name, data \
+                    type, whether it is primary key, whether it allows null, default value \
+                    and column comments. Returns semantic-first merged column information \
+                    (uses semantic layer if available, falls back to physical layer \
+                    otherwise). This tool should be called to understand the table \
+                    structure before generating SQL.\
+                    """)
     public String getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {

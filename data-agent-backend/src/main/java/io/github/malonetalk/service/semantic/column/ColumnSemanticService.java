@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.column;
 
-import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;

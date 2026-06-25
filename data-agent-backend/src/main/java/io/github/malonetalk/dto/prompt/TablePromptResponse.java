@@ -15,12 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools.response;
+package io.github.malonetalk.dto.prompt;
 
 import java.util.List;
 
+/** Agent-facing DTO for LLM prompt formatting. */
 public record TablePromptResponse(
-        String name, String domain, String description, List<TableRelationResponse> relations) {
+        String name,
+        String domain,
+        String description,
+        List<TableRelationPromptResponse> relations) {
 
     public static Builder builder() {
         return new Builder();
@@ -30,7 +34,7 @@ public record TablePromptResponse(
         private String name;
         private String domain;
         private String description;
-        private List<TableRelationResponse> relations;
+        private List<TableRelationPromptResponse> relations;
 
         public Builder name(String name) {
             this.name = name;
@@ -47,7 +51,7 @@ public record TablePromptResponse(
             return this;
         }
 
-        public Builder relations(List<TableRelationResponse> relations) {
+        public Builder relations(List<TableRelationPromptResponse> relations) {
             this.relations = relations;
             return this;
         }

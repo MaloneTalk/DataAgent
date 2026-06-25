@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.utils;
 
-import io.github.malonetalk.agent.tools.response.ColumnPromptResponse;
 import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import java.util.List;
 import java.util.Locale;
 

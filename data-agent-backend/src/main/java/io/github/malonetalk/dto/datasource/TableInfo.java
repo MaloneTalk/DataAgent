@@ -15,12 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools.response;
+package io.github.malonetalk.dto.datasource;
 
-public record ColumnPromptResponse(
-        String name,
-        String type,
-        Boolean primaryKey,
-        Boolean nullable,
-        String defaultValue,
-        String description) {}
+/** 物理数据源表信息，由 SchemaReader 从 JDBC 元数据读取 */
+public record TableInfo(String tableName, String remarks) {}

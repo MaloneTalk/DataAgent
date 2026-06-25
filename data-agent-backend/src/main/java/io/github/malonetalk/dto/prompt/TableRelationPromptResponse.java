@@ -15,6 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.datasource;
+package io.github.malonetalk.dto.prompt;
 
-public record TableInfo(String tableName, String remarks) {}
+import java.util.List;
+
+/** Agent-facing DTO for LLM prompt formatting. */
+public record TableRelationPromptResponse(
+        String relationType,
+        String source,
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        String description) {}

@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.agent.datasource;
 
+import io.github.malonetalk.dto.datasource.ColumnInfo;
+import io.github.malonetalk.dto.datasource.TableInfo;
 import io.github.malonetalk.entity.Datasource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
