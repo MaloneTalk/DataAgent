@@ -38,11 +38,7 @@
   } from '@/api/semantic';
   import RelationEditDialog from './components/RelationEditDialog.vue';
   import RelationWorkspace from './components/RelationWorkspace.vue';
-  import type {
-    RelationDragCreatePayload,
-    RelationForm,
-    TableNodeLayout,
-  } from './types';
+  import type { RelationDragCreatePayload, RelationForm, TableNodeLayout } from './types';
 
   const BULK_FETCH_PAGE_SIZE = 100;
   const NODE_WIDTH = 280;
@@ -241,7 +237,11 @@
     }
   }
 
-  async function loadAllRelations(datasourceId: number, nodes: TableNodeLayout[], loadToken: number) {
+  async function loadAllRelations(
+    datasourceId: number,
+    nodes: TableNodeLayout[],
+    loadToken: number,
+  ) {
     relationLoading.value = true;
     relationError.value = '';
 
@@ -485,7 +485,11 @@
         },
       );
 
-      await deleteLogicalRelation(selectedDatasourceId.value, relation.sourceTableName, relation.id);
+      await deleteLogicalRelation(
+        selectedDatasourceId.value,
+        relation.sourceTableName,
+        relation.id,
+      );
       ElMessage.success('逻辑外键已删除');
       await loadRelationData();
     } catch {
@@ -493,7 +497,10 @@
     }
   }
 
-  async function handleToggleRelationEnabled(relation: LogicalTableRelationResponse, value: boolean) {
+  async function handleToggleRelationEnabled(
+    relation: LogicalTableRelationResponse,
+    value: boolean,
+  ) {
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键始终由数据库结构决定，不能在这里启停');
       return;
@@ -503,14 +510,11 @@
       return;
     }
 
-    await updateLogicalRelationEnabled(
-      relation.sourceTableName,
-      {
-        datasourceId: selectedDatasourceId.value,
-        relationId: relation.id,
-        enabled: value,
-      },
-    );
+    await updateLogicalRelationEnabled(relation.sourceTableName, {
+      datasourceId: selectedDatasourceId.value,
+      relationId: relation.id,
+      enabled: value,
+    });
     ElMessage.success(value ? '逻辑外键已启用' : '逻辑外键已禁用');
     await loadRelationData();
   }
@@ -562,12 +566,18 @@
           />
         </el-select>
         <div class="toolbar-actions">
-          <el-button type="primary" :loading="relationLoading || relationNodeLoading" @click="loadRelationData">
+          <el-button
+            type="primary"
+            :loading="relationLoading || relationNodeLoading"
+            @click="loadRelationData"
+          >
             刷新关系
           </el-button>
         </div>
       </div>
-      <div v-if="datasourceError" class="error-tip">数据源加载失败：{{ datasourceError.message }}</div>
+      <div v-if="datasourceError" class="error-tip">
+        数据源加载失败：{{ datasourceError.message }}
+      </div>
     </section>
 
     <section class="content-card">

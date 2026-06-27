@@ -84,7 +84,11 @@
     (event: 'refresh'): void;
     (event: 'edit-relation', relation: LogicalTableRelationResponse): void;
     (event: 'delete-relation', relation: LogicalTableRelationResponse): void;
-    (event: 'toggle-relation-enabled', relation: LogicalTableRelationResponse, value: boolean): void;
+    (
+      event: 'toggle-relation-enabled',
+      relation: LogicalTableRelationResponse,
+      value: boolean,
+    ): void;
     (event: 'drag-create-relation', payload: RelationDragCreatePayload): void;
   }>();
 
@@ -143,8 +147,16 @@
 
       const sourceSide = targetNode.x >= sourceNode.x ? 'right' : 'left';
       const targetSide = sourceSide === 'right' ? 'left' : 'right';
-      const sourceAnchor = resolveColumnAnchor(sourceNode, relation.sourceColumnNames[0], sourceSide);
-      const targetAnchor = resolveColumnAnchor(targetNode, relation.targetColumnNames[0], targetSide);
+      const sourceAnchor = resolveColumnAnchor(
+        sourceNode,
+        relation.sourceColumnNames[0],
+        sourceSide,
+      );
+      const targetAnchor = resolveColumnAnchor(
+        targetNode,
+        relation.targetColumnNames[0],
+        targetSide,
+      );
       const label = relation.sourceColumnNames.length > 1 ? '多列外键' : '外键';
 
       return [
@@ -285,7 +297,9 @@
 
     const snapshot: SemanticRelationLayoutSnapshot = {
       version: RELATION_LAYOUT_STORAGE_VERSION,
-      nodes: Object.fromEntries(localNodes.value.map(node => [node.tableName, { x: node.x, y: node.y }])),
+      nodes: Object.fromEntries(
+        localNodes.value.map(node => [node.tableName, { x: node.x, y: node.y }]),
+      ),
       viewport: {
         scale: viewport.scale,
         offsetX: viewport.offsetX,
@@ -316,11 +330,7 @@
     persistLayoutSnapshot();
   }
 
-  function resolveColumnAnchor(
-    node: TableNodeLayout,
-    columnName: string,
-    side: 'left' | 'right',
-  ) {
+  function resolveColumnAnchor(node: TableNodeLayout, columnName: string, side: 'left' | 'right') {
     const columnIndex = node.columns.findIndex(column => column.columnName === columnName);
     const safeIndex = columnIndex >= 0 ? columnIndex : 0;
     const y = node.y + 58 + safeIndex * 32 + 16;
@@ -354,11 +364,9 @@
   function resolveDropColumnAtPoint(clientX: number, clientY: number) {
     const dropElement = globalThis.document
       .elementFromPoint(clientX, clientY)
-      ?.closest?.('.relation-column-item') as
-      | {
-          dataset?: { tableName?: string; columnName?: string };
-        }
-      | null;
+      ?.closest?.('.relation-column-item') as {
+      dataset?: { tableName?: string; columnName?: string };
+    } | null;
 
     const tableName = dropElement?.dataset?.tableName;
     const columnName = dropElement?.dataset?.columnName;
@@ -382,13 +390,18 @@
       Math.min(
         RELATION_MAX_SCALE,
         1,
-        Math.min(availableWidth / canvasBounds.value.width, availableHeight / canvasBounds.value.height),
+        Math.min(
+          availableWidth / canvasBounds.value.width,
+          availableHeight / canvasBounds.value.height,
+        ),
       ),
     );
 
     viewport.scale = Number(nextScale.toFixed(3));
-    viewport.offsetX = (viewportElement.clientWidth - canvasBounds.value.width * viewport.scale) / 2;
-    viewport.offsetY = (viewportElement.clientHeight - canvasBounds.value.height * viewport.scale) / 2;
+    viewport.offsetX =
+      (viewportElement.clientWidth - canvasBounds.value.width * viewport.scale) / 2;
+    viewport.offsetY =
+      (viewportElement.clientHeight - canvasBounds.value.height * viewport.scale) / 2;
   }
 
   function resetViewport() {
@@ -427,11 +440,7 @@
     selectedRelationId.value = relationId;
   }
 
-  function handleDragColumnStart(
-    tableName: string,
-    columnName: string,
-    event: PointerLikeEvent,
-  ) {
+  function handleDragColumnStart(tableName: string, columnName: string, event: PointerLikeEvent) {
     event.stopPropagation();
     const node = nodeMap.value.get(tableName);
     if (!node) {
@@ -469,8 +478,10 @@
     }
 
     if (canvasPan.value) {
-      viewport.offsetX = canvasPan.value.startOffsetX + (event.clientX - canvasPan.value.startClientX);
-      viewport.offsetY = canvasPan.value.startOffsetY + (event.clientY - canvasPan.value.startClientY);
+      viewport.offsetX =
+        canvasPan.value.startOffsetX + (event.clientX - canvasPan.value.startClientX);
+      viewport.offsetY =
+        canvasPan.value.startOffsetY + (event.clientY - canvasPan.value.startClientY);
       return;
     }
 
@@ -564,9 +575,7 @@
 
     const target = event.target as globalThis.Element | null;
     if (
-      target?.closest(
-        '.relation-side-card, .el-dialog, .el-button, .el-switch, .relation-edge-hit',
-      )
+      target?.closest('.relation-side-card, .el-dialog, .el-button, .el-switch, .relation-edge-hit')
     ) {
       return;
     }
@@ -653,7 +662,14 @@
             preserveAspectRatio="none"
           >
             <defs>
-              <marker id="relation-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <marker
+                id="relation-arrow"
+                markerWidth="10"
+                markerHeight="10"
+                refX="8"
+                refY="3"
+                orient="auto"
+              >
                 <path d="M0,0 L0,6 L9,3 z" fill="#374151" />
               </marker>
             </defs>
@@ -706,7 +722,12 @@
                 fill="none"
                 stroke-dasharray="8 6"
               />
-              <text :x="draftEdge.labelX" :y="draftEdge.labelY" text-anchor="middle" class="edge-label draft-label">
+              <text
+                :x="draftEdge.labelX"
+                :y="draftEdge.labelY"
+                text-anchor="middle"
+                class="edge-label draft-label"
+              >
                 草稿关系
               </text>
             </template>
@@ -719,7 +740,12 @@
                 fill="none"
                 stroke-dasharray="10 8"
               />
-              <text :x="dragPreview.labelX" :y="dragPreview.labelY" text-anchor="middle" class="edge-label drag-label">
+              <text
+                :x="dragPreview.labelX"
+                :y="dragPreview.labelY"
+                text-anchor="middle"
+                class="edge-label drag-label"
+              >
                 拖拽创建
               </text>
             </template>
@@ -770,7 +796,11 @@
           <button class="canvas-ctrl-btn" title="缩小" @click.stop="zoomOut">-</button>
           <span class="canvas-ctrl-label">{{ zoomPercent }}%</span>
           <button class="canvas-ctrl-btn" title="放大" @click.stop="zoomIn">+</button>
-          <button class="canvas-ctrl-btn canvas-ctrl-fit" title="适应画布" @click.stop="resetViewport">
+          <button
+            class="canvas-ctrl-btn canvas-ctrl-fit"
+            title="适应画布"
+            @click.stop="resetViewport"
+          >
             []
           </button>
         </div>
@@ -780,7 +810,9 @@
         <div class="relation-side-card">
           <h4>已记录关系</h4>
           <div v-if="relationError" class="error-tip">{{ relationError }}</div>
-          <div v-if="!relations.length && !loading" class="canvas-empty">当前数据源还没有逻辑外键</div>
+          <div v-if="!relations.length && !loading" class="canvas-empty">
+            当前数据源还没有逻辑外键
+          </div>
           <article
             v-for="relation in relations"
             :key="relation.relationKey"
@@ -799,10 +831,13 @@
               </el-tag>
             </div>
             <div class="relation-columns-line">
-              {{ relation.sourceColumnNames.join(', ') }} -> {{ relation.targetColumnNames.join(', ') }}
+              {{ relation.sourceColumnNames.join(', ') }} ->
+              {{ relation.targetColumnNames.join(', ') }}
             </div>
             <div class="relation-description">{{ relation.description || '无备注' }}</div>
-            <div v-if="relation.invalidReason" class="relation-invalid">{{ relation.invalidReason }}</div>
+            <div v-if="relation.invalidReason" class="relation-invalid">
+              {{ relation.invalidReason }}
+            </div>
             <div class="relation-list-actions">
               <el-switch
                 :model-value="relation.enabled"
@@ -817,10 +852,20 @@
                 "
               />
               <div class="relation-action-buttons">
-                <el-button link type="primary" :disabled="relation.source === 'physical'" @click.stop="emit('edit-relation', relation)">
+                <el-button
+                  link
+                  type="primary"
+                  :disabled="relation.source === 'physical'"
+                  @click.stop="emit('edit-relation', relation)"
+                >
                   编辑
                 </el-button>
-                <el-button link type="danger" :disabled="relation.source === 'physical'" @click.stop="emit('delete-relation', relation)">
+                <el-button
+                  link
+                  type="danger"
+                  :disabled="relation.source === 'physical'"
+                  @click.stop="emit('delete-relation', relation)"
+                >
                   删除
                 </el-button>
               </div>
@@ -874,8 +919,7 @@
     border-radius: 12px;
     background:
       linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-      #fafafa;
+      linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px), #fafafa;
     background-size: 24px 24px;
     overflow: hidden;
     min-height: 720px;
