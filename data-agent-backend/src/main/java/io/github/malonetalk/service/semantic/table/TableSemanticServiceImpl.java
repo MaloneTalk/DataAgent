@@ -138,7 +138,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     private String normalizeName(String value) {
-        return SemanticUtils.requireName(value, "tableName").toLowerCase(Locale.ROOT);
+        SemanticUtils.checkNotBlank(value, "tableName");
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizeDomain(String value) {

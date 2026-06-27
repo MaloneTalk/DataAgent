@@ -49,15 +49,20 @@ public final class SemanticUtils {
         return value.trim();
     }
 
-    public static String requireName(String value, String fieldName) {
+    public static void checkNotBlank(String value, String label) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " cannot be blank.");
+            throw new IllegalArgumentException(label + " cannot be blank.");
         }
+    }
+
+    public static String requireName(String value, String fieldName) {
+        checkNotBlank(value, fieldName);
         return value.trim();
     }
 
     public static String normalizeIdentifierKey(String value) {
-        return requireName(value, "value").toLowerCase(Locale.ROOT);
+        checkNotBlank(value, "value");
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {

@@ -108,11 +108,21 @@ public class SemanticMergeService {
             Map<String, TableInfo> semanticByKey,
             Map<String, Map<String, io.github.malonetalk.entity.ColumnInfo>> semanticColumnsByTable,
             Map<String, List<LogicalTableRelation>> logicalRelationsBySource) {
-        LinkedHashMap<String, TableRelationPromptResponse> merged = new LinkedHashMap<>();
-
         List<LogicalTableRelation> logicalRelations =
                 logicalRelationsBySource.getOrDefault(
                         sourceTableName.toLowerCase(Locale.ROOT), Collections.emptyList());
+        List<ResolvedLogicalRelation> visibleRelations =
+                filterVisibleLogicalRelations(
+                        logicalRelations, semanticByKey, semanticColumnsByTable);
+        return deduplicateRelations(visibleRelations);
+    }
+
+    private List<ResolvedLogicalRelation> filterVisibleLogicalRelations(
+            List<LogicalTableRelation> logicalRelations,
+            Map<String, TableInfo> semanticByKey,
+            Map<String, Map<String, io.github.malonetalk.entity.ColumnInfo>>
+                    semanticColumnsByTable) {
+        List<ResolvedLogicalRelation> visibleRelations = new ArrayList<>();
         for (LogicalTableRelation relation : logicalRelations) {
             if (!Boolean.TRUE.equals(relation.getIsEnabled())) {
                 continue;
@@ -142,25 +152,36 @@ public class SemanticMergeService {
                             relation.getTargetTableName(), targetColumns, semanticColumnsByTable)) {
                 continue;
             }
+            visibleRelations.add(
+                    new ResolvedLogicalRelation(relation, sourceColumns, targetColumns));
+        }
+        return visibleRelations;
+    }
+
+    private List<TableRelationPromptResponse> deduplicateRelations(
+            List<ResolvedLogicalRelation> relations) {
+        LinkedHashMap<String, TableRelationPromptResponse> merged = new LinkedHashMap<>();
+        for (ResolvedLogicalRelation relation : relations) {
             String key =
                     buildRelationMergeKey(
-                            relation.getSourceTableName(),
-                            sourceColumns,
-                            relation.getTargetTableName(),
-                            targetColumns);
-            merged.put(
-                    key,
-                    new TableRelationPromptResponse(
-                            relation.getRelationType(),
-                            LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
-                            relation.getSourceTableName(),
-                            sourceColumns,
-                            relation.getTargetTableName(),
-                            targetColumns,
-                            relation.getDescription()));
+                            relation.sourceTableName(),
+                            relation.sourceColumns(),
+                            relation.targetTableName(),
+                            relation.targetColumns());
+            merged.put(key, toPromptResponse(relation));
         }
-
         return List.copyOf(merged.values());
+    }
+
+    private TableRelationPromptResponse toPromptResponse(ResolvedLogicalRelation relation) {
+        return new TableRelationPromptResponse(
+                relation.relation().getRelationType(),
+                LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
+                relation.sourceTableName(),
+                relation.sourceColumns(),
+                relation.targetTableName(),
+                relation.targetColumns(),
+                relation.relation().getDescription());
     }
 
     private String buildRelationMergeKey(
@@ -254,5 +275,17 @@ public class SemanticMergeService {
             }
         }
         return false;
+    }
+
+    private record ResolvedLogicalRelation(
+            LogicalTableRelation relation, List<String> sourceColumns, List<String> targetColumns) {
+
+        private String sourceTableName() {
+            return relation.getSourceTableName();
+        }
+
+        private String targetTableName() {
+            return relation.getTargetTableName();
+        }
     }
 }
