@@ -50,7 +50,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
         SemanticUtils.requireDatasourceId(query.datasourceId());
-        String normalizedTableName = SemanticUtils.requireName(query.tableName(), "tableName");
+        String normalizedTableName =
+                SemanticUtils.checkNotBlank(query.tableName(), "tableName").trim();
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         Datasource datasource = datasourceService.findById(query.datasourceId());
@@ -79,8 +80,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
-        String normalizedColumnName = SemanticUtils.requireName(request.columnName(), "columnName");
+        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
+        String normalizedColumnName =
+                SemanticUtils.checkNotBlank(request.columnName(), "columnName").trim();
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -130,7 +132,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public int resetColumnSemantics(
             Integer datasourceId, String tableName, List<String> columnNames) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
+        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
         if (columnNames == null || columnNames.isEmpty()) {
             return 0;
         }
@@ -139,7 +141,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .map(
                                 columnName ->
                                         normalizeKey(
-                                                SemanticUtils.requireName(
+                                                SemanticUtils.checkNotBlank(
                                                         columnName, "columnName")))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =

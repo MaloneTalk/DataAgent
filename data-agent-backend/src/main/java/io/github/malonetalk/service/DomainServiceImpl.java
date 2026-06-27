@@ -73,7 +73,7 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public DomainInfo create(DomainCreateRequest request) {
-        String normalizedName = SemanticUtils.requireName(request.name(), "领域名称");
+        String normalizedName = SemanticUtils.checkNotBlank(request.name(), "领域名称").trim();
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
             throw new IllegalArgumentException("领域名称已存在: " + normalizedName);
@@ -96,7 +96,7 @@ public class DomainServiceImpl implements DomainService {
         if (existing == null) {
             throw new IllegalArgumentException("领域不存在: id=" + id);
         }
-        String normalizedName = SemanticUtils.requireName(request.name(), "领域名称");
+        String normalizedName = SemanticUtils.checkNotBlank(request.name(), "领域名称").trim();
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
             throw new IllegalArgumentException("领域名称已存在: " + normalizedName);

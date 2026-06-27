@@ -138,8 +138,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     private String normalizeName(String value) {
-        SemanticUtils.checkNotBlank(value, "tableName");
-        return value.trim().toLowerCase(Locale.ROOT);
+        return SemanticUtils.checkNotBlank(value, "tableName").trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizeDomain(String value) {
@@ -150,7 +149,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName = SemanticUtils.requireName(request.tableName(), "tableName");
+        String normalizedTableName =
+                SemanticUtils.checkNotBlank(request.tableName(), "tableName").trim();
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -179,7 +179,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
+        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {

@@ -82,7 +82,7 @@ public class SemanticMergeService {
     }
 
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
+        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
 
         List<io.github.malonetalk.dto.datasource.ColumnInfo> physicalColumns =
                 schemaReader.getTableSchema(datasource, normalizedTableName);

@@ -49,20 +49,18 @@ public final class SemanticUtils {
         return value.trim();
     }
 
-    public static void checkNotBlank(String value, String label) {
+    /**
+     * @return the original value (not trimmed), for chaining with {@code .trim()}
+     */
+    public static String checkNotBlank(String value, String label) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(label + " cannot be blank.");
         }
-    }
-
-    public static String requireName(String value, String fieldName) {
-        checkNotBlank(value, fieldName);
-        return value.trim();
+        return value;
     }
 
     public static String normalizeIdentifierKey(String value) {
-        checkNotBlank(value, "value");
-        return value.trim().toLowerCase(Locale.ROOT);
+        return checkNotBlank(value, "value").trim().toLowerCase(Locale.ROOT);
     }
 
     public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {
