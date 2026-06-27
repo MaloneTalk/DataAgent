@@ -20,8 +20,6 @@ package io.github.malonetalk.common;
 public final class SemanticConstants {
 
     public static final String RELATION_KEY_SEPARATOR = "|";
-    public static final String SORT_ORDER_ASC = "asc";
-    public static final String SORT_ORDER_DESC = "desc";
     public static final String DEFAULT_DOMAIN = "default";
 
     private SemanticConstants() {}

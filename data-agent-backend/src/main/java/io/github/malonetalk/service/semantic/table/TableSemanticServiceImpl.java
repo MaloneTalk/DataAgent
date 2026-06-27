@@ -56,9 +56,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasource == null) {
             return PageResponse.empty(pageNumber, pageSize);
         }
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         Page<TableInfo> page =
                 (Page<TableInfo>)

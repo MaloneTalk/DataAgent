@@ -44,9 +44,7 @@ public class DomainServiceImpl implements DomainService {
     public PageResponse<DomainInfo> getDomainPage(DomainPageQuery query) {
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         @SuppressWarnings("unchecked")
         Page<DomainInfo> page =

@@ -19,7 +19,6 @@ package io.github.malonetalk.service.semantic.column;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
@@ -58,9 +57,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (datasource == null) {
             return PageResponse.empty(pageNumber, pageSize);
         }
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         Page<ColumnInfo> page =
                 (Page<ColumnInfo>)

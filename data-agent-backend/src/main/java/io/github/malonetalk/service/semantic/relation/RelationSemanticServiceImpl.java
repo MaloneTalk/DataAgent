@@ -19,7 +19,6 @@ package io.github.malonetalk.service.semantic.relation;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
@@ -52,9 +51,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         Page<LogicalTableRelation> page =
                 (Page<LogicalTableRelation>)
