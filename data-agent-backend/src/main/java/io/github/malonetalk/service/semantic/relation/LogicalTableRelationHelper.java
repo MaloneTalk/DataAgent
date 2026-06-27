@@ -22,6 +22,7 @@ import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARAT
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.malonetalk.enums.LogicalTableRelationType;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -31,7 +32,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class LogicalTableRelationHelper {
 
-    public static final String RELATION_TYPE_FOREIGN_KEY = "foreign_key";
+    public static final String RELATION_TYPE_FOREIGN_KEY =
+            LogicalTableRelationType.FOREIGN_KEY.getCode();
     public static final String RELATION_SOURCE_LOGICAL = "logical";
 
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
@@ -86,6 +88,10 @@ public class LogicalTableRelationHelper {
             return null;
         }
         return description.trim();
+    }
+
+    public LogicalTableRelationType relationType(String relationType) {
+        return LogicalTableRelationType.fromCode(relationType);
     }
 
     public String buildColumnSignature(List<String> columnNames) {

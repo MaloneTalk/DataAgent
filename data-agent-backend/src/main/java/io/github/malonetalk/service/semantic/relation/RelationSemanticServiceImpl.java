@@ -275,7 +275,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 sourceColumns,
                 relation.getTargetTableName(),
                 targetColumns,
-                relation.getRelationType(),
+                logicalTableRelationHelper.relationType(relation.getRelationType()),
                 relation.getDescription(),
                 relation.getIsEnabled(),
                 relation.getIsEnabled(),
