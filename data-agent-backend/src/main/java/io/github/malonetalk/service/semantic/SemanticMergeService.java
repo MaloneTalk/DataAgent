@@ -55,7 +55,7 @@ public class SemanticMergeService {
     public List<TablePromptResponse> listVisibleTablesByDomains(
             Datasource datasource, List<String> domains) {
         List<String> normalizedDomains = normalizeDomains(domains);
-        Map<String, TableInfo> semanticByKey = buildSemanticTablesByKey(datasource.getId());
+        Map<String, TableInfo> semanticByKey = buildSemanticTables(datasource.getId());
         Map<String, Map<String, io.github.malonetalk.entity.ColumnInfo>> semanticColumnsByTable =
                 buildSemanticColumnsByTable(datasource.getId());
         Map<String, List<LogicalTableRelation>> logicalRelationsBySource =
@@ -216,7 +216,7 @@ public class SemanticMergeService {
         return result;
     }
 
-    private Map<String, TableInfo> buildSemanticTablesByKey(Integer datasourceId) {
+    private Map<String, TableInfo> buildSemanticTables(Integer datasourceId) {
         Map<String, TableInfo> result = new HashMap<>();
         for (TableInfo table : tableInfoMapper.selectByDatasourceId(datasourceId)) {
             result.put(table.getTableName().toLowerCase(Locale.ROOT), table);
