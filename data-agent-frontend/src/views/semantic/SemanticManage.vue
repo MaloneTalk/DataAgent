@@ -16,13 +16,16 @@
  -->
 
 <script setup lang="ts">
-  import { ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
   import DomainManage from './components/DomainManage.vue';
+  import RelationManage from './relation/RelationManage.vue';
 
-  const activeTab = ref<'domain'>('domain');
+  const activeTab = ref<'domain' | 'relation'>('domain');
   const keyword = ref('');
   const sortOrder = ref<'asc' | 'desc'>('asc');
   const domainManageRef = ref<InstanceType<typeof DomainManage>>();
+
+  const showSearchToolbar = computed(() => activeTab.value === 'domain');
 
   const handleSearch = async () => {
     if (activeTab.value === 'domain' && domainManageRef.value) {
@@ -42,17 +45,17 @@
     <section class="hero-card">
       <div>
         <h2 class="hero-title">语义管理</h2>
-        <p class="hero-desc">管理数据领域标签，用于分类和组织表。</p>
+        <p class="hero-desc">统一维护数据领域和逻辑外键配置，保留当前页面结构并按功能拆分实现。</p>
       </div>
     </section>
 
-    <section class="toolbar-card">
+    <section v-if="showSearchToolbar" class="toolbar-card">
       <div class="toolbar-grid">
         <el-input
           v-model="keyword"
           class="toolbar-field"
           clearable
-          placeholder="按名称搜索"
+          placeholder="按领域名称搜索"
           @keyup.enter="handleSearch"
         />
         <el-segmented
@@ -73,6 +76,9 @@
       <el-tabs v-model="activeTab" class="semantic-tabs">
         <el-tab-pane label="数据领域管理" name="domain">
           <DomainManage ref="domainManageRef" :keyword="keyword" :sort-order="sortOrder" />
+        </el-tab-pane>
+        <el-tab-pane label="逻辑外键" name="relation">
+          <RelationManage />
         </el-tab-pane>
       </el-tabs>
     </section>
@@ -101,13 +107,14 @@
   }
 
   .hero-title {
+    margin: 0 0 8px;
     font-size: 22px;
     color: #1f2937;
-    margin-bottom: 8px;
   }
 
   .hero-desc {
-    max-width: 680px;
+    max-width: 720px;
+    margin: 0;
     color: #6b7280;
     line-height: 1.7;
   }
