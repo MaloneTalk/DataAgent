@@ -86,7 +86,7 @@ public class PromptConverter {
     private static String resolveDomain(TableInfo semanticTable) {
         return semanticTable == null
                 ? SemanticConstants.DEFAULT_DOMAIN
-                : normalizeDomain(semanticTable.getDomain());
+                : SemanticUtils.normalizeDomain(semanticTable.getDomain());
     }
 
     private static String resolveDescription(
@@ -95,10 +95,5 @@ public class PromptConverter {
                 .map(TableInfo::getTableDescription)
                 .map(SemanticUtils::trimToNull)
                 .orElseGet(() -> SemanticUtils.trimToNull(physicalTable.remarks()));
-    }
-
-    private static String normalizeDomain(String domain) {
-        String normalized = SemanticUtils.trimToNull(domain);
-        return normalized == null ? SemanticConstants.DEFAULT_DOMAIN : normalized;
     }
 }

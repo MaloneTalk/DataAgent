@@ -19,7 +19,7 @@ package io.github.malonetalk.service.semantic.table;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
@@ -46,6 +46,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     private final DatasourceService datasourceService;
     private final TableInfoMapper tableInfoMapper;
     private final SemanticMergeService semanticMergeService;
+    private final SemanticConverter semanticConverter;
 
     @Override
     public PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query) {
@@ -68,7 +69,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                         SemanticUtils.trimToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
-        List<TableSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
+        List<TableSemanticResponse> responses =
+                page.stream().map(semanticConverter::toResponse).toList();
         long total = page.getTotal();
         return PageResponse.of(responses, total, pageNumber, pageSize);
     }
@@ -135,13 +137,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         return semanticMergeService.listVisibleTablesByDomains(datasource, domains);
     }
 
-    private String normalizeDomain(String value) {
-        String normalized = SemanticUtils.trimToNull(value);
-        return normalized == null
-                ? SemanticConstants.DEFAULT_DOMAIN
-                : normalized.toLowerCase(Locale.ROOT);
-    }
-
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
@@ -156,7 +151,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             tableInfo.setDatasourceId(request.datasourceId());
             tableInfo.setTableName(normalizedTableName);
             tableInfo.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
-            tableInfo.setDomain(normalizeDomain(request.domain()));
+            tableInfo.setDomain(SemanticUtils.normalizeDomain(request.domain()));
             tableInfo.setIsVisible(request.isVisible());
             tableInfo.setCreateTime(LocalDateTime.now());
             tableInfo.setUpdateTime(LocalDateTime.now());
@@ -165,7 +160,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         existing.setTableName(normalizedTableName);
         existing.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
-        existing.setDomain(normalizeDomain(request.domain()));
+        existing.setDomain(SemanticUtils.normalizeDomain(request.domain()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
         tableInfoMapper.update(existing);
@@ -224,20 +219,5 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private TableSemanticResponse mapResponse(TableInfo tableInfo) {
-        Boolean isVisible = tableInfo.getIsVisible();
-        return new TableSemanticResponse(
-                tableInfo.getId(),
-                tableInfo.getTableName(),
-                normalizeDomain(tableInfo.getDomain()),
-                null,
-                SemanticUtils.trimToNull(tableInfo.getTableDescription()),
-                isVisible,
-                true,
-                Boolean.TRUE.equals(isVisible),
-                null,
-                tableInfo.getUpdateTime());
     }
 }

@@ -18,8 +18,10 @@
 package io.github.malonetalk.utils;
 
 import io.github.malonetalk.common.Constants;
+import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import java.util.List;
+import java.util.Locale;
 
 public final class SemanticUtils {
 
@@ -62,6 +64,13 @@ public final class SemanticUtils {
             throw new IllegalArgumentException(label + " cannot be blank.");
         }
         return value.trim();
+    }
+
+    public static String normalizeDomain(String domain) {
+        String normalized = trimToNull(domain);
+        return normalized == null
+                ? SemanticConstants.DEFAULT_DOMAIN
+                : normalized.toLowerCase(Locale.ROOT);
     }
 
     public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {
