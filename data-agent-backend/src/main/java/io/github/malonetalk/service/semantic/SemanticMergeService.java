@@ -132,17 +132,25 @@ public class SemanticMergeService {
                 continue;
             }
             List<String> sourceColumns;
-            List<String> targetColumns;
             try {
                 sourceColumns =
                         logicalTableRelationHelper.fromJson(
                                 relation.getSourceColumnNamesJson(), "sourceColumnNames");
+            } catch (IllegalArgumentException e) {
+                log.warn(
+                        "Skip relation id={}: invalid source columns - {}",
+                        relation.getId(),
+                        e.getMessage());
+                continue;
+            }
+            List<String> targetColumns;
+            try {
                 targetColumns =
                         logicalTableRelationHelper.fromJson(
                                 relation.getTargetColumnNamesJson(), "targetColumnNames");
             } catch (IllegalArgumentException e) {
                 log.warn(
-                        "Skip invalid logical relation id={}: {}",
+                        "Skip relation id={}: invalid target columns - {}",
                         relation.getId(),
                         e.getMessage());
                 continue;

@@ -27,6 +27,7 @@ import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import lombok.experimental.UtilityClass;
 
 /** 物理层/语义层 → Agent Prompt DTO 的统一转换器，集中管理所有面向 LLM 的 DTO 映射逻辑。 */
@@ -43,13 +44,10 @@ public class PromptConverter {
             return null;
         }
 
-        String description =
-                semanticColumn == null
-                        ? null
-                        : SemanticUtils.trimToNull(semanticColumn.getColumnDescription());
-        if (description == null) {
-            description = SemanticUtils.trimToNull(physicalColumn.remarks());
-        }
+        String description = Optional.ofNullable(semanticColumn)
+                .map(ColumnInfo::getColumnDescription)
+                .map(SemanticUtils::trimToNull)
+                .orElseGet(() -> SemanticUtils.trimToNull(physicalColumn.remarks()));
 
         StringBuilder typeBuilder = new StringBuilder(physicalColumn.typeName());
         if (physicalColumn.columnSize() > 0) {
@@ -92,14 +90,10 @@ public class PromptConverter {
 
     private static String resolveDescription(
             io.github.malonetalk.dto.datasource.TableInfo physicalTable, TableInfo semanticTable) {
-        String description =
-                semanticTable == null
-                        ? null
-                        : SemanticUtils.trimToNull(semanticTable.getTableDescription());
-        if (description == null) {
-            description = SemanticUtils.trimToNull(physicalTable.remarks());
-        }
-        return description;
+        return Optional.ofNullable(semanticTable)
+                .map(TableInfo::getTableDescription)
+                .map(SemanticUtils::trimToNull)
+                .orElseGet(() -> SemanticUtils.trimToNull(physicalTable.remarks()));
     }
 
     private static String normalizeDomain(String domain) {
