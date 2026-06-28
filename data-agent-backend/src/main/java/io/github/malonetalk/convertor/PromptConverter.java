@@ -44,10 +44,11 @@ public class PromptConverter {
             return null;
         }
 
-        String description = Optional.ofNullable(semanticColumn)
-                .map(ColumnInfo::getColumnDescription)
-                .map(SemanticUtils::trimToNull)
-                .orElseGet(() -> SemanticUtils.trimToNull(physicalColumn.remarks()));
+        String description =
+                Optional.ofNullable(semanticColumn)
+                        .map(ColumnInfo::getColumnDescription)
+                        .map(SemanticUtils::trimToNull)
+                        .orElseGet(() -> SemanticUtils.trimToNull(physicalColumn.remarks()));
 
         StringBuilder typeBuilder = new StringBuilder(physicalColumn.typeName());
         if (physicalColumn.columnSize() > 0) {
