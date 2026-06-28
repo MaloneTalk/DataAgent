@@ -67,7 +67,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                         normalizedTableName,
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
         List<ColumnSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
@@ -88,8 +88,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnInfo.setDatasourceId(request.datasourceId());
             columnInfo.setTableName(normalizedTableName);
             columnInfo.setColumnName(normalizedColumnName);
-            columnInfo.setColumnDescription(
-                    SemanticUtils.normalizeBlankToNull(request.columnDescription()));
+            columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setIsVisible(request.isVisible());
             columnInfo.setCreateTime(LocalDateTime.now());
             columnInfo.setUpdateTime(LocalDateTime.now());
@@ -98,8 +97,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
         existing.setTableName(normalizedTableName);
         existing.setColumnName(normalizedColumnName);
-        existing.setColumnDescription(
-                SemanticUtils.normalizeBlankToNull(request.columnDescription()));
+        existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
         columnSemanticInfoMapper.update(existing);

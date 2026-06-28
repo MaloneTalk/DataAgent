@@ -53,7 +53,7 @@ public class DomainServiceImpl implements DomainService {
                                 new DomainPageQuery(
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
         List<DomainInfo> items = page.getResult();
@@ -78,7 +78,7 @@ public class DomainServiceImpl implements DomainService {
         }
         DomainInfo domainInfo = new DomainInfo();
         domainInfo.setName(normalizedName);
-        domainInfo.setDescription(SemanticUtils.normalizeBlankToNull(request.description()));
+        domainInfo.setDescription(SemanticUtils.trimToNull(request.description()));
         domainInfo.setCreateTime(LocalDateTime.now());
         domainInfo.setUpdateTime(LocalDateTime.now());
         domainInfoMapper.insert(domainInfo);
@@ -100,7 +100,7 @@ public class DomainServiceImpl implements DomainService {
             throw new IllegalArgumentException("领域名称已存在: " + normalizedName);
         }
         existing.setName(normalizedName);
-        existing.setDescription(SemanticUtils.normalizeBlankToNull(request.description()));
+        existing.setDescription(SemanticUtils.trimToNull(request.description()));
         existing.setUpdateTime(LocalDateTime.now());
         domainInfoMapper.update(existing);
         return existing;

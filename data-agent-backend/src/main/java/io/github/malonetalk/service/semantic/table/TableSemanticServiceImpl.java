@@ -65,7 +65,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                         query.datasourceId(),
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
         List<TableSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
@@ -140,7 +140,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     private String normalizeDomain(String value) {
-        String normalized = SemanticUtils.normalizeBlankToNull(value);
+        String normalized = SemanticUtils.trimToNull(value);
         return normalized == null ? SemanticConstants.DEFAULT_DOMAIN : normalized;
     }
 
@@ -156,8 +156,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             TableInfo tableInfo = new TableInfo();
             tableInfo.setDatasourceId(request.datasourceId());
             tableInfo.setTableName(normalizedTableName);
-            tableInfo.setTableDescription(
-                    SemanticUtils.normalizeBlankToNull(request.tableDescription()));
+            tableInfo.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
             tableInfo.setDomain(normalizeDomain(request.domain()));
             tableInfo.setIsVisible(request.isVisible());
             tableInfo.setCreateTime(LocalDateTime.now());
@@ -166,8 +165,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return;
         }
         existing.setTableName(normalizedTableName);
-        existing.setTableDescription(
-                SemanticUtils.normalizeBlankToNull(request.tableDescription()));
+        existing.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
         existing.setDomain(normalizeDomain(request.domain()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
@@ -231,7 +229,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 tableInfo.getTableName(),
                 normalizeDomain(tableInfo.getDomain()),
                 null,
-                SemanticUtils.normalizeBlankToNull(tableInfo.getTableDescription()),
+                SemanticUtils.trimToNull(tableInfo.getTableDescription()),
                 isVisible,
                 true,
                 Boolean.TRUE.equals(isVisible),

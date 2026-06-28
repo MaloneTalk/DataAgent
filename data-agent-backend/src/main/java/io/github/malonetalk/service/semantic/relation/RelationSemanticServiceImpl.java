@@ -61,7 +61,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                         normalizedTableName,
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.enabled(),
                                         query.sortOrder()),
                                 sortDescending);

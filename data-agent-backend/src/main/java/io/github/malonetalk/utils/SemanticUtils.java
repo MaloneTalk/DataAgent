@@ -50,7 +50,7 @@ public final class SemanticUtils {
                 "sortOrder must be 'asc' or 'desc', but got: " + sortOrder);
     }
 
-    public static String normalizeBlankToNull(String value) {
+    public static String trimToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }

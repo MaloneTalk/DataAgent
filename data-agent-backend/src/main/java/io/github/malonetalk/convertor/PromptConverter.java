@@ -36,9 +36,9 @@ public class PromptConverter {
     /** 将物理列信息与语义列信息合并，转换为面向 Agent 的列响应 DTO */
     public static ColumnPromptResponse mapColumnPrompt(
             io.github.malonetalk.dto.datasource.ColumnInfo physicalColumn,
-            Map<String, ColumnInfo> semanticByKey) {
+            Map<String, ColumnInfo> semanticByName) {
         ColumnInfo semanticColumn =
-                semanticByKey.get(physicalColumn.columnName().toLowerCase(Locale.ROOT));
+                semanticByName.get(physicalColumn.columnName().toLowerCase(Locale.ROOT));
         if (semanticColumn != null && !Boolean.TRUE.equals(semanticColumn.getIsVisible())) {
             return null;
         }
@@ -46,9 +46,9 @@ public class PromptConverter {
         String description =
                 semanticColumn == null
                         ? null
-                        : SemanticUtils.normalizeBlankToNull(semanticColumn.getColumnDescription());
+                        : SemanticUtils.trimToNull(semanticColumn.getColumnDescription());
         if (description == null) {
-            description = SemanticUtils.normalizeBlankToNull(physicalColumn.remarks());
+            description = SemanticUtils.trimToNull(physicalColumn.remarks());
         }
 
         StringBuilder typeBuilder = new StringBuilder(physicalColumn.typeName());
@@ -61,17 +61,17 @@ public class PromptConverter {
                 typeBuilder.toString(),
                 physicalColumn.primaryKey(),
                 physicalColumn.nullable(),
-                SemanticUtils.normalizeBlankToNull(physicalColumn.defaultValue()),
+                SemanticUtils.trimToNull(physicalColumn.defaultValue()),
                 description);
     }
 
     /** 将物理表信息与语义表信息合并，转换为面向 Agent 的表响应 DTO */
     public static TablePromptResponse mapTablePrompt(
             io.github.malonetalk.dto.datasource.TableInfo physicalTable,
-            Map<String, TableInfo> semanticByKey,
+            Map<String, TableInfo> semanticByName,
             List<TableRelationPromptResponse> resolvedRelations) {
         TableInfo semanticTable =
-                semanticByKey.get(physicalTable.tableName().toLowerCase(Locale.ROOT));
+                semanticByName.get(physicalTable.tableName().toLowerCase(Locale.ROOT));
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
             return null;
         }
@@ -95,15 +95,15 @@ public class PromptConverter {
         String description =
                 semanticTable == null
                         ? null
-                        : SemanticUtils.normalizeBlankToNull(semanticTable.getTableDescription());
+                        : SemanticUtils.trimToNull(semanticTable.getTableDescription());
         if (description == null) {
-            description = SemanticUtils.normalizeBlankToNull(physicalTable.remarks());
+            description = SemanticUtils.trimToNull(physicalTable.remarks());
         }
         return description;
     }
 
     private static String normalizeDomain(String domain) {
-        String normalized = SemanticUtils.normalizeBlankToNull(domain);
+        String normalized = SemanticUtils.trimToNull(domain);
         return normalized == null ? SemanticConstants.DEFAULT_DOMAIN : normalized;
     }
 }

@@ -98,11 +98,11 @@ public class SemanticMergeService {
             throw new IllegalArgumentException("Table " + normalizedTableName + " is hidden.");
         }
 
-        Map<String, ColumnInfo> semanticByKey =
-                buildSemanticColumnsByKey(datasource.getId(), normalizedTableName);
+        Map<String, ColumnInfo> semanticColumnIndex =
+                buildSemanticColumnIndex(datasource.getId(), normalizedTableName);
 
         return physicalColumns.stream()
-                .map(physical -> PromptConverter.mapColumnPrompt(physical, semanticByKey))
+                .map(physical -> PromptConverter.mapColumnPrompt(physical, semanticColumnIndex))
                 .filter(java.util.Objects::nonNull)
                 .toList();
     }
@@ -192,7 +192,7 @@ public class SemanticMergeService {
                 sourceTable, sourceColumns, targetTable, targetColumns);
     }
 
-    private Map<String, ColumnInfo> buildSemanticColumnsByKey(
+    private Map<String, ColumnInfo> buildSemanticColumnIndex(
             Integer datasourceId, String tableName) {
         Map<String, ColumnInfo> result = new HashMap<>();
         for (ColumnInfo column :
@@ -208,7 +208,7 @@ public class SemanticMergeService {
             return List.of();
         }
         return domains.stream()
-                .map(SemanticUtils::normalizeBlankToNull)
+                .map(SemanticUtils::trimToNull)
                 .filter(java.util.Objects::nonNull)
                 .distinct()
                 .toList();
