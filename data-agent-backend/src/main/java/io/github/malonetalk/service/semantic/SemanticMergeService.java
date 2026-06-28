@@ -20,6 +20,7 @@ package io.github.malonetalk.service.semantic;
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.PromptConverter;
+import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.prompt.TableRelationPromptResponse;
@@ -86,7 +87,7 @@ public class SemanticMergeService {
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
         String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
 
-        List<io.github.malonetalk.dto.datasource.ColumnInfo> physicalColumns =
+        List<PhysicalColumnInfo> physicalColumns =
                 schemaReader.getTableSchema(datasource, normalizedTableName);
         if (physicalColumns.isEmpty()) {
             throw new IllegalArgumentException(

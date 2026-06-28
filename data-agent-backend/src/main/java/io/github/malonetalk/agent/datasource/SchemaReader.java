@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.agent.datasource;
 
-import io.github.malonetalk.dto.datasource.ColumnInfo;
-import io.github.malonetalk.dto.datasource.TableInfo;
+import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
+import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.entity.Datasource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -39,7 +39,7 @@ public class SchemaReader {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
-    public List<TableInfo> getTables(Datasource datasource) {
+    public List<PhysicalTableInfo> getTables(Datasource datasource) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
@@ -50,7 +50,7 @@ public class SchemaReader {
         }
     }
 
-    public List<ColumnInfo> getTableSchema(Datasource datasource, String tableName) {
+    public List<PhysicalColumnInfo> getTableSchema(Datasource datasource, String tableName) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
@@ -63,15 +63,16 @@ public class SchemaReader {
         }
     }
 
-    private List<TableInfo> getTables(Connection conn) throws SQLException {
-        List<TableInfo> tables = new ArrayList<>();
+    private List<PhysicalTableInfo> getTables(Connection conn) throws SQLException {
+        List<PhysicalTableInfo> tables = new ArrayList<>();
         DatabaseMetaData metaData = conn.getMetaData();
 
         try (ResultSet rs =
                 metaData.getTables(
                         conn.getCatalog(), conn.getSchema(), "%", new String[] {"TABLE"})) {
             while (rs.next()) {
-                tables.add(new TableInfo(rs.getString("TABLE_NAME"), rs.getString("REMARKS")));
+                tables.add(
+                        new PhysicalTableInfo(rs.getString("TABLE_NAME"), rs.getString("REMARKS")));
             }
         }
 
@@ -92,9 +93,9 @@ public class SchemaReader {
         return pkColumns;
     }
 
-    private List<ColumnInfo> getColumns(Connection conn, String tableName, Set<String> primaryKeys)
-            throws SQLException {
-        List<ColumnInfo> columns = new ArrayList<>();
+    private List<PhysicalColumnInfo> getColumns(
+            Connection conn, String tableName, Set<String> primaryKeys) throws SQLException {
+        List<PhysicalColumnInfo> columns = new ArrayList<>();
         DatabaseMetaData metaData = conn.getMetaData();
 
         try (ResultSet rs =
@@ -110,7 +111,7 @@ public class SchemaReader {
                 boolean isPk = primaryKeys.contains(columnName);
 
                 columns.add(
-                        new ColumnInfo(
+                        new PhysicalColumnInfo(
                                 columnName,
                                 typeName,
                                 columnSize,

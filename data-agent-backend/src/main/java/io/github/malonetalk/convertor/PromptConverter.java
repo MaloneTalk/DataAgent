@@ -18,6 +18,8 @@
 package io.github.malonetalk.convertor;
 
 import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
+import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.prompt.TableRelationPromptResponse;
@@ -28,16 +30,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import lombok.experimental.UtilityClass;
 
 /** 物理层/语义层 → Agent Prompt DTO 的统一转换器，集中管理所有面向 LLM 的 DTO 映射逻辑。 */
-@UtilityClass
-public class PromptConverter {
+public final class PromptConverter {
+
+    private PromptConverter() {}
 
     /** 将物理列信息与语义列信息合并，转换为面向 Agent 的列响应 DTO */
     public static ColumnPromptResponse mapColumnPrompt(
-            io.github.malonetalk.dto.datasource.ColumnInfo physicalColumn,
-            Map<String, ColumnInfo> semanticByName) {
+            PhysicalColumnInfo physicalColumn, Map<String, ColumnInfo> semanticByName) {
         ColumnInfo semanticColumn =
                 semanticByName.get(physicalColumn.columnName().toLowerCase(Locale.ROOT));
         if (semanticColumn != null && !Boolean.TRUE.equals(semanticColumn.getIsVisible())) {
@@ -66,7 +67,7 @@ public class PromptConverter {
 
     /** 将物理表信息与语义表信息合并，转换为面向 Agent 的表响应 DTO */
     public static TablePromptResponse mapTablePrompt(
-            io.github.malonetalk.dto.datasource.TableInfo physicalTable,
+            PhysicalTableInfo physicalTable,
             Map<String, TableInfo> semanticByName,
             List<TableRelationPromptResponse> resolvedRelations) {
         TableInfo semanticTable =
@@ -90,7 +91,7 @@ public class PromptConverter {
     }
 
     private static String resolveDescription(
-            io.github.malonetalk.dto.datasource.TableInfo physicalTable, TableInfo semanticTable) {
+            PhysicalTableInfo physicalTable, TableInfo semanticTable) {
         return Optional.ofNullable(semanticTable)
                 .map(TableInfo::getTableDescription)
                 .map(SemanticUtils::trimToNull)

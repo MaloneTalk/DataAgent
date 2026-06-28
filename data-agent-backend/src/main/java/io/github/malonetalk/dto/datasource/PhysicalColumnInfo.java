@@ -18,7 +18,7 @@
 package io.github.malonetalk.dto.datasource;
 
 /** 物理数据源列信息，由 SchemaReader 从 JDBC 元数据读取 */
-public record ColumnInfo(
+public record PhysicalColumnInfo(
         String columnName,
         String typeName,
         int columnSize,
