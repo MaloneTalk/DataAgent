@@ -135,20 +135,19 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         return semanticMergeService.listVisibleTablesByDomains(datasource, domains);
     }
 
-    private String normalizeName(String value) {
-        return SemanticUtils.checkNotBlank(value, "tableName").trim().toLowerCase(Locale.ROOT);
-    }
-
     private String normalizeDomain(String value) {
         String normalized = SemanticUtils.trimToNull(value);
-        return normalized == null ? SemanticConstants.DEFAULT_DOMAIN : normalized;
+        return normalized == null
+                ? SemanticConstants.DEFAULT_DOMAIN
+                : normalized.toLowerCase(Locale.ROOT);
     }
 
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName =
-                SemanticUtils.checkNotBlank(request.tableName(), "tableName").trim();
+                SemanticUtils.trimToNotBlank(request.tableName(), "tableName")
+                        .toLowerCase(Locale.ROOT);
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -175,7 +174,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
+        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
@@ -192,14 +191,19 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         Set<String> normalizedNames =
                 tableNames.stream()
-                        .map(this::normalizeName)
+                        .map(
+                                name ->
+                                        SemanticUtils.trimToNotBlank(name, "tableName")
+                                                .toLowerCase(Locale.ROOT))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 tableInfoMapper.selectByDatasourceId(datasourceId).stream()
                         .filter(
                                 table ->
                                         normalizedNames.contains(
-                                                normalizeName(table.getTableName())))
+                                                SemanticUtils.trimToNotBlank(
+                                                                table.getTableName(), "tableName")
+                                                        .toLowerCase(Locale.ROOT)))
                         .map(TableInfo::getId)
                         .distinct()
                         .toList();

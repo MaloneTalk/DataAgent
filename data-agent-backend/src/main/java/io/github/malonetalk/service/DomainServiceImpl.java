@@ -30,6 +30,7 @@ import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -71,7 +72,8 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public DomainInfo create(DomainCreateRequest request) {
-        String normalizedName = SemanticUtils.checkNotBlank(request.name(), "领域名称").trim();
+        String normalizedName =
+                SemanticUtils.trimToNotBlank(request.name(), "领域名称").toLowerCase(Locale.ROOT);
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
             throw new IllegalArgumentException("领域名称已存在: " + normalizedName);
@@ -94,7 +96,8 @@ public class DomainServiceImpl implements DomainService {
         if (existing == null) {
             throw new IllegalArgumentException("领域不存在: id=" + id);
         }
-        String normalizedName = SemanticUtils.checkNotBlank(request.name(), "领域名称").trim();
+        String normalizedName =
+                SemanticUtils.trimToNotBlank(request.name(), "领域名称").toLowerCase(Locale.ROOT);
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
             throw new IllegalArgumentException("领域名称已存在: " + normalizedName);

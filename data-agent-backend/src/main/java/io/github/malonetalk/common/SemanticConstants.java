@@ -17,10 +17,17 @@
  */
 package io.github.malonetalk.common;
 
+import io.github.malonetalk.enums.LogicalTableRelationType;
+
 public final class SemanticConstants {
 
     public static final String RELATION_KEY_SEPARATOR = "|";
+    public static final String RELATION_TABLE_COLUMN_SEPARATOR = ":";
+    public static final String RELATION_GROUP_SEPARATOR = "::";
     public static final String DEFAULT_DOMAIN = "default";
+    public static final String RELATION_TYPE_FOREIGN_KEY =
+            LogicalTableRelationType.FOREIGN_KEY.getCode();
+    public static final String RELATION_SOURCE_LOGICAL = "logical";
 
     private SemanticConstants() {}
 }

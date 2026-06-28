@@ -18,6 +18,7 @@
 package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
+import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.PromptConverter;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
@@ -26,6 +27,7 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.enums.LogicalTableRelationType;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
@@ -82,7 +84,7 @@ public class SemanticMergeService {
     }
 
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
-        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
+        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
 
         List<io.github.malonetalk.dto.datasource.ColumnInfo> physicalColumns =
                 schemaReader.getTableSchema(datasource, normalizedTableName);
@@ -182,8 +184,8 @@ public class SemanticMergeService {
 
     private TableRelationPromptResponse toPromptResponse(ResolvedLogicalRelation relation) {
         return new TableRelationPromptResponse(
-                logicalTableRelationHelper.relationType(relation.relation().getRelationType()),
-                LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
+                LogicalTableRelationType.fromCode(relation.relation().getRelationType()),
+                SemanticConstants.RELATION_SOURCE_LOGICAL,
                 relation.sourceTableName(),
                 relation.sourceColumns(),
                 relation.targetTableName(),

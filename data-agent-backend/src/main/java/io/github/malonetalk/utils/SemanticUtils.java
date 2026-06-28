@@ -57,14 +57,11 @@ public final class SemanticUtils {
         return value.trim();
     }
 
-    /**
-     * @return the original value (not trimmed), for chaining with {@code .trim()}
-     */
-    public static String checkNotBlank(String value, String label) {
+    public static String trimToNotBlank(String value, String label) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(label + " cannot be blank.");
         }
-        return value;
+        return value.trim();
     }
 
     public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {

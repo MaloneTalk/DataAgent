@@ -49,8 +49,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
         SemanticUtils.requireDatasourceId(query.datasourceId());
-        String normalizedTableName =
-                SemanticUtils.checkNotBlank(query.tableName(), "tableName").trim();
+        String normalizedTableName = SemanticUtils.trimToNotBlank(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         Datasource datasource = datasourceService.findById(query.datasourceId());
@@ -77,9 +76,11 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
+        String normalizedTableName =
+                SemanticUtils.trimToNotBlank(tableName, "tableName").toLowerCase(Locale.ROOT);
         String normalizedColumnName =
-                SemanticUtils.checkNotBlank(request.columnName(), "columnName").trim();
+                SemanticUtils.trimToNotBlank(request.columnName(), "columnName")
+                        .toLowerCase(Locale.ROOT);
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -127,7 +128,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public int resetColumnSemantics(
             Integer datasourceId, String tableName, List<String> columnNames) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.checkNotBlank(tableName, "tableName").trim();
+        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
         if (columnNames == null || columnNames.isEmpty()) {
             return 0;
         }
@@ -135,9 +136,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnNames.stream()
                         .map(
                                 columnName ->
-                                        normalizeKey(
-                                                SemanticUtils.checkNotBlank(
-                                                        columnName, "columnName")))
+                                        SemanticUtils.trimToNotBlank(columnName, "columnName")
+                                                .toLowerCase(Locale.ROOT))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 columnSemanticInfoMapper
@@ -146,7 +146,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .filter(
                                 column ->
                                         normalizedColumnNames.contains(
-                                                normalizeKey(column.getColumnName())))
+                                                SemanticUtils.trimToNotBlank(
+                                                                column.getColumnName(),
+                                                                "columnName")
+                                                        .toLowerCase(Locale.ROOT)))
                         .map(ColumnInfo::getId)
                         .distinct()
                         .toList();
@@ -167,10 +170,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private String normalizeKey(String value) {
-        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     private ColumnSemanticResponse mapResponse(ColumnInfo columnInfo) {

@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic.relation;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
@@ -26,11 +27,13 @@ import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.LogicalTableRelation;
+import io.github.malonetalk.enums.LogicalTableRelationType;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -187,9 +190,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 logicalTableRelationHelper.toJson(request.targetColumnNames()));
         relation.setTargetColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(request.targetColumnNames()));
-        relation.setRelationType(LogicalTableRelationHelper.RELATION_TYPE_FOREIGN_KEY);
-        relation.setDescription(
-                logicalTableRelationHelper.normalizeDescription(request.description()));
+        relation.setRelationType(SemanticConstants.RELATION_TYPE_FOREIGN_KEY);
+        relation.setDescription(SemanticUtils.trimToNull(request.description()));
         relation.setIsEnabled(request.enabled());
         relation.setCreateTime(LocalDateTime.now());
         relation.setUpdateTime(LocalDateTime.now());
@@ -213,9 +215,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 logicalTableRelationHelper.toJson(request.targetColumnNames()));
         relation.setTargetColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(request.targetColumnNames()));
-        relation.setRelationType(LogicalTableRelationHelper.RELATION_TYPE_FOREIGN_KEY);
-        relation.setDescription(
-                logicalTableRelationHelper.normalizeDescription(request.description()));
+        relation.setRelationType(SemanticConstants.RELATION_TYPE_FOREIGN_KEY);
+        relation.setDescription(SemanticUtils.trimToNull(request.description()));
         relation.setIsEnabled(request.enabled());
     }
 
@@ -245,8 +246,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
-                || !logicalTableRelationHelper.sameTableName(
-                        relation.getSourceTableName(), tableName)) {
+                || !relation.getSourceTableName()
+                        .equals(
+                                SemanticUtils.trimToNotBlank(tableName, "tableName")
+                                        .toLowerCase(Locale.ROOT))) {
             throw new IllegalArgumentException("Logical relation does not exist.");
         }
         return relation;
@@ -267,12 +270,12 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         relation.getTargetTableName(),
                         targetColumns),
                 relation.getDatasourceId(),
-                LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
+                SemanticConstants.RELATION_SOURCE_LOGICAL,
                 relation.getSourceTableName(),
                 sourceColumns,
                 relation.getTargetTableName(),
                 targetColumns,
-                logicalTableRelationHelper.relationType(relation.getRelationType()),
+                LogicalTableRelationType.fromCode(relation.getRelationType()),
                 relation.getDescription(),
                 relation.getIsEnabled(),
                 relation.getIsEnabled(),
