@@ -17,7 +17,10 @@
  */
 package io.github.malonetalk.dto.prompt;
 
+import lombok.Builder;
+
 /** Agent-facing DTO for LLM prompt formatting. */
+@Builder
 public record ColumnPromptResponse(
         String name,
         String type,

@@ -56,13 +56,14 @@ public final class PromptConverter {
             typeBuilder.append("(").append(physicalColumn.columnSize()).append(")");
         }
 
-        return new ColumnPromptResponse(
-                physicalColumn.columnName(),
-                typeBuilder.toString(),
-                physicalColumn.primaryKey(),
-                physicalColumn.nullable(),
-                SemanticUtils.trimToNull(physicalColumn.defaultValue()),
-                description);
+        return ColumnPromptResponse.builder()
+                .name(physicalColumn.columnName())
+                .type(typeBuilder.toString())
+                .primaryKey(physicalColumn.primaryKey())
+                .nullable(physicalColumn.nullable())
+                .defaultValue(SemanticUtils.trimToNull(physicalColumn.defaultValue()))
+                .description(description)
+                .build();
     }
 
     /** 将物理表信息与语义表信息合并，转换为面向 Agent 的表响应 DTO */
