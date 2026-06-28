@@ -15,3 +15,5 @@
 **Avoid over-encapsulation: don't abstract before duplication appears.** A helper method used only once is just indirection, not cleanliness. Extract when the same pattern appears in ≥2 places — not earlier. **But one-off private methods that clarify intent are not "duplication" — they're organization.**
 
 **Don't write boilerplate that can be generated.** Use Lombok (`@Data`, `@Builder`, `@RequiredArgsConstructor`), MapStruct for mappers, and IDE generation for equals/hashCode. If it's mechanical, don't type it by hand.
+
+**Write code for the next reader, not for the compiler.** The compiler can parse anything. A human shouldn't have to. Choose names that reveal intent, structure code in small logical steps, and prefer clarity over cleverness. If a line makes you pause — it will make someone else pause too.
