@@ -18,6 +18,7 @@
 package io.github.malonetalk.service.semantic.column;
 
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
@@ -28,6 +29,8 @@ public interface ColumnSemanticService {
     PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query);
 
     void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request);
+
+    List<ColumnPromptResponse> getMergedTableSchema(Integer datasourceId, String tableName);
 
     void resetColumnSemantic(Integer datasourceId, String tableName, String columnName);
 

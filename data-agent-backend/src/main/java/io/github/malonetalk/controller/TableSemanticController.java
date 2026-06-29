@@ -51,6 +51,12 @@ public class TableSemanticController {
         return Result.success(tableSemanticService.getTablePage(query));
     }
 
+    @GetMapping("/names")
+    public Result<List<String>> listTableNames(
+            @RequestParam @NotNull @Min(1) Integer datasourceId) {
+        return Result.success(tableSemanticService.listTableNames(datasourceId));
+    }
+
     @GetMapping("/domains")
     public Result<List<String>> listTableDomains(
             @RequestParam @NotNull @Min(1) Integer datasourceId) {

@@ -15,9 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.datasource;
+package io.github.malonetalk.dto.datasource;
 
-public record ColumnInfo(
+/** 物理数据源列信息，由 SchemaReader 从 JDBC 元数据读取 */
+public record PhysicalColumnInfo(
         String columnName,
         String typeName,
         int columnSize,

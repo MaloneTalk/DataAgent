@@ -20,6 +20,7 @@ package io.github.malonetalk.service.semantic.relation;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
@@ -32,6 +33,7 @@ import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private final DatasourceService datasourceService;
     private final LogicalTableRelationMapper logicalTableRelationMapper;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
+    private final SemanticConverter semanticConverter;
 
     @Override
     public PageResponse<LogicalTableRelationResponse> getRelationPage(
@@ -52,9 +55,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         Page<LogicalTableRelation> page =
                 (Page<LogicalTableRelation>)
@@ -64,14 +65,15 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                         normalizedTableName,
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.enabled(),
                                         query.sortOrder()),
                                 sortDescending);
         if (page.getTotal() == 0L) {
             return PageResponse.empty(pageNumber, pageSize);
         }
-        List<LogicalTableRelationResponse> items = page.stream().map(this::mapResponse).toList();
+        List<LogicalTableRelationResponse> items =
+                page.stream().map(semanticConverter::toResponse).toList();
         return PageResponse.of(items, page.getTotal(), pageNumber, pageSize);
     }
 
@@ -87,7 +89,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 relation.getSourceColumnSignature(),
                 null);
         logicalTableRelationMapper.insert(relation);
-        return mapResponse(relation);
+        return semanticConverter.toResponse(relation);
     }
 
     @Override
@@ -105,7 +107,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 existing.getId());
         existing.setUpdateTime(LocalDateTime.now());
         logicalTableRelationMapper.update(existing);
-        return mapResponse(existing);
+        return semanticConverter.toResponse(existing);
     }
 
     @Override
@@ -177,23 +179,14 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId, String tableName, BindLogicalTableRelationRequest request) {
         LogicalTableRelation relation = new LogicalTableRelation();
         relation.setDatasourceId(datasourceId);
-        relation.setSourceTableName(
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
-        relation.setSourceColumnNamesJson(
-                logicalTableRelationHelper.toJson(request.sourceColumnNames()));
-        relation.setSourceColumnSignature(
-                logicalTableRelationHelper.buildColumnSignature(request.sourceColumnNames()));
-        relation.setTargetTableName(
-                logicalTableRelationHelper.normalizeTableName(
-                        request.targetTableName(), "targetTableName"));
-        relation.setTargetColumnNamesJson(
-                logicalTableRelationHelper.toJson(request.targetColumnNames()));
-        relation.setTargetColumnSignature(
-                logicalTableRelationHelper.buildColumnSignature(request.targetColumnNames()));
-        relation.setRelationType(LogicalTableRelationHelper.RELATION_TYPE_FOREIGN_KEY);
-        relation.setDescription(
-                logicalTableRelationHelper.normalizeDescription(request.description()));
-        relation.setIsEnabled(request.enabled());
+        populateRelationFields(
+                relation,
+                tableName,
+                request.sourceColumnNames(),
+                request.targetColumnNames(),
+                request.targetTableName(),
+                request.description(),
+                request.enabled());
         relation.setCreateTime(LocalDateTime.now());
         relation.setUpdateTime(LocalDateTime.now());
         return relation;
@@ -203,23 +196,45 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             LogicalTableRelation relation,
             String tableName,
             UpdateLogicalTableRelationRequest request) {
+        populateRelationFields(
+                relation,
+                tableName,
+                request.sourceColumnNames(),
+                request.targetColumnNames(),
+                request.targetTableName(),
+                request.description(),
+                request.enabled());
+    }
+
+    private void populateRelationFields(
+            LogicalTableRelation relation,
+            String tableName,
+            List<String> sourceColumnNames,
+            List<String> targetColumnNames,
+            String targetTableName,
+            String description,
+            Boolean enabled) {
         relation.setSourceTableName(
                 logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
+        List<String> normalizedSourceColumns =
+                logicalTableRelationHelper.normalizeColumnNames(
+                        sourceColumnNames, "sourceColumnNames");
         relation.setSourceColumnNamesJson(
-                logicalTableRelationHelper.toJson(request.sourceColumnNames()));
+                logicalTableRelationHelper.toJson(normalizedSourceColumns));
         relation.setSourceColumnSignature(
-                logicalTableRelationHelper.buildColumnSignature(request.sourceColumnNames()));
+                logicalTableRelationHelper.buildColumnSignature(normalizedSourceColumns));
         relation.setTargetTableName(
-                logicalTableRelationHelper.normalizeTableName(
-                        request.targetTableName(), "targetTableName"));
+                logicalTableRelationHelper.normalizeTableName(targetTableName, "targetTableName"));
+        List<String> normalizedTargetColumns =
+                logicalTableRelationHelper.normalizeColumnNames(
+                        targetColumnNames, "targetColumnNames");
         relation.setTargetColumnNamesJson(
-                logicalTableRelationHelper.toJson(request.targetColumnNames()));
+                logicalTableRelationHelper.toJson(normalizedTargetColumns));
         relation.setTargetColumnSignature(
-                logicalTableRelationHelper.buildColumnSignature(request.targetColumnNames()));
-        relation.setRelationType(LogicalTableRelationHelper.RELATION_TYPE_FOREIGN_KEY);
-        relation.setDescription(
-                logicalTableRelationHelper.normalizeDescription(request.description()));
-        relation.setIsEnabled(request.enabled());
+                logicalTableRelationHelper.buildColumnSignature(normalizedTargetColumns));
+        relation.setRelationType(SemanticConstants.RELATION_TYPE_FOREIGN_KEY);
+        relation.setDescription(SemanticUtils.trimToNull(description));
+        relation.setIsEnabled(enabled);
     }
 
     private void ensureUniqueSourceKey(
@@ -248,39 +263,12 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
-                || !logicalTableRelationHelper.sameTableName(
-                        relation.getSourceTableName(), tableName)) {
+                || !relation.getSourceTableName()
+                        .equals(
+                                SemanticUtils.trimToNotBlank(tableName, "tableName")
+                                        .toLowerCase(Locale.ROOT))) {
             throw new IllegalArgumentException("Logical relation does not exist.");
         }
         return relation;
-    }
-
-    private LogicalTableRelationResponse mapResponse(LogicalTableRelation relation) {
-        List<String> sourceColumns =
-                logicalTableRelationHelper.fromJson(
-                        relation.getSourceColumnNamesJson(), "sourceColumnNames");
-        List<String> targetColumns =
-                logicalTableRelationHelper.fromJson(
-                        relation.getTargetColumnNamesJson(), "targetColumnNames");
-        return new LogicalTableRelationResponse(
-                relation.getId(),
-                logicalTableRelationHelper.buildRelationKey(
-                        relation.getSourceTableName(),
-                        sourceColumns,
-                        relation.getTargetTableName(),
-                        targetColumns),
-                relation.getDatasourceId(),
-                LogicalTableRelationHelper.RELATION_SOURCE_LOGICAL,
-                relation.getSourceTableName(),
-                sourceColumns,
-                relation.getTargetTableName(),
-                targetColumns,
-                relation.getRelationType(),
-                relation.getDescription(),
-                relation.getIsEnabled(),
-                relation.getIsEnabled(),
-                null,
-                relation.getCreateTime(),
-                relation.getUpdateTime());
     }
 }

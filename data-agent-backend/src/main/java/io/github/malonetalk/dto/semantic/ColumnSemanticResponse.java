@@ -18,7 +18,9 @@
 package io.github.malonetalk.dto.semantic;
 
 import java.time.LocalDateTime;
+import lombok.Builder;
 
+@Builder
 public record ColumnSemanticResponse(
         Integer id,
         String columnName,

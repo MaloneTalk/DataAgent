@@ -17,7 +17,10 @@
  */
 package io.github.malonetalk.utils;
 
+import io.github.malonetalk.common.Constants;
 import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
+import java.util.List;
 import java.util.Locale;
 
 public final class SemanticUtils {
@@ -30,31 +33,60 @@ public final class SemanticUtils {
         }
     }
 
-    public static void validateSortOrder(String sortOrder) {
+    /**
+     * @param sortOrder nullable, treated as asc
+     * @return true if sortOrder is "desc" (case-insensitive)
+     * @throws IllegalArgumentException if not null / "asc" / "desc"
+     */
+    public static boolean isDescendingSort(String sortOrder) {
         if (sortOrder == null) {
-            return;
+            return false;
         }
-        if (!SemanticConstants.SORT_ORDER_ASC.equalsIgnoreCase(sortOrder)
-                && !SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
-            throw new IllegalArgumentException("sortOrder must be asc or desc.");
+        if (Constants.SORT_ORDER_ASC.equalsIgnoreCase(sortOrder)) {
+            return false;
         }
+        if (Constants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
+            return true;
+        }
+        throw new IllegalArgumentException(
+                "sortOrder must be 'asc' or 'desc', but got: " + sortOrder);
     }
 
-    public static String normalizeBlankToNull(String value) {
+    public static String trimToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
         return value.trim();
     }
 
-    public static String requireName(String value, String fieldName) {
+    public static String trimToNotBlank(String value, String label) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " cannot be blank.");
+            throw new IllegalArgumentException(label + " cannot be blank.");
         }
         return value.trim();
     }
 
-    public static String normalizeIdentifierKey(String value) {
-        return requireName(value, "value").toLowerCase(Locale.ROOT);
+    public static String normalizeDomain(String domain) {
+        String normalized = trimToNull(domain);
+        return normalized == null
+                ? SemanticConstants.DEFAULT_DOMAIN
+                : normalized.toLowerCase(Locale.ROOT);
+    }
+
+    public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Schema of table %s:%n", tableName));
+        sb.append("  Columns:\n");
+        for (ColumnPromptResponse col : columns) {
+            sb.append(String.format("    - %s (%s)", col.name(), col.type()));
+            if (Boolean.TRUE.equals(col.primaryKey())) {
+                sb.append(" [PRIMARY KEY]");
+            }
+            if (col.description() != null) {
+                sb.append(String.format(" - %s", col.description()));
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 }

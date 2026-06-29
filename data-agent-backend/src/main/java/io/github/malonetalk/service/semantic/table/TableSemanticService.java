@@ -18,6 +18,7 @@
 package io.github.malonetalk.service.semantic.table;
 
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
@@ -28,6 +29,8 @@ public interface TableSemanticService {
 
     PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query);
 
+    List<String> listTableNames(Integer datasourceId);
+
     List<String> listAvailableDomains(Integer datasourceId);
 
     List<TableInfo> listTableInfosByDatasourceId(Integer datasourceId);
@@ -35,6 +38,8 @@ public interface TableSemanticService {
     void updateTableSemantic(TableSemanticUpdateRequest request);
 
     List<TableInfo> listTableInfosByDomains(Integer datasourceId, List<String> domains);
+
+    List<TablePromptResponse> listMergedTablesByDomains(Integer datasourceId, List<String> domains);
 
     void resetTableSemantic(Integer datasourceId, String tableName);
 

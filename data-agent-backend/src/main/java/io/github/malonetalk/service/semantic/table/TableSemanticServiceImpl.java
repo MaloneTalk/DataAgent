@@ -19,14 +19,17 @@ package io.github.malonetalk.service.semantic.table;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
+import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,18 +45,19 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     private final DatasourceService datasourceService;
     private final TableInfoMapper tableInfoMapper;
+    private final SemanticMergeService semanticMergeService;
+    private final SemanticConverter semanticConverter;
 
     @Override
     public PageResponse<TableSemanticResponse> getTablePage(TableSemanticPageQuery query) {
         SemanticUtils.requireDatasourceId(query.datasourceId());
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        if (datasourceService.findById(query.datasourceId()) == null) {
+        Datasource datasource = datasourceService.findById(query.datasourceId());
+        if (datasource == null) {
             return PageResponse.empty(pageNumber, pageSize);
         }
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         Page<TableInfo> page =
                 (Page<TableInfo>)
@@ -62,12 +66,28 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                         query.datasourceId(),
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
-        List<TableSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
+        List<TableSemanticResponse> responses =
+                page.stream().map(semanticConverter::toResponse).toList();
         long total = page.getTotal();
         return PageResponse.of(responses, total, pageNumber, pageSize);
+    }
+
+    @Override
+    public List<String> listTableNames(Integer datasourceId) {
+        SemanticUtils.requireDatasourceId(datasourceId);
+        if (datasourceService.findById(datasourceId) == null) {
+            return List.of();
+        }
+        return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
+                .map(TableInfo::getTableName)
+                .filter(tableName -> tableName != null && !tableName.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted(String::compareToIgnoreCase)
+                .toList();
     }
 
     @Override
@@ -107,9 +127,22 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     @Override
+    public List<TablePromptResponse> listMergedTablesByDomains(
+            Integer datasourceId, List<String> domains) {
+        SemanticUtils.requireDatasourceId(datasourceId);
+        Datasource datasource = datasourceService.findById(datasourceId);
+        if (datasource == null) {
+            return List.of();
+        }
+        return semanticMergeService.listVisibleTablesByDomains(datasource, domains);
+    }
+
+    @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName = SemanticUtils.requireName(request.tableName(), "tableName");
+        String normalizedTableName =
+                SemanticUtils.trimToNotBlank(request.tableName(), "tableName")
+                        .toLowerCase(Locale.ROOT);
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -117,9 +150,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             TableInfo tableInfo = new TableInfo();
             tableInfo.setDatasourceId(request.datasourceId());
             tableInfo.setTableName(normalizedTableName);
-            tableInfo.setTableDescription(
-                    SemanticUtils.normalizeBlankToNull(request.tableDescription()));
-            tableInfo.setDomain(normalizeDomain(request.domain()));
+            tableInfo.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
+            tableInfo.setDomain(SemanticUtils.normalizeDomain(request.domain()));
             tableInfo.setIsVisible(request.isVisible());
             tableInfo.setCreateTime(LocalDateTime.now());
             tableInfo.setUpdateTime(LocalDateTime.now());
@@ -127,9 +159,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return;
         }
         existing.setTableName(normalizedTableName);
-        existing.setTableDescription(
-                SemanticUtils.normalizeBlankToNull(request.tableDescription()));
-        existing.setDomain(normalizeDomain(request.domain()));
+        existing.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
+        existing.setDomain(SemanticUtils.normalizeDomain(request.domain()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
         tableInfoMapper.update(existing);
@@ -138,7 +169,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
+        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
@@ -155,14 +186,19 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         Set<String> normalizedNames =
                 tableNames.stream()
-                        .map(this::normalizeName)
+                        .map(
+                                name ->
+                                        SemanticUtils.trimToNotBlank(name, "tableName")
+                                                .toLowerCase(Locale.ROOT))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 tableInfoMapper.selectByDatasourceId(datasourceId).stream()
                         .filter(
                                 table ->
                                         normalizedNames.contains(
-                                                normalizeName(table.getTableName())))
+                                                SemanticUtils.trimToNotBlank(
+                                                                table.getTableName(), "tableName")
+                                                        .toLowerCase(Locale.ROOT)))
                         .map(TableInfo::getId)
                         .distinct()
                         .toList();
@@ -183,28 +219,5 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private TableSemanticResponse mapResponse(TableInfo tableInfo) {
-        return new TableSemanticResponse(
-                tableInfo.getId(),
-                tableInfo.getTableName(),
-                tableInfo.getDomain(),
-                null,
-                tableInfo.getTableDescription(),
-                tableInfo.getIsVisible(),
-                true,
-                Boolean.TRUE.equals(tableInfo.getIsVisible()),
-                null,
-                tableInfo.getUpdateTime());
-    }
-
-    private String normalizeName(String value) {
-        return SemanticUtils.requireName(value, "tableName").toLowerCase(Locale.ROOT);
-    }
-
-    private String normalizeDomain(String value) {
-        String normalized = SemanticUtils.normalizeBlankToNull(value);
-        return normalized == null ? SemanticConstants.DEFAULT_DOMAIN : normalized;
     }
 }
