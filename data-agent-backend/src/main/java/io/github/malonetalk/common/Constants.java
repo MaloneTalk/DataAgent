@@ -19,6 +19,9 @@ package io.github.malonetalk.common;
 
 public final class Constants {
 
+    public static final String SORT_ORDER_ASC = "asc";
+    public static final String SORT_ORDER_DESC = "desc";
+
     private Constants() {
         throw new IllegalCallerException("No Constants Instance for You!");
     }

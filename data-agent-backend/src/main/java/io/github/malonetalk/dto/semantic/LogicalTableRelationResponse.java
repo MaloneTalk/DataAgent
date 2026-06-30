@@ -17,9 +17,12 @@
  */
 package io.github.malonetalk.dto.semantic;
 
+import io.github.malonetalk.enums.LogicalTableRelationType;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.Builder;
 
+@Builder
 public record LogicalTableRelationResponse(
         Integer id,
         String relationKey,
@@ -29,10 +32,9 @@ public record LogicalTableRelationResponse(
         List<String> sourceColumnNames,
         String targetTableName,
         List<String> targetColumnNames,
-        String relationType,
+        LogicalTableRelationType relationType,
         String description,
         Boolean enabled,
-        Boolean effective,
         String invalidReason,
         LocalDateTime createTime,
         LocalDateTime updateTime) {}

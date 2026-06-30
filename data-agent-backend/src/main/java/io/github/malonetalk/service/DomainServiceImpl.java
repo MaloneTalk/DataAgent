@@ -30,6 +30,7 @@ import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -44,9 +45,7 @@ public class DomainServiceImpl implements DomainService {
     public PageResponse<DomainInfo> getDomainPage(DomainPageQuery query) {
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         @SuppressWarnings("unchecked")
         Page<DomainInfo> page =
@@ -55,7 +54,7 @@ public class DomainServiceImpl implements DomainService {
                                 new DomainPageQuery(
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
         List<DomainInfo> items = page.getResult();
@@ -73,14 +72,15 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public DomainInfo create(DomainCreateRequest request) {
-        String normalizedName = SemanticUtils.requireName(request.name(), "领域名称");
+        String normalizedName =
+                SemanticUtils.trimToNotBlank(request.name(), "领域名称").toLowerCase(Locale.ROOT);
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
             throw new IllegalArgumentException("领域名称已存在: " + normalizedName);
         }
         DomainInfo domainInfo = new DomainInfo();
         domainInfo.setName(normalizedName);
-        domainInfo.setDescription(SemanticUtils.normalizeBlankToNull(request.description()));
+        domainInfo.setDescription(SemanticUtils.trimToNull(request.description()));
         domainInfo.setCreateTime(LocalDateTime.now());
         domainInfo.setUpdateTime(LocalDateTime.now());
         domainInfoMapper.insert(domainInfo);
@@ -96,13 +96,14 @@ public class DomainServiceImpl implements DomainService {
         if (existing == null) {
             throw new IllegalArgumentException("领域不存在: id=" + id);
         }
-        String normalizedName = SemanticUtils.requireName(request.name(), "领域名称");
+        String normalizedName =
+                SemanticUtils.trimToNotBlank(request.name(), "领域名称").toLowerCase(Locale.ROOT);
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
             throw new IllegalArgumentException("领域名称已存在: " + normalizedName);
         }
         existing.setName(normalizedName);
-        existing.setDescription(SemanticUtils.normalizeBlankToNull(request.description()));
+        existing.setDescription(SemanticUtils.trimToNull(request.description()));
         existing.setUpdateTime(LocalDateTime.now());
         domainInfoMapper.update(existing);
         return existing;

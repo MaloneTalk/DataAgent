@@ -19,14 +19,17 @@ package io.github.malonetalk.service.semantic.column;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.SemanticConstants;
+import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,19 +45,20 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
+    private final SemanticMergeService semanticMergeService;
+    private final SemanticConverter semanticConverter;
 
     @Override
     public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
         SemanticUtils.requireDatasourceId(query.datasourceId());
-        String normalizedTableName = SemanticUtils.requireName(query.tableName(), "tableName");
+        String normalizedTableName = SemanticUtils.trimToNotBlank(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        if (datasourceService.findById(query.datasourceId()) == null) {
+        Datasource datasource = datasourceService.findById(query.datasourceId());
+        if (datasource == null) {
             return PageResponse.empty(pageNumber, pageSize);
         }
-        SemanticUtils.validateSortOrder(query.sortOrder());
-        boolean sortDescending =
-                SemanticConstants.SORT_ORDER_DESC.equalsIgnoreCase(query.sortOrder());
+        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
         PageHelper.startPage(pageNumber, pageSize);
         Page<ColumnInfo> page =
                 (Page<ColumnInfo>)
@@ -64,18 +68,22 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                         normalizedTableName,
                                         pageNumber,
                                         pageSize,
-                                        SemanticUtils.normalizeBlankToNull(query.keyword()),
+                                        SemanticUtils.trimToNull(query.keyword()),
                                         query.sortOrder()),
                                 sortDescending);
-        List<ColumnSemanticResponse> responses = page.stream().map(this::mapResponse).toList();
+        List<ColumnSemanticResponse> responses =
+                page.stream().map(semanticConverter::toResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override
     public void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
-        String normalizedColumnName = SemanticUtils.requireName(request.columnName(), "columnName");
+        String normalizedTableName =
+                SemanticUtils.trimToNotBlank(tableName, "tableName").toLowerCase(Locale.ROOT);
+        String normalizedColumnName =
+                SemanticUtils.trimToNotBlank(request.columnName(), "columnName")
+                        .toLowerCase(Locale.ROOT);
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -84,8 +92,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnInfo.setDatasourceId(request.datasourceId());
             columnInfo.setTableName(normalizedTableName);
             columnInfo.setColumnName(normalizedColumnName);
-            columnInfo.setColumnDescription(
-                    SemanticUtils.normalizeBlankToNull(request.columnDescription()));
+            columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setIsVisible(request.isVisible());
             columnInfo.setCreateTime(LocalDateTime.now());
             columnInfo.setUpdateTime(LocalDateTime.now());
@@ -94,11 +101,17 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
         existing.setTableName(normalizedTableName);
         existing.setColumnName(normalizedColumnName);
-        existing.setColumnDescription(
-                SemanticUtils.normalizeBlankToNull(request.columnDescription()));
+        existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
         columnSemanticInfoMapper.update(existing);
+    }
+
+    @Override
+    public List<ColumnPromptResponse> getMergedTableSchema(Integer datasourceId, String tableName) {
+        requireDatasource(datasourceId);
+        Datasource datasource = datasourceService.findById(datasourceId);
+        return semanticMergeService.getTableSchema(datasource, tableName);
     }
 
     @Override
@@ -118,7 +131,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public int resetColumnSemantics(
             Integer datasourceId, String tableName, List<String> columnNames) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.requireName(tableName, "tableName");
+        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
         if (columnNames == null || columnNames.isEmpty()) {
             return 0;
         }
@@ -126,9 +139,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnNames.stream()
                         .map(
                                 columnName ->
-                                        normalizeKey(
-                                                SemanticUtils.requireName(
-                                                        columnName, "columnName")))
+                                        SemanticUtils.trimToNotBlank(columnName, "columnName")
+                                                .toLowerCase(Locale.ROOT))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 columnSemanticInfoMapper
@@ -137,7 +149,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .filter(
                                 column ->
                                         normalizedColumnNames.contains(
-                                                normalizeKey(column.getColumnName())))
+                                                SemanticUtils.trimToNotBlank(
+                                                                column.getColumnName(),
+                                                                "columnName")
+                                                        .toLowerCase(Locale.ROOT)))
                         .map(ColumnInfo::getId)
                         .distinct()
                         .toList();
@@ -158,24 +173,5 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
-    }
-
-    private ColumnSemanticResponse mapResponse(ColumnInfo columnInfo) {
-        return new ColumnSemanticResponse(
-                columnInfo.getId(),
-                columnInfo.getColumnName(),
-                null,
-                columnInfo.getColumnDescription(),
-                null,
-                null,
-                columnInfo.getIsVisible(),
-                true,
-                Boolean.TRUE.equals(columnInfo.getIsVisible()),
-                null,
-                columnInfo.getUpdateTime());
-    }
-
-    private String normalizeKey(String value) {
-        return value.trim().toLowerCase(Locale.ROOT);
     }
 }

@@ -17,11 +17,14 @@
  */
 package io.github.malonetalk.service.semantic.relation;
 
+import static io.github.malonetalk.common.SemanticConstants.RELATION_GROUP_SEPARATOR;
 import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
+import static io.github.malonetalk.common.SemanticConstants.RELATION_TABLE_COLUMN_SEPARATOR;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.malonetalk.utils.SemanticUtils;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -31,9 +34,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class LogicalTableRelationHelper {
 
-    public static final String RELATION_TYPE_FOREIGN_KEY = "foreign_key";
-    public static final String RELATION_SOURCE_LOGICAL = "logical";
-
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
 
     private final ObjectMapper objectMapper;
@@ -42,22 +42,8 @@ public class LogicalTableRelationHelper {
         this.objectMapper = objectMapper;
     }
 
-    public String normalizeTableName(String tableName, String fieldName) {
-        if (tableName == null || tableName.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " cannot be blank.");
-        }
-        return tableName.trim();
-    }
-
-    public String normalizeIdentifierKey(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        return value.trim().toLowerCase(Locale.ROOT);
-    }
-
-    public boolean sameTableName(String left, String right) {
-        return normalizeIdentifierKey(left).equals(normalizeIdentifierKey(right));
+    public String normalizeTableName(String tableName, String label) {
+        return SemanticUtils.trimToNotBlank(tableName, label).toLowerCase(Locale.ROOT);
     }
 
     public List<String> normalizeColumnNames(List<String> columnNames, String fieldName) {
@@ -81,13 +67,6 @@ public class LogicalTableRelationHelper {
         return normalizedColumns.stream().toList();
     }
 
-    public String normalizeDescription(String description) {
-        if (description == null || description.isBlank()) {
-            return null;
-        }
-        return description.trim();
-    }
-
     public String buildColumnSignature(List<String> columnNames) {
         return normalizeColumnNames(columnNames, "columnNames").stream()
                 .map(columnName -> columnName.toLowerCase(Locale.ROOT))
@@ -100,12 +79,14 @@ public class LogicalTableRelationHelper {
             List<String> sourceColumnNames,
             String targetTableName,
             List<String> targetColumnNames) {
-        return normalizeIdentifierKey(sourceTableName)
-                + RELATION_KEY_SEPARATOR
+        return SemanticUtils.trimToNotBlank(sourceTableName, "sourceTableName")
+                        .toLowerCase(Locale.ROOT)
+                + RELATION_TABLE_COLUMN_SEPARATOR
                 + buildColumnSignature(sourceColumnNames)
-                + RELATION_KEY_SEPARATOR
-                + normalizeIdentifierKey(targetTableName)
-                + RELATION_KEY_SEPARATOR
+                + RELATION_GROUP_SEPARATOR
+                + SemanticUtils.trimToNotBlank(targetTableName, "targetTableName")
+                        .toLowerCase(Locale.ROOT)
+                + RELATION_TABLE_COLUMN_SEPARATOR
                 + buildColumnSignature(targetColumnNames);
     }
 

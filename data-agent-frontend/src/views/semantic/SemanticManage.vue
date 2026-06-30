@@ -19,23 +19,29 @@
   import { computed, ref, watch } from 'vue';
   import DomainManage from './components/DomainManage.vue';
   import RelationManage from './relation/RelationManage.vue';
+  import TableSemanticManage from './components/TableSemanticManage.vue';
 
-  const activeTab = ref<'domain' | 'relation'>('domain');
+  const activeTab = ref<'domain' | 'table' | 'relation'>('domain');
   const keyword = ref('');
   const sortOrder = ref<'asc' | 'desc'>('asc');
   const domainManageRef = ref<InstanceType<typeof DomainManage>>();
+  const tableManageRef = ref<InstanceType<typeof TableSemanticManage>>();
 
   const showSearchToolbar = computed(() => activeTab.value === 'domain');
 
   const handleSearch = async () => {
     if (activeTab.value === 'domain' && domainManageRef.value) {
       await domainManageRef.value.loadDomainPage();
+    } else if (activeTab.value === 'table' && tableManageRef.value) {
+      await tableManageRef.value.loadPage();
     }
   };
 
   watch(activeTab, async tab => {
     if (tab === 'domain' && domainManageRef.value) {
       await domainManageRef.value.loadDomainPage();
+    } else if (tab === 'table' && tableManageRef.value) {
+      await tableManageRef.value.loadPage();
     }
   });
 </script>
@@ -45,7 +51,7 @@
     <section class="hero-card">
       <div>
         <h2 class="hero-title">语义管理</h2>
-        <p class="hero-desc">统一维护数据领域和逻辑外键配置，保留当前页面结构并按功能拆分实现。</p>
+        <p class="hero-desc">统一管理数据领域、表语义、列语义和逻辑外键配置，用于分类和组织表结构。</p>
       </div>
     </section>
 
@@ -76,6 +82,9 @@
       <el-tabs v-model="activeTab" class="semantic-tabs">
         <el-tab-pane label="数据领域管理" name="domain">
           <DomainManage ref="domainManageRef" :keyword="keyword" :sort-order="sortOrder" />
+        </el-tab-pane>
+        <el-tab-pane label="表语义管理" name="table">
+          <TableSemanticManage ref="tableManageRef" :keyword="keyword" :sort-order="sortOrder" />
         </el-tab-pane>
         <el-tab-pane label="逻辑外键" name="relation">
           <RelationManage />

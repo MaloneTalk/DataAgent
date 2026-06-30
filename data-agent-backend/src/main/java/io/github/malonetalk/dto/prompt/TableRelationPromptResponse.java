@@ -15,19 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.dto.prompt;
 
 import io.github.malonetalk.enums.LogicalTableRelationType;
+import java.util.List;
 
-public final class SemanticConstants {
-
-    public static final String RELATION_KEY_SEPARATOR = "|";
-    public static final String RELATION_TABLE_COLUMN_SEPARATOR = ":";
-    public static final String RELATION_GROUP_SEPARATOR = "::";
-    public static final String DEFAULT_DOMAIN = "default";
-    public static final String RELATION_TYPE_FOREIGN_KEY =
-            LogicalTableRelationType.FOREIGN_KEY.getCode();
-    public static final String RELATION_SOURCE_LOGICAL = "logical";
-
-    private SemanticConstants() {}
-}
+/** Agent-facing DTO for LLM prompt formatting. */
+public record TableRelationPromptResponse(
+        LogicalTableRelationType relationType,
+        String source,
+        String sourceTableName,
+        List<String> sourceColumnNames,
+        String targetTableName,
+        List<String> targetColumnNames,
+        String description) {}

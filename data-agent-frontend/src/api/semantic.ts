@@ -15,17 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import request from './request';
-
-export interface PageResponse<T> {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-  items: T[];
-}
+import request, { type ApiResponse } from './request';
+import { getDatasourceList } from './datasource';
+import type { PageResponse } from './domain';
 
 export interface RelationCandidateTableResponse {
   tableName: string;
@@ -46,6 +38,8 @@ export interface TableSemanticResponse {
   updateTime: string | null;
 }
 
+export type TableSemanticInfo = TableSemanticResponse;
+
 export interface RelationCandidateColumnResponse {
   columnName: string;
   description: string | null;
@@ -59,13 +53,15 @@ export interface ColumnSemanticResponse {
   physicalColumnDescription: string | null;
   columnDescription: string | null;
   typeName: string | null;
-  primaryKey: boolean;
+  primaryKey: boolean | null;
   isVisible: boolean;
   hasPhysicalColumn: boolean;
   effective: boolean;
   invalidReason: string | null;
   updateTime: string | null;
 }
+
+export type ColumnSemanticInfo = ColumnSemanticResponse;
 
 export interface LogicalTableRelationResponse {
   id: number | null;
@@ -79,13 +75,13 @@ export interface LogicalTableRelationResponse {
   relationType: string;
   description: string | null;
   enabled: boolean;
-  effective: boolean;
+  effective?: boolean;
   invalidReason: string | null;
   createTime: string | null;
   updateTime: string | null;
 }
 
-export interface RelationCandidateTableQuery {
+export interface TableSemanticPageQuery {
   datasourceId: number;
   page?: number;
   pageSize?: number;
@@ -93,7 +89,10 @@ export interface RelationCandidateTableQuery {
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface RelationCandidateColumnQuery extends RelationCandidateTableQuery {
+export type ColumnSemanticPageQuery = TableSemanticPageQuery;
+export type RelationCandidateTableQuery = TableSemanticPageQuery;
+
+export interface RelationCandidateColumnQuery extends TableSemanticPageQuery {
   tableName: string;
 }
 
@@ -105,6 +104,21 @@ export interface LogicalRelationQuery {
   keyword?: string;
   enabled?: boolean;
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface TableSemanticUpdateRequest {
+  datasourceId: number;
+  tableName: string;
+  domain?: string;
+  tableDescription?: string;
+  isVisible: boolean;
+}
+
+export interface ColumnSemanticUpdateRequest {
+  datasourceId: number;
+  columnName: string;
+  columnDescription?: string;
+  isVisible: boolean;
 }
 
 export interface BindLogicalTableRelationRequest {
@@ -126,43 +140,91 @@ export interface UpdateLogicalTableRelationEnabledRequest {
   enabled: boolean;
 }
 
-export function getRelationCandidateTablePage(params: RelationCandidateTableQuery) {
-  return request.get<{
-    code: number;
-    message: string;
-    data: PageResponse<TableSemanticResponse>;
-  }>('/semantic/tables', { params });
+export async function getActiveDatasourceId() {
+  const response = await getDatasourceList();
+  return response.data.data.find(datasource => datasource.status === 'ACTIVE')?.id ?? null;
 }
 
-export function getRelationCandidateColumnPage(params: RelationCandidateColumnQuery) {
-  const { tableName, ...query } = params;
-  return request.get<{
-    code: number;
-    message: string;
-    data: PageResponse<ColumnSemanticResponse>;
-  }>(`/semantic/tables/columns/${encodeURIComponent(tableName)}`, {
+export function getTableSemanticPage(query: TableSemanticPageQuery) {
+  return request.get<ApiResponse<PageResponse<TableSemanticInfo>>>('/semantic/tables', {
     params: query,
   });
 }
 
+export function getRelationCandidateTablePage(params: RelationCandidateTableQuery) {
+  return request.get<ApiResponse<PageResponse<TableSemanticResponse>>>('/semantic/tables', {
+    params,
+  });
+}
+
+export function getTableSemanticNames(datasourceId: number) {
+  return request.get<ApiResponse<string[]>>('/semantic/tables/names', {
+    params: { datasourceId },
+  });
+}
+
+export function getTableDomains(datasourceId: number) {
+  return request.get<ApiResponse<string[]>>('/semantic/tables/domains', {
+    params: { datasourceId },
+  });
+}
+
+export function updateTableSemantic(data: TableSemanticUpdateRequest) {
+  return request.put<ApiResponse<boolean>>('/semantic/tables', data);
+}
+
+export function resetTableSemantic(datasourceId: number, tableName: string) {
+  return request.delete<ApiResponse<boolean>>('/semantic/tables', {
+    params: { datasourceId, tableName },
+  });
+}
+
+export function getColumnSemanticPage(tableName: string, query: ColumnSemanticPageQuery) {
+  return request.get<ApiResponse<PageResponse<ColumnSemanticInfo>>>(
+    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
+    { params: query },
+  );
+}
+
+export function getRelationCandidateColumnPage(params: RelationCandidateColumnQuery) {
+  const { tableName, ...query } = params;
+  return request.get<ApiResponse<PageResponse<ColumnSemanticResponse>>>(
+    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
+    { params: query },
+  );
+}
+
+export function updateColumnSemantic(tableName: string, data: ColumnSemanticUpdateRequest) {
+  return request.put<ApiResponse<boolean>>(
+    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
+    data,
+  );
+}
+
+export function resetColumnSemantic(datasourceId: number, tableName: string, columnName: string) {
+  return request.delete<ApiResponse<boolean>>(
+    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
+    { params: { datasourceId, columnName } },
+  );
+}
+
 export function getLogicalRelationPage(params: LogicalRelationQuery) {
   const { tableName, ...query } = params;
-  return request.get<{
-    code: number;
-    message: string;
-    data: PageResponse<LogicalTableRelationResponse>;
-  }>(`/semantic/tables/relations/${encodeURIComponent(tableName)}`, { params: query });
+  return request.get<ApiResponse<PageResponse<LogicalTableRelationResponse>>>(
+    `/semantic/tables/relations/${encodeURIComponent(tableName)}`,
+    { params: query },
+  );
 }
 
 export function createLogicalRelation(tableName: string, data: BindLogicalTableRelationRequest) {
-  return request.post<{ code: number; message: string; data: LogicalTableRelationResponse }>(
+  return request.post<ApiResponse<LogicalTableRelationResponse>>(
     `/semantic/tables/relations/${encodeURIComponent(tableName)}`,
     data,
   );
 }
 
 export function updateLogicalRelation(tableName: string, data: UpdateLogicalTableRelationRequest) {
-  return request.put<{ code: number; message: string; data: LogicalTableRelationResponse }>(
+  return request.put<ApiResponse<LogicalTableRelationResponse>>(
     `/semantic/tables/relations/${encodeURIComponent(tableName)}`,
     data,
   );
@@ -172,14 +234,14 @@ export function updateLogicalRelationEnabled(
   tableName: string,
   data: UpdateLogicalTableRelationEnabledRequest,
 ) {
-  return request.put<{ code: number; message: string; data: boolean }>(
+  return request.put<ApiResponse<boolean>>(
     `/semantic/tables/relations/${encodeURIComponent(tableName)}/enabled`,
     data,
   );
 }
 
 export function deleteLogicalRelation(datasourceId: number, tableName: string, relationId: number) {
-  return request.delete<{ code: number; message: string; data: boolean }>(
+  return request.delete<ApiResponse<boolean>>(
     `/semantic/tables/relations/${encodeURIComponent(tableName)}/${relationId}`,
     {
       params: { datasourceId },
