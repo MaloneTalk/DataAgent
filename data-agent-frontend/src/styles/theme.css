@@ -1,0 +1,149 @@
+/*
+ * Copyright (C) 2026 github.com/MaloneTalk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* ===== 浅色主题 ===== */
+:root,
+[data-theme='light'] {
+  /* 背景 */
+  --app-bg-page: #fafafa;
+  --app-bg-card: #ffffff;
+  --app-bg-sidebar: #f8f9fa;
+  --app-bg-header: #ffffff;
+  --app-bg-hover: #f4f4f5;
+  --app-bg-input: #ffffff;
+  --app-bg-overlay: #ffffff;
+
+  /* 文字 */
+  --app-text-primary: #18181b;
+  --app-text-secondary: #52525b;
+  --app-text-muted: #a1a1aa;
+
+  /* 边框 */
+  --app-border: #e4e4e7;
+  --app-border-light: #f4f4f5;
+
+  /* 强调色 */
+  --app-accent: #18181b;
+  --app-accent-hover: #09090b;
+  --app-accent-text: #ffffff;
+  --app-link: #1d4ed8;
+  --app-link-hover: #1e40af;
+
+  /* 阴影 */
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --app-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  /* 渐变色（仅用于 hero 卡片等少数场景） */
+  --app-gradient-hero: linear-gradient(135deg, #ffffff 0%, #f4f4f5 100%);
+
+  /* ===== Element Plus 覆盖 ===== */
+  --el-color-primary: #18181b;
+  --el-color-primary-light-3: #52525b;
+  --el-color-primary-light-5: #a1a1aa;
+  --el-color-primary-light-7: #d4d4d8;
+  --el-color-primary-light-9: #f4f4f5;
+  --el-color-primary-dark-2: #09090b;
+
+  --el-color-danger: #dc2626;
+  --el-color-success: #16a34a;
+  --el-color-warning: #d97706;
+  --el-color-info: #52525b;
+
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #fafafa;
+  --el-bg-color-overlay: #ffffff;
+  --el-text-color-primary: #18181b;
+  --el-text-color-regular: #52525b;
+  --el-text-color-secondary: #a1a1aa;
+  --el-text-color-placeholder: #d4d4d8;
+  --el-border-color: #e4e4e7;
+  --el-border-color-light: #f4f4f5;
+  --el-border-color-lighter: #fafafa;
+  --el-border-color-extra-light: #fafafa;
+
+  --el-fill-color: #f4f4f5;
+  --el-fill-color-light: #fafafa;
+  --el-fill-color-blank: #ffffff;
+
+  --el-mask-color: rgba(0, 0, 0, 0.4);
+  --el-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ===== 深色主题 ===== */
+[data-theme='dark'] {
+  --app-bg-page: #09090b;
+  --app-bg-card: #18181b;
+  --app-bg-sidebar: #121214;
+  --app-bg-header: #18181b;
+  --app-bg-hover: #27272a;
+  --app-bg-input: #18181b;
+  --app-bg-overlay: #1f1f23;
+
+  --app-text-primary: #fafafa;
+  --app-text-secondary: #a1a1aa;
+  --app-text-muted: #71717a;
+
+  --app-border: #27272a;
+  --app-border-light: #1f1f23;
+
+  --app-accent: #fafafa;
+  --app-accent-hover: #e4e4e7;
+  --app-accent-text: #18181b;
+  --app-link: #3b82f6;
+  --app-link-hover: #60a5fa;
+
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --app-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+  --app-gradient-hero: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+
+  /* Element Plus 覆盖 */
+  --el-color-primary: #3f3f46;
+  --el-color-primary-light-3: #52525b;
+  --el-color-primary-light-5: #71717a;
+  --el-color-primary-light-7: #a1a1aa;
+  --el-color-primary-light-9: #d4d4d8;
+  --el-color-primary-dark-2: #27272a;
+
+  --el-color-danger: #ef4444;
+  --el-color-success: #22c55e;
+  --el-color-warning: #f59e0b;
+  --el-color-info: #a1a1aa;
+
+  --el-bg-color: #18181b;
+  --el-bg-color-page: #09090b;
+  --el-bg-color-overlay: #1f1f23;
+  --el-text-color-primary: #fafafa;
+  --el-text-color-regular: #a1a1aa;
+  --el-text-color-secondary: #71717a;
+  --el-text-color-placeholder: #3f3f46;
+  --el-border-color: #27272a;
+  --el-border-color-light: #1f1f23;
+  --el-border-color-lighter: #18181b;
+  --el-border-color-extra-light: #18181b;
+
+  --el-fill-color: #27272a;
+  --el-fill-color-light: #1f1f23;
+  --el-fill-color-blank: #18181b;
+
+  --el-mask-color: rgba(0, 0, 0, 0.6);
+  --el-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.4);
+}

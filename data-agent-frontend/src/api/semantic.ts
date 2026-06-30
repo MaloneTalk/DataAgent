@@ -44,7 +44,7 @@ export interface RelationCandidateColumnResponse {
   columnName: string;
   description: string | null;
   typeName: string | null;
-  primaryKey: boolean;
+  primaryKey: boolean | null;
 }
 
 export interface ColumnSemanticResponse {

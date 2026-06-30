@@ -51,7 +51,9 @@
     <section class="hero-card">
       <div>
         <h2 class="hero-title">语义管理</h2>
-        <p class="hero-desc">统一管理数据领域、表语义、列语义和逻辑外键配置，用于分类和组织表结构。</p>
+        <p class="hero-desc">
+          统一管理数据领域、表语义、列语义和逻辑外键配置，用于分类和组织表结构。
+        </p>
       </div>
     </section>
 
@@ -104,27 +106,30 @@
   .hero-card,
   .toolbar-card,
   .content-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    background: var(--app-bg-card);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .hero-card {
     padding: 24px 32px;
-    background: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
+    background: var(--app-gradient-hero);
   }
 
   .hero-title {
     margin: 0 0 8px;
-    font-size: 22px;
-    color: #1f2937;
+    font-size: 20px;
+    color: var(--app-text-primary);
+    font-weight: 700;
   }
 
   .hero-desc {
     max-width: 720px;
     margin: 0;
-    color: #6b7280;
+    color: var(--app-text-secondary);
     line-height: 1.7;
   }
 

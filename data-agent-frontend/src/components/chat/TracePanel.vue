@@ -54,7 +54,6 @@
     return parts.join(' · ') || `${props.message.traceSteps.length} Steps`;
   });
 
-  // Extensible step renderers — add new entries here when ChatStreamEventType expands
   interface StepRenderer {
     label: string;
   }
@@ -139,11 +138,14 @@
 
 <style scoped>
   .trace-panel {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--app-bg-page);
+    border: 1px solid var(--app-border);
     border-radius: 8px;
     margin-bottom: 16px;
     overflow: hidden;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .trace-panel__header {
@@ -151,7 +153,7 @@
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
-    color: #475569;
+    color: var(--app-text-secondary);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -159,12 +161,12 @@
   }
 
   .trace-panel__header:hover {
-    background: #f1f5f9;
+    background: var(--app-bg-hover);
   }
 
   .trace-panel__arrow {
     font-size: 10px;
-    color: #94a3b8;
+    color: var(--app-text-muted);
     transition: transform 0.2s;
   }
 
@@ -173,7 +175,7 @@
   }
 
   .trace-panel__dot {
-    color: #10b981;
+    color: #16a34a;
     font-size: 10px;
   }
 
@@ -182,14 +184,14 @@
   }
 
   .trace-panel__summary {
-    color: #94a3b8;
+    color: var(--app-text-muted);
     font-weight: normal;
     margin-left: auto;
   }
 
   .trace-panel__body {
     padding: 0 16px 16px 16px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--app-border);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 12px;
   }
@@ -197,7 +199,7 @@
   .trace-step {
     margin-top: 12px;
     padding-left: 12px;
-    border-left: 2px solid #cbd5e1;
+    border-left: 2px solid var(--app-border);
     position: relative;
     line-height: 1.6;
   }
@@ -210,7 +212,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #cbd5e1;
+    background: var(--app-text-muted);
   }
 
   .trace-step__label {
@@ -219,23 +221,22 @@
   }
 
   .trace-step__content {
-    color: #475569;
+    color: var(--app-text-secondary);
     white-space: pre-wrap;
   }
 
-  /* Event type color variants — extend here for new ChatStreamEventType values */
   .trace-step--thinking {
-    color: #64748b;
+    color: var(--app-text-muted);
   }
   .trace-step--thinking .trace-step__label {
-    color: #64748b;
+    color: var(--app-text-muted);
   }
 
   .trace-step--tool_call {
-    color: #0284c7;
+    color: var(--app-link);
   }
   .trace-step--tool_call .trace-step__label {
-    color: #0284c7;
+    color: var(--app-link);
   }
 
   .trace-step--tool_result {
@@ -264,7 +265,7 @@
   }
 
   .code-label {
-    color: #94a3b8;
+    color: var(--app-text-muted);
     font-size: 11px;
     margin-bottom: 4px;
   }

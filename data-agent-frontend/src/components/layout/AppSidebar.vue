@@ -1,16 +1,16 @@
 <!--
  * Copyright (C) 2026 github.com/MaloneTalk
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
@@ -57,12 +57,16 @@
 <style scoped>
   .app-sidebar {
     width: 200px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    border-right: 1px solid #e2e8f0;
+    background-color: var(--app-bg-sidebar);
+    border-right: 1px solid var(--app-border);
     display: flex;
     flex-direction: column;
-    transition: width 0.3s;
+    transition:
+      width 0.2s,
+      background-color 0.2s,
+      border-color 0.2s;
     position: relative;
+    flex-shrink: 0;
   }
 
   .app-sidebar.collapsed {
@@ -75,42 +79,41 @@
   }
 
   .app-sidebar :deep(.el-menu-item) {
-    color: #64748b;
+    color: var(--app-text-secondary);
     font-weight: 500;
-    margin: 4px 8px;
-    border-radius: 8px;
-    transition: all 0.3s;
+    font-size: 13px;
+    margin: 2px 8px;
+    border-radius: 6px;
+    height: 38px;
+    line-height: 38px;
+    transition: all 0.15s;
   }
 
   .app-sidebar :deep(.el-menu-item:hover) {
-    background-color: #f1f5f9;
-    color: #3b82f6;
+    background-color: var(--app-bg-hover);
+    color: var(--app-text-primary);
   }
 
   .app-sidebar :deep(.el-menu-item.is-active) {
-    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    background-color: var(--app-accent);
+    color: var(--app-accent-text);
   }
 
   .sidebar-toggle {
     position: absolute;
-    bottom: 20px;
-    right: 0;
+    bottom: 16px;
+    left: 0;
     width: 100%;
     text-align: center;
     cursor: pointer;
-    color: #94a3b8;
-    font-size: 18px;
-    transform: translateX(-50%);
-    padding: 8px;
-    transition: all 0.3s;
-    border-radius: 8px;
-    margin: 0 8px;
+    color: var(--app-text-muted);
+    font-size: 16px;
+    padding: 6px;
+    transition: color 0.2s;
+    user-select: none;
   }
 
   .sidebar-toggle:hover {
-    color: #3b82f6;
-    background-color: #f1f5f9;
+    color: var(--app-text-primary);
   }
 </style>

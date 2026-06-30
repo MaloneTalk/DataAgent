@@ -585,6 +585,7 @@
         :loading="relationLoading"
         :node-loading="relationNodeLoading"
         :relation-error="relationError"
+        :datasource-id="selectedDatasourceId"
         :nodes="relationNodes"
         :relations="relationRecords"
         :draft-relation="draftRelation"
@@ -623,10 +624,12 @@
   .hero-card,
   .toolbar-card,
   .content-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    background: var(--app-bg-card);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .hero-card {
@@ -634,19 +637,20 @@
     justify-content: space-between;
     gap: 24px;
     padding: 24px 32px;
-    background: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
+    background: var(--app-gradient-hero);
   }
 
   .hero-title {
     margin: 0 0 8px;
-    color: #1f2937;
-    font-size: 22px;
+    color: var(--app-text-primary);
+    font-size: 20px;
+    font-weight: 700;
   }
 
   .hero-desc {
     max-width: 680px;
     margin: 0;
-    color: #6b7280;
+    color: var(--app-text-secondary);
     line-height: 1.7;
   }
 
@@ -656,15 +660,18 @@
     flex-direction: column;
     justify-content: center;
     padding: 16px 20px;
-    border-radius: 10px;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    color: #6b7280;
+    border-radius: 8px;
+    background: var(--app-bg-page);
+    border: 1px solid var(--app-border);
+    color: var(--app-text-secondary);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .hero-meta strong {
     margin-top: 6px;
-    color: #1f2937;
+    color: var(--app-text-primary);
     font-size: 16px;
   }
 
@@ -691,7 +698,7 @@
 
   .error-tip {
     margin-top: 14px;
-    color: #dc2626;
+    color: var(--app-accent);
   }
 
   @media (max-width: 1024px) {

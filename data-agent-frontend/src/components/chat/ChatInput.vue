@@ -108,18 +108,21 @@
     align-items: flex-end;
     gap: 10px;
     padding: 16px 20px;
-    background: #fff;
-    border-top: 1px solid #e5e7eb;
+    background: var(--app-bg-card);
+    border-top: 1px solid var(--app-border);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .chat-input__question-banner {
     width: 100%;
     padding: 8px 14px;
-    background: #fffbeb;
-    border: 1px solid #fcd34d;
+    background: var(--app-bg-page);
+    border: 1px solid var(--app-border);
     border-radius: 8px;
     font-size: 13px;
-    color: #92400e;
+    color: var(--app-text-secondary);
   }
 
   .chat-input__question-label {
@@ -127,30 +130,35 @@
   }
 
   .chat-input__question-text {
-    color: #78350f;
+    color: var(--app-text-primary);
   }
 
   .chat-input__textarea {
     flex: 1;
     resize: none;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--app-border);
     border-radius: 8px;
     padding: 10px 14px;
     font-size: 14px;
     line-height: 1.5;
     font-family: inherit;
     outline: none;
-    transition: border-color 0.2s;
+    background: var(--app-bg-input);
+    color: var(--app-text-primary);
+    transition:
+      border-color 0.15s,
+      background-color 0.2s,
+      color 0.2s;
     max-height: 160px;
   }
 
   .chat-input__textarea:focus {
-    border-color: #3b82f6;
+    border-color: var(--app-accent);
   }
 
   .chat-input__textarea:disabled {
-    background: #f8fafc;
-    color: #94a3b8;
+    background: var(--app-bg-page);
+    color: var(--app-text-muted);
   }
 
   .chat-input__send-btn {

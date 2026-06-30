@@ -6,7 +6,7 @@
  * published by the Free Software Foundation, either version 3 of the
  * License, or any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
@@ -164,7 +164,6 @@
     return value.replace('T', ' ');
   };
 
-  // 暴露方法给父组件
   defineExpose({
     loadDomainPage,
   });
@@ -266,13 +265,13 @@
 
   .section-header h3 {
     font-size: 16px;
-    color: #1f2937;
+    color: var(--app-text-primary);
     margin-bottom: 6px;
     font-weight: 600;
   }
 
   .section-header p {
-    color: #64748b;
+    color: var(--app-text-secondary);
   }
 
   .section-header-actions {
@@ -293,6 +292,6 @@
 
   .error-tip {
     margin-top: 14px;
-    color: #dc2626;
+    color: var(--app-accent);
   }
 </style>

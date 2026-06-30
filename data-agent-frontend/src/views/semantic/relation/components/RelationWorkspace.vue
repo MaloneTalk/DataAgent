@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
+  import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
   import type { LogicalTableRelationResponse } from '@/api/semantic';
   import type {
     RelationDraftPreview,
@@ -75,6 +75,7 @@
     loading: boolean;
     nodeLoading: boolean;
     relationError: string;
+    datasourceId: number | undefined;
     nodes: TableNodeLayout[];
     relations: LogicalTableRelationResponse[];
     draftRelation: RelationDraftPreview | null;
@@ -114,11 +115,12 @@
     offsetY: 0,
   });
   let persistLayoutTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let viewportResizeObserver: globalThis.ResizeObserver | null = null;
+  let hadViewportDimensions = false;
 
   const layoutStorageKey = computed(() => {
-    const datasourceId = props.relations[0]?.datasourceId;
-    return typeof datasourceId === 'number'
-      ? `${RELATION_LAYOUT_STORAGE_PREFIX}:${datasourceId}`
+    return typeof props.datasourceId === 'number'
+      ? `${RELATION_LAYOUT_STORAGE_PREFIX}:${props.datasourceId}`
       : '';
   });
 
@@ -265,7 +267,23 @@
     },
   );
 
+  onMounted(() => {
+    if (viewportRef.value) {
+      viewportResizeObserver = new globalThis.ResizeObserver(entries => {
+        const entry = entries[0];
+        if (!entry) return;
+        const hasDims = entry.contentRect.width > 0 && entry.contentRect.height > 0;
+        if (hasDims && !hadViewportDimensions && localNodes.value.length > 0) {
+          fitCanvasToViewport();
+        }
+        hadViewportDimensions = hasDims;
+      });
+      viewportResizeObserver.observe(viewportRef.value);
+    }
+  });
+
   onBeforeUnmount(() => {
+    viewportResizeObserver?.disconnect();
     flushPersistLayout();
   });
 
@@ -670,7 +688,7 @@
                 refY="3"
                 orient="auto"
               >
-                <path d="M0,0 L0,6 L9,3 z" fill="#374151" />
+                <path d="M0,0 L0,6 L9,3 z" fill="var(--app-text-secondary)" />
               </marker>
             </defs>
 
@@ -687,12 +705,12 @@
                 :d="edge.path"
                 :stroke="
                   isSelected(edge.relationId)
-                    ? '#1f2937'
+                    ? 'var(--app-text-primary)'
                     : edge.enabled
                       ? edge.effective
-                        ? '#374151'
-                        : '#dc2626'
-                      : '#d1d5db'
+                        ? 'var(--app-text-secondary)'
+                        : 'var(--app-accent)'
+                      : 'var(--app-border)'
                 "
                 :stroke-width="isSelected(edge.relationId) ? 3 : 2"
                 fill="none"
@@ -705,8 +723,10 @@
                 :width="edge.labelWidth"
                 height="26"
                 rx="13"
-                :fill="isSelected(edge.relationId) ? '#f3f4f6' : '#ffffff'"
-                :stroke="isSelected(edge.relationId) ? '#374151' : '#e5e7eb'"
+                :fill="isSelected(edge.relationId) ? 'var(--app-bg-hover)' : 'var(--app-bg-card)'"
+                :stroke="
+                  isSelected(edge.relationId) ? 'var(--app-text-primary)' : 'var(--app-border)'
+                "
                 @click.stop="selectRelation(edge.relationId)"
               />
               <text :x="edge.labelX" :y="edge.labelY + 2" text-anchor="middle" class="edge-label">
@@ -893,14 +913,14 @@
 
   .section-header h3 {
     margin: 0 0 4px;
-    color: #1f2937;
+    color: var(--app-text-primary);
     font-size: 16px;
     font-weight: 600;
   }
 
   .section-header p {
     margin: 0;
-    color: #64748b;
+    color: var(--app-text-secondary);
   }
 
   .relation-actions {
@@ -915,16 +935,19 @@
   }
 
   .relation-canvas-wrap {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
     background:
-      linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px), #fafafa;
+      linear-gradient(rgba(128, 128, 128, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(128, 128, 128, 0.06) 1px, transparent 1px), var(--app-bg-page);
     background-size: 24px 24px;
     overflow: hidden;
     min-height: 720px;
     position: relative;
     cursor: grab;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .relation-canvas {
@@ -947,49 +970,60 @@
 
   .edge-label {
     font-size: 11px;
-    fill: #6b7280;
+    fill: var(--app-text-secondary);
     font-weight: 500;
   }
 
-  .draft-label {
+  [data-theme='light'] .draft-label {
     fill: #92400e;
   }
 
-  .drag-label {
+  [data-theme='dark'] .draft-label {
+    fill: #fbbf24;
+  }
+
+  [data-theme='light'] .drag-label {
     fill: #0f172a;
+  }
+
+  [data-theme='dark'] .drag-label {
+    fill: #e2e8f0;
   }
 
   .relation-node {
     position: absolute;
     padding: 14px;
-    border-radius: 10px;
-    border: 1px solid #e5e7eb;
-    background: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    border: 1px solid var(--app-border);
+    background: var(--app-bg-card);
+    box-shadow: var(--app-shadow);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .relation-node.is-node-dragging {
-    border-color: #6b7280;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    border-color: var(--app-text-secondary);
+    box-shadow: var(--app-shadow-lg);
     cursor: grabbing;
   }
 
   .relation-node-header h4 {
     margin: 0 0 2px;
-    color: #1f2937;
+    color: var(--app-text-primary);
     font-size: 14px;
     font-weight: 600;
   }
 
   .relation-node-header p {
     margin: 0;
-    color: #9ca3af;
+    color: var(--app-text-muted);
     font-size: 12px;
   }
 
   .relation-node-desc {
     margin: 10px 0;
-    color: #6b7280;
+    color: var(--app-text-secondary);
     font-size: 12px;
     line-height: 1.5;
     min-height: 32px;
@@ -1010,20 +1044,25 @@
     gap: 8px;
     padding: 6px 8px;
     border-radius: 6px;
-    background: #f9fafb;
+    background: var(--app-bg-page);
     border: 1px solid transparent;
     cursor: crosshair;
     font-size: 12px;
+    transition: background-color 0.15s;
   }
 
   .relation-column-item.is-drag-source {
-    border-color: #6b7280;
-    background: #f3f4f6;
+    border-color: var(--app-text-secondary);
+    background: var(--app-bg-hover);
   }
 
   .relation-column-item.is-drag-target {
-    border-color: #059669;
+    border-color: #16a34a;
     background: #ecfdf5;
+  }
+
+  [data-theme='dark'] .relation-column-item.is-drag-target {
+    background: #052e16;
   }
 
   .column-name {
@@ -1031,7 +1070,7 @@
   }
 
   .column-type {
-    color: #9ca3af;
+    color: var(--app-text-muted);
     font-size: 11px;
   }
 
@@ -1040,29 +1079,35 @@
     flex-direction: column;
     gap: 10px;
     padding: 16px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    background: var(--app-bg-card);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .relation-side-card h4 {
     margin: 0;
-    color: #1f2937;
+    color: var(--app-text-primary);
     font-size: 15px;
     font-weight: 600;
   }
 
   .relation-list-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
     padding: 12px;
-    background: #fafafa;
+    background: var(--app-bg-page);
     cursor: pointer;
+    transition:
+      background-color 0.15s,
+      border-color 0.15s;
   }
 
   .relation-list-item.is-selected {
-    border-color: #374151;
-    background: #f9fafb;
+    border-color: var(--app-text-primary);
+    background: var(--app-bg-hover);
   }
 
   .relation-list-head {
@@ -1074,23 +1119,23 @@
   }
 
   .relation-name {
-    color: #1f2937;
+    color: var(--app-text-primary);
   }
 
   .relation-columns-line {
-    color: #1e293b;
+    color: var(--app-text-primary);
     margin-bottom: 6px;
     line-height: 1.5;
   }
 
   .relation-description {
-    color: #64748b;
+    color: var(--app-text-secondary);
     margin-bottom: 6px;
   }
 
   .relation-invalid,
   .error-tip {
-    color: #dc2626;
+    color: var(--app-accent);
   }
 
   .relation-list-actions {
@@ -1110,7 +1155,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #9ca3af;
+    color: var(--app-text-muted);
     font-size: 13px;
   }
 
@@ -1121,12 +1166,15 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: var(--app-bg-card);
+    border: 1px solid var(--app-border);
     border-radius: 8px;
     padding: 4px 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--app-shadow);
     z-index: 10;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .canvas-ctrl-btn {
@@ -1136,24 +1184,24 @@
     background: transparent;
     border-radius: 6px;
     font-size: 14px;
-    color: #374151;
+    color: var(--app-text-primary);
     cursor: pointer;
   }
 
   .canvas-ctrl-btn:hover {
-    background: #f3f4f6;
+    background: var(--app-bg-hover);
   }
 
   .canvas-ctrl-label {
     min-width: 36px;
     text-align: center;
-    color: #6b7280;
+    color: var(--app-text-secondary);
     font-size: 12px;
   }
 
   .canvas-ctrl-fit {
     margin-left: 4px;
-    border-left: 1px solid #e5e7eb;
+    border-left: 1px solid var(--app-border);
     padding-left: 4px;
   }
 

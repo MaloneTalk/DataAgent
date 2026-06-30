@@ -90,7 +90,7 @@
 
   function handleNewSession() {
     newSession();
-    router.push('/chat');
+    router.push(`/chat/${sessionId.value}`);
   }
 </script>
 
@@ -110,19 +110,15 @@
     <div class="chat-view__main">
       <div class="chat-view__header">
         <div class="chat-view__header-left">
-          <el-button class="chat-view__toggle-btn" text @click="toggleSessionList">
-            <el-icon :size="18">
-              <Fold v-if="showSessionList" />
-              <Expand v-else />
-            </el-icon>
-          </el-button>
+          <button class="chat-view__toggle-btn" @click="toggleSessionList">
+            {{ showSessionList ? '◁' : '▷' }}
+          </button>
         </div>
         <el-button text @click="handleNewSession">新建会话</el-button>
       </div>
 
       <div ref="messagesContainer" class="chat-view__messages">
         <div v-if="messages.length === 0" class="chat-view__empty">
-          <div class="chat-view__empty-icon">💬</div>
           <div class="chat-view__empty-text">开始对话，让 AI 帮你分析数据</div>
           <div class="chat-view__empty-hints">
             <div
@@ -142,7 +138,9 @@
 
         <ChatMessage v-for="msg in messages" :key="msg.id" :message="msg" />
 
-        <div v-if="isStreaming && messages.length === 0" class="chat-view__empty">思考中...</div>
+        <div v-if="isStreaming && messages.length === 0" class="chat-view__thinking-hint">
+          思考中...
+        </div>
       </div>
 
       <ChatInput
@@ -183,14 +181,21 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    background: var(--app-bg-card);
+    border-radius: 8px;
+    border: 1px solid var(--app-border);
+    overflow: hidden;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .chat-view__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--app-border);
     flex-shrink: 0;
   }
 
@@ -201,14 +206,21 @@
   }
 
   .chat-view__toggle-btn {
+    background: none;
+    border: none;
     font-size: 14px;
-    color: #94a3b8;
-    padding: 4px;
+    color: var(--app-text-muted);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
   }
 
   .chat-view__toggle-btn:hover {
-    color: #3b82f6;
-    background: #f1f5f9;
+    color: var(--app-text-primary);
+    background: var(--app-bg-hover);
   }
 
   .chat-view__messages {
@@ -223,18 +235,13 @@
     align-items: center;
     justify-content: center;
     padding: 60px 20px;
-    color: #94a3b8;
-  }
-
-  .chat-view__empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
+    color: var(--app-text-muted);
   }
 
   .chat-view__empty-text {
     font-size: 16px;
     margin-bottom: 24px;
-    color: #64748b;
+    color: var(--app-text-secondary);
   }
 
   .chat-view__empty-hints {
@@ -247,18 +254,22 @@
 
   .hint-item {
     padding: 10px 16px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--app-bg-page);
+    border: 1px solid var(--app-border);
     border-radius: 8px;
     font-size: 13px;
-    color: #64748b;
+    color: var(--app-text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
   }
 
   .hint-item:hover {
-    background: #eff6ff;
-    border-color: #3b82f6;
-    color: #3b82f6;
+    border-color: var(--app-accent);
+    color: var(--app-accent);
+  }
+
+  .chat-view__thinking-hint {
+    color: var(--app-text-muted);
+    font-style: italic;
   }
 </style>
