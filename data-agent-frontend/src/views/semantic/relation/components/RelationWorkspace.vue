@@ -35,7 +35,6 @@
     labelY: number;
     labelWidth: number;
     enabled: boolean;
-    effective?: boolean;
   }
 
   interface DragState {

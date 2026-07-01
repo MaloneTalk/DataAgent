@@ -29,6 +29,5 @@ public record TableSemanticResponse(
         String tableDescription,
         Boolean isVisible,
         Boolean hasPhysicalTable,
-        Boolean effective,
         String invalidReason,
         LocalDateTime updateTime) {}

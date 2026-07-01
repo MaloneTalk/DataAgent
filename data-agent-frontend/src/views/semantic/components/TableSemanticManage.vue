@@ -241,13 +241,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="effective" label="有效性" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.effective ? 'success' : 'warning'" size="small">
-            {{ row.effective ? '有效' : '无效' }}
-          </el-tag>
-        </template>
-      </el-table-column>
+
       <el-table-column prop="updateTime" label="更新时间" width="180" />
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">

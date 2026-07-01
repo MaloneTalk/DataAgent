@@ -33,7 +33,6 @@ export interface TableSemanticResponse {
   tableDescription: string | null;
   isVisible: boolean;
   hasPhysicalTable: boolean;
-  effective: boolean;
   invalidReason: string | null;
   updateTime: string | null;
 }
@@ -75,7 +74,6 @@ export interface LogicalTableRelationResponse {
   relationType: string;
   description: string | null;
   enabled: boolean;
-  effective?: boolean;
   invalidReason: string | null;
   createTime: string | null;
   updateTime: string | null;
