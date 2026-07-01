@@ -19,9 +19,9 @@
   import { ref, nextTick, watch, onMounted, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
-  import ChatMessage from '@/components/chat/ChatMessage.vue';
-  import ChatInput from '@/components/chat/ChatInput.vue';
-  import SessionList from '@/components/chat/SessionList.vue';
+  import ChatMessage from '@/views/chat/components/ChatMessage.vue';
+  import ChatInput from '@/views/chat/components/ChatInput.vue';
+  import SessionList from '@/views/chat/components/SessionList.vue';
 
   const route = useRoute();
   const router = useRouter();
