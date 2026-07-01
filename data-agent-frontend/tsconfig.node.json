@@ -6,6 +6,8 @@
     "target": "ES2022",
     // Built-in type definitions for Node.js (not browser)
     "lib": ["ES2023"],
+    // Enable Node.js type definitions (for node:url, import.meta.url, etc.)
+    "types": ["node"],
     // Module system: ESNext (ES Modules)
     "module": "ESNext",
     // Skip type checking for node_modules

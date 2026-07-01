@@ -16,15 +16,18 @@
  -->
 
 <script setup lang="ts">
-  import { ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
   import DomainManage from './components/DomainManage.vue';
+  import RelationManage from './relation/RelationManage.vue';
   import TableSemanticManage from './components/TableSemanticManage.vue';
 
-  const activeTab = ref<'domain' | 'table'>('domain');
+  const activeTab = ref<'domain' | 'table' | 'relation'>('domain');
   const keyword = ref('');
   const sortOrder = ref<'asc' | 'desc'>('asc');
   const domainManageRef = ref<InstanceType<typeof DomainManage>>();
   const tableManageRef = ref<InstanceType<typeof TableSemanticManage>>();
+
+  const showSearchToolbar = computed(() => activeTab.value === 'domain');
 
   const handleSearch = async () => {
     if (activeTab.value === 'domain' && domainManageRef.value) {
@@ -48,17 +51,19 @@
     <section class="hero-card">
       <div>
         <h2 class="hero-title">语义管理</h2>
-        <p class="hero-desc">管理数据领域标签、表语义信息和列语义信息，用于分类和组织表结构。</p>
+        <p class="hero-desc">
+          统一管理数据领域、表语义、列语义和逻辑外键配置，用于分类和组织表结构。
+        </p>
       </div>
     </section>
 
-    <section class="toolbar-card">
+    <section v-if="showSearchToolbar" class="toolbar-card">
       <div class="toolbar-grid">
         <el-input
           v-model="keyword"
           class="toolbar-field"
           clearable
-          placeholder="按名称搜索"
+          placeholder="按领域名称搜索"
           @keyup.enter="handleSearch"
         />
         <el-segmented
@@ -83,6 +88,9 @@
         <el-tab-pane label="表语义管理" name="table">
           <TableSemanticManage ref="tableManageRef" :keyword="keyword" :sort-order="sortOrder" />
         </el-tab-pane>
+        <el-tab-pane label="逻辑外键" name="relation">
+          <RelationManage />
+        </el-tab-pane>
       </el-tabs>
     </section>
   </div>
@@ -98,26 +106,30 @@
   .hero-card,
   .toolbar-card,
   .content-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    background: var(--app-bg-card);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .hero-card {
     padding: 24px 32px;
-    background: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
+    background: var(--app-gradient-hero);
   }
 
   .hero-title {
-    font-size: 22px;
-    color: #1f2937;
-    margin-bottom: 8px;
+    margin: 0 0 8px;
+    font-size: 20px;
+    color: var(--app-text-primary);
+    font-weight: 700;
   }
 
   .hero-desc {
-    max-width: 680px;
-    color: #6b7280;
+    max-width: 720px;
+    margin: 0;
+    color: var(--app-text-secondary);
     line-height: 1.7;
   }
 

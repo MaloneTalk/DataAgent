@@ -202,12 +202,20 @@
 </script>
 
 <template>
-  <div class="column-semantic-container">
+  <section class="table-panel">
+    <div class="section-header">
+      <div>
+        <h3>列语义列表</h3>
+        <p>管理和维护物理列的业务语义信息。</p>
+      </div>
+      <el-tag type="primary" effect="plain">共 {{ page.total }} 列</el-tag>
+    </div>
+
     <div v-if="error" class="error-banner">
       <el-alert type="error" :closable="false" show-icon>{{ error }}</el-alert>
     </div>
 
-    <el-table v-loading="loading" :data="rows" border stripe>
+    <el-table v-loading="loading" :data="rows">
       <el-table-column prop="columnName" label="列名" min-width="150" />
       <el-table-column label="类型" width="120">
         <template #default="{ row }">
@@ -260,13 +268,14 @@
       </el-table-column>
     </el-table>
 
-    <div class="pagination-wrapper">
+    <div class="pagination-wrap">
       <el-pagination
-        v-model:current-page="page.page"
-        v-model:page-size="page.pageSize"
+        background
+        layout="total, sizes, prev, pager, next"
+        :current-page="page.page"
+        :page-size="page.pageSize"
+        :page-sizes="[10, 20, 50]"
         :total="page.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
         @current-change="handlePageChange"
         @size-change="handleSizeChange"
       />
@@ -302,23 +311,36 @@
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-  .column-semantic-container {
+  .section-header {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
     gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .section-header h3 {
+    font-size: 16px;
+    color: var(--app-text-primary);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .section-header p {
+    color: var(--app-text-secondary);
   }
 
   .error-banner {
     margin-bottom: 16px;
   }
 
-  .pagination-wrapper {
+  .pagination-wrap {
     display: flex;
     justify-content: flex-end;
-    padding: 16px 0;
+    margin-top: 20px;
   }
 </style>

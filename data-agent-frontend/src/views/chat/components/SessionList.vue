@@ -103,8 +103,12 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #f8fafc;
-    border-right: 1px solid #e5e7eb;
+    background: var(--app-bg-sidebar);
+    border-right: 1px solid var(--app-border);
+    border-radius: 8px 0 0 8px;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .session-list__header {
@@ -112,14 +116,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--app-border);
     flex-shrink: 0;
   }
 
   .session-list__title {
     font-size: 14px;
     font-weight: 600;
-    color: #303133;
+    color: var(--app-text-primary);
   }
 
   .session-list__body {
@@ -131,29 +135,30 @@
   .session-list__empty {
     padding: 24px 16px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--app-text-muted);
     font-size: 13px;
   }
 
   .session-item {
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background-color 0.1s;
     margin-bottom: 2px;
   }
 
   .session-item:hover {
-    background: #e2e8f0;
+    background: var(--app-bg-hover);
   }
 
   .session-item.active {
-    background: #dbeafe;
+    background: var(--app-bg-hover);
+    border-left: 3px solid var(--app-accent);
   }
 
   .session-item__title {
     font-size: 13px;
-    color: #1e293b;
+    color: var(--app-text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -161,19 +166,19 @@
   }
 
   .session-item.active .session-item__title {
-    color: #1d4ed8;
-    font-weight: 500;
+    color: var(--app-text-primary);
+    font-weight: 600;
   }
 
   .session-item__time {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--app-text-muted);
     margin-top: 4px;
   }
 
   .session-list__footer {
     padding: 12px 16px;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--app-border);
     flex-shrink: 0;
   }
 

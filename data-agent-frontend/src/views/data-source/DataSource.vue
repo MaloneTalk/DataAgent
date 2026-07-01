@@ -1,16 +1,16 @@
 <!--
  * Copyright (C) 2026 github.com/MaloneTalk
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
@@ -298,14 +298,14 @@
   .page-title {
     font-size: 20px;
     font-weight: 600;
-    color: #303133;
+    color: var(--app-text-primary);
     margin: 0;
   }
 
   .error-tip {
     text-align: center;
     padding: 16px 0;
-    color: #f56c6c;
+    color: var(--app-accent);
     font-size: 14px;
   }
 
@@ -315,7 +315,7 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 8px 32px;
     font-size: 14px;
-    color: #606266;
+    color: var(--app-text-secondary);
   }
 
   .expand-item {
@@ -324,7 +324,7 @@
   }
 
   .expand-label {
-    color: #909399;
+    color: var(--app-text-muted);
     white-space: nowrap;
   }
 </style>

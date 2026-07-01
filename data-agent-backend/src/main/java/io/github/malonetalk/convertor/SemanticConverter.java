@@ -46,7 +46,6 @@ public class SemanticConverter {
                 .tableDescription(SemanticUtils.trimToNull(tableInfo.getTableDescription()))
                 .isVisible(isVisible)
                 .hasPhysicalTable(true)
-                .effective(Boolean.TRUE.equals(isVisible))
                 .updateTime(tableInfo.getUpdateTime())
                 .build();
     }

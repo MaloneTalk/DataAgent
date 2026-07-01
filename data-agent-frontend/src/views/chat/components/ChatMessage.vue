@@ -92,20 +92,20 @@
     border-radius: 12px;
     font-size: 14px;
     line-height: 1.6;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--app-shadow-sm);
   }
 
   .chat-message--user .chat-message__bubble {
-    background: #2563eb;
-    color: white;
+    background: var(--app-accent);
+    color: var(--app-accent-text);
     border-bottom-right-radius: 2px;
   }
 
   .chat-message--agent .chat-message__bubble {
-    background: white;
-    color: #1f2937;
+    background: var(--app-bg-card);
+    color: var(--app-text-primary);
     border-bottom-left-radius: 2px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--app-border);
     width: 100%;
   }
 
@@ -139,7 +139,7 @@
     }
 
     :deep(code) {
-      background: #f1f5f9;
+      background: var(--app-bg-hover);
       padding: 2px 6px;
       border-radius: 4px;
       font-size: 13px;
@@ -147,8 +147,8 @@
     }
 
     :deep(pre) {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      background: var(--app-bg-page);
+      border: 1px solid var(--app-border);
       border-radius: 8px;
       padding: 12px 16px;
       overflow-x: auto;
@@ -162,10 +162,10 @@
     }
 
     :deep(blockquote) {
-      border-left: 3px solid #3b82f6;
+      border-left: 3px solid var(--app-accent);
       padding-left: 12px;
       margin: 8px 0;
-      color: #64748b;
+      color: var(--app-text-secondary);
     }
 
     :deep(h1),
@@ -186,20 +186,20 @@
 
       th,
       td {
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--app-border);
         padding: 6px 12px;
         text-align: left;
       }
 
       th {
-        background: #f8fafc;
+        background: var(--app-bg-page);
         font-weight: 600;
       }
     }
 
     :deep(hr) {
       border: none;
-      border-top: 1px solid #e5e7eb;
+      border-top: 1px solid var(--app-border);
       margin: 12px 0;
     }
   }
@@ -228,20 +228,25 @@
     }
   }
 
+  [data-theme='dark'] .chat-message__summary {
+    color: #22c55e;
+  }
+
   .chat-message__thinking {
-    color: #94a3b8;
+    color: var(--app-text-muted);
     font-style: italic;
   }
 
   .chat-message__cursor {
     display: inline-block;
     animation: blink 1s step-end infinite;
-    color: #3b82f6;
+    color: var(--app-accent);
     font-weight: bold;
   }
 
   .chat-message--user .chat-message__cursor {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--app-accent-text);
+    opacity: 0.7;
   }
 
   @keyframes blink {

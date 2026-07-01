@@ -22,6 +22,7 @@ import 'element-plus/dist/index.css';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import router from './router';
 import App from './App.vue';
+import './styles/theme.css';
 import './styles/main.css';
 
 const app = createApp(App);
