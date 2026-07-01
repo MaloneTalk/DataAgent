@@ -170,7 +170,6 @@
           labelY: (sourceAnchor.y + targetAnchor.y) / 2 - 10,
           labelWidth: Math.max(96, label.length * 18 + 22),
           enabled: relation.enabled,
-          effective: relation.effective,
         },
       ];
     }),
@@ -634,7 +633,7 @@
     if (!relation.enabled) {
       return 'info';
     }
-    return relation.effective ? 'success' : 'danger';
+    return 'success';
   }
 </script>
 
@@ -706,9 +705,7 @@
                   isSelected(edge.relationId)
                     ? 'var(--app-text-primary)'
                     : edge.enabled
-                      ? edge.effective
-                        ? 'var(--app-text-secondary)'
-                        : 'var(--app-accent)'
+                      ? 'var(--app-text-secondary)'
                       : 'var(--app-border)'
                 "
                 :stroke-width="isSelected(edge.relationId) ? 3 : 2"
@@ -846,7 +843,7 @@
                 <strong>{{ relation.targetTableName }}</strong>
               </div>
               <el-tag :type="relationStateTagType(relation)">
-                {{ !relation.enabled ? '已禁用' : relation.effective ? '生效中' : '失效' }}
+                {{ !relation.enabled ? '已禁用' : '生效中' }}
               </el-tag>
             </div>
             <div class="relation-columns-line">
