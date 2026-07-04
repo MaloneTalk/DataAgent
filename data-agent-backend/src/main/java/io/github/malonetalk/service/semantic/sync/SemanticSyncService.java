@@ -15,22 +15,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.service.semantic.sync;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.semantic.PhysicalTableCandidatePageQuery;
+import io.github.malonetalk.dto.semantic.PhysicalTableCandidateResponse;
+import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
+import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
 
-@Data
-public class TableInfo {
+public interface SemanticSyncService {
 
-    private Integer id;
-    private String tableName;
-    private String physicalTableDescription;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private Boolean physicalStatus;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    PageResponse<PhysicalTableCandidateResponse> getPhysicalTableCandidates(
+            PhysicalTableCandidatePageQuery query);
+
+    SyncTableSemanticsResponse syncTables(SyncTableSemanticsRequest request);
 }

@@ -18,7 +18,7 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
-import io.github.malonetalk.service.DomainService;
+import io.github.malonetalk.service.semantic.DomainService;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -42,7 +42,9 @@ public interface ColumnSemanticInfoMapper {
 
     int insert(ColumnInfo columnInfo);
 
-    int update(ColumnInfo columnInfo);
+    int updateSemanticFields(ColumnInfo columnInfo);
+
+    int updatePhysicalCacheFields(ColumnInfo columnInfo);
 
     int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
 

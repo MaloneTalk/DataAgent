@@ -94,6 +94,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnInfo.setColumnName(normalizedColumnName);
             columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setIsVisible(request.isVisible());
+            columnInfo.setPhysicalStatus(Boolean.FALSE);
             columnInfo.setCreateTime(LocalDateTime.now());
             columnInfo.setUpdateTime(LocalDateTime.now());
             columnSemanticInfoMapper.insert(columnInfo);
@@ -104,7 +105,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
-        columnSemanticInfoMapper.update(existing);
+        columnSemanticInfoMapper.updateSemanticFields(existing);
     }
 
     @Override

@@ -15,11 +15,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type {
-  RelationCandidateColumnResponse,
-  RelationCandidateTableResponse,
-} from '@/api/semantic';
-
 export interface RelationForm {
   sourceTableName: string;
   sourceColumnNames: string[];
@@ -37,12 +32,25 @@ export interface RelationDraftPreview {
   enabled: boolean;
 }
 
-export interface TableNodeLayout extends RelationCandidateTableResponse {
+export interface RelationTableNode {
+  tableName: string;
+  domain: string | null;
+  description: string | null;
+}
+
+export interface RelationColumnNode {
+  columnName: string;
+  description: string | null;
+  typeName: string | null;
+  primaryKey: boolean | null;
+}
+
+export interface TableNodeLayout extends RelationTableNode {
   x: number;
   y: number;
   width: number;
   height: number;
-  columns: RelationCandidateColumnResponse[];
+  columns: RelationColumnNode[];
 }
 
 export interface RelationViewportState {

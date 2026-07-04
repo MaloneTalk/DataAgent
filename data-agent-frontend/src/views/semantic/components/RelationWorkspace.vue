@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
   import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-  import type { LogicalTableRelationResponse } from '@/api/semantic';
+  import type { LogicalTableRelationResponse } from 'data-agent-frontend/src/api/semantic';
   import type {
     RelationDraftPreview,
     RelationDragCreatePayload,

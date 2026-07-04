@@ -153,6 +153,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             tableInfo.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
             tableInfo.setDomain(SemanticUtils.normalizeDomain(request.domain()));
             tableInfo.setIsVisible(request.isVisible());
+            tableInfo.setPhysicalStatus(Boolean.FALSE);
             tableInfo.setCreateTime(LocalDateTime.now());
             tableInfo.setUpdateTime(LocalDateTime.now());
             tableInfoMapper.insert(tableInfo);
@@ -163,7 +164,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         existing.setDomain(SemanticUtils.normalizeDomain(request.domain()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
-        tableInfoMapper.update(existing);
+        tableInfoMapper.updateSemanticFields(existing);
     }
 
     @Override

@@ -39,25 +39,35 @@ public class SemanticConverter {
 
     public TableSemanticResponse toResponse(TableInfo tableInfo) {
         Boolean isVisible = tableInfo.getIsVisible();
+        boolean hasPhysicalTable = !Boolean.FALSE.equals(tableInfo.getPhysicalStatus());
         return TableSemanticResponse.builder()
                 .id(tableInfo.getId())
                 .tableName(tableInfo.getTableName())
                 .domain(SemanticUtils.normalizeDomain(tableInfo.getDomain()))
+                .physicalTableDescription(
+                        SemanticUtils.trimToNull(tableInfo.getPhysicalTableDescription()))
                 .tableDescription(SemanticUtils.trimToNull(tableInfo.getTableDescription()))
                 .isVisible(isVisible)
-                .hasPhysicalTable(true)
+                .hasPhysicalTable(hasPhysicalTable)
+                .invalidReason(hasPhysicalTable ? null : "物理表不存在")
                 .updateTime(tableInfo.getUpdateTime())
                 .build();
     }
 
     public ColumnSemanticResponse toResponse(ColumnInfo columnInfo) {
+        boolean hasPhysicalColumn = !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
         return ColumnSemanticResponse.builder()
                 .id(columnInfo.getId())
                 .columnName(columnInfo.getColumnName())
+                .physicalColumnDescription(
+                        SemanticUtils.trimToNull(columnInfo.getPhysicalColumnDescription()))
                 .columnDescription(columnInfo.getColumnDescription())
+                .typeName(SemanticUtils.trimToNull(columnInfo.getTypeName()))
+                .primaryKey(columnInfo.getPrimaryKey())
                 .isVisible(columnInfo.getIsVisible())
-                .hasPhysicalColumn(true)
-                .effective(Boolean.TRUE.equals(columnInfo.getIsVisible()))
+                .hasPhysicalColumn(hasPhysicalColumn)
+                .effective(Boolean.TRUE.equals(columnInfo.getIsVisible()) && hasPhysicalColumn)
+                .invalidReason(hasPhysicalColumn ? null : "物理列不存在")
                 .updateTime(columnInfo.getUpdateTime())
                 .build();
     }

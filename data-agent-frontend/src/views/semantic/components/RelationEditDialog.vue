@@ -18,11 +18,8 @@
 <script setup lang="ts">
   import { computed, reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
-  import type {
-    LogicalTableRelationResponse,
-    RelationCandidateColumnResponse,
-  } from '@/api/semantic';
-  import type { RelationForm, TableNodeLayout } from '../types';
+  import type { LogicalTableRelationResponse } from 'data-agent-frontend/src/api/semantic';
+  import type { RelationColumnNode, RelationForm, TableNodeLayout } from '../types';
 
   const props = defineProps<{
     visible: boolean;
@@ -30,8 +27,8 @@
     relation: LogicalTableRelationResponse | null;
     form: RelationForm;
     nodes: TableNodeLayout[];
-    sourceColumns: RelationCandidateColumnResponse[];
-    targetColumns: RelationCandidateColumnResponse[];
+    sourceColumns: RelationColumnNode[];
+    targetColumns: RelationColumnNode[];
   }>();
 
   const emit = defineEmits<{

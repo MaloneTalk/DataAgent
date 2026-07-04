@@ -18,27 +18,31 @@
 <script setup lang="ts">
   import { computed, onMounted, reactive, ref, watch } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
-  import { useDatasource } from '@/composables/useDatasource';
-  import type { DatasourceResponse } from '@/api/datasource';
+  import { useDatasource } from 'data-agent-frontend/src/composables/useDatasource';
+  import type { DatasourceResponse } from 'data-agent-frontend/src/api/datasource';
   import {
     createLogicalRelation,
     deleteLogicalRelation,
+    getColumnSemanticPage,
     getLogicalRelationPage,
-    getRelationCandidateColumnPage,
-    getRelationCandidateTablePage,
+    getTableSemanticPage,
     updateLogicalRelation,
     updateLogicalRelationEnabled,
     type BindLogicalTableRelationRequest,
     type ColumnSemanticResponse,
     type LogicalTableRelationResponse,
-    type RelationCandidateColumnResponse,
-    type RelationCandidateTableResponse,
     type TableSemanticResponse,
     type UpdateLogicalTableRelationRequest,
-  } from '@/api/semantic';
-  import RelationEditDialog from './components/RelationEditDialog.vue';
-  import RelationWorkspace from './components/RelationWorkspace.vue';
-  import type { RelationDragCreatePayload, RelationForm, TableNodeLayout } from './types';
+  } from 'data-agent-frontend/src/api/semantic';
+  import RelationEditDialog from './RelationEditDialog.vue';
+  import RelationWorkspace from './RelationWorkspace.vue';
+  import type {
+    RelationColumnNode,
+    RelationDragCreatePayload,
+    RelationForm,
+    RelationTableNode,
+    TableNodeLayout,
+  } from '../types';
 
   const BULK_FETCH_PAGE_SIZE = 100;
   const NODE_WIDTH = 280;
@@ -74,8 +78,8 @@
     description: '',
     enabled: true,
   });
-  const relationSourceColumns = ref<RelationCandidateColumnResponse[]>([]);
-  const relationTargetColumns = ref<RelationCandidateColumnResponse[]>([]);
+  const relationSourceColumns = ref<RelationColumnNode[]>([]);
+  const relationTargetColumns = ref<RelationColumnNode[]>([]);
   const suppressRelationTableWatch = ref(false);
 
   const activeDatasource = computed<DatasourceResponse | undefined>(() =>
@@ -131,8 +135,8 @@
   }
 
   function buildRelationLayouts(
-    tables: RelationCandidateTableResponse[],
-    columnsMap: Map<string, RelationCandidateColumnResponse[]>,
+    tables: RelationTableNode[],
+    columnsMap: Map<string, RelationColumnNode[]>,
   ) {
     const rowHeights: number[] = [];
 
@@ -173,9 +177,8 @@
       return [];
     }
     const items = await fetchAllPages<ColumnSemanticResponse>((page, pageSize) =>
-      getRelationCandidateColumnPage({
+      getColumnSemanticPage(tableName, {
         datasourceId: selectedDatasourceId.value as number,
-        tableName,
         page,
         pageSize,
         sortOrder: 'asc',
@@ -183,7 +186,7 @@
     );
 
     return items.map(
-      (item): RelationCandidateColumnResponse => ({
+      (item): RelationColumnNode => ({
         columnName: item.columnName,
         description: item.columnDescription ?? item.physicalColumnDescription,
         typeName: item.typeName,
@@ -199,7 +202,7 @@
     relationNodeLoading.value = true;
     try {
       const tableItems = await fetchAllPages<TableSemanticResponse>((page, pageSize) =>
-        getRelationCandidateTablePage({
+        getTableSemanticPage({
           datasourceId,
           page,
           pageSize,
@@ -207,7 +210,7 @@
         }),
       );
       const tables = tableItems.map(
-        (item): RelationCandidateTableResponse => ({
+        (item): RelationTableNode => ({
           tableName: item.tableName,
           domain: item.domain,
           description: item.tableDescription ?? item.physicalTableDescription,
@@ -218,7 +221,7 @@
         tables.map(table => fetchRelationColumns(table.tableName)),
       );
 
-      const columnsMap = new Map<string, RelationCandidateColumnResponse[]>();
+      const columnsMap = new Map<string, RelationColumnNode[]>();
       tables.forEach((table, index) => {
         columnsMap.set(table.tableName, columnResponses[index]);
       });

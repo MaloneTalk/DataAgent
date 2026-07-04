@@ -28,6 +28,7 @@
     type TableSemanticInfo,
   } from '@/api/semantic';
   import ColumnSemanticManage from './ColumnSemanticManage.vue';
+  import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
 
   interface TableEditForm {
     tableName: string;
@@ -68,6 +69,8 @@
   const columnDrawerVisible = ref(false);
   const selectedTableForColumns = ref('');
   const columnManageRef = ref<InstanceType<typeof ColumnSemanticManage>>();
+
+  const syncDialogVisible = ref(false);
 
   const ensureDatasourceId = async () => {
     if (datasourceId.value !== null) {
@@ -198,6 +201,29 @@
     }
   };
 
+  const handleOpenSync = async () => {
+    const activeDatasourceId = await ensureDatasourceId();
+    if (activeDatasourceId === null) {
+      return;
+    }
+    syncDialogVisible.value = true;
+  };
+
+  const handleSyncCompleted = async (selectedTableNames: string[]) => {
+    await loadPage();
+    const normalizedSelectedTableNameSet = new Set(
+      selectedTableNames.map(tableName => tableName.trim().toLowerCase()),
+    );
+    if (
+      columnDrawerVisible.value &&
+      selectedTableForColumns.value &&
+      normalizedSelectedTableNameSet.has(selectedTableForColumns.value.trim().toLowerCase()) &&
+      columnManageRef.value
+    ) {
+      await columnManageRef.value.handleTableChange(selectedTableForColumns.value);
+    }
+  };
+
   defineExpose({
     loadPage,
   });
@@ -214,7 +240,10 @@
         <h3>表语义列表</h3>
         <p>管理和维护物理表的业务语义信息。</p>
       </div>
-      <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
+      <div class="header-actions">
+        <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
+        <el-button type="primary" @click="handleOpenSync">同步表</el-button>
+      </div>
     </div>
 
     <div v-if="error" class="error-banner">
@@ -238,6 +267,13 @@
         <template #default="{ row }">
           <el-tag :type="row.isVisible ? 'success' : 'info'" size="small">
             {{ row.isVisible ? '可见' : '隐藏' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="物理状态" width="120" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.hasPhysicalTable ? 'success' : 'warning'" size="small">
+            {{ row.hasPhysicalTable ? '存在' : '缺失' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -333,6 +369,12 @@
         :table-name="selectedTableForColumns"
       />
     </el-drawer>
+
+    <SyncPhysicalTableDialog
+      v-model="syncDialogVisible"
+      :datasource-id="datasourceId"
+      @synced="handleSyncCompleted"
+    />
   </section>
 </template>
 
@@ -343,6 +385,12 @@
     align-items: flex-start;
     gap: 16px;
     margin-bottom: 20px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   .section-header h3 {

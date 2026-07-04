@@ -28,7 +28,9 @@ public interface TableInfoMapper {
 
     int insert(TableInfo tableInfo);
 
-    int update(TableInfo tableInfo);
+    int updateSemanticFields(TableInfo tableInfo);
+
+    int updatePhysicalCacheFields(TableInfo tableInfo);
 
     int deleteByDatasourceIdAndIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);

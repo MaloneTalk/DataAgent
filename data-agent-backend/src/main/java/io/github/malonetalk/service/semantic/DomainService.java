@@ -15,22 +15,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.service.semantic;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import io.github.malonetalk.dto.DomainCreateRequest;
+import io.github.malonetalk.dto.DomainPageQuery;
+import io.github.malonetalk.dto.DomainUpdateRequest;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.entity.DomainInfo;
+import java.util.List;
 
-@Data
-public class TableInfo {
+public interface DomainService {
 
-    private Integer id;
-    private String tableName;
-    private String physicalTableDescription;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private Boolean physicalStatus;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    PageResponse<DomainInfo> getDomainPage(DomainPageQuery query);
+
+    DomainInfo findById(Integer id);
+
+    DomainInfo create(DomainCreateRequest request);
+
+    DomainInfo update(Integer id, DomainUpdateRequest request);
+
+    void delete(Integer id);
+
+    List<String> listDomainNames();
 }
