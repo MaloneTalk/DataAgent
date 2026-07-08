@@ -52,10 +52,7 @@ public class SemanticSyncDiffService {
             try {
                 tableInfoMapper.insert(
                         buildNewTableInfo(
-                                datasourceId,
-                                normalizedTableName,
-                                physicalTableDescription,
-                                now));
+                                datasourceId, normalizedTableName, physicalTableDescription, now));
                 return new TableSyncDiff(true, false, false);
             } catch (DuplicateKeyException ignored) {
                 existingTable =
@@ -69,7 +66,8 @@ public class SemanticSyncDiffService {
 
         boolean reactivated = Boolean.FALSE.equals(existingTable.getPhysicalStatus());
         boolean descriptionChanged =
-                !Objects.equals(existingTable.getPhysicalTableDescription(), physicalTableDescription);
+                !Objects.equals(
+                        existingTable.getPhysicalTableDescription(), physicalTableDescription);
         boolean updated = descriptionChanged;
         if (reactivated || descriptionChanged) {
             existingTable.setPhysicalTableDescription(physicalTableDescription);
@@ -123,7 +121,8 @@ public class SemanticSyncDiffService {
 
         boolean reactivated = Boolean.FALSE.equals(existingColumn.getPhysicalStatus());
         boolean descriptionChanged =
-                !Objects.equals(existingColumn.getPhysicalColumnDescription(), physicalColumnDescription);
+                !Objects.equals(
+                        existingColumn.getPhysicalColumnDescription(), physicalColumnDescription);
         boolean typeChanged = !Objects.equals(existingColumn.getTypeName(), typeName);
         boolean primaryKeyChanged =
                 !Objects.equals(existingColumn.getPrimaryKey(), Boolean.valueOf(primaryKey));

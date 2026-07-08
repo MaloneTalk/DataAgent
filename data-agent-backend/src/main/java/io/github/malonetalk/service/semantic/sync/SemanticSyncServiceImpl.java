@@ -119,7 +119,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
             SyncTableResult result =
                     physicalTable == null
                             ? semanticSyncDiffService.markMissingTable(
-                                    request.datasourceId(), normalizedTableName, LocalDateTime.now())
+                                    request.datasourceId(),
+                                    normalizedTableName,
+                                    LocalDateTime.now())
                             : syncSingleTable(
                                     datasource,
                                     request.datasourceId(),
@@ -187,7 +189,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         }
 
         int missingColumnsMarked =
-                semanticSyncDiffService.markMissingColumns(semanticColumns, physicalColumnNames, now);
+                semanticSyncDiffService.markMissingColumns(
+                        semanticColumns, physicalColumnNames, now);
 
         return new SyncTableResult(
                 physicalTable.tableName(),
