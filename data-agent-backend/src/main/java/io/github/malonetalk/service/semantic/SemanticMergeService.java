@@ -97,6 +97,10 @@ public class SemanticMergeService {
         TableInfo semanticTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
+        if (semanticTable != null && Boolean.FALSE.equals(semanticTable.getPhysicalStatus())) {
+            throw new IllegalArgumentException(
+                    "Table " + normalizedTableName + " does not exist physically.");
+        }
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
             throw new IllegalArgumentException("Table " + normalizedTableName + " is hidden.");
         }
@@ -264,7 +268,9 @@ public class SemanticMergeService {
 
         private boolean isHidden(String tableName) {
             TableInfo tableInfo = get(tableName);
-            return tableInfo != null && !Boolean.TRUE.equals(tableInfo.getIsVisible());
+            return tableInfo != null
+                    && (!Boolean.TRUE.equals(tableInfo.getIsVisible())
+                            || Boolean.FALSE.equals(tableInfo.getPhysicalStatus()));
         }
     }
 

@@ -73,7 +73,9 @@ public final class PromptConverter {
             List<TableRelationPromptResponse> resolvedRelations) {
         TableInfo semanticTable =
                 semanticByName.get(physicalTable.tableName().toLowerCase(Locale.ROOT));
-        if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
+        if (semanticTable != null
+                && (!Boolean.TRUE.equals(semanticTable.getIsVisible())
+                        || Boolean.FALSE.equals(semanticTable.getPhysicalStatus()))) {
             return null;
         }
 
