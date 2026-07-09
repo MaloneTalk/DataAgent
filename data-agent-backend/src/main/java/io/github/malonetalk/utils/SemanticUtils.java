@@ -73,6 +73,10 @@ public final class SemanticUtils {
                 : normalized.toLowerCase(Locale.ROOT);
     }
 
+    public static String normalizeObjectName(String value) {
+        return trimToNotBlank(value, "objectName").toLowerCase(Locale.ROOT);
+    }
+
     public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("Schema of table %s:%n", tableName));

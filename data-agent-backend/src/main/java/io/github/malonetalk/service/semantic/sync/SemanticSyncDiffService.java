@@ -26,7 +26,6 @@ import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -182,7 +181,8 @@ public class SemanticSyncDiffService {
             List<ColumnInfo> semanticColumns, Set<String> physicalColumnNames, LocalDateTime now) {
         int missingColumnsMarked = 0;
         for (ColumnInfo semanticColumn : semanticColumns) {
-            if (physicalColumnNames.contains(normalizeName(semanticColumn.getColumnName()))) {
+            if (physicalColumnNames.contains(
+                    SemanticUtils.normalizeObjectName(semanticColumn.getColumnName()))) {
                 continue;
             }
             if (Boolean.FALSE.equals(semanticColumn.getPhysicalStatus())) {
@@ -249,10 +249,6 @@ public class SemanticSyncDiffService {
         columnInfo.setCreateTime(now);
         columnInfo.setUpdateTime(now);
         return columnInfo;
-    }
-
-    private String normalizeName(String value) {
-        return SemanticUtils.trimToNotBlank(value, "objectName").toLowerCase(Locale.ROOT);
     }
 
     public record TableSyncDiff(boolean added, boolean reactivated, boolean updated) {}

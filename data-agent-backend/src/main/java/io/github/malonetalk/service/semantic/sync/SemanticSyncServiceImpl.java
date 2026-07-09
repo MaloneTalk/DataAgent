@@ -69,7 +69,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 tableInfoMapper.selectByDatasourceId(query.datasourceId()).stream()
                         .collect(
                                 Collectors.toMap(
-                                        table -> normalizeName(table.getTableName()),
+                                        table ->
+                                                SemanticUtils.normalizeObjectName(
+                                                        table.getTableName()),
                                         table -> table,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
@@ -86,7 +88,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                                 table.tableName(),
                                                 SemanticUtils.trimToNull(table.remarks()),
                                                 semanticTables.containsKey(
-                                                        normalizeName(table.tableName()))))
+                                                        SemanticUtils.normalizeObjectName(
+                                                                table.tableName()))))
                         .toList();
 
         int fromIndex = Math.min((pageNumber - 1) * pageSize, filtered.size());
@@ -103,14 +106,16 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 schemaReader.getTables(datasource).stream()
                         .collect(
                                 Collectors.toMap(
-                                        table -> normalizeName(table.tableName()),
+                                        table ->
+                                                SemanticUtils.normalizeObjectName(
+                                                        table.tableName()),
                                         table -> table,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
         Set<String> selectedTableNames =
                 request.tableNames().stream()
                         .map(name -> SemanticUtils.trimToNotBlank(name, "tableName"))
-                        .map(this::normalizeName)
+                        .map(SemanticUtils::normalizeObjectName)
                         .collect(Collectors.toCollection(LinkedHashSet::new));
 
         List<SyncTableResult> results = new ArrayList<>();
@@ -153,7 +158,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 semanticColumns.stream()
                         .collect(
                                 Collectors.toMap(
-                                        column -> normalizeName(column.getColumnName()),
+                                        column ->
+                                                SemanticUtils.normalizeObjectName(
+                                                        column.getColumnName()),
                                         column -> column,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
@@ -165,7 +172,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         int updatedColumns = 0;
 
         for (PhysicalColumnInfo physicalColumn : physicalColumns) {
-            String normalizedColumnName = normalizeName(physicalColumn.columnName());
+            String normalizedColumnName =
+                    SemanticUtils.normalizeObjectName(physicalColumn.columnName());
             physicalColumnNames.add(normalizedColumnName);
             SemanticSyncDiffService.ColumnSyncDiff columnSyncDiff =
                     semanticSyncDiffService.ensureColumnPresent(
@@ -231,9 +239,5 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                         table -> table.tableName().toLowerCase(Locale.ROOT),
                         Comparator.naturalOrder());
         return sortDescending ? comparator.reversed() : comparator;
-    }
-
-    private String normalizeName(String value) {
-        return SemanticUtils.trimToNotBlank(value, "objectName").toLowerCase(Locale.ROOT);
     }
 }
