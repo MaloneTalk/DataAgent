@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.ReportMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.Report">
+        <id column="id" property="id"/>
+        <result column="content" property="content"/>
+        <result column="title" property="title"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.Report"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO report (
+            content, title, session_id,
+            create_time, update_time
+        ) VALUES (
+            #{content}, #{title}, #{sessionId},
+            #{createTime}, #{updateTime}
+        )
+    </insert>
+
+
+    <select id="selectPage" resultMap="BaseResultMap">
+        SELECT * FROM report
+        <where>
+            is_deleted = 0
+            <if test="query.sessionId != null and query.sessionId != ''">
+                AND session_id = #{query.sessionId}
+            </if>
+            <if test="query.keyword != null and query.keyword != ''">
+                AND (title LIKE CONCAT('%', #{query.keyword}, '%')
+                     OR content LIKE CONCAT('%', #{query.keyword}, '%'))
+            </if>
+        </where>
+        <choose>
+            <when test="sortDescending">
+                ORDER BY id DESC
+            </when>
+            <otherwise>
+                ORDER BY id ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <update id="deleteById">
+        UPDATE report
+        SET is_deleted = 1, update_time = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+</mapper>

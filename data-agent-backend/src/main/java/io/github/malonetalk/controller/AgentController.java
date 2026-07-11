@@ -47,6 +47,7 @@ public class AgentController {
     private final AgentService agentService;
     private final SessionService sessionService;
 
+    @Deprecated
     @PostMapping("/chat")
     public Result<String> chat(@Valid @RequestBody ChatRequest request) {
         String response = agentService.chat(request.sessionId(), request.message());
