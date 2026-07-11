@@ -33,7 +33,6 @@ import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -141,8 +140,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName =
-                SemanticUtils.trimToNotBlank(request.tableName(), "tableName")
-                        .toLowerCase(Locale.ROOT);
+                SemanticUtils.objectKey(request.tableName(), "tableName");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -189,17 +187,14 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 tableNames.stream()
                         .map(
                                 name ->
-                                        SemanticUtils.trimToNotBlank(name, "tableName")
-                                                .toLowerCase(Locale.ROOT))
+                                        SemanticUtils.objectKey(name, "tableName"))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 tableInfoMapper.selectByDatasourceId(datasourceId).stream()
                         .filter(
                                 table ->
                                         normalizedNames.contains(
-                                                SemanticUtils.trimToNotBlank(
-                                                                table.getTableName(), "tableName")
-                                                        .toLowerCase(Locale.ROOT)))
+                                                SemanticUtils.objectKey(table.getTableName())))
                         .map(TableInfo::getId)
                         .distinct()
                         .toList();

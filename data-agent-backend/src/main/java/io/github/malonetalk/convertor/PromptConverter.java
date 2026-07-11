@@ -28,9 +28,7 @@ import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 
 /** 物理层/语义层 → Agent Prompt DTO 的统一转换器，集中管理所有面向 LLM 的 DTO 映射逻辑。 */
 public final class PromptConverter {
@@ -41,17 +39,16 @@ public final class PromptConverter {
     public static ColumnPromptResponse mapColumnPrompt(
             PhysicalColumnInfo physicalColumn, Map<String, ColumnInfo> semanticByName) {
         ColumnInfo semanticColumn =
-                semanticByName.get(physicalColumn.columnName().toLowerCase(Locale.ROOT));
+                semanticByName.get(SemanticUtils.objectKey(physicalColumn.columnName()));
         if (!SemanticAvailabilityHelper.isColumnAvailable(
                 semanticColumn, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
             return null;
         }
 
         String description =
-                Optional.ofNullable(semanticColumn)
-                        .map(ColumnInfo::getColumnDescription)
-                        .map(SemanticUtils::trimToNull)
-                        .orElseGet(() -> SemanticUtils.trimToNull(physicalColumn.remarks()));
+                SemanticUtils.firstNonBlank(
+                        semanticColumn == null ? null : semanticColumn.getColumnDescription(),
+                        physicalColumn.remarks());
 
         StringBuilder typeBuilder = new StringBuilder(physicalColumn.typeName());
         if (physicalColumn.columnSize() > 0) {
@@ -74,7 +71,7 @@ public final class PromptConverter {
             Map<String, TableInfo> semanticByName,
             List<TableRelationPromptResponse> resolvedRelations) {
         TableInfo semanticTable =
-                semanticByName.get(physicalTable.tableName().toLowerCase(Locale.ROOT));
+                semanticByName.get(SemanticUtils.objectKey(physicalTable.tableName()));
         if (!SemanticAvailabilityHelper.isTableAvailable(
                 semanticTable, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
             return null;
@@ -96,9 +93,8 @@ public final class PromptConverter {
 
     private static String resolveDescription(
             PhysicalTableInfo physicalTable, TableInfo semanticTable) {
-        return Optional.ofNullable(semanticTable)
-                .map(TableInfo::getTableDescription)
-                .map(SemanticUtils::trimToNull)
-                .orElseGet(() -> SemanticUtils.trimToNull(physicalTable.remarks()));
+        return SemanticUtils.firstNonBlank(
+                semanticTable == null ? null : semanticTable.getTableDescription(),
+                physicalTable.remarks());
     }
 }

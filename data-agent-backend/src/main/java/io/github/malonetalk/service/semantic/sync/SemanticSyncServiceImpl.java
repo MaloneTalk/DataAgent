@@ -42,7 +42,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -269,16 +268,14 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         if (keyword == null) {
             return true;
         }
-        String normalizedKeyword = keyword.toLowerCase(Locale.ROOT);
-        return table.tableName().toLowerCase(Locale.ROOT).contains(normalizedKeyword)
-                || (table.remarks() != null
-                        && table.remarks().toLowerCase(Locale.ROOT).contains(normalizedKeyword));
+        return SemanticUtils.containsIgnoreCase(table.tableName(), keyword)
+                || SemanticUtils.containsIgnoreCase(table.remarks(), keyword);
     }
 
     private Comparator<PhysicalTableInfo> buildTableComparator(boolean sortDescending) {
         Comparator<PhysicalTableInfo> comparator =
                 Comparator.comparing(
-                        table -> table.tableName().toLowerCase(Locale.ROOT),
+                        table -> SemanticUtils.objectKey(table.tableName()),
                         Comparator.naturalOrder());
         return sortDescending ? comparator.reversed() : comparator;
     }

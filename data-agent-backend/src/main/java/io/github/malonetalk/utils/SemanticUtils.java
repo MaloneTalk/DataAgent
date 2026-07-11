@@ -66,6 +66,19 @@ public final class SemanticUtils {
         return value.trim();
     }
 
+    public static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = trimToNull(value);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
+    }
+
     public static String normalizeDomain(String domain) {
         String normalized = trimToNull(domain);
         return normalized == null
@@ -75,6 +88,23 @@ public final class SemanticUtils {
 
     public static String normalizeObjectName(String value) {
         return trimToNotBlank(value, "objectName").toLowerCase(Locale.ROOT);
+    }
+
+    public static String objectKey(String value) {
+        return normalizeObjectName(value);
+    }
+
+    public static String objectKey(String value, String label) {
+        return trimToNotBlank(value, label).toLowerCase(Locale.ROOT);
+    }
+
+    public static boolean containsIgnoreCase(String value, String keyword) {
+        String normalizedValue = trimToNull(value);
+        String normalizedKeyword = trimToNull(keyword);
+        return normalizedValue != null
+                && normalizedKeyword != null
+                && normalizedValue.toLowerCase(Locale.ROOT)
+                        .contains(normalizedKeyword.toLowerCase(Locale.ROOT));
     }
 
     public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {

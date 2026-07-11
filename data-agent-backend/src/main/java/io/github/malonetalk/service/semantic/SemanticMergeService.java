@@ -39,7 +39,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -214,7 +213,7 @@ public class SemanticMergeService {
         for (ColumnInfo column :
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
                         datasourceId, tableName)) {
-            result.put(column.getColumnName().toLowerCase(Locale.ROOT), column);
+            result.put(SemanticUtils.objectKey(column.getColumnName()), column);
         }
         return result;
     }
@@ -254,7 +253,7 @@ public class SemanticMergeService {
         private static TableNameIndex of(List<TableInfo> tables) {
             Map<String, TableInfo> map = new HashMap<>();
             for (TableInfo table : tables) {
-                map.put(table.getTableName().toLowerCase(Locale.ROOT), table);
+                map.put(SemanticUtils.objectKey(table.getTableName()), table);
             }
             return new TableNameIndex(map);
         }
@@ -264,7 +263,7 @@ public class SemanticMergeService {
         }
 
         private TableInfo get(String tableName) {
-            return index.get(tableName.toLowerCase(Locale.ROOT));
+            return index.get(SemanticUtils.objectKey(tableName));
         }
 
         private boolean isHidden(String tableName) {
@@ -280,16 +279,16 @@ public class SemanticMergeService {
             Map<String, Map<String, ColumnInfo>> map = new HashMap<>();
             for (ColumnInfo column : columns) {
                 map.computeIfAbsent(
-                                column.getTableName().toLowerCase(Locale.ROOT),
+                                SemanticUtils.objectKey(column.getTableName()),
                                 key -> new HashMap<>())
-                        .put(column.getColumnName().toLowerCase(Locale.ROOT), column);
+                        .put(SemanticUtils.objectKey(column.getColumnName()), column);
             }
             return new TableColumnIndex(map);
         }
 
         private ColumnInfo get(String tableName, String columnName) {
-            Map<String, ColumnInfo> columns = index.get(tableName.toLowerCase(Locale.ROOT));
-            return columns == null ? null : columns.get(columnName.toLowerCase(Locale.ROOT));
+            Map<String, ColumnInfo> columns = index.get(SemanticUtils.objectKey(tableName));
+            return columns == null ? null : columns.get(SemanticUtils.objectKey(columnName));
         }
 
         private boolean hasHiddenColumn(String tableName, List<String> columnNames) {
@@ -310,7 +309,7 @@ public class SemanticMergeService {
             Map<String, List<LogicalTableRelation>> map = new HashMap<>();
             for (LogicalTableRelation relation : relations) {
                 map.computeIfAbsent(
-                                relation.getSourceTableName().toLowerCase(Locale.ROOT),
+                                SemanticUtils.objectKey(relation.getSourceTableName()),
                                 key -> new ArrayList<>())
                         .add(relation);
             }
@@ -319,7 +318,7 @@ public class SemanticMergeService {
 
         private List<LogicalTableRelation> get(String sourceTableName) {
             return index.getOrDefault(
-                    sourceTableName.toLowerCase(Locale.ROOT), Collections.emptyList());
+                    SemanticUtils.objectKey(sourceTableName), Collections.emptyList());
         }
     }
 }

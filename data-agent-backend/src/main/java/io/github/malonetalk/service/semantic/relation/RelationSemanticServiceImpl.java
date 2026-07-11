@@ -25,7 +25,6 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
-import io.github.malonetalk.dto.semantic.RelationWorkspaceColumnResponse;
 import io.github.malonetalk.dto.semantic.RelationWorkspacePageQuery;
 import io.github.malonetalk.dto.semantic.RelationWorkspaceResponse;
 import io.github.malonetalk.dto.semantic.RelationWorkspaceTableResponse;
@@ -44,7 +43,6 @@ import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -120,7 +118,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 page.stream().map(TableInfo::getTableName).distinct().toList();
         Set<String> currentPageTableNames =
                 tableNames.stream()
-                        .map(name -> name.toLowerCase(Locale.ROOT))
+                        .map(SemanticUtils::objectKey)
                         .collect(Collectors.toSet());
         Map<String, List<ColumnInfo>> columnsByTableName =
                 columnSemanticInfoMapper
@@ -128,12 +126,19 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .stream()
                         .collect(
                                 Collectors.groupingBy(
-                                        column -> column.getTableName().toLowerCase(Locale.ROOT),
+                                        column -> SemanticUtils.objectKey(column.getTableName()),
                                         LinkedHashMap::new,
                                         Collectors.toList()));
         List<RelationWorkspaceTableResponse> nodes =
                 page.stream()
-                        .map(table -> toWorkspaceTable(table, columnsByTableName))
+                        .map(
+                                table ->
+                                        semanticConverter.toWorkspaceTable(
+                                                table,
+                                                columnsByTableName.getOrDefault(
+                                                        SemanticUtils.objectKey(
+                                                                table.getTableName()),
+                                                        List.of())))
                         .toList();
         List<LogicalTableRelationResponse> relations =
                 logicalTableRelationMapper
@@ -142,48 +147,13 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .filter(
                                 relation ->
                                         currentPageTableNames.contains(
-                                                relation.getTargetTableName()
-                                                        .toLowerCase(Locale.ROOT)))
+                                                SemanticUtils.objectKey(
+                                                        relation.getTargetTableName())))
                         .map(semanticConverter::toResponse)
                         .toList();
 
         return new RelationWorkspaceResponse(
                 PageResponse.of(nodes, page.getTotal(), pageNumber, pageSize), relations);
-    }
-
-    private RelationWorkspaceTableResponse toWorkspaceTable(
-            TableInfo table, Map<String, List<ColumnInfo>> columnsByTableName) {
-        List<RelationWorkspaceColumnResponse> columns =
-                columnsByTableName
-                        .getOrDefault(table.getTableName().toLowerCase(Locale.ROOT), List.of())
-                        .stream()
-                        .map(this::toWorkspaceColumn)
-                        .toList();
-        return new RelationWorkspaceTableResponse(
-                table.getTableName(),
-                SemanticUtils.normalizeDomain(table.getDomain()),
-                SemanticUtils.trimToNull(table.getTableDescription()) == null
-                        ? SemanticUtils.trimToNull(table.getPhysicalTableDescription())
-                        : SemanticUtils.trimToNull(table.getTableDescription()),
-                SemanticAvailabilityHelper.isTableAvailable(
-                        table, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
-                SemanticAvailabilityHelper.tableInvalidReason(
-                        table, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
-                columns);
-    }
-
-    private RelationWorkspaceColumnResponse toWorkspaceColumn(ColumnInfo column) {
-        return new RelationWorkspaceColumnResponse(
-                column.getColumnName(),
-                SemanticUtils.trimToNull(column.getColumnDescription()) == null
-                        ? SemanticUtils.trimToNull(column.getPhysicalColumnDescription())
-                        : SemanticUtils.trimToNull(column.getColumnDescription()),
-                SemanticUtils.trimToNull(column.getTypeName()),
-                column.getPrimaryKey(),
-                SemanticAvailabilityHelper.isColumnAvailable(
-                        column, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
-                SemanticAvailabilityHelper.columnInvalidReason(
-                        column, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION));
     }
 
     @Override
@@ -350,17 +320,17 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             throw new IllegalArgumentException(
                     fieldName + " " + tableName + " semantic metadata does not exist.");
         }
-        if (SemanticAvailabilityHelper.isTableAvailable(
+        if (!SemanticAvailabilityHelper.isUnavailable(
                 tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)) {
             return;
         }
         throw new IllegalArgumentException(
-                fieldName
-                        + " "
-                        + tableName
-                        + " is unavailable: "
-                        + SemanticAvailabilityHelper.tableInvalidReason(
-                                tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION));
+                SemanticAvailabilityHelper.unavailableMessage(
+                        fieldName,
+                        tableName,
+                        SemanticAvailabilityHelper.tableInvalidReason(
+                                tableInfo,
+                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)));
     }
 
     private void ensureColumnsOperable(
@@ -373,18 +343,17 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 throw new IllegalArgumentException(
                         fieldName + " " + columnName + " semantic metadata does not exist.");
             }
-            if (SemanticAvailabilityHelper.isColumnAvailable(
+            if (!SemanticAvailabilityHelper.isUnavailable(
                     columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)) {
                 continue;
             }
             throw new IllegalArgumentException(
-                    fieldName
-                            + " "
-                            + columnName
-                            + " is unavailable: "
-                            + SemanticAvailabilityHelper.columnInvalidReason(
+                    SemanticAvailabilityHelper.unavailableMessage(
+                            fieldName,
+                            columnName,
+                            SemanticAvailabilityHelper.columnInvalidReason(
                                     columnInfo,
-                                    SemanticAvailabilityHelper.UsageLevel.USER_OPERATION));
+                                    SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)));
         }
     }
 
@@ -445,10 +414,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
-                || !relation.getSourceTableName()
-                        .equals(
-                                SemanticUtils.trimToNotBlank(tableName, "tableName")
-                                        .toLowerCase(Locale.ROOT))) {
+                || !relation.getSourceTableName().equals(SemanticUtils.objectKey(tableName))) {
             throw new IllegalArgumentException("Logical relation does not exist.");
         }
         return relation;

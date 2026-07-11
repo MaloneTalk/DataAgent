@@ -20,6 +20,8 @@ package io.github.malonetalk.convertor;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
+import io.github.malonetalk.dto.semantic.RelationWorkspaceColumnResponse;
+import io.github.malonetalk.dto.semantic.RelationWorkspaceTableResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.LogicalTableRelation;
@@ -110,5 +112,33 @@ public class SemanticConverter {
                 .createTime(relation.getCreateTime())
                 .updateTime(relation.getUpdateTime())
                 .build();
+    }
+
+    public RelationWorkspaceTableResponse toWorkspaceTable(
+            TableInfo tableInfo, List<ColumnInfo> columns) {
+        return new RelationWorkspaceTableResponse(
+                tableInfo.getTableName(),
+                SemanticUtils.normalizeDomain(tableInfo.getDomain()),
+                SemanticUtils.firstNonBlank(
+                        tableInfo.getTableDescription(), tableInfo.getPhysicalTableDescription()),
+                SemanticAvailabilityHelper.isTableAvailable(
+                        tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
+                SemanticAvailabilityHelper.tableInvalidReason(
+                        tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
+                columns.stream().map(this::toWorkspaceColumn).toList());
+    }
+
+    public RelationWorkspaceColumnResponse toWorkspaceColumn(ColumnInfo columnInfo) {
+        return new RelationWorkspaceColumnResponse(
+                columnInfo.getColumnName(),
+                SemanticUtils.firstNonBlank(
+                        columnInfo.getColumnDescription(),
+                        columnInfo.getPhysicalColumnDescription()),
+                SemanticUtils.trimToNull(columnInfo.getTypeName()),
+                columnInfo.getPrimaryKey(),
+                SemanticAvailabilityHelper.isColumnAvailable(
+                        columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
+                SemanticAvailabilityHelper.columnInvalidReason(
+                        columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION));
     }
 }

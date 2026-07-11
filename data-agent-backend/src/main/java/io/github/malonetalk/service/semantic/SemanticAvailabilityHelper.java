@@ -58,6 +58,14 @@ public final class SemanticAvailabilityHelper {
         return columnInfo == null || !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
     }
 
+    public static boolean isUnavailable(TableInfo tableInfo, UsageLevel usageLevel) {
+        return !isTableAvailable(tableInfo, usageLevel);
+    }
+
+    public static boolean isUnavailable(ColumnInfo columnInfo, UsageLevel usageLevel) {
+        return !isColumnAvailable(columnInfo, usageLevel);
+    }
+
     public static String tableInvalidReason(TableInfo tableInfo, UsageLevel usageLevel) {
         if (isTableAvailable(tableInfo, usageLevel)) {
             return null;
@@ -82,5 +90,10 @@ public final class SemanticAvailabilityHelper {
             return "列已隐藏";
         }
         return "列不可用";
+    }
+
+    public static String unavailableMessage(String fieldName, String objectName, String reason) {
+        String fallbackReason = reason == null || reason.isBlank() ? "不可用" : reason;
+        return fieldName + " " + objectName + " is unavailable: " + fallbackReason;
     }
 }

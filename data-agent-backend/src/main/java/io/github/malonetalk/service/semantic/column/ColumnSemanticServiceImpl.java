@@ -33,7 +33,6 @@ import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -80,10 +79,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName =
-                SemanticUtils.trimToNotBlank(tableName, "tableName").toLowerCase(Locale.ROOT);
+                SemanticUtils.objectKey(tableName, "tableName");
         String normalizedColumnName =
-                SemanticUtils.trimToNotBlank(request.columnName(), "columnName")
-                        .toLowerCase(Locale.ROOT);
+                SemanticUtils.objectKey(request.columnName(), "columnName");
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -140,8 +138,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnNames.stream()
                         .map(
                                 columnName ->
-                                        SemanticUtils.trimToNotBlank(columnName, "columnName")
-                                                .toLowerCase(Locale.ROOT))
+                                        SemanticUtils.objectKey(columnName, "columnName"))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 columnSemanticInfoMapper
@@ -150,10 +147,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .filter(
                                 column ->
                                         normalizedColumnNames.contains(
-                                                SemanticUtils.trimToNotBlank(
-                                                                column.getColumnName(),
-                                                                "columnName")
-                                                        .toLowerCase(Locale.ROOT)))
+                                                SemanticUtils.objectKey(column.getColumnName())))
                         .map(ColumnInfo::getId)
                         .distinct()
                         .toList();
