@@ -25,6 +25,7 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.LogicalTableRelationType;
+import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
@@ -39,7 +40,7 @@ public class SemanticConverter {
 
     public TableSemanticResponse toResponse(TableInfo tableInfo) {
         Boolean isVisible = tableInfo.getIsVisible();
-        boolean hasPhysicalTable = !Boolean.FALSE.equals(tableInfo.getPhysicalStatus());
+        boolean hasPhysicalTable = SemanticAvailabilityHelper.hasPhysicalTable(tableInfo);
         return TableSemanticResponse.builder()
                 .id(tableInfo.getId())
                 .tableName(tableInfo.getTableName())
@@ -49,13 +50,16 @@ public class SemanticConverter {
                 .tableDescription(SemanticUtils.trimToNull(tableInfo.getTableDescription()))
                 .isVisible(isVisible)
                 .hasPhysicalTable(hasPhysicalTable)
-                .invalidReason(hasPhysicalTable ? null : "物理表不存在")
+                .invalidReason(
+                        SemanticAvailabilityHelper.tableInvalidReason(
+                                tableInfo,
+                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
                 .updateTime(tableInfo.getUpdateTime())
                 .build();
     }
 
     public ColumnSemanticResponse toResponse(ColumnInfo columnInfo) {
-        boolean hasPhysicalColumn = !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
+        boolean hasPhysicalColumn = SemanticAvailabilityHelper.hasPhysicalColumn(columnInfo);
         return ColumnSemanticResponse.builder()
                 .id(columnInfo.getId())
                 .columnName(columnInfo.getColumnName())
@@ -66,8 +70,14 @@ public class SemanticConverter {
                 .primaryKey(columnInfo.getPrimaryKey())
                 .isVisible(columnInfo.getIsVisible())
                 .hasPhysicalColumn(hasPhysicalColumn)
-                .effective(Boolean.TRUE.equals(columnInfo.getIsVisible()) && hasPhysicalColumn)
-                .invalidReason(hasPhysicalColumn ? null : "物理列不存在")
+                .effective(
+                        SemanticAvailabilityHelper.isColumnAvailable(
+                                columnInfo,
+                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                .invalidReason(
+                        SemanticAvailabilityHelper.columnInvalidReason(
+                                columnInfo,
+                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
                 .updateTime(columnInfo.getUpdateTime())
                 .build();
     }

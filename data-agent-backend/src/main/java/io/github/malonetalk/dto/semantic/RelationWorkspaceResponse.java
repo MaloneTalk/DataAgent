@@ -15,21 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service.semantic.sync;
+package io.github.malonetalk.dto.semantic;
 
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.dto.semantic.PhysicalTableCandidatePageQuery;
-import io.github.malonetalk.dto.semantic.PhysicalTableCandidateResponse;
-import io.github.malonetalk.dto.semantic.RefreshPhysicalStatusRequest;
-import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
-import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
+import java.util.List;
 
-public interface SemanticSyncService {
-
-    PageResponse<PhysicalTableCandidateResponse> getPhysicalTableCandidates(
-            PhysicalTableCandidatePageQuery query);
-
-    SyncTableSemanticsResponse syncTables(SyncTableSemanticsRequest request);
-
-    SyncTableSemanticsResponse refreshPhysicalStatus(RefreshPhysicalStatusRequest request);
-}
+public record RelationWorkspaceResponse(
+        PageResponse<RelationWorkspaceTableResponse> nodes,
+        List<LogicalTableRelationResponse> relations) {}

@@ -30,6 +30,16 @@
         ORDER BY column_name ASC, id ASC
     </select>
 
+    <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
+        SELECT * FROM column_info
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(table_name) IN
+        <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
+            LOWER(#{tableName})
+        </foreach>
+        ORDER BY table_name ASC, column_name ASC, id ASC
+    </select>
+
     <select id="selectPageByDatasourceIdAndTableName" resultMap="BaseResultMap">
         SELECT * FROM column_info
         WHERE datasource_id = #{query.datasourceId}

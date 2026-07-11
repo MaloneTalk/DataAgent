@@ -17,12 +17,15 @@
  */
 package io.github.malonetalk.service.semantic.sync;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.PhysicalTableCandidatePageQuery;
 import io.github.malonetalk.dto.semantic.PhysicalTableCandidateResponse;
+import io.github.malonetalk.dto.semantic.RefreshPhysicalStatusRequest;
 import io.github.malonetalk.dto.semantic.SyncTableResult;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
@@ -55,7 +58,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     private final TableInfoMapper tableInfoMapper;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final SchemaReader schemaReader;
-    private final SemanticSyncDiffService semanticSyncDiffService;
+    private final SemanticSyncApplyService semanticSyncApplyService;
     private final SemanticSyncResultService semanticSyncResultService;
 
     @Override
@@ -123,7 +126,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
             PhysicalTableInfo physicalTable = physicalTables.get(normalizedTableName);
             SyncTableResult result =
                     physicalTable == null
-                            ? semanticSyncDiffService.markMissingTable(
+                            ? semanticSyncApplyService.markMissingTable(
                                     request.datasourceId(),
                                     normalizedTableName,
                                     LocalDateTime.now())
@@ -138,14 +141,53 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return semanticSyncResultService.summarize(results);
     }
 
+    @Override
+    @Transactional
+    public SyncTableSemanticsResponse refreshPhysicalStatus(RefreshPhysicalStatusRequest request) {
+        Datasource datasource = requireDatasource(request.datasourceId());
+        Set<String> physicalTableNames =
+                schemaReader.getTables(datasource).stream()
+                        .map(PhysicalTableInfo::tableName)
+                        .map(SemanticUtils::normalizeObjectName)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        int pageNumber = 1;
+        int pageSize = PageResponse.resolvePageSize(100);
+        List<SyncTableResult> results = new ArrayList<>();
+
+        while (true) {
+            PageHelper.startPage(pageNumber, pageSize);
+            Page<TableInfo> page =
+                    (Page<TableInfo>) tableInfoMapper.selectByDatasourceId(request.datasourceId());
+            if (page.isEmpty()) {
+                break;
+            }
+            for (TableInfo tableInfo : page) {
+                String normalizedTableName =
+                        SemanticUtils.normalizeObjectName(tableInfo.getTableName());
+                if (physicalTableNames.contains(normalizedTableName)) {
+                    continue;
+                }
+                results.add(
+                        semanticSyncApplyService.markMissingTable(
+                                request.datasourceId(), normalizedTableName, LocalDateTime.now()));
+            }
+            if (page.getPageNum() >= page.getPages()) {
+                break;
+            }
+            pageNumber++;
+        }
+
+        return semanticSyncResultService.summarize(results);
+    }
+
     private SyncTableResult syncSingleTable(
             Datasource datasource,
             Integer datasourceId,
             PhysicalTableInfo physicalTable,
             String normalizedTableName) {
         LocalDateTime now = LocalDateTime.now();
-        SemanticSyncDiffService.TableSyncDiff tableSyncDiff =
-                semanticSyncDiffService.ensureTablePresent(
+        SemanticSyncApplyService.TableSyncDiff tableSyncDiff =
+                semanticSyncApplyService.ensureTablePresent(
                         datasourceId,
                         normalizedTableName,
                         SemanticUtils.trimToNull(physicalTable.remarks()),
@@ -175,8 +217,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
             String normalizedColumnName =
                     SemanticUtils.normalizeObjectName(physicalColumn.columnName());
             physicalColumnNames.add(normalizedColumnName);
-            SemanticSyncDiffService.ColumnSyncDiff columnSyncDiff =
-                    semanticSyncDiffService.ensureColumnPresent(
+            SemanticSyncApplyService.ColumnSyncDiff columnSyncDiff =
+                    semanticSyncApplyService.ensureColumnPresent(
                             datasourceId,
                             normalizedTableName,
                             normalizedColumnName,
@@ -197,7 +239,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         }
 
         int missingColumnsMarked =
-                semanticSyncDiffService.markMissingColumns(
+                semanticSyncApplyService.markMissingColumns(
                         semanticColumns, physicalColumnNames, now);
 
         return new SyncTableResult(

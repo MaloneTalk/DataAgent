@@ -35,6 +35,10 @@ public interface LogicalTableRelationMapper {
             @Param("datasourceId") Integer datasourceId,
             @Param("sourceTableName") String sourceTableName);
 
+    List<LogicalTableRelation> selectByDatasourceIdAndSourceTables(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("sourceTableNames") List<String> sourceTableNames);
+
     List<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
             @Param("query") RelationSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);

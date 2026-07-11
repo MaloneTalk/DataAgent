@@ -25,6 +25,7 @@ import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.prompt.TableRelationPromptResponse;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import java.util.Locale;
@@ -41,7 +42,8 @@ public final class PromptConverter {
             PhysicalColumnInfo physicalColumn, Map<String, ColumnInfo> semanticByName) {
         ColumnInfo semanticColumn =
                 semanticByName.get(physicalColumn.columnName().toLowerCase(Locale.ROOT));
-        if (semanticColumn != null && !Boolean.TRUE.equals(semanticColumn.getIsVisible())) {
+        if (!SemanticAvailabilityHelper.isColumnAvailable(
+                semanticColumn, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
             return null;
         }
 
@@ -73,9 +75,8 @@ public final class PromptConverter {
             List<TableRelationPromptResponse> resolvedRelations) {
         TableInfo semanticTable =
                 semanticByName.get(physicalTable.tableName().toLowerCase(Locale.ROOT));
-        if (semanticTable != null
-                && (!Boolean.TRUE.equals(semanticTable.getIsVisible())
-                        || Boolean.FALSE.equals(semanticTable.getPhysicalStatus()))) {
+        if (!SemanticAvailabilityHelper.isTableAvailable(
+                semanticTable, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
             return null;
         }
 

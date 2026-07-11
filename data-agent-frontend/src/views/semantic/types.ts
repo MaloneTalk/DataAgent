@@ -36,6 +36,8 @@ export interface RelationTableNode {
   tableName: string;
   domain: string | null;
   description: string | null;
+  operable: boolean;
+  invalidReason: string | null;
 }
 
 export interface RelationColumnNode {
@@ -43,6 +45,8 @@ export interface RelationColumnNode {
   description: string | null;
   typeName: string | null;
   primaryKey: boolean | null;
+  operable: boolean;
+  invalidReason: string | null;
 }
 
 export interface TableNodeLayout extends RelationTableNode {

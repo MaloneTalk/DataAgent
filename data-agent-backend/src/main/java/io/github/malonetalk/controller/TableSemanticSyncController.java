@@ -21,6 +21,7 @@ import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.PhysicalTableCandidatePageQuery;
 import io.github.malonetalk.dto.semantic.PhysicalTableCandidateResponse;
+import io.github.malonetalk.dto.semantic.RefreshPhysicalStatusRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncService;
@@ -49,5 +50,11 @@ public class TableSemanticSyncController {
     public Result<SyncTableSemanticsResponse> syncTables(
             @Valid @RequestBody SyncTableSemanticsRequest request) {
         return Result.success(semanticSyncService.syncTables(request));
+    }
+
+    @PostMapping("/physical-status")
+    public Result<SyncTableSemanticsResponse> refreshPhysicalStatus(
+            @Valid @RequestBody RefreshPhysicalStatusRequest request) {
+        return Result.success(semanticSyncService.refreshPhysicalStatus(request));
     }
 }

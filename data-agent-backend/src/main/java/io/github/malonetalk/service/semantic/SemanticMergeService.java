@@ -97,7 +97,8 @@ public class SemanticMergeService {
         TableInfo semanticTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
-        if (semanticTable != null && Boolean.FALSE.equals(semanticTable.getPhysicalStatus())) {
+        if (semanticTable != null
+                && !SemanticAvailabilityHelper.hasPhysicalTable(semanticTable)) {
             throw new IllegalArgumentException(
                     "Table " + normalizedTableName + " does not exist physically.");
         }
@@ -268,9 +269,8 @@ public class SemanticMergeService {
 
         private boolean isHidden(String tableName) {
             TableInfo tableInfo = get(tableName);
-            return tableInfo != null
-                    && (!Boolean.TRUE.equals(tableInfo.getIsVisible())
-                            || Boolean.FALSE.equals(tableInfo.getPhysicalStatus()));
+            return !SemanticAvailabilityHelper.isTableAvailable(
+                    tableInfo, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT);
         }
     }
 
@@ -295,7 +295,8 @@ public class SemanticMergeService {
         private boolean hasHiddenColumn(String tableName, List<String> columnNames) {
             for (String columnName : columnNames) {
                 ColumnInfo columnInfo = get(tableName, columnName);
-                if (columnInfo != null && !Boolean.TRUE.equals(columnInfo.getIsVisible())) {
+                if (!SemanticAvailabilityHelper.isColumnAvailable(
+                        columnInfo, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
                     return true;
                 }
             }

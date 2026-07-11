@@ -18,7 +18,7 @@
 <script setup lang="ts">
   import { computed, reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
-  import type { LogicalTableRelationResponse } from 'data-agent-frontend/src/api/semantic';
+  import type { LogicalTableRelationResponse } from '@/api/semantic';
   import type { RelationColumnNode, RelationForm, TableNodeLayout } from '../types';
 
   const props = defineProps<{
@@ -125,6 +125,7 @@
             :key="node.tableName"
             :label="node.tableName"
             :value="node.tableName"
+            :disabled="!node.operable"
           />
         </el-select>
       </el-form-item>
@@ -142,6 +143,7 @@
             :key="column.columnName"
             :label="`${column.columnName} (${column.typeName || 'UNKNOWN'})`"
             :value="column.columnName"
+            :disabled="!column.operable"
           />
         </el-select>
       </el-form-item>
@@ -158,6 +160,7 @@
             :key="node.tableName"
             :label="node.tableName"
             :value="node.tableName"
+            :disabled="!node.operable"
           />
         </el-select>
       </el-form-item>
@@ -175,6 +178,7 @@
             :key="column.columnName"
             :label="`${column.columnName} (${column.typeName || 'UNKNOWN'})`"
             :value="column.columnName"
+            :disabled="!column.operable"
           />
         </el-select>
       </el-form-item>

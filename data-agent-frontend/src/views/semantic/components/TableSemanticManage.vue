@@ -22,6 +22,7 @@
   import {
     getActiveDatasourceId,
     getTableSemanticPage,
+    refreshPhysicalStatus,
     getTableDomains,
     resetTableSemantic,
     updateTableSemantic,
@@ -71,6 +72,7 @@
   const columnManageRef = ref<InstanceType<typeof ColumnSemanticManage>>();
 
   const syncDialogVisible = ref(false);
+  const refreshingPhysicalStatus = ref(false);
 
   const ensureDatasourceId = async () => {
     if (datasourceId.value !== null) {
@@ -209,6 +211,29 @@
     syncDialogVisible.value = true;
   };
 
+  const buildSyncSummary = (result: { missingTablesMarked: number; missingColumnsMarked: number }) =>
+    `标记缺失表 ${result.missingTablesMarked} 张，标记缺失列 ${result.missingColumnsMarked} 个`;
+
+  const handleRefreshPhysicalStatus = async () => {
+    const activeDatasourceId = await ensureDatasourceId();
+    if (activeDatasourceId === null) {
+      return;
+    }
+    refreshingPhysicalStatus.value = true;
+    try {
+      const response = await refreshPhysicalStatus(activeDatasourceId);
+      ElMessage.success(buildSyncSummary(response.data.data));
+      await loadPage();
+      if (columnDrawerVisible.value && selectedTableForColumns.value && columnManageRef.value) {
+        await columnManageRef.value.handleTableChange(selectedTableForColumns.value);
+      }
+    } catch (err) {
+      ElMessage.error((err as Error).message);
+    } finally {
+      refreshingPhysicalStatus.value = false;
+    }
+  };
+
   const handleSyncCompleted = async (selectedTableNames: string[]) => {
     await loadPage();
     const normalizedSelectedTableNameSet = new Set(
@@ -242,6 +267,9 @@
       </div>
       <div class="header-actions">
         <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
+        <el-button :loading="refreshingPhysicalStatus" @click="handleRefreshPhysicalStatus">
+          刷新物理状态
+        </el-button>
         <el-button type="primary" @click="handleOpenSync">同步表</el-button>
       </div>
     </div>

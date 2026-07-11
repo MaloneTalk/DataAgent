@@ -18,22 +18,20 @@
 <script setup lang="ts">
   import { computed, onMounted, reactive, ref, watch } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
-  import { useDatasource } from 'data-agent-frontend/src/composables/useDatasource';
-  import type { DatasourceResponse } from 'data-agent-frontend/src/api/datasource';
+  import { useDatasource } from '@/composables/useDatasource';
+  import type { DatasourceResponse } from '@/api/datasource';
   import {
     createLogicalRelation,
     deleteLogicalRelation,
     getColumnSemanticPage,
-    getLogicalRelationPage,
-    getTableSemanticPage,
+    getRelationWorkspace,
     updateLogicalRelation,
     updateLogicalRelationEnabled,
     type BindLogicalTableRelationRequest,
     type ColumnSemanticResponse,
     type LogicalTableRelationResponse,
-    type TableSemanticResponse,
     type UpdateLogicalTableRelationRequest,
-  } from 'data-agent-frontend/src/api/semantic';
+  } from '@/api/semantic';
   import RelationEditDialog from './RelationEditDialog.vue';
   import RelationWorkspace from './RelationWorkspace.vue';
   import type {
@@ -44,7 +42,6 @@
     TableNodeLayout,
   } from '../types';
 
-  const BULK_FETCH_PAGE_SIZE = 100;
   const NODE_WIDTH = 280;
   const HEADER_HEIGHT = 58;
   const COLUMN_HEIGHT = 32;
@@ -67,6 +64,11 @@
   const relationRecords = ref<LogicalTableRelationResponse[]>([]);
   const selectedRelation = ref<LogicalTableRelationResponse | null>(null);
   const relationLoadToken = ref(0);
+  const workspacePage = reactive({
+    page: 1,
+    pageSize: 20,
+    total: 0,
+  });
 
   const relationDialogVisible = ref(false);
   const relationSubmitLoading = ref(false);
@@ -105,34 +107,6 @@
       enabled: relationForm.enabled,
     };
   });
-
-  async function fetchAllPages<T>(
-    loader: (
-      page: number,
-      pageSize: number,
-    ) => Promise<{
-      data: {
-        data: {
-          items: T[];
-          totalPages: number;
-        };
-      };
-    }>,
-  ) {
-    const items: T[] = [];
-    let page = 1;
-    let totalPages = 1;
-
-    while (page <= totalPages) {
-      const response = await loader(page, BULK_FETCH_PAGE_SIZE);
-      const pageData = response.data.data;
-      items.push(...pageData.items);
-      totalPages = Math.max(pageData.totalPages, 1);
-      page += 1;
-    }
-
-    return items;
-  }
 
   function buildRelationLayouts(
     tables: RelationTableNode[],
@@ -176,14 +150,17 @@
     if (typeof selectedDatasourceId.value !== 'number') {
       return [];
     }
-    const items = await fetchAllPages<ColumnSemanticResponse>((page, pageSize) =>
-      getColumnSemanticPage(tableName, {
-        datasourceId: selectedDatasourceId.value as number,
-        page,
-        pageSize,
-        sortOrder: 'asc',
-      }),
-    );
+    const localNode = relationNodes.value.find(node => node.tableName === tableName);
+    if (localNode) {
+      return localNode.columns;
+    }
+    const response = await getColumnSemanticPage(tableName, {
+      datasourceId: selectedDatasourceId.value,
+      page: 1,
+      pageSize: 100,
+      sortOrder: 'asc',
+    });
+    const items = response.data.data.items;
 
     return items.map(
       (item): RelationColumnNode => ({
@@ -191,91 +168,57 @@
         description: item.columnDescription ?? item.physicalColumnDescription,
         typeName: item.typeName,
         primaryKey: item.primaryKey,
+        operable: item.effective,
+        invalidReason: item.invalidReason,
       }),
     );
   }
 
-  async function loadRelationNodes(
-    datasourceId: number,
-    loadToken: number,
-  ): Promise<TableNodeLayout[]> {
+  async function loadRelationWorkspace(datasourceId: number, loadToken: number) {
     relationNodeLoading.value = true;
+    relationLoading.value = true;
+    relationError.value = '';
     try {
-      const tableItems = await fetchAllPages<TableSemanticResponse>((page, pageSize) =>
-        getTableSemanticPage({
-          datasourceId,
-          page,
-          pageSize,
-          sortOrder: 'asc',
-        }),
-      );
-      const tables = tableItems.map(
+      const response = await getRelationWorkspace({
+        datasourceId,
+        page: workspacePage.page,
+        pageSize: workspacePage.pageSize,
+        sortOrder: 'asc',
+      });
+      const workspace = response.data.data;
+      const tables = workspace.nodes.items.map(
         (item): RelationTableNode => ({
           tableName: item.tableName,
           domain: item.domain,
-          description: item.tableDescription ?? item.physicalTableDescription,
+          description: item.description,
+          operable: item.operable,
+          invalidReason: item.invalidReason,
         }),
       );
 
-      const columnResponses = await Promise.all(
-        tables.map(table => fetchRelationColumns(table.tableName)),
-      );
-
       const columnsMap = new Map<string, RelationColumnNode[]>();
-      tables.forEach((table, index) => {
-        columnsMap.set(table.tableName, columnResponses[index]);
+      workspace.nodes.items.forEach(table => {
+        columnsMap.set(table.tableName, table.columns);
       });
 
       const nextNodes = buildRelationLayouts(tables, columnsMap);
       if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
-        return nextNodes;
-      }
-
-      relationNodes.value = nextNodes;
-      return nextNodes;
-    } finally {
-      if (loadToken === relationLoadToken.value) {
-        relationNodeLoading.value = false;
-      }
-    }
-  }
-
-  async function loadAllRelations(
-    datasourceId: number,
-    nodes: TableNodeLayout[],
-    loadToken: number,
-  ) {
-    relationLoading.value = true;
-    relationError.value = '';
-
-    try {
-      const responses = await Promise.all(
-        nodes.map(node =>
-          fetchAllPages<LogicalTableRelationResponse>((page, pageSize) =>
-            getLogicalRelationPage({
-              datasourceId,
-              tableName: node.tableName,
-              page,
-              pageSize,
-              sortOrder: 'desc',
-            }),
-          ),
-        ),
-      );
-
-      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
         return;
       }
 
-      relationRecords.value = responses.flatMap(items => items);
+      relationNodes.value = nextNodes;
+      relationRecords.value = workspace.relations;
+      workspacePage.total = workspace.nodes.total;
     } catch (error) {
       if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
         return;
       }
       relationError.value = (error as Error).message;
+      relationNodes.value = [];
       relationRecords.value = [];
     } finally {
       if (loadToken === relationLoadToken.value) {
+        relationNodeLoading.value = false;
         relationLoading.value = false;
       }
     }
@@ -294,11 +237,7 @@
     relationLoadToken.value = loadToken;
 
     try {
-      const nodes = await loadRelationNodes(datasourceId, loadToken);
-      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
-        return;
-      }
-      await loadAllRelations(datasourceId, nodes, loadToken);
+      await loadRelationWorkspace(datasourceId, loadToken);
     } catch (error) {
       if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
         return;
@@ -309,6 +248,19 @@
       relationNodeLoading.value = false;
       relationLoading.value = false;
     }
+  }
+
+  async function handleWorkspacePageChange(page: number) {
+    workspacePage.page = page;
+    resetRelationForm();
+    await loadRelationData();
+  }
+
+  async function handleWorkspaceSizeChange(pageSize: number) {
+    workspacePage.pageSize = pageSize;
+    workspacePage.page = 1;
+    resetRelationForm();
+    await loadRelationData();
   }
 
   function resetRelationForm() {
@@ -534,6 +486,7 @@
     if (typeof value !== 'number') {
       return;
     }
+    workspacePage.page = 1;
     resetRelationForm();
     await loadRelationData();
   });
@@ -598,6 +551,18 @@
         @toggle-relation-enabled="handleToggleRelationEnabled"
         @drag-create-relation="handleDragCreateRelation"
       />
+      <div class="relation-pagination">
+        <el-pagination
+          background
+          layout="total, sizes, prev, pager, next"
+          :current-page="workspacePage.page"
+          :page-size="workspacePage.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="workspacePage.total"
+          @current-change="handleWorkspacePageChange"
+          @size-change="handleWorkspaceSizeChange"
+        />
+      </div>
     </section>
 
     <RelationEditDialog
@@ -697,6 +662,12 @@
   .toolbar-actions {
     display: flex;
     justify-content: flex-end;
+  }
+
+  .relation-pagination {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
   }
 
   .error-tip {
