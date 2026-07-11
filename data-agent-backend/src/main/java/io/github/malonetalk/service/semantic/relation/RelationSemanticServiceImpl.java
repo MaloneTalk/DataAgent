@@ -114,12 +114,9 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                     PageResponse.empty(pageNumber, pageSize), List.of());
         }
 
-        List<String> tableNames =
-                page.stream().map(TableInfo::getTableName).distinct().toList();
+        List<String> tableNames = page.stream().map(TableInfo::getTableName).distinct().toList();
         Set<String> currentPageTableNames =
-                tableNames.stream()
-                        .map(SemanticUtils::objectKey)
-                        .collect(Collectors.toSet());
+                tableNames.stream().map(SemanticUtils::objectKey).collect(Collectors.toSet());
         Map<String, List<ColumnInfo>> columnsByTableName =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableNames(query.datasourceId(), tableNames)
@@ -329,8 +326,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         fieldName,
                         tableName,
                         SemanticAvailabilityHelper.tableInvalidReason(
-                                tableInfo,
-                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)));
+                                tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)));
     }
 
     private void ensureColumnsOperable(

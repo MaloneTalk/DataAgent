@@ -54,8 +54,7 @@ public class SemanticConverter {
                 .hasPhysicalTable(hasPhysicalTable)
                 .invalidReason(
                         SemanticAvailabilityHelper.tableInvalidReason(
-                                tableInfo,
-                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                                tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
                 .updateTime(tableInfo.getUpdateTime())
                 .build();
     }
@@ -74,12 +73,10 @@ public class SemanticConverter {
                 .hasPhysicalColumn(hasPhysicalColumn)
                 .effective(
                         SemanticAvailabilityHelper.isColumnAvailable(
-                                columnInfo,
-                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                                columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
                 .invalidReason(
                         SemanticAvailabilityHelper.columnInvalidReason(
-                                columnInfo,
-                                SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                                columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
                 .updateTime(columnInfo.getUpdateTime())
                 .build();
     }

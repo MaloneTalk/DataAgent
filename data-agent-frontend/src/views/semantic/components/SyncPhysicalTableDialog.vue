@@ -176,7 +176,12 @@
       <el-button @click="loadCandidates">查询</el-button>
     </div>
 
-    <el-table ref="syncTableRef" v-loading="loading" :data="rows" @selection-change="handleSelectionChange">
+    <el-table
+      ref="syncTableRef"
+      v-loading="loading"
+      :data="rows"
+      @selection-change="handleSelectionChange"
+    >
       <el-table-column type="selection" width="48" />
       <el-table-column prop="tableName" label="物理表名" min-width="220" />
       <el-table-column label="物理描述" min-width="240" show-overflow-tooltip>

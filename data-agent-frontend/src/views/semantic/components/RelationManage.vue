@@ -28,7 +28,6 @@
     updateLogicalRelation,
     updateLogicalRelationEnabled,
     type BindLogicalTableRelationRequest,
-    type ColumnSemanticResponse,
     type LogicalTableRelationResponse,
     type UpdateLogicalTableRelationRequest,
   } from '@/api/semantic';
@@ -48,6 +47,16 @@
   const GAP_X = 72;
   const GAP_Y = 40;
   const COLUMNS_PER_ROW = 3;
+  const RELATION_MANAGE_STATE_STORAGE_KEY = 'semantic-model:relation-manage-state';
+  const RELATION_MANAGE_STATE_VERSION = 1;
+
+  interface RelationManageStateSnapshot {
+    version: number;
+    datasourceId?: number;
+    page?: number;
+    pageSize?: number;
+    updatedAt: string;
+  }
 
   const {
     list: datasourceList,
@@ -83,6 +92,7 @@
   const relationSourceColumns = ref<RelationColumnNode[]>([]);
   const relationTargetColumns = ref<RelationColumnNode[]>([]);
   const suppressRelationTableWatch = ref(false);
+  const suppressDatasourceWatch = ref(false);
 
   const activeDatasource = computed<DatasourceResponse | undefined>(() =>
     datasourceList.value.find(item => item.id === selectedDatasourceId.value),
@@ -144,6 +154,35 @@
         height: node.height,
       } satisfies TableNodeLayout;
     });
+  }
+
+  function readManageStateSnapshot(): RelationManageStateSnapshot | null {
+    try {
+      const raw = globalThis.localStorage.getItem(RELATION_MANAGE_STATE_STORAGE_KEY);
+      if (!raw) {
+        return null;
+      }
+      const snapshot = JSON.parse(raw) as RelationManageStateSnapshot;
+      return snapshot.version === RELATION_MANAGE_STATE_VERSION ? snapshot : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function persistManageStateSnapshot() {
+    const snapshot: RelationManageStateSnapshot = {
+      version: RELATION_MANAGE_STATE_VERSION,
+      datasourceId: selectedDatasourceId.value,
+      page: workspacePage.page,
+      pageSize: workspacePage.pageSize,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      globalThis.localStorage.setItem(RELATION_MANAGE_STATE_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // Browser storage can be unavailable in strict privacy modes.
+    }
   }
 
   async function fetchRelationColumns(tableName: string) {
@@ -252,6 +291,7 @@
 
   async function handleWorkspacePageChange(page: number) {
     workspacePage.page = page;
+    persistManageStateSnapshot();
     resetRelationForm();
     await loadRelationData();
   }
@@ -259,6 +299,7 @@
   async function handleWorkspaceSizeChange(pageSize: number) {
     workspacePage.pageSize = pageSize;
     workspacePage.page = 1;
+    persistManageStateSnapshot();
     resetRelationForm();
     await loadRelationData();
   }
@@ -279,11 +320,26 @@
 
   async function initializeDatasource() {
     await fetchDatasourceList();
+    const savedState = readManageStateSnapshot();
+    const savedDatasource = datasourceList.value.find(item => item.id === savedState?.datasourceId);
+    suppressDatasourceWatch.value = true;
     if (typeof selectedDatasourceId.value !== 'number') {
       const firstActive = datasourceList.value.find(item => item.status === 'ACTIVE');
-      selectedDatasourceId.value = firstActive?.id ?? datasourceList.value[0]?.id;
+      selectedDatasourceId.value =
+        savedDatasource?.id ?? firstActive?.id ?? datasourceList.value[0]?.id;
     }
-    await loadRelationData();
+    if (typeof savedState?.page === 'number') {
+      workspacePage.page = savedState.page;
+    }
+    if (typeof savedState?.pageSize === 'number') {
+      workspacePage.pageSize = savedState.pageSize;
+    }
+    try {
+      await loadRelationData();
+    } finally {
+      suppressDatasourceWatch.value = false;
+      persistManageStateSnapshot();
+    }
   }
 
   async function handleSourceTableChange(tableName: string) {
@@ -486,7 +542,11 @@
     if (typeof value !== 'number') {
       return;
     }
+    if (suppressDatasourceWatch.value) {
+      return;
+    }
     workspacePage.page = 1;
+    persistManageStateSnapshot();
     resetRelationForm();
     await loadRelationData();
   });

@@ -139,8 +139,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName =
-                SemanticUtils.objectKey(request.tableName(), "tableName");
+        String normalizedTableName = SemanticUtils.objectKey(request.tableName(), "tableName");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -185,9 +184,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         Set<String> normalizedNames =
                 tableNames.stream()
-                        .map(
-                                name ->
-                                        SemanticUtils.objectKey(name, "tableName"))
+                        .map(name -> SemanticUtils.objectKey(name, "tableName"))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 tableInfoMapper.selectByDatasourceId(datasourceId).stream()

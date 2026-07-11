@@ -96,8 +96,7 @@ public class SemanticMergeService {
         TableInfo semanticTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
-        if (semanticTable != null
-                && !SemanticAvailabilityHelper.hasPhysicalTable(semanticTable)) {
+        if (semanticTable != null && !SemanticAvailabilityHelper.hasPhysicalTable(semanticTable)) {
             throw new IllegalArgumentException(
                     "Table " + normalizedTableName + " does not exist physically.");
         }

@@ -78,10 +78,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName =
-                SemanticUtils.objectKey(tableName, "tableName");
-        String normalizedColumnName =
-                SemanticUtils.objectKey(request.columnName(), "columnName");
+        String normalizedTableName = SemanticUtils.objectKey(tableName, "tableName");
+        String normalizedColumnName = SemanticUtils.objectKey(request.columnName(), "columnName");
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -136,9 +134,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
         Set<String> normalizedColumnNames =
                 columnNames.stream()
-                        .map(
-                                columnName ->
-                                        SemanticUtils.objectKey(columnName, "columnName"))
+                        .map(columnName -> SemanticUtils.objectKey(columnName, "columnName"))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 columnSemanticInfoMapper

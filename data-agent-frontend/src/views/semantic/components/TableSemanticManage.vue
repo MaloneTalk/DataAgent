@@ -211,8 +211,10 @@
     syncDialogVisible.value = true;
   };
 
-  const buildSyncSummary = (result: { missingTablesMarked: number; missingColumnsMarked: number }) =>
-    `标记缺失表 ${result.missingTablesMarked} 张，标记缺失列 ${result.missingColumnsMarked} 个`;
+  const buildSyncSummary = (result: {
+    missingTablesMarked: number;
+    missingColumnsMarked: number;
+  }) => `标记缺失表 ${result.missingTablesMarked} 张，标记缺失列 ${result.missingColumnsMarked} 个`;
 
   const handleRefreshPhysicalStatus = async () => {
     const activeDatasourceId = await ensureDatasourceId();

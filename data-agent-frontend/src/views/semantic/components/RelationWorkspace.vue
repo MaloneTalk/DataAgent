@@ -311,11 +311,15 @@
       return;
     }
 
+    const previousSnapshot = readLayoutSnapshot();
     const snapshot: SemanticRelationLayoutSnapshot = {
       version: RELATION_LAYOUT_STORAGE_VERSION,
-      nodes: Object.fromEntries(
-        localNodes.value.map(node => [node.tableName, { x: node.x, y: node.y }]),
-      ),
+      nodes: {
+        ...(previousSnapshot?.nodes ?? {}),
+        ...Object.fromEntries(
+          localNodes.value.map(node => [node.tableName, { x: node.x, y: node.y }]),
+        ),
+      },
       viewport: {
         scale: viewport.scale,
         offsetX: viewport.offsetX,
@@ -324,7 +328,11 @@
       updatedAt: new Date().toISOString(),
     };
 
-    globalThis.localStorage.setItem(layoutStorageKey.value, JSON.stringify(snapshot));
+    try {
+      globalThis.localStorage.setItem(layoutStorageKey.value, JSON.stringify(snapshot));
+    } catch {
+      // Browser storage can be unavailable in strict privacy modes.
+    }
   }
 
   function schedulePersistLayout() {

@@ -103,7 +103,8 @@ public final class SemanticUtils {
         String normalizedKeyword = trimToNull(keyword);
         return normalizedValue != null
                 && normalizedKeyword != null
-                && normalizedValue.toLowerCase(Locale.ROOT)
+                && normalizedValue
+                        .toLowerCase(Locale.ROOT)
                         .contains(normalizedKeyword.toLowerCase(Locale.ROOT));
     }
 

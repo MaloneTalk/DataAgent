@@ -144,11 +144,16 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     @Transactional
     public SyncTableSemanticsResponse refreshPhysicalStatus(RefreshPhysicalStatusRequest request) {
         Datasource datasource = requireDatasource(request.datasourceId());
-        Set<String> physicalTableNames =
+        Map<String, PhysicalTableInfo> physicalTables =
                 schemaReader.getTables(datasource).stream()
-                        .map(PhysicalTableInfo::tableName)
-                        .map(SemanticUtils::normalizeObjectName)
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
+                        .collect(
+                                Collectors.toMap(
+                                        table ->
+                                                SemanticUtils.normalizeObjectName(
+                                                        table.tableName()),
+                                        table -> table,
+                                        (left, _right) -> left,
+                                        LinkedHashMap::new));
         int pageNumber = 1;
         int pageSize = PageResponse.resolvePageSize(100);
         List<SyncTableResult> results = new ArrayList<>();
@@ -163,12 +168,21 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
             for (TableInfo tableInfo : page) {
                 String normalizedTableName =
                         SemanticUtils.normalizeObjectName(tableInfo.getTableName());
-                if (physicalTableNames.contains(normalizedTableName)) {
+                PhysicalTableInfo physicalTable = physicalTables.get(normalizedTableName);
+                if (physicalTable == null) {
+                    results.add(
+                            semanticSyncApplyService.markMissingTable(
+                                    request.datasourceId(),
+                                    normalizedTableName,
+                                    LocalDateTime.now()));
                     continue;
                 }
-                results.add(
-                        semanticSyncApplyService.markMissingTable(
-                                request.datasourceId(), normalizedTableName, LocalDateTime.now()));
+                SyncTableResult result =
+                        markMissingColumnsForPresentTable(
+                                datasource, request.datasourceId(), tableInfo, physicalTable);
+                if (result.missingColumnsMarked() > 0) {
+                    results.add(result);
+                }
             }
             if (page.getPageNum() >= page.getPages()) {
                 break;
@@ -177,6 +191,38 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         }
 
         return semanticSyncResultService.summarize(results);
+    }
+
+    private SyncTableResult markMissingColumnsForPresentTable(
+            Datasource datasource,
+            Integer datasourceId,
+            TableInfo tableInfo,
+            PhysicalTableInfo physicalTable) {
+        LocalDateTime now = LocalDateTime.now();
+        String normalizedTableName = SemanticUtils.normalizeObjectName(tableInfo.getTableName());
+        List<ColumnInfo> semanticColumns =
+                columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
+                        datasourceId, normalizedTableName);
+        Set<String> physicalColumnNames =
+                schemaReader.getTableSchema(datasource, physicalTable.tableName()).stream()
+                        .map(PhysicalColumnInfo::columnName)
+                        .map(SemanticUtils::normalizeObjectName)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        int missingColumnsMarked =
+                semanticSyncApplyService.markMissingColumns(
+                        semanticColumns, physicalColumnNames, now);
+        return new SyncTableResult(
+                tableInfo.getTableName(),
+                true,
+                false,
+                false,
+                false,
+                false,
+                0,
+                0,
+                0,
+                missingColumnsMarked,
+                "Physical column status refreshed");
     }
 
     private SyncTableResult syncSingleTable(
