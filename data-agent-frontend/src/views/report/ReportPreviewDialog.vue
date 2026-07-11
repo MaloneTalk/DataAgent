@@ -31,12 +31,18 @@
     (e: 'update:visible', value: boolean): void;
   }>();
 
+  interface DomNode {
+    getAttribute(name: string): string | null;
+    innerHTML: string;
+    id: string;
+  }
+
   const previewContainer = ref();
   const renderedHtml = ref('');
   const chartIds: string[] = [];
 
   const renderer = new marked.Renderer();
-  renderer.code = function (code: string, language: string | undefined) {
+  renderer.code = function ({ text: code, lang: language }: { text: string; lang?: string }) {
     if (language === 'echarts' || language === 'json') {
       const id = 'chart_' + Math.random().toString(36).substr(2, 9);
       chartIds.push(id);
@@ -71,7 +77,7 @@
     if (!el) return;
     const boxes = el.querySelectorAll('.chart-box');
 
-    boxes.forEach(box => {
+    boxes.forEach((box: DomNode) => {
       const optionStr = box.getAttribute('data-option');
       if (!optionStr) return;
 
@@ -84,14 +90,11 @@
             (box as unknown as Record<string, unknown>).__echart_instance = chart;
           } catch (e) {
             box.innerHTML =
-              '<div class="chart-error"><b>图表渲染错误</b><br/>' +
-              (e as Error).message +
-              '</div>';
+              '<div class="chart-error"><b>图表渲染错误</b><br/>' + (e as Error).message + '</div>';
           }
         })
         .catch(() => {
-          box.innerHTML =
-            '<div class="chart-error">ECharts 库加载失败</div>';
+          box.innerHTML = '<div class="chart-error">ECharts 库加载失败</div>';
         });
     });
   }
@@ -101,12 +104,9 @@
     const el = previewContainer.value;
     if (!el) return result;
     const chartBoxes = el.querySelectorAll('.chart-box');
-    chartBoxes.forEach(box => {
+    chartBoxes.forEach((box: DomNode) => {
       const instance = (box as unknown as Record<string, unknown>).__echart_instance;
-      if (
-        instance &&
-        typeof (instance as Record<string, unknown>).getDataURL === 'function'
-      ) {
+      if (instance && typeof (instance as Record<string, unknown>).getDataURL === 'function') {
         result.set(box.id, (instance as Record<string, () => string>).getDataURL());
       }
     });
@@ -120,6 +120,10 @@
     return md ? (md as { innerHTML: string }).innerHTML : '';
   }
 
+  function onVisibleChange(val: boolean) {
+    emit('update:visible', val);
+  }
+
   defineExpose({ getChartImages, getRenderedHtml });
 </script>
 
@@ -130,7 +134,7 @@
     width="900px"
     top="30px"
     :close-on-click-modal="false"
-    @update:model-value="val => emit('update:visible', val)"
+    @update:model-value="onVisibleChange"
   >
     <div ref="previewContainer" class="report-preview">
       <div class="markdown-preview" v-html="renderedHtml"></div>

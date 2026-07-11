@@ -63,7 +63,11 @@ th { background: #f3f4f6; font-weight: 600; }
 hr { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
 `;
 
-export function buildExportHtml(title: string, renderedHtml: string, chartImages: Map<string, string>): string {
+export function buildExportHtml(
+  title: string,
+  renderedHtml: string,
+  chartImages: Map<string, string>,
+): string {
   let html = renderedHtml;
 
   for (const [chartId, dataUrl] of chartImages) {

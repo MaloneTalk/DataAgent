@@ -26,10 +26,28 @@ export interface ReportResponse {
   updateTime: string;
 }
 
-export function getReportsBySessionId(sessionId: string, index?: number) {
-  return request.get<{ code: number; message: string; data: ReportResponse | ReportResponse[] }>(
+export interface PageResponse<T> {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  items: T[];
+}
+
+export interface ReportPageQuery {
+  sessionId?: string;
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export function getReports(query: ReportPageQuery) {
+  return request.get<{ code: number; message: string; data: PageResponse<ReportResponse> }>(
     '/reports',
-    { params: { sessionId, index } },
+    { params: query },
   );
 }
 

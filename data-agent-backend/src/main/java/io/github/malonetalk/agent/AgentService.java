@@ -67,9 +67,7 @@ public class AgentService {
     }
 
     public String chat(String sessionId, String userInput) {
-        ReActAgent agent = createAgent(ToolCallContext.builder()
-                .sessionId(sessionId)
-                .build());
+        ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
@@ -85,9 +83,7 @@ public class AgentService {
 
     public Flux<ChatStreamEvent> chatStream(
             String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
-        ReActAgent agent = createAgent(ToolCallContext.builder()
-                .sessionId(sessionId)
-                .build());
+        ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
@@ -127,9 +123,8 @@ public class AgentService {
     }
 
     private ReActAgent createAgent(ToolCallContext toolCallContext) {
-        ToolExecutionContext context = ToolExecutionContext.builder()
-                .register(toolCallContext)
-                .build();
+        ToolExecutionContext context =
+                ToolExecutionContext.builder().register(toolCallContext).build();
         return ReActAgent.builder()
                 .name("DataAgent")
                 .sysPrompt("你是一个数据助手，可以帮助用户查询数据库中的数据。")

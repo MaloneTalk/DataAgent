@@ -16,37 +16,69 @@
  -->
 
 <script setup lang="ts">
-  import { ref } from 'vue';
+  import { ref, onMounted } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
-  import { getReportsBySessionId, deleteReport, type ReportResponse } from '@/api/report';
+  import { getReports, deleteReport, type ReportResponse } from '@/api/report';
   import { buildExportHtml, downloadHtml } from '@/utils/exportHtml';
   import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
 
   const sessionId = ref('');
+  const keyword = ref('');
   const reports = ref<ReportResponse[]>([]);
   const loading = ref(false);
+  const page = ref(1);
+  const pageSize = ref(10);
+  const total = ref(0);
+  const sortOrder = ref<'asc' | 'desc'>('desc');
 
   const previewVisible = ref(false);
   const previewTitle = ref('');
   const previewContent = ref('');
   const previewDialogRef = ref<InstanceType<typeof ReportPreviewDialog>>();
 
-  async function handleSearch() {
-    const sid = sessionId.value.trim();
-    if (!sid) {
-      ElMessage.warning('请输入 Session ID');
-      return;
-    }
+  async function fetchReports() {
     loading.value = true;
     try {
-      const res = await getReportsBySessionId(sid);
-      const data = res.data.data;
-      reports.value = Array.isArray(data) ? data : [data];
+      const res = await getReports({
+        sessionId: sessionId.value.trim() || undefined,
+        keyword: keyword.value.trim() || undefined,
+        page: page.value,
+        pageSize: pageSize.value,
+        sortOrder: sortOrder.value,
+      });
+      const pageData = res.data.data;
+      reports.value = pageData.items;
+      total.value = pageData.total;
     } catch {
       reports.value = [];
+      total.value = 0;
     } finally {
       loading.value = false;
     }
+  }
+
+  function handleSearch() {
+    page.value = 1;
+    fetchReports();
+  }
+
+  function handleReset() {
+    sessionId.value = '';
+    keyword.value = '';
+    sortOrder.value = 'desc';
+    page.value = 1;
+    fetchReports();
+  }
+
+  function handlePageChange(newPage: number) {
+    page.value = newPage;
+    fetchReports();
+  }
+
+  function handleSizeChange(newSize: number) {
+    pageSize.value = newSize;
+    page.value = 1;
+    fetchReports();
   }
 
   function handlePreview(row: ReportResponse) {
@@ -64,7 +96,7 @@
       });
       await deleteReport(row.id);
       ElMessage.success('删除成功');
-      reports.value = reports.value.filter(r => r.id !== row.id);
+      fetchReports();
     } catch {
       // 用户取消或错误已由拦截器处理
     }
@@ -82,11 +114,9 @@
         renderedHtml = previewDialogRef.value.getRenderedHtml();
       } else {
         const renderer = new marked.Renderer();
-        const ids: string[] = [];
-        renderer.code = function (code: string, language: string | undefined) {
+        renderer.code = function ({ text: code, lang: language }: { text: string; lang?: string }) {
           if (language === 'echarts' || language === 'json') {
             const id = 'chart_' + Math.random().toString(36).substr(2, 9);
-            ids.push(id);
             return `<div id="${id}" class="chart-box" data-option="${encodeURIComponent(code)}"></div>`;
           }
           return `<pre><code class="language-${language || ''}">${code}</code></pre>`;
@@ -110,6 +140,10 @@
       return time;
     }
   }
+
+  onMounted(() => {
+    fetchReports();
+  });
 </script>
 
 <template>
@@ -121,12 +155,24 @@
     <div class="search-bar">
       <el-input
         v-model="sessionId"
-        placeholder="输入 Session ID 查询报告"
+        placeholder="Session ID"
         clearable
-        style="width: 360px"
+        style="width: 240px"
         @keyup.enter="handleSearch"
       />
+      <el-input
+        v-model="keyword"
+        placeholder="关键字"
+        clearable
+        style="width: 200px"
+        @keyup.enter="handleSearch"
+      />
+      <el-select v-model="sortOrder" style="width: 100px" @change="handleSearch">
+        <el-option label="降序" value="desc" />
+        <el-option label="升序" value="asc" />
+      </el-select>
       <el-button type="primary" :loading="loading" @click="handleSearch">查询</el-button>
+      <el-button @click="handleReset">重置</el-button>
     </div>
 
     <el-table v-loading="loading" :data="reports" style="width: 100%">
@@ -148,8 +194,18 @@
       </el-table-column>
     </el-table>
 
-    <div v-if="!loading && reports.length === 0 && sessionId" class="empty-tip">
-      暂无报告数据
+    <div v-if="!loading && reports.length === 0" class="empty-tip">暂无报告数据</div>
+
+    <div v-if="total > 0" class="pagination-wrap">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[5, 10, 20, 50]"
+        layout="total, sizes, prev, pager, next"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
     </div>
 
     <ReportPreviewDialog
@@ -191,5 +247,11 @@
     padding: 40px 0;
     color: var(--app-text-muted);
     font-size: 14px;
+  }
+
+  .pagination-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
   }
 </style>
