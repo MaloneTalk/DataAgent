@@ -52,9 +52,9 @@
             create_time, update_time
         ) VALUES (
             #{tableName}, #{physicalTableDescription}, #{tableDescription}, #{domain},
-            #{datasourceId}, #{isVisible},
-            #{physicalStatus},
-            #{createTime}, #{updateTime}
+            #{datasourceId}, COALESCE(#{isVisible}, 1),
+            COALESCE(#{physicalStatus}, 1),
+            COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
         )
     </insert>
 

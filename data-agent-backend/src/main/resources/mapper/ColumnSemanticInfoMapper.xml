@@ -62,8 +62,9 @@
             primary_key, column_description, is_visible, physical_status, create_time, update_time
         ) VALUES (
             #{datasourceId}, #{tableName}, #{columnName}, #{physicalColumnDescription},
-            #{typeName}, #{primaryKey}, #{columnDescription},
-            #{isVisible}, #{physicalStatus}, #{createTime}, #{updateTime}
+            #{typeName}, COALESCE(#{primaryKey}, 0), #{columnDescription},
+            COALESCE(#{isVisible}, 1), COALESCE(#{physicalStatus}, 1),
+            COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
         )
     </insert>
 
