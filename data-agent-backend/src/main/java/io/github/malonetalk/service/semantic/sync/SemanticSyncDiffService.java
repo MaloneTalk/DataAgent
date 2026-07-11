@@ -107,11 +107,11 @@ public class SemanticSyncDiffService {
                 return new ColumnSyncDiff(true, false, false);
             } catch (DuplicateKeyException ignored) {
                 existingColumn =
-                        columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
-                                datasourceId, normalizedTableName, normalizedColumnName);
-                if (existingColumn != null) {
-                    semanticColumnMap.put(normalizedColumnName, existingColumn);
-                }
+                        loadColumnInsertedConcurrently(
+                                datasourceId,
+                                normalizedTableName,
+                                normalizedColumnName,
+                                semanticColumnMap);
             }
         }
         if (existingColumn == null) {
@@ -141,6 +141,20 @@ public class SemanticSyncDiffService {
             return new ColumnSyncDiff(false, false, true);
         }
         return new ColumnSyncDiff(false, false, false);
+    }
+
+    private ColumnInfo loadColumnInsertedConcurrently(
+            Integer datasourceId,
+            String normalizedTableName,
+            String normalizedColumnName,
+            Map<String, ColumnInfo> semanticColumnMap) {
+        ColumnInfo existingColumn =
+                columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
+                        datasourceId, normalizedTableName, normalizedColumnName);
+        if (existingColumn != null) {
+            semanticColumnMap.put(normalizedColumnName, existingColumn);
+        }
+        return existingColumn;
     }
 
     public SyncTableResult markMissingTable(
