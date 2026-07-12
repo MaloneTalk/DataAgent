@@ -35,27 +35,11 @@ h3 { font-size: 1.25rem; font-weight: 600; color: #1f2937; margin-top: 1.5rem; m
 p { margin-bottom: 1rem; }
 ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
 li { margin-bottom: 0.25rem; }
-code {
-  background-color: #f1f5f9; padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem; font-size: 0.875em; color: #d946ef; font-family: monospace;
-}
-pre {
-  background: #1e293b; color: #f8fafc; padding: 1rem;
-  border-radius: 0.5rem; overflow-x: auto;
-}
+code { background-color: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-size: 0.875em; color: #d946ef; font-family: monospace; }
+pre { background: #1e293b; color: #f8fafc; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
 pre code { background: transparent; color: inherit; padding: 0; }
-.chart-box {
-  width: 100%; height: 450px; margin: 30px 0;
-  border: 1px solid #e2e8f0; border-radius: 8px;
-  background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  display: flex; align-items: center; justify-content: center; overflow: hidden;
-}
-.chart-box img { max-width: 100%; max-height: 100%; }
-.chart-error {
-  display: flex; align-items: center; justify-content: center;
-  height: 100%; color: #ef4444; background-color: #fef2f2;
-  border: 1px dashed #ef4444; border-radius: 8px;
-}
+.chart-box { width: 100%; height: 450px; margin: 30px 0; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.chart-error { display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444; background-color: #fef2f2; border: 1px dashed #ef4444; border-radius: 8px; }
 blockquote { border-left: 3px solid #2563eb; padding-left: 12px; margin: 8px 0; color: #6b7280; }
 table { border-collapse: collapse; width: 100%; margin: 8px 0; }
 th, td { border: 1px solid #e5e7eb; padding: 6px 12px; text-align: left; }
@@ -63,33 +47,65 @@ th { background: #f3f4f6; font-weight: 600; }
 hr { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
 `;
 
-export function buildExportHtml(
-  title: string,
-  renderedHtml: string,
-  chartImages: Map<string, string>,
-): string {
-  let html = renderedHtml;
+const REPORT_JS = `
+window.onload = function() {
+  var rawDiv = document.getElementById('raw-markdown');
+  if (!rawDiv) return;
+  var rawText = rawDiv.innerText;
 
-  for (const [chartId, dataUrl] of chartImages) {
-    const escapedId = chartId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    html = html.replace(
-      new RegExp(`<div[^>]*id="${escapedId}"[^>]*class="chart-box"[^>]*>.*?</div>`, 's'),
-      `<div class="chart-box"><img src="${dataUrl}" alt="图表" /></div>`,
-    );
+  var renderer = new marked.Renderer();
+  renderer.code = function(code, language) {
+    if (language === 'echarts' || language === 'json') {
+      var id = 'chart_' + Math.random().toString(36).substr(2, 9);
+      return '<div id="' + id + '" class="chart-box" data-option="' + encodeURIComponent(code) + '"></div>';
+    }
+    return '<pre><code class="language-' + (language || '') + '">' + code + '</code></pre>';
+  };
+
+  document.getElementById('render-target').innerHTML = marked.parse(rawText, { renderer: renderer });
+
+  if (typeof echarts !== 'undefined') {
+    document.querySelectorAll('.chart-box').forEach(function(box) {
+      var optionStr = box.getAttribute('data-option');
+      if (!optionStr) return;
+      try {
+        var option = new Function('return ' + decodeURIComponent(optionStr))();
+        var chart = echarts.init(box);
+        chart.setOption(option);
+      } catch(e) {
+        box.innerHTML = '<div class="chart-error"><b>图表渲染错误</b><br/>' + e.message + '</div>';
+      }
+    });
   }
+};
+`;
+
+export function buildReportHtml(title: string, markdownContent: string): string {
+  const escapedTitle = title
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  const escapedContent = markdownContent
+    .replace(/<\/script>/g, '<\\/script>');
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHtml(title)}</title>
+<title>${escapedTitle}</title>
 <style>${REPORT_CSS}</style>
+<script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 <body>
 <div class="container">
-<div class="markdown-body">${html}</div>
+<div id="raw-markdown" style="display:none;">${escapedContent}</div>
+<div id="render-target"></div>
 </div>
+<script>${REPORT_JS}</script>
 </body>
 </html>`;
 }
@@ -104,12 +120,4 @@ export function downloadHtml(filename: string, html: string) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

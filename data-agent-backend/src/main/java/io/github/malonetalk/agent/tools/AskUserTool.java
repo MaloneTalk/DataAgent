@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AskUserTool implements MarkAgentTool {
 
-    @Tool(name = "ask_user", description = "当你不确定某个操作或需要用户确认时，调用此工具向用户提问。用户回答后你会收到回复并继续执行。")
+    @Tool(name = ToolNameConstants.ASK_USER, description = "当你不确定某个操作或需要用户确认时，调用此工具向用户提问。用户回答后你会收到回复并继续执行。")
     public String askUser(
             @ToolParam(name = "question", description = "要向用户询问的问题") String question) {
         log.info("Agent asks user: {}", question);

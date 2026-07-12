@@ -38,12 +38,19 @@ public class GenerateReportTool implements MarkAgentTool {
     private static final String DEFAULT_SESSION = "__default__";
 
     @Tool(
-            name = "generate_report",
+            name = ToolNameConstants.GENERATE_REPORT,
             description =
                     """
-                    保存数据分析报告。必须在所有分析步骤完成后最后才调用本工具。
+                    保存数据分析报告。
+                    只有当前面所有分析步骤均成功完成时，才调用本工具保存报告。如果前面的分析尚未完成或出现错误，
+                    请先解决分析过程中的问题，而非直接调用本工具。
                     报告正文需基于用户问题、SQL 查询结果和分析过程，生成结构化、逻辑清晰的 Markdown 文档。
                     需要展示图表时使用 ```echarts 代码块，内容为纯 JSON 的 ECharts Option 配置。
+
+                    返回值：工具返回 "SUCCESS" 表示保存成功，返回 "FAIL: <原因>" 表示保存失败及失败原因。
+                    当保存失败时，请尽可能重试（有限次），尝试恢复。如果失败原因无法通过有限次重试解决，
+                    则将失败原因告知用户，并直接将完整的报告内容输出给用户。
+                    当保存成功时，无需将报告内容复述给用户，直接告知用户"报告生成成功，请查看"即可。
                     """)
     public String generateReport(
             @ToolParam(

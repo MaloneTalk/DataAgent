@@ -19,7 +19,7 @@
   import { ref, onMounted } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { getReports, deleteReport, type ReportResponse } from '@/api/report';
-  import { buildExportHtml, downloadHtml } from '@/utils/exportHtml';
+  import { buildReportHtml, downloadHtml } from '@/utils/reportTemplate';
   import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
 
   const sessionId = ref('');
@@ -103,31 +103,9 @@
   }
 
   function handleExport(row: ReportResponse) {
-    import('marked').then(async ({ marked }) => {
-      marked.use({ gfm: true, breaks: true });
-
-      let chartImages = new Map<string, string>();
-      let renderedHtml: string;
-
-      if (previewDialogRef.value && previewVisible.value && previewTitle.value === row.title) {
-        chartImages = previewDialogRef.value.getChartImages();
-        renderedHtml = previewDialogRef.value.getRenderedHtml();
-      } else {
-        const renderer = new marked.Renderer();
-        renderer.code = function ({ text: code, lang: language }: { text: string; lang?: string }) {
-          if (language === 'echarts' || language === 'json') {
-            const id = 'chart_' + Math.random().toString(36).substr(2, 9);
-            return `<div id="${id}" class="chart-box" data-option="${encodeURIComponent(code)}"></div>`;
-          }
-          return `<pre><code class="language-${language || ''}">${code}</code></pre>`;
-        };
-        renderedHtml = marked.parse(row.content, { renderer }) as string;
-      }
-
-      const html = buildExportHtml(row.title, renderedHtml, chartImages);
-      downloadHtml(`${row.title || 'report'}.html`, html);
-      ElMessage.success('导出成功');
-    });
+    const html = buildReportHtml(row.title, row.content);
+    downloadHtml(`${row.title || 'report'}.html`, html);
+    ElMessage.success('导出成功');
   }
 
   function formatTime(time: string) {

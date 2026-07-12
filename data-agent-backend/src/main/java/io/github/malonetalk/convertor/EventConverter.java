@@ -25,6 +25,7 @@ import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ThinkingBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
+import io.github.malonetalk.agent.tools.ToolNameConstants;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolCallInfo;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolResultInfo;
@@ -150,7 +151,8 @@ public class EventConverter {
     private static ChatStreamEvent convertToolResult(
             ToolResultBlock trb, String messageId, boolean isLast) {
         String text = extractOutputText(trb);
-        if (trb.isSuspended() && "ask_user".equals(trb.getName())) {
+        // TODO：可能需要重构为策略模式
+        if (trb.isSuspended() && ToolNameConstants.ASK_USER.equals(trb.getName())) {
             return new ChatStreamEvent(
                     ChatStreamEventType.QUESTION,
                     messageId,
@@ -158,6 +160,14 @@ public class EventConverter {
                     text,
                     new ToolCallInfo(trb.getId(), trb.getName(), Map.of()),
                     null);
+        } else if(ToolNameConstants.GENERATE_REPORT.equals(trb.getName())) {
+            return new ChatStreamEvent(
+                    ChatStreamEventType.REPORT,
+                    messageId,
+                    isLast,
+                    null,
+                    null,
+                    new ToolResultInfo(trb.getId(), trb.getName(), text, trb.isSuspended()));
         } else {
             return new ChatStreamEvent(
                     ChatStreamEventType.TOOL_RESULT,
