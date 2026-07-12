@@ -23,6 +23,7 @@
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
   import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
+  import ReportList from '@/views/report/ReportList.vue';
 
   const route = useRoute();
   const router = useRouter();
@@ -42,6 +43,8 @@
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
   const showSessionList = ref(false);
+  const reportDialogVisible = ref(false);
+  const reportListKey = ref(0);
   const previewVisible = ref(false);
   const previewContent = ref('');
 
@@ -129,7 +132,18 @@
             {{ showSessionList ? '◁' : '▷' }}
           </button>
         </div>
-        <el-button text @click="handleNewSession">新建会话</el-button>
+        <div class="chat-view__header-right">
+          <el-button
+            text
+            @click="
+              reportDialogVisible = true;
+              reportListKey++;
+            "
+          >
+            会话报告
+          </el-button>
+          <el-button text @click="handleNewSession">新建会话</el-button>
+        </div>
       </div>
 
       <div ref="messagesContainer" class="chat-view__messages">
@@ -175,6 +189,16 @@
         title="报告预览"
         :content="previewContent"
       />
+
+      <el-dialog
+        v-model="reportDialogVisible"
+        title="会话报告"
+        width="960px"
+        top="30px"
+        destroy-on-close
+      >
+        <ReportList :key="reportListKey" :fixed-session-id="sessionId" embedded />
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -229,6 +253,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .chat-view__header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   .chat-view__toggle-btn {

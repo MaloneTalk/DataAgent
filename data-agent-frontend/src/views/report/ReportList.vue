@@ -22,6 +22,11 @@
   import { buildReportHtml, downloadHtml } from '@/utils/reportTemplate';
   import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
 
+  const props = defineProps<{
+    fixedSessionId?: string;
+    embedded?: boolean;
+  }>();
+
   const sessionId = ref('');
   const keyword = ref('');
   const reports = ref<ReportResponse[]>([]);
@@ -40,7 +45,7 @@
     loading.value = true;
     try {
       const res = await getReports({
-        sessionId: sessionId.value.trim() || undefined,
+        sessionId: props.fixedSessionId || sessionId.value.trim() || undefined,
         keyword: keyword.value.trim() || undefined,
         page: page.value,
         pageSize: pageSize.value,
@@ -63,7 +68,9 @@
   }
 
   function handleReset() {
-    sessionId.value = '';
+    if (!props.fixedSessionId) {
+      sessionId.value = '';
+    }
     keyword.value = '';
     sortOrder.value = 'desc';
     page.value = 1;
@@ -126,12 +133,13 @@
 
 <template>
   <div class="report-list">
-    <div class="page-header">
+    <div v-if="!embedded" class="page-header">
       <h2 class="page-title">报告管理</h2>
     </div>
 
     <div class="search-bar">
       <el-input
+        v-if="!fixedSessionId"
         v-model="sessionId"
         placeholder="Session ID"
         clearable
