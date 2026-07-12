@@ -37,7 +37,6 @@ import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
-import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -65,21 +64,6 @@ public class AgentService {
         this.toolkit = new Toolkit();
         allToolBeans.forEach(this.toolkit::registerTool);
         this.skillBox = skillLoaderService.createSkillBox(toolkit);
-    }
-
-    public String chat(String sessionId, String userInput) {
-        ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
-
-        Session session = sessionService.getOrCreateSession(sessionId);
-        agent.loadIfExists(session, sessionId);
-
-        Msg userMsg = Msg.builder().textContent(userInput).build();
-
-        Msg response = agent.call(userMsg).block();
-
-        agent.saveTo(session, sessionId);
-
-        return MsgUtils.getTextContent(response);
     }
 
     public Flux<ChatStreamEvent> chatStream(

@@ -47,13 +47,6 @@ public class AgentController {
     private final AgentService agentService;
     private final SessionService sessionService;
 
-    @Deprecated
-    @PostMapping("/chat")
-    public Result<String> chat(@Valid @RequestBody ChatRequest request) {
-        String response = agentService.chat(request.sessionId(), request.message());
-        return Result.success(response);
-    }
-
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
             @Valid @RequestBody ChatRequest request) {
