@@ -46,6 +46,10 @@
         </choose>
     </select>
 
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM report WHERE id = #{id} AND is_deleted = 0
+    </select>
+
     <update id="deleteById">
         UPDATE report
         SET is_deleted = 1, update_time = NOW()

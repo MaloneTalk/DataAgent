@@ -22,6 +22,7 @@
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
+  import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
 
   const route = useRoute();
   const router = useRouter();
@@ -31,6 +32,7 @@
     isStreaming,
     sessionId,
     pendingQuestion,
+    lastReportContent,
     sendMessage,
     stopStreaming,
     newSession,
@@ -40,6 +42,19 @@
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
   const showSessionList = ref(false);
+  const previewVisible = ref(false);
+  const previewContent = ref('');
+
+  function showReportPreview(content: string) {
+    previewContent.value = content;
+    previewVisible.value = true;
+  }
+
+  watch(lastReportContent, content => {
+    if (content) {
+      showReportPreview(content);
+    }
+  });
 
   function toggleSessionList() {
     showSessionList.value = !showSessionList.value;
@@ -136,7 +151,12 @@
           </div>
         </div>
 
-        <ChatMessage v-for="msg in messages" :key="msg.id" :message="msg" />
+        <ChatMessage
+          v-for="msg in messages"
+          :key="msg.id"
+          :message="msg"
+          @preview-report="showReportPreview"
+        />
 
         <div v-if="isStreaming && messages.length === 0" class="chat-view__thinking-hint">
           思考中...
@@ -148,6 +168,12 @@
         :pending-question="pendingQuestion"
         @send="handleSend"
         @stop="stopStreaming"
+      />
+
+      <ReportPreviewDialog
+        v-model:visible="previewVisible"
+        title="报告预览"
+        :content="previewContent"
       />
     </div>
   </div>

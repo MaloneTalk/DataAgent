@@ -87,8 +87,7 @@ export function buildReportHtml(title: string, markdownContent: string): string 
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-  const escapedContent = markdownContent
-    .replace(/<\/script>/g, '<\\/script>');
+  const escapedContent = markdownContent.replace(/<\/script>/g, '<\\/script>');
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">

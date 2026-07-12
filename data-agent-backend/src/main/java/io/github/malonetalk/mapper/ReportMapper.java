@@ -32,4 +32,6 @@ public interface ReportMapper {
             @Param("query") ReportPageQuery query, @Param("sortDescending") boolean sortDescending);
 
     int deleteById(@Param("id") Integer id);
+
+    Report selectById(@Param("id") Integer id);
 }

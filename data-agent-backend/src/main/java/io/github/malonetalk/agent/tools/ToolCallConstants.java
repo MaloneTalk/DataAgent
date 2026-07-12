@@ -15,22 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.agent.tools;
 
-import io.github.malonetalk.dto.ReportPageQuery;
-import io.github.malonetalk.dto.ReportResponse;
-import io.github.malonetalk.dto.pagination.PageResponse;
+public final class ToolCallConstants {
 
-public interface ReportService {
+    private ToolCallConstants() {
+        throw new IllegalCallerException("No ToolNameConstants for you!");
+    }
 
-    /**
-     * 保存成功返回主键
-     */
-    int create(String sessionId, String title, String content);
+    public static final String ASK_USER = "ask_user";
 
-    PageResponse<ReportResponse> getReportPage(ReportPageQuery query);
+    public static final String GENERATE_REPORT = "generate_report";
 
-    void deleteById(Integer id);
-
-    ReportResponse findById(Integer id);
+    public static final String SUCCESS = "SUCCESS";
 }

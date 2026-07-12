@@ -39,7 +39,7 @@ public class ReportServiceImpl implements ReportService {
     private final ReportConverter reportConverter;
 
     @Override
-    public void create(String sessionId, String title, String content) {
+    public int create(String sessionId, String title, String content) {
         if (sessionId == null || sessionId.isBlank()) {
             throw new IllegalArgumentException("sessionId 不能为空");
         }
@@ -59,6 +59,7 @@ public class ReportServiceImpl implements ReportService {
         if (reportMapper.insert(report) <= 0) {
             throw new RuntimeException("报告保存失败");
         }
+        return report.getId();
     }
 
     @Override
@@ -81,6 +82,18 @@ public class ReportServiceImpl implements ReportService {
                 page.getResult().stream().map(reportConverter::toResponse).toList();
         startedPage.close();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
+    }
+
+    @Override
+    public ReportResponse findById(Integer id) {
+        if (id == null) {
+            throw new IllegalArgumentException("id 不能为空");
+        }
+        Report report = reportMapper.selectById(id);
+        if (report == null) {
+            throw new IllegalArgumentException("报告不存在或已删除: id=" + id);
+        }
+        return reportConverter.toResponse(report);
     }
 
     @Override

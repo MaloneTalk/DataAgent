@@ -17,7 +17,8 @@
 
 <script setup lang="ts">
   import { computed } from 'vue';
-  import { buildReportHtml } from '@/utils/reportTemplate';
+  import { buildReportHtml, downloadHtml } from '@/utils/reportTemplate';
+  import { ElMessage } from 'element-plus';
 
   const props = defineProps<{
     visible: boolean;
@@ -37,6 +38,12 @@
     emit('update:visible', val);
   }
 
+  function handleExport() {
+    const html = buildReportHtml(props.title, props.content);
+    downloadHtml(`${props.title || 'report'}.html`, html);
+    ElMessage.success('导出成功');
+  }
+
   defineExpose({});
 </script>
 
@@ -49,6 +56,9 @@
     :close-on-click-modal="false"
     @update:model-value="onVisibleChange"
   >
+    <div class="preview-toolbar">
+      <el-button type="primary" @click="handleExport">导出</el-button>
+    </div>
     <div class="preview-container">
       <iframe
         v-if="visible"
@@ -61,6 +71,12 @@
 </template>
 
 <style scoped>
+  .preview-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+
   .preview-container {
     width: 100%;
     height: 70vh;

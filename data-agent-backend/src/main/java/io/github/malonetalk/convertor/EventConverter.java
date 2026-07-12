@@ -25,24 +25,32 @@ import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ThinkingBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
-import io.github.malonetalk.agent.tools.ToolNameConstants;
+import io.github.malonetalk.agent.tools.ToolCallConstants;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolCallInfo;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolResultInfo;
+import io.github.malonetalk.dto.ReportResponse;
 import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.service.ReportService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Slf4j
+@Component
+@AllArgsConstructor
 public class EventConverter {
 
-    public static List<ChatStreamEvent> map(Event event) {
+    private final ReportService reportService;
+
+    public List<ChatStreamEvent> map(Event event) {
         Msg msg = event.getMessage();
         String messageId = msg.getId();
         boolean isLast = event.isLast();
@@ -57,7 +65,7 @@ public class EventConverter {
         }
     }
 
-    private static List<ChatStreamEvent> handleContentBlocks(
+    private List<ChatStreamEvent> handleContentBlocks(
             EventType eventType, Msg msg, String messageId, boolean isLast) {
         return msg.getContent().stream()
                 .map(block -> convertBlock(block, eventType, messageId, isLast))
@@ -65,7 +73,7 @@ public class EventConverter {
                 .toList();
     }
 
-    private static void logEvent(Event event, Msg msg, String messageId, boolean isLast) {
+    private void logEvent(Event event, Msg msg, String messageId, boolean isLast) {
         log.info(
                 "Event received: type={}, isLast={}, msgId={}, contentBlocks={}, blockTypes={}",
                 event.getType(),
@@ -75,7 +83,7 @@ public class EventConverter {
                 msg.getContent().stream().map(b -> b.getClass().getSimpleName()).toList());
     }
 
-    private static List<ChatStreamEvent> handleSummary(Msg msg, String messageId, boolean isLast) {
+    private List<ChatStreamEvent> handleSummary(Msg msg, String messageId, boolean isLast) {
         String text = extractAllText(msg);
         if (!StringUtils.hasText(text)) {
             return List.of();
@@ -85,8 +93,7 @@ public class EventConverter {
                         ChatStreamEventType.SUMMARY, messageId, isLast, text, null, null));
     }
 
-    private static List<ChatStreamEvent> handleReasoningLast(
-            Msg msg, String messageId, boolean isLast) {
+    private List<ChatStreamEvent> handleReasoningLast(Msg msg, String messageId, boolean isLast) {
         List<ChatStreamEvent> results = new ArrayList<>();
         for (ContentBlock block : msg.getContent()) {
             if (block instanceof ToolUseBlock tub) {
@@ -108,7 +115,7 @@ public class EventConverter {
         return Collections.unmodifiableList(results);
     }
 
-    private static ChatStreamEvent convertBlock(
+    private ChatStreamEvent convertBlock(
             ContentBlock block, EventType eventType, String messageId, boolean isLast) {
         if (block instanceof ThinkingBlock tb) {
             return convertThinking(tb, messageId, isLast);
@@ -124,8 +131,7 @@ public class EventConverter {
         }
     }
 
-    private static ChatStreamEvent convertThinking(
-            ThinkingBlock tb, String messageId, boolean isLast) {
+    private ChatStreamEvent convertThinking(ThinkingBlock tb, String messageId, boolean isLast) {
         String thinking = tb.getThinking();
         if (!StringUtils.hasText(thinking)) {
             return null;
@@ -134,8 +140,7 @@ public class EventConverter {
                 ChatStreamEventType.THINKING, messageId, isLast, thinking, null, null);
     }
 
-    private static ChatStreamEvent convertToolUse(
-            ToolUseBlock tub, String messageId, boolean isLast) {
+    private ChatStreamEvent convertToolUse(ToolUseBlock tub, String messageId, boolean isLast) {
         // REASONING events already emit tool calls in the isLast branch above with
         // complete input. Skip incremental duplicates here to avoid emitting partial
         // (empty) tool arguments that the model hasn't finished generating yet.
@@ -148,11 +153,11 @@ public class EventConverter {
                 null);
     }
 
-    private static ChatStreamEvent convertToolResult(
+    private ChatStreamEvent convertToolResult(
             ToolResultBlock trb, String messageId, boolean isLast) {
         String text = extractOutputText(trb);
         // TODO：可能需要重构为策略模式
-        if (trb.isSuspended() && ToolNameConstants.ASK_USER.equals(trb.getName())) {
+        if (trb.isSuspended() && ToolCallConstants.ASK_USER.equals(trb.getName())) {
             return new ChatStreamEvent(
                     ChatStreamEventType.QUESTION,
                     messageId,
@@ -160,14 +165,25 @@ public class EventConverter {
                     text,
                     new ToolCallInfo(trb.getId(), trb.getName(), Map.of()),
                     null);
-        } else if(ToolNameConstants.GENERATE_REPORT.equals(trb.getName())) {
+        } else if (ToolCallConstants.GENERATE_REPORT.equals(trb.getName())
+                && text != null
+                && text.startsWith("\"" + ToolCallConstants.SUCCESS + " ")) {
+            Integer reportId =
+                    Integer.parseInt(
+                            text.replace("\"", "")
+                                    .substring(ToolCallConstants.SUCCESS.length() + 1));
+            ReportResponse reportResponse = reportService.findById(reportId);
             return new ChatStreamEvent(
                     ChatStreamEventType.REPORT,
                     messageId,
                     isLast,
+                    text,
                     null,
-                    null,
-                    new ToolResultInfo(trb.getId(), trb.getName(), text, trb.isSuspended()));
+                    new ToolResultInfo(
+                            trb.getId(),
+                            trb.getName(),
+                            reportResponse.content(),
+                            trb.isSuspended()));
         } else {
             return new ChatStreamEvent(
                     ChatStreamEventType.TOOL_RESULT,
@@ -179,7 +195,7 @@ public class EventConverter {
         }
     }
 
-    private static ChatStreamEvent convertText(TextBlock tb, String messageId, boolean isLast) {
+    private ChatStreamEvent convertText(TextBlock tb, String messageId, boolean isLast) {
         String text = tb.getText();
         if (!StringUtils.hasText(text)) {
             return null;
@@ -187,7 +203,7 @@ public class EventConverter {
         return new ChatStreamEvent(ChatStreamEventType.TEXT, messageId, isLast, text, null, null);
     }
 
-    private static String extractAllText(Msg msg) {
+    private String extractAllText(Msg msg) {
         return msg.getContent().stream()
                 .map(
                         block -> {
@@ -203,16 +219,12 @@ public class EventConverter {
                 .collect(Collectors.joining("\n"));
     }
 
-    private static String extractOutputText(ToolResultBlock trb) {
+    private String extractOutputText(ToolResultBlock trb) {
         return trb.getOutput().stream()
                 .filter(block -> block instanceof TextBlock)
                 .map(block -> (TextBlock) block)
                 .map(TextBlock::getText)
                 .filter(StringUtils::hasText)
                 .collect(Collectors.joining("\n"));
-    }
-
-    private EventConverter() {
-        throw new IllegalCallerException("No EventConverter Instance for you!");
     }
 }

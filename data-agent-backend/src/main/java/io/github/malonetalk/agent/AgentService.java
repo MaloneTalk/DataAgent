@@ -56,6 +56,7 @@ public class AgentService {
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
     private final SkillLoaderService skillLoaderService;
+    private final EventConverter eventConverter;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -119,7 +120,7 @@ public class AgentService {
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> agent.saveTo(session, sessionId))
-                .flatMapIterable(EventConverter::map);
+                .flatMapIterable(eventConverter::map);
     }
 
     private ReActAgent createAgent(ToolCallContext toolCallContext) {
