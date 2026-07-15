@@ -17,18 +17,19 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -38,6 +39,7 @@ public class ExecuteSqlTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
     private final SqlExecutor sqlExecutor;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "execute_sql",
@@ -45,30 +47,35 @@ public class ExecuteSqlTool implements MarkAgentTool {
                     "Execute SELECT SQL query on the target datasource and return the query result."
                         + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
                         + " other modification operations.")
-    public String executeSql(
+    public ToolResultBlock executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-        if (activeDataSources.isEmpty()) {
-            return "No active datasource available, cannot execute SQL.";
-        }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one.", activeDataSources.size());
-        }
-
-        Datasource datasource = activeDataSources.get(0);
-
         try {
+            List<Datasource> activeDataSources =
+                    dataSourceService.findByStatus(Status.ACTIVE.getCode());
+
+            if (activeDataSources.isEmpty()) {
+                throw new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "No active datasource is available. Unable to execute SQL.");
+            }
+
+            if (activeDataSources.size() > 1) {
+                log.warn(
+                        "Found {} active data sources, using the first one.",
+                        activeDataSources.size());
+            }
+
+            Datasource datasource = activeDataSources.get(0);
             QueryResult result = sqlExecutor.execute(datasource, sql);
-            return formatResult(result);
-        } catch (SqlSecurityException e) {
-            return "SQL execution denied: " + e.getMessage();
-        } catch (SqlExecutionException e) {
-            return "SQL execution failed: " + e.getMessage();
+            return ToolResultBlock.text(formatResult(result));
+        } catch (Exception exception) {
+            if (exception instanceof BusinessException) {
+                log.warn("Failed to execute SQL: {}", exception.getMessage());
+            } else {
+                log.error("Failed to execute SQL", exception);
+            }
+            return toolExceptionMapper.toToolResult(exception);
         }
     }
 

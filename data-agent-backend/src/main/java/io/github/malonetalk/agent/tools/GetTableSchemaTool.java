@@ -17,17 +17,20 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -37,6 +40,7 @@ public class GetTableSchemaTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
     private final ColumnSemanticService columnSemanticService;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "get_table_schema",
@@ -49,7 +53,7 @@ public class GetTableSchemaTool implements MarkAgentTool {
                     otherwise). This tool should be called to understand the table \
                     structure before generating SQL.\
                     """)
-    public String getTableSchema(
+    public ToolResultBlock getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {
         try {
@@ -57,7 +61,9 @@ public class GetTableSchemaTool implements MarkAgentTool {
                     dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
             if (activeDataSources.isEmpty()) {
-                return "No active datasource available, cannot get table schema.";
+                throw new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "No active datasource is available. Unable to retrieve the table schema.");
             }
 
             if (activeDataSources.size() > 1) {
@@ -70,10 +76,15 @@ public class GetTableSchemaTool implements MarkAgentTool {
 
             List<ColumnPromptResponse> columns =
                     columnSemanticService.getMergedTableSchema(datasource.getId(), tableName);
-            return SemanticUtils.formatTableSchema(tableName, columns);
-        } catch (Exception e) {
-            log.error("Failed to get table schema: " + tableName, e);
-            return "Failed to get table schema: " + e.getMessage();
+            return ToolResultBlock.text(SemanticUtils.formatTableSchema(tableName, columns));
+        } catch (Exception exception) {
+            if (exception instanceof BusinessException) {
+                log.warn(
+                        "Failed to get table schema for {}: {}", tableName, exception.getMessage());
+            } else {
+                log.error("Failed to get table schema: " + tableName, exception);
+            }
+            return toolExceptionMapper.toToolResult(exception);
         }
     }
 }

@@ -27,6 +27,7 @@ import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
@@ -37,6 +38,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -121,7 +123,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName);
         if (existing == null) {
-            throw new IllegalArgumentException("Column semantic metadata does not exist.");
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND, "Column semantic metadata does not exist.");
         }
         columnSemanticInfoMapper.deleteByDatasourceIdAndIds(
                 datasourceId, List.of(existing.getId()));
@@ -160,7 +163,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             return 0;
         }
         if (matchedIds.size() != normalizedColumnNames.size()) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND,
                     "Some column semantic metadata does not exist for table "
                             + normalizedTableName
                             + ".");
@@ -171,7 +175,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
-            throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 }

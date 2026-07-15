@@ -27,6 +27,7 @@ import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
@@ -37,6 +38,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -173,7 +175,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
-            throw new IllegalArgumentException("Table semantic metadata does not exist.");
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND, "Table semantic metadata does not exist.");
         }
         tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
     }
@@ -206,7 +209,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return 0;
         }
         if (matchedIds.size() != normalizedNames.size()) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND,
                     "Some table semantic metadata does not exist for datasource "
                             + datasourceId
                             + ".");
@@ -217,7 +221,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
-            throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 }

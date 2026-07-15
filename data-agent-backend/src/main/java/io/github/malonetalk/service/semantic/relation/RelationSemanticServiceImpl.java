@@ -28,6 +28,7 @@ import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.LogicalTableRelation;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -35,6 +36,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -159,7 +161,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .distinct()
                         .toList();
         if (matchedIds.size() != relationIds.size()) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND,
                     "Some logical relations do not exist or do not belong to source table "
                             + normalizedTableName
                             + ".");
@@ -171,7 +174,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
-            throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 
@@ -251,7 +255,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         if (currentRelationId != null && currentRelationId.equals(existing.getId())) {
             return;
         }
-        throw new IllegalArgumentException(
+        throw new BusinessException(
+                HttpStatus.CONFLICT,
                 "A logical relation already exists for the same source columns.");
     }
 
@@ -267,7 +272,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .equals(
                                 SemanticUtils.trimToNotBlank(tableName, "tableName")
                                         .toLowerCase(Locale.ROOT))) {
-            throw new IllegalArgumentException("Logical relation does not exist.");
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Logical relation does not exist.");
         }
         return relation;
     }

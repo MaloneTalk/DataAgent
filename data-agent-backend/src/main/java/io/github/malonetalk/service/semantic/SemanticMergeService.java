@@ -18,6 +18,7 @@
 package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
+import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.PromptConverter;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
@@ -29,6 +30,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.LogicalTableRelationType;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
@@ -43,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -85,20 +88,32 @@ public class SemanticMergeService {
     }
 
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
-        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
+        if (tableName == null || tableName.isBlank()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "tableName must not be blank.");
+        }
+        String normalizedTableName = tableName.trim();
 
-        List<PhysicalColumnInfo> physicalColumns =
-                schemaReader.getTableSchema(datasource, normalizedTableName);
+        List<PhysicalColumnInfo> physicalColumns;
+        try {
+            physicalColumns = schemaReader.getTableSchema(datasource, normalizedTableName);
+        } catch (SchemaReadException exception) {
+            throw new BusinessException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Failed to read the database schema. Please try again later.");
+        }
         if (physicalColumns.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Table " + normalizedTableName + " does not exist or has no readable columns.");
+            throw new BusinessException(
+                    HttpStatus.NOT_FOUND,
+                    "The physical table does not exist or is unavailable. Synchronize the table"
+                            + " schema and try again.");
         }
 
         TableInfo semanticTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
-            throw new IllegalArgumentException("Table " + normalizedTableName + " is hidden.");
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN, "The table is hidden and cannot be queried.");
         }
 
         Map<String, ColumnInfo> semanticColumnIndex =

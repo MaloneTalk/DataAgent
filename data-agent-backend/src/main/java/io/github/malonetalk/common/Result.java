@@ -19,6 +19,7 @@ package io.github.malonetalk.common;
 
 import java.io.Serializable;
 import lombok.Data;
+import org.springframework.http.HttpStatus;
 
 @Data
 public class Result<T> implements Serializable {
@@ -41,22 +42,18 @@ public class Result<T> implements Serializable {
     }
 
     public static <T> Result<T> success() {
-        return new Result<>(200, "success");
+        return new Result<>(HttpStatus.OK.value(), "success");
     }
 
     public static <T> Result<T> success(T data) {
-        return new Result<>(200, "success", data);
+        return new Result<>(HttpStatus.OK.value(), "success", data);
     }
 
     public static <T> Result<T> success(String message, T data) {
         return new Result<>(200, message, data);
     }
 
-    public static <T> Result<T> error(String message) {
-        return new Result<>(500, message);
-    }
-
-    public static <T> Result<T> error(Integer code, String message) {
-        return new Result<>(code, message);
+    public static <T> Result<T> error(HttpStatus status, String message) {
+        return new Result<>(status.value(), message);
     }
 }

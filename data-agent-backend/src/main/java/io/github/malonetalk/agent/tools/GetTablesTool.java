@@ -17,17 +17,19 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.dto.prompt.TablePromptResponse;
+import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
-import java.util.Collections;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -37,6 +39,7 @@ public class GetTablesTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
     private final TableSemanticService tableSemanticService;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "get_tables",
@@ -47,7 +50,7 @@ public class GetTablesTool implements MarkAgentTool {
                     information (uses semantic layer if available, falls back to physical \
                     layer otherwise).\
                     """)
-    public List<TablePromptResponse> getTables(
+    public ToolResultBlock getTables(
             @ToolParam(
                             name = "domains",
                             description =
@@ -58,21 +61,36 @@ public class GetTablesTool implements MarkAgentTool {
                                     """,
                             required = false)
                     List<String> domains) {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
+        try {
+            List<Datasource> activeDataSources =
+                    dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
-        if (activeDataSources.isEmpty()) {
-            return Collections.emptyList();
+            if (activeDataSources.isEmpty()) {
+                throw new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "No active datasource is available. Unable to retrieve tables.");
+            }
+
+            if (activeDataSources.size() > 1) {
+                log.warn(
+                        "Found {} active data sources, using the first one. This may cause data"
+                                + " inconsistency.",
+                        activeDataSources.size());
+            }
+
+            Datasource dataSource = activeDataSources.get(0);
+            return ToolResultBlock.text(
+                    JsonUtils.getJsonCodec()
+                            .toJson(
+                                    tableSemanticService.listMergedTablesByDomains(
+                                            dataSource.getId(), domains)));
+        } catch (Exception exception) {
+            if (exception instanceof BusinessException) {
+                log.warn("Failed to get tables: {}", exception.getMessage());
+            } else {
+                log.error("Failed to get tables", exception);
+            }
+            return toolExceptionMapper.toToolResult(exception);
         }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one. This may cause data"
-                            + " inconsistency.",
-                    activeDataSources.size());
-        }
-
-        Datasource dataSource = activeDataSources.get(0);
-        return tableSemanticService.listMergedTablesByDomains(dataSource.getId(), domains);
     }
 }

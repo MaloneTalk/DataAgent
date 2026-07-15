@@ -23,9 +23,11 @@ import io.github.malonetalk.dto.DomainPageQuery;
 import io.github.malonetalk.dto.DomainUpdateRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.DomainInfo;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.DomainService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,12 +51,10 @@ public class DomainController {
 
     @GetMapping("/{id}")
     public Result<DomainInfo> findById(@PathVariable Integer id) {
-        if (id == null || id < 0) {
-            return Result.error(400, "ID必须为非负数");
-        }
+        requireNonNegativeId(id);
         DomainInfo domain = domainService.findById(id);
         if (domain == null) {
-            return Result.error(404, "领域不存在");
+            throw new BusinessException(HttpStatus.NOT_FOUND, "Domain not found.");
         }
         return Result.success(domain);
     }
@@ -67,18 +67,20 @@ public class DomainController {
     @PutMapping("/{id}")
     public Result<DomainInfo> update(
             @PathVariable Integer id, @Valid @RequestBody DomainUpdateRequest request) {
-        if (id == null || id < 0) {
-            return Result.error(400, "ID必须为非负数");
-        }
+        requireNonNegativeId(id);
         return Result.success(domainService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Integer id) {
-        if (id == null || id < 0) {
-            return Result.error(400, "ID必须为非负数");
-        }
+        requireNonNegativeId(id);
         domainService.delete(id);
         return Result.success(true);
+    }
+
+    private void requireNonNegativeId(Integer id) {
+        if (id == null || id < 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "id must not be negative.");
+        }
     }
 }
