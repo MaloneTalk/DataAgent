@@ -25,17 +25,14 @@ import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ThinkingBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
-import io.github.malonetalk.agent.tools.ToolCallConstants;
+import io.github.malonetalk.convertor.handler.ToolResultHandler;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolCallInfo;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolResultInfo;
-import io.github.malonetalk.dto.ReportResponse;
 import io.github.malonetalk.enums.ChatStreamEventType;
-import io.github.malonetalk.service.ReportService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
@@ -48,7 +45,7 @@ import org.springframework.util.StringUtils;
 @AllArgsConstructor
 public class EventConverter {
 
-    private final ReportService reportService;
+    private final List<ToolResultHandler> toolResultHandlers;
 
     public List<ChatStreamEvent> map(Event event) {
         Msg msg = event.getMessage();
@@ -156,43 +153,23 @@ public class EventConverter {
     private ChatStreamEvent convertToolResult(
             ToolResultBlock trb, String messageId, boolean isLast) {
         String text = extractOutputText(trb);
-        // TODO：可能需要重构为策略模式
-        if (trb.isSuspended() && ToolCallConstants.ASK_USER.equals(trb.getName())) {
-            return new ChatStreamEvent(
-                    ChatStreamEventType.QUESTION,
-                    messageId,
-                    isLast,
-                    text,
-                    new ToolCallInfo(trb.getId(), trb.getName(), Map.of()),
-                    null);
-        } else if (ToolCallConstants.GENERATE_REPORT.equals(trb.getName())
-                && text != null
-                && text.startsWith("\"" + ToolCallConstants.SUCCESS + " ")) {
-            Integer reportId =
-                    Integer.parseInt(
-                            text.replace("\"", "")
-                                    .substring(ToolCallConstants.SUCCESS.length() + 1));
-            ReportResponse reportResponse = reportService.findById(reportId);
-            return new ChatStreamEvent(
-                    ChatStreamEventType.REPORT,
-                    messageId,
-                    isLast,
-                    text,
-                    null,
-                    new ToolResultInfo(
-                            trb.getId(),
-                            trb.getName(),
-                            reportResponse.content(),
-                            trb.isSuspended()));
-        } else {
-            return new ChatStreamEvent(
-                    ChatStreamEventType.TOOL_RESULT,
-                    messageId,
-                    isLast,
-                    null,
-                    null,
-                    new ToolResultInfo(trb.getId(), trb.getName(), text, trb.isSuspended()));
-        }
+        return toolResultHandlers.stream()
+                .filter(handler -> handler.supports(trb, text))
+                .findFirst()
+                .map(handler -> handler.handle(trb, text, messageId, isLast))
+                .orElseGet(
+                        () ->
+                                new ChatStreamEvent(
+                                        ChatStreamEventType.TOOL_RESULT,
+                                        messageId,
+                                        isLast,
+                                        null,
+                                        null,
+                                        new ToolResultInfo(
+                                                trb.getId(),
+                                                trb.getName(),
+                                                text,
+                                                trb.isSuspended())));
     }
 
     private ChatStreamEvent convertText(TextBlock tb, String messageId, boolean isLast) {
