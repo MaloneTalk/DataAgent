@@ -22,8 +22,8 @@
     getPhysicalTableCandidatePage,
     syncTableSemantics,
     type PhysicalTableCandidateResponse,
-    type SyncTableSemanticsResponse,
   } from '@/api/semantic';
+  import { buildSyncSummary } from '../utils';
 
   const props = defineProps<{
     modelValue: boolean;
@@ -59,19 +59,6 @@
     page.page = 1;
     page.pageSize = 10;
     page.total = 0;
-  };
-
-  const buildSyncSummary = (result: SyncTableSemanticsResponse) => {
-    return [
-      `新增表 ${result.addedTables} 张`,
-      `恢复表 ${result.reactivatedTables} 张`,
-      `更新表 ${result.updatedTables} 张`,
-      `标记缺失表 ${result.missingTablesMarked} 张`,
-      `新增列 ${result.addedColumns} 个`,
-      `恢复列 ${result.reactivatedColumns} 个`,
-      `更新列 ${result.updatedColumns} 个`,
-      `标记缺失列 ${result.missingColumnsMarked} 个`,
-    ].join('，');
   };
 
   const syncCurrentPageSelection = async () => {

@@ -30,6 +30,7 @@
   } from '@/api/semantic';
   import ColumnSemanticManage from './ColumnSemanticManage.vue';
   import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
+  import { buildSyncSummary, physicalStatusSyncSummaryFields } from '../utils';
 
   interface TableEditForm {
     tableName: string;
@@ -211,11 +212,6 @@
     syncDialogVisible.value = true;
   };
 
-  const buildSyncSummary = (result: {
-    missingTablesMarked: number;
-    missingColumnsMarked: number;
-  }) => `标记缺失表 ${result.missingTablesMarked} 张，标记缺失列 ${result.missingColumnsMarked} 个`;
-
   const handleRefreshPhysicalStatus = async () => {
     const activeDatasourceId = await ensureDatasourceId();
     if (activeDatasourceId === null) {
@@ -224,7 +220,7 @@
     refreshingPhysicalStatus.value = true;
     try {
       const response = await refreshPhysicalStatus(activeDatasourceId);
-      ElMessage.success(buildSyncSummary(response.data.data));
+      ElMessage.success(buildSyncSummary(response.data.data, physicalStatusSyncSummaryFields));
       await loadPage();
       if (columnDrawerVisible.value && selectedTableForColumns.value && columnManageRef.value) {
         await columnManageRef.value.handleTableChange(selectedTableForColumns.value);

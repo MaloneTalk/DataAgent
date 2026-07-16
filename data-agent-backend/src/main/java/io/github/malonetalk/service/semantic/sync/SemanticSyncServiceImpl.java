@@ -154,6 +154,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                         table -> table,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
+        Map<String, Set<String>> physicalColumnNamesByTable =
+                loadPhysicalColumnNamesByTable(datasource, physicalTables);
         int pageNumber = 1;
         int pageSize = PageResponse.resolvePageSize(100);
         List<SyncTableResult> results = new ArrayList<>();
@@ -179,7 +181,10 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 }
                 SyncTableResult result =
                         markMissingColumnsForPresentTable(
-                                datasource, request.datasourceId(), tableInfo, physicalTable);
+                                request.datasourceId(),
+                                tableInfo,
+                                physicalColumnNamesByTable.getOrDefault(
+                                        normalizedTableName, Set.of()));
                 if (result.missingColumnsMarked() > 0) {
                     results.add(result);
                 }
@@ -193,21 +198,34 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return semanticSyncResultService.summarize(results);
     }
 
+    private Map<String, Set<String>> loadPhysicalColumnNamesByTable(
+            Datasource datasource, Map<String, PhysicalTableInfo> physicalTables) {
+        List<String> tableNames =
+                physicalTables.values().stream().map(PhysicalTableInfo::tableName).toList();
+        return schemaReader.getTableColumnNames(datasource, tableNames).entrySet().stream()
+                .collect(
+                        Collectors.toMap(
+                                entry -> SemanticUtils.normalizeObjectName(entry.getKey()),
+                                entry ->
+                                        entry.getValue().stream()
+                                                .map(SemanticUtils::normalizeObjectName)
+                                                .collect(
+                                                        Collectors.toCollection(
+                                                                LinkedHashSet::new)),
+                                (left, right) -> {
+                                    left.addAll(right);
+                                    return left;
+                                },
+                                LinkedHashMap::new));
+    }
+
     private SyncTableResult markMissingColumnsForPresentTable(
-            Datasource datasource,
-            Integer datasourceId,
-            TableInfo tableInfo,
-            PhysicalTableInfo physicalTable) {
+            Integer datasourceId, TableInfo tableInfo, Set<String> physicalColumnNames) {
         LocalDateTime now = LocalDateTime.now();
         String normalizedTableName = SemanticUtils.normalizeObjectName(tableInfo.getTableName());
         List<ColumnInfo> semanticColumns =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
                         datasourceId, normalizedTableName);
-        Set<String> physicalColumnNames =
-                schemaReader.getTableSchema(datasource, physicalTable.tableName()).stream()
-                        .map(PhysicalColumnInfo::columnName)
-                        .map(SemanticUtils::normalizeObjectName)
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
         int missingColumnsMarked =
                 semanticSyncApplyService.markMissingColumns(
                         semanticColumns, physicalColumnNames, now);
