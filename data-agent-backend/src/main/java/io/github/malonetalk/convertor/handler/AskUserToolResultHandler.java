@@ -23,11 +23,9 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolCallInfo;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import java.util.Map;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
-@Order(1)
 public class AskUserToolResultHandler implements ToolResultHandler {
 
     @Override

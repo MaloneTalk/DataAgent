@@ -28,4 +28,12 @@ public final class ToolCallConstants {
     public static final String GENERATE_REPORT = "generate_report";
 
     public static final String SUCCESS = "SUCCESS";
+
+    public static final String SEPARATOR = ": ";
+
+    public static final String FAIL = "FAIL";
+
+    public static final String SUCCESS_PREFIX = SUCCESS + SEPARATOR;
+
+    public static final String FAIL_PREFIX = FAIL + SEPARATOR;
 }

@@ -19,10 +19,23 @@ package io.github.malonetalk.convertor.handler;
 
 import io.agentscope.core.message.ToolResultBlock;
 import io.github.malonetalk.dto.ChatStreamEvent;
+import io.github.malonetalk.enums.ChatStreamEventType;
 
 public interface ToolResultHandler {
 
     boolean supports(ToolResultBlock block, String text);
 
     ChatStreamEvent handle(ToolResultBlock block, String text, String messageId, boolean isLast);
+
+    static ChatStreamEvent defaultHandle(
+            ToolResultBlock block, String text, String messageId, boolean isLast) {
+        return new ChatStreamEvent(
+                ChatStreamEventType.TOOL_RESULT,
+                messageId,
+                isLast,
+                null,
+                null,
+                new ChatStreamEvent.ToolResultInfo(
+                        block.getId(), block.getName(), text, block.isSuspended()));
+    }
 }

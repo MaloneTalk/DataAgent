@@ -31,7 +31,6 @@ import org.springframework.util.StringUtils;
 @AllArgsConstructor
 public class GenerateReportTool implements MarkAgentTool {
 
-    private static final String FAIL = "FAIL";
     private final ReportService reportService;
 
     private static final String DEFAULT_SESSION = "__default__";
@@ -86,10 +85,10 @@ public class GenerateReportTool implements MarkAgentTool {
         }
         try {
             int id = reportService.create(sessionId, title, markdownText);
-            return ToolCallConstants.SUCCESS + " " + id;
+            return ToolCallConstants.SUCCESS_PREFIX + id;
         } catch (Exception e) {
             log.warn("报告保存失败", e);
-            return FAIL + ": " + e.getMessage();
+            return ToolCallConstants.FAIL_PREFIX + e.getMessage();
         }
     }
 }

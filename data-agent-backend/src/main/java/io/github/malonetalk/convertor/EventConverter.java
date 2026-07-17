@@ -28,7 +28,6 @@ import io.agentscope.core.message.ToolUseBlock;
 import io.github.malonetalk.convertor.handler.ToolResultHandler;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolCallInfo;
-import io.github.malonetalk.dto.ChatStreamEvent.ToolResultInfo;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -157,19 +156,7 @@ public class EventConverter {
                 .filter(handler -> handler.supports(trb, text))
                 .findFirst()
                 .map(handler -> handler.handle(trb, text, messageId, isLast))
-                .orElseGet(
-                        () ->
-                                new ChatStreamEvent(
-                                        ChatStreamEventType.TOOL_RESULT,
-                                        messageId,
-                                        isLast,
-                                        null,
-                                        null,
-                                        new ToolResultInfo(
-                                                trb.getId(),
-                                                trb.getName(),
-                                                text,
-                                                trb.isSuspended())));
+                .orElseGet(() -> ToolResultHandler.defaultHandle(trb, text, messageId, isLast));
     }
 
     private ChatStreamEvent convertText(TextBlock tb, String messageId, boolean isLast) {

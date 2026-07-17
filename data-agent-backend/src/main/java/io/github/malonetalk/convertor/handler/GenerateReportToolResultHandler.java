@@ -25,11 +25,11 @@ import io.github.malonetalk.dto.ReportResponse;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import io.github.malonetalk.service.ReportService;
 import lombok.AllArgsConstructor;
-import org.springframework.core.annotation.Order;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
-@Order(2)
 @AllArgsConstructor
 public class GenerateReportToolResultHandler implements ToolResultHandler {
 
@@ -37,28 +37,34 @@ public class GenerateReportToolResultHandler implements ToolResultHandler {
 
     @Override
     public boolean supports(ToolResultBlock block, String text) {
+        String t = text == null ? "" : text.replace("\"", "").trim();
         return ToolCallConstants.GENERATE_REPORT.equals(block.getName())
-                && text != null
-                && text.startsWith("\"" + ToolCallConstants.SUCCESS + " ");
+                && t.startsWith(ToolCallConstants.SUCCESS_PREFIX);
     }
 
     @Override
     public ChatStreamEvent handle(
             ToolResultBlock block, String text, String messageId, boolean isLast) {
-        Integer reportId =
-                Integer.parseInt(
-                        text.replace("\"", "").substring(ToolCallConstants.SUCCESS.length() + 1));
-        ReportResponse reportResponse = reportService.findById(reportId);
-        return new ChatStreamEvent(
-                ChatStreamEventType.REPORT,
-                messageId,
-                isLast,
-                text,
-                null,
-                new ToolResultInfo(
-                        block.getId(),
-                        block.getName(),
-                        reportResponse.content(),
-                        block.isSuspended()));
+        try {
+            Integer reportId =
+                    Integer.parseInt(
+                            text.replace("\"", "")
+                                    .substring(ToolCallConstants.SUCCESS_PREFIX.length()));
+            ReportResponse reportResponse = reportService.findById(reportId);
+            return new ChatStreamEvent(
+                    ChatStreamEventType.REPORT,
+                    messageId,
+                    isLast,
+                    text,
+                    null,
+                    new ToolResultInfo(
+                            block.getId(),
+                            block.getName(),
+                            reportResponse.content(),
+                            block.isSuspended()));
+        } catch (Exception e) {
+            log.warn("解析报表结果失败", e);
+            return ToolResultHandler.defaultHandle(block, text, messageId, isLast);
+        }
     }
 }
