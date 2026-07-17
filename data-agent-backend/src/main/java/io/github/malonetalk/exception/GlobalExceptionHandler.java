@@ -21,7 +21,10 @@ import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.dto.FieldValidationError;
 import jakarta.validation.ConstraintViolationException;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,6 +33,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -43,31 +49,58 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final ExceptionMessageResolver exceptionMessageResolver;
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Result<Object>> handleBusinessException(BusinessException exception) {
-        return response(exception.getStatus(), exception.getMessage());
+        return response(
+                exception.getStatus(), exceptionMessageResolver.resolveClientMessage(exception));
     }
 
     @ExceptionHandler({
-        IllegalArgumentException.class,
-        MethodArgumentNotValidException.class,
         MethodArgumentTypeMismatchException.class,
         MissingServletRequestParameterException.class,
         ServletRequestBindingException.class,
-        BindException.class,
-        ConstraintViolationException.class,
         HttpMessageNotReadableException.class
     })
     public ResponseEntity<Result<Object>> handleBadRequest(Exception exception) {
         return response(HttpStatus.BAD_REQUEST, resolveBadRequestMessage(exception));
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception) {
+        return validationResponse(toFieldValidationErrors(exception.getBindingResult()));
+    }
+
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<Result<Object>> handleBindException(BindException exception) {
+        return validationResponse(toFieldValidationErrors(exception.getBindingResult()));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Result<Object>> handleConstraintViolation(
+            ConstraintViolationException exception) {
+        List<FieldValidationError> errors =
+                exception.getConstraintViolations().stream()
+                        .map(
+                                violation ->
+                                        new FieldValidationError(
+                                                resolveConstraintField(
+                                                        violation.getPropertyPath().toString()),
+                                                violation.getMessage()))
+                        .toList();
+        return validationResponse(errors);
+    }
+
     @ExceptionHandler(SqlSecurityException.class)
     public ResponseEntity<Result<Object>> handleSqlSecurityException(
             SqlSecurityException exception) {
-        return response(HttpStatus.BAD_REQUEST, exception.getMessage());
+        return response(
+                HttpStatus.BAD_REQUEST, exceptionMessageResolver.resolveClientMessage(exception));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
@@ -95,7 +128,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleDataConflict(
             DataIntegrityViolationException exception) {
         log.warn("Data integrity conflict: {}", exception.getMessage());
-        return response(HttpStatus.CONFLICT, "Request conflicts with the current data state.");
+        return response(
+                HttpStatus.CONFLICT, exceptionMessageResolver.resolveClientMessage(exception));
     }
 
     @ExceptionHandler(TransientDataAccessException.class)
@@ -104,7 +138,7 @@ public class GlobalExceptionHandler {
         log.error("Transient data access exception", exception);
         return response(
                 HttpStatus.SERVICE_UNAVAILABLE,
-                "Data service is temporarily unavailable. Please try again later.");
+                exceptionMessageResolver.resolveClientMessage(exception));
     }
 
     @ExceptionHandler({
@@ -115,7 +149,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Object>> handleInfrastructureException(Exception exception) {
         log.error("Infrastructure exception", exception);
         return response(
-                HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error. Please try again later.");
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                exceptionMessageResolver.resolveClientMessage(exception));
     }
 
     @ExceptionHandler(Exception.class)
@@ -160,6 +195,40 @@ public class GlobalExceptionHandler {
         return exception.getMessage() == null
                 ? "Invalid request parameters."
                 : exception.getMessage();
+    }
+
+    private ResponseEntity<Result<Object>> validationResponse(List<FieldValidationError> errors) {
+        String message =
+                errors.stream()
+                        .findFirst()
+                        .map(FieldValidationError::message)
+                        .orElse("Invalid request parameters.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Result.error(HttpStatus.BAD_REQUEST, message, errors));
+    }
+
+    private List<FieldValidationError> toFieldValidationErrors(BindingResult bindingResult) {
+        return bindingResult.getAllErrors().stream().map(this::toFieldValidationError).toList();
+    }
+
+    private FieldValidationError toFieldValidationError(ObjectError error) {
+        String field =
+                error instanceof FieldError fieldError
+                        ? fieldError.getField()
+                        : error.getObjectName();
+        String message =
+                error.getDefaultMessage() == null
+                        ? "Invalid request parameters."
+                        : error.getDefaultMessage();
+        return new FieldValidationError(field, message);
+    }
+
+    private String resolveConstraintField(String propertyPath) {
+        int separatorIndex = propertyPath.lastIndexOf('.');
+        if (separatorIndex < 0 || separatorIndex == propertyPath.length() - 1) {
+            return propertyPath;
+        }
+        return propertyPath.substring(separatorIndex + 1);
     }
 
     private ResponseEntity<Result<Object>> response(HttpStatus status, String message) {

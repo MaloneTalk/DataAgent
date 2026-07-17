@@ -63,6 +63,7 @@
     tool_call: { label: 'Action' },
     tool_result: { label: 'Observation' },
     question: { label: 'Question' },
+    error: { label: 'Error' },
   };
 
   function getStepRenderer(type: ChatStreamEventType): StepRenderer {
@@ -88,6 +89,9 @@
     }
     if (step.type === 'question') {
       return `等待用户回答: ${step.content ?? ''}`;
+    }
+    if (step.type === 'error') {
+      return step.content ?? '请求失败';
     }
     return step.content ?? '';
   }
@@ -258,6 +262,13 @@
   }
   .trace-step--summary .trace-step__label {
     color: #7c3aed;
+  }
+
+  .trace-step--error {
+    color: #dc2626;
+  }
+  .trace-step--error .trace-step__label {
+    color: #dc2626;
   }
 
   .trace-step__code {

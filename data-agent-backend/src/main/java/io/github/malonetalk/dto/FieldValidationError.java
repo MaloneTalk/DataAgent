@@ -15,20 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.dto;
 
-import io.agentscope.core.message.ToolResultBlock;
-import io.github.malonetalk.exception.ExceptionMessageResolver;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
-@Component
-@RequiredArgsConstructor
-public class ToolExceptionMapper {
-
-    private final ExceptionMessageResolver exceptionMessageResolver;
-
-    public ToolResultBlock toToolResult(Exception exception) {
-        return ToolResultBlock.error(exceptionMessageResolver.resolveClientMessage(exception));
-    }
-}
+public record FieldValidationError(String field, String message) {}

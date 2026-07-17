@@ -21,7 +21,8 @@ export type ChatStreamEventType =
   | 'tool_result'
   | 'thinking'
   | 'text'
-  | 'question';
+  | 'question'
+  | 'error';
 
 export interface ToolCallInfo {
   id: string;
@@ -69,10 +70,28 @@ export interface TurnItem {
   traceSteps: ChatStreamEvent[];
 }
 
+interface ApiErrorBody {
+  code?: number;
+  message?: string;
+}
+
+async function resolveErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await response.json()) as ApiErrorBody;
+    return body.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function fetchSessionList(): Promise<SessionInfo[]> {
   const response = await fetch('/api/agent/sessions');
   if (!response.ok) {
-    throw new Error(`Failed to fetch session list: ${response.status} ${response.statusText}`);
+    const message = await resolveErrorMessage(
+      response,
+      `Failed to fetch session list: ${response.status} ${response.statusText}`,
+    );
+    throw new Error(message);
   }
   const body = await response.json();
   if (body.code !== 200) {
@@ -84,7 +103,11 @@ export async function fetchSessionList(): Promise<SessionInfo[]> {
 export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]> {
   const response = await fetch(`/api/agent/session/${encodeURIComponent(sessionId)}/history`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch session history: ${response.status} ${response.statusText}`);
+    const message = await resolveErrorMessage(
+      response,
+      `Failed to fetch session history: ${response.status} ${response.statusText}`,
+    );
+    throw new Error(message);
   }
   const body = await response.json();
   if (body.code !== 200) {
@@ -105,7 +128,11 @@ export async function* streamChat(
   });
 
   if (!response.ok) {
-    throw new Error(`Chat stream failed: ${response.status} ${response.statusText}`);
+    const message = await resolveErrorMessage(
+      response,
+      `Chat stream failed: ${response.status} ${response.statusText}`,
+    );
+    throw new Error(message);
   }
 
   const reader = response.body?.getReader();

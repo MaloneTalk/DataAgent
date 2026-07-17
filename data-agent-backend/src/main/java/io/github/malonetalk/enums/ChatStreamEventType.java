@@ -27,7 +27,8 @@ public enum ChatStreamEventType {
     TOOL_RESULT("tool_result"),
     THINKING("thinking"),
     TEXT("text"),
-    QUESTION("question");
+    QUESTION("question"),
+    ERROR("error");
 
     private final String code;
 

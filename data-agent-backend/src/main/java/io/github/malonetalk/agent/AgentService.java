@@ -36,6 +36,8 @@ import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
+import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.exception.ExceptionMessageResolver;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -55,6 +57,7 @@ public class AgentService {
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
     private final SkillLoaderService skillLoaderService;
+    private final ExceptionMessageResolver exceptionMessageResolver;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -117,8 +120,21 @@ public class AgentService {
 
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
-                .doFinally(signalType -> agent.saveTo(session, sessionId))
-                .flatMapIterable(EventConverter::map);
+                .flatMapIterable(EventConverter::map)
+                .onErrorResume(this::toErrorEvent)
+                .doFinally(signalType -> agent.saveTo(session, sessionId));
+    }
+
+    private Flux<ChatStreamEvent> toErrorEvent(Throwable exception) {
+        log.error("Agent stream failed", exception);
+        return Flux.just(
+                new ChatStreamEvent(
+                        ChatStreamEventType.ERROR,
+                        null,
+                        true,
+                        exceptionMessageResolver.resolveClientMessage(exception),
+                        null,
+                        null));
     }
 
     private ReActAgent createAgent() {

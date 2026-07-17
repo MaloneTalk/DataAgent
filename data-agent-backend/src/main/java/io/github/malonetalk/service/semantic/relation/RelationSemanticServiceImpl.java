@@ -34,7 +34,6 @@ import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -53,8 +52,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public PageResponse<LogicalTableRelationResponse> getRelationPage(
             RelationSemanticPageQuery query) {
         requireDatasource(query.datasourceId());
-        String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
+        String normalizedTableName = normalizeRequestTableName(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
@@ -118,7 +116,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String tableName, UpdateLogicalTableRelationEnabledRequest request) {
         requireDatasource(request.datasourceId());
         if (request.enabled() == null) {
-            throw new IllegalArgumentException("enabled cannot be null.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "enabled cannot be null.");
         }
         LogicalTableRelation relation =
                 requireRelation(request.datasourceId(), tableName, request.relationId());
@@ -147,8 +145,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public int deleteRelationSemantics(
             Integer datasourceId, String tableName, List<Integer> relationIds) {
         requireDatasource(datasourceId);
-        String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
+        String normalizedTableName = normalizeRequestTableName(tableName, "tableName");
         if (relationIds == null || relationIds.isEmpty()) {
             return 0;
         }
@@ -172,7 +169,9 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private void requireDatasource(Integer datasourceId) {
-        SemanticUtils.requireDatasourceId(datasourceId);
+        if (datasourceId == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "datasourceId cannot be null.");
+        }
         if (datasourceService.findById(datasourceId) == null) {
             throw new BusinessException(
                     HttpStatus.NOT_FOUND, "Datasource does not exist: " + datasourceId);
@@ -218,20 +217,16 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String targetTableName,
             String description,
             Boolean enabled) {
-        relation.setSourceTableName(
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
+        relation.setSourceTableName(normalizeRequestTableName(tableName, "tableName"));
         List<String> normalizedSourceColumns =
-                logicalTableRelationHelper.normalizeColumnNames(
-                        sourceColumnNames, "sourceColumnNames");
+                normalizeRequestColumnNames(sourceColumnNames, "sourceColumnNames");
         relation.setSourceColumnNamesJson(
                 logicalTableRelationHelper.toJson(normalizedSourceColumns));
         relation.setSourceColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(normalizedSourceColumns));
-        relation.setTargetTableName(
-                logicalTableRelationHelper.normalizeTableName(targetTableName, "targetTableName"));
+        relation.setTargetTableName(normalizeRequestTableName(targetTableName, "targetTableName"));
         List<String> normalizedTargetColumns =
-                logicalTableRelationHelper.normalizeColumnNames(
-                        targetColumnNames, "targetColumnNames");
+                normalizeRequestColumnNames(targetColumnNames, "targetColumnNames");
         relation.setTargetColumnNamesJson(
                 logicalTableRelationHelper.toJson(normalizedTargetColumns));
         relation.setTargetColumnSignature(
@@ -263,17 +258,39 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private LogicalTableRelation requireRelation(
             Integer datasourceId, String tableName, Integer relationId) {
         if (relationId == null) {
-            throw new IllegalArgumentException("relationId cannot be null.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "relationId cannot be null.");
         }
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
                 || !relation.getSourceTableName()
-                        .equals(
-                                SemanticUtils.trimToNotBlank(tableName, "tableName")
-                                        .toLowerCase(Locale.ROOT))) {
+                        .equals(normalizeRequestTableName(tableName, "tableName"))) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "Logical relation does not exist.");
         }
         return relation;
+    }
+
+    private String normalizeRequestTableName(String tableName, String fieldName) {
+        try {
+            return logicalTableRelationHelper.normalizeTableName(tableName, fieldName);
+        } catch (IllegalArgumentException exception) {
+            throw toBadRequest(exception);
+        }
+    }
+
+    private List<String> normalizeRequestColumnNames(List<String> columnNames, String fieldName) {
+        try {
+            return logicalTableRelationHelper.normalizeColumnNames(columnNames, fieldName);
+        } catch (IllegalArgumentException exception) {
+            throw toBadRequest(exception);
+        }
+    }
+
+    private BusinessException toBadRequest(IllegalArgumentException exception) {
+        String message =
+                exception.getMessage() == null
+                        ? "Invalid request parameters."
+                        : exception.getMessage();
+        return new BusinessException(HttpStatus.BAD_REQUEST, message);
     }
 }

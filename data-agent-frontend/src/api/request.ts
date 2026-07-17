@@ -43,15 +43,16 @@ service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const res = response.data;
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败');
-      return Promise.reject(new Error(res.message || 'Error'));
+      const message = res.message || '请求失败';
+      ElMessage.error(message);
+      return Promise.reject(new Error(message));
     }
     return response;
   },
   error => {
     const message = error.response?.data?.message || error.message || '网络错误';
     ElMessage.error(message);
-    return Promise.reject(error);
+    return Promise.reject(new Error(message));
   },
 );
 
