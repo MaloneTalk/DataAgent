@@ -55,6 +55,7 @@ export function useAgentChat(initialSessionId?: string) {
   const sessionId = ref(initialSessionId || generateSessionId());
   const abortController = shallowRef<AbortController | null>(null);
   const pendingQuestion = ref<PendingQuestion | null>(null);
+  const lastReportContent = ref<string | null>(null);
 
   function addUserMessage(text: string): ChatMessage {
     const msg: ChatMessage = {
@@ -162,7 +163,11 @@ export function useAgentChat(initialSessionId?: string) {
             }
           }
 
-          if (event.type === 'tool_call' || event.type === 'tool_result') {
+          if (
+            event.type === 'tool_call' ||
+            event.type === 'tool_result' ||
+            event.type === 'report'
+          ) {
             msg.traceSteps = [
               ...msg.traceSteps,
               {
@@ -180,6 +185,10 @@ export function useAgentChat(initialSessionId?: string) {
                 question: (event.toolCall.input.question as string) ?? '',
               };
               msg.isStreaming = false;
+            }
+
+            if (event.type === 'report') {
+              lastReportContent.value = event.toolResult?.output ?? null;
             }
           }
 
@@ -223,6 +232,7 @@ export function useAgentChat(initialSessionId?: string) {
     isStreaming,
     sessionId,
     pendingQuestion,
+    lastReportContent,
     loadHistory,
     sendMessage,
     stopStreaming,

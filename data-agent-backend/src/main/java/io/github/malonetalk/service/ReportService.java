@@ -15,25 +15,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.enums;
+package io.github.malonetalk.service;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.AllArgsConstructor;
+import io.github.malonetalk.dto.ReportPageQuery;
+import io.github.malonetalk.dto.ReportResponse;
+import io.github.malonetalk.dto.pagination.PageResponse;
 
-@AllArgsConstructor
-public enum ChatStreamEventType {
-    SUMMARY("summary"),
-    TOOL_CALL("tool_call"),
-    TOOL_RESULT("tool_result"),
-    THINKING("thinking"),
-    TEXT("text"),
-    REPORT("report"),
-    QUESTION("question");
+public interface ReportService {
 
-    private final String code;
+    /**
+     * 保存成功返回主键
+     */
+    int create(String sessionId, String title, String content);
 
-    @JsonValue
-    public String getCode() {
-        return code;
-    }
+    PageResponse<ReportResponse> getReportPage(ReportPageQuery query);
+
+    void deleteById(Integer id);
+
+    ReportResponse findById(Integer id);
 }

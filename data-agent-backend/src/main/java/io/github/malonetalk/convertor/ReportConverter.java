@@ -15,25 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.enums;
+package io.github.malonetalk.convertor;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.AllArgsConstructor;
+import io.github.malonetalk.dto.ReportResponse;
+import io.github.malonetalk.entity.Report;
+import org.mapstruct.Mapper;
 
-@AllArgsConstructor
-public enum ChatStreamEventType {
-    SUMMARY("summary"),
-    TOOL_CALL("tool_call"),
-    TOOL_RESULT("tool_result"),
-    THINKING("thinking"),
-    TEXT("text"),
-    REPORT("report"),
-    QUESTION("question");
+@Mapper(componentModel = "spring")
+public interface ReportConverter {
 
-    private final String code;
-
-    @JsonValue
-    public String getCode() {
-        return code;
-    }
+    ReportResponse toResponse(Report report);
 }

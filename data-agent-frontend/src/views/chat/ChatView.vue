@@ -22,6 +22,8 @@
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
+  import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
+  import ReportList from '@/views/report/ReportList.vue';
 
   const route = useRoute();
   const router = useRouter();
@@ -31,6 +33,7 @@
     isStreaming,
     sessionId,
     pendingQuestion,
+    lastReportContent,
     sendMessage,
     stopStreaming,
     newSession,
@@ -40,6 +43,21 @@
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
   const showSessionList = ref(false);
+  const reportDialogVisible = ref(false);
+  const reportListKey = ref(0);
+  const previewVisible = ref(false);
+  const previewContent = ref('');
+
+  function showReportPreview(content: string) {
+    previewContent.value = content;
+    previewVisible.value = true;
+  }
+
+  watch(lastReportContent, content => {
+    if (content) {
+      showReportPreview(content);
+    }
+  });
 
   function toggleSessionList() {
     showSessionList.value = !showSessionList.value;
@@ -114,7 +132,18 @@
             {{ showSessionList ? '◁' : '▷' }}
           </button>
         </div>
-        <el-button text @click="handleNewSession">新建会话</el-button>
+        <div class="chat-view__header-right">
+          <el-button
+            text
+            @click="
+              reportDialogVisible = true;
+              reportListKey++;
+            "
+          >
+            会话报告
+          </el-button>
+          <el-button text @click="handleNewSession">新建会话</el-button>
+        </div>
       </div>
 
       <div ref="messagesContainer" class="chat-view__messages">
@@ -136,7 +165,12 @@
           </div>
         </div>
 
-        <ChatMessage v-for="msg in messages" :key="msg.id" :message="msg" />
+        <ChatMessage
+          v-for="msg in messages"
+          :key="msg.id"
+          :message="msg"
+          @preview-report="showReportPreview"
+        />
 
         <div v-if="isStreaming && messages.length === 0" class="chat-view__thinking-hint">
           思考中...
@@ -149,6 +183,22 @@
         @send="handleSend"
         @stop="stopStreaming"
       />
+
+      <ReportPreviewDialog
+        v-model:visible="previewVisible"
+        title="报告预览"
+        :content="previewContent"
+      />
+
+      <el-dialog
+        v-model="reportDialogVisible"
+        title="会话报告"
+        width="960px"
+        top="30px"
+        destroy-on-close
+      >
+        <ReportList :key="reportListKey" :fixed-session-id="sessionId" embedded />
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -203,6 +253,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .chat-view__header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   .chat-view__toggle-btn {

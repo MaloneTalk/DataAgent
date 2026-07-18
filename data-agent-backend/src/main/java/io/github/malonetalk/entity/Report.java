@@ -15,25 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.enums;
+package io.github.malonetalk.entity;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.AllArgsConstructor;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-@AllArgsConstructor
-public enum ChatStreamEventType {
-    SUMMARY("summary"),
-    TOOL_CALL("tool_call"),
-    TOOL_RESULT("tool_result"),
-    THINKING("thinking"),
-    TEXT("text"),
-    REPORT("report"),
-    QUESTION("question");
+@Data
+public class Report {
 
-    private final String code;
-
-    @JsonValue
-    public String getCode() {
-        return code;
-    }
+    private Integer id;
+    private String title;
+    private String content;
+    private String sessionId;
+    private Boolean isDeleted;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }
