@@ -28,6 +28,7 @@ import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.skill.SkillBox;
+import io.agentscope.core.tool.ToolExecutionContext;
 import io.agentscope.core.tool.Toolkit;
 import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
@@ -36,7 +37,6 @@ import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
-import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +55,7 @@ public class AgentService {
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
     private final SkillLoaderService skillLoaderService;
+    private final EventConverter eventConverter;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -65,24 +66,9 @@ public class AgentService {
         this.skillBox = skillLoaderService.createSkillBox(toolkit);
     }
 
-    public String chat(String sessionId, String userInput) {
-        ReActAgent agent = createAgent();
-
-        Session session = sessionService.getOrCreateSession(sessionId);
-        agent.loadIfExists(session, sessionId);
-
-        Msg userMsg = Msg.builder().textContent(userInput).build();
-
-        Msg response = agent.call(userMsg).block();
-
-        agent.saveTo(session, sessionId);
-
-        return MsgUtils.getTextContent(response);
-    }
-
     public Flux<ChatStreamEvent> chatStream(
             String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
-        ReActAgent agent = createAgent();
+        ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
@@ -118,15 +104,18 @@ public class AgentService {
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> agent.saveTo(session, sessionId))
-                .flatMapIterable(EventConverter::map);
+                .flatMapIterable(eventConverter::map);
     }
 
-    private ReActAgent createAgent() {
+    private ReActAgent createAgent(ToolCallContext toolCallContext) {
+        ToolExecutionContext context =
+                ToolExecutionContext.builder().register(toolCallContext).build();
         return ReActAgent.builder()
                 .name("DataAgent")
                 .sysPrompt("你是一个数据助手，可以帮助用户查询数据库中的数据。")
                 .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
+                .toolExecutionContext(context)
                 .skillBox(skillBox)
                 .memory(new InMemoryMemory())
                 .maxIters(10)

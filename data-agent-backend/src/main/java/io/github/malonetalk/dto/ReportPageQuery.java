@@ -15,25 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.enums;
+package io.github.malonetalk.dto;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.AllArgsConstructor;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 
-@AllArgsConstructor
-public enum ChatStreamEventType {
-    SUMMARY("summary"),
-    TOOL_CALL("tool_call"),
-    TOOL_RESULT("tool_result"),
-    THINKING("thinking"),
-    TEXT("text"),
-    REPORT("report"),
-    QUESTION("question");
-
-    private final String code;
-
-    @JsonValue
-    public String getCode() {
-        return code;
-    }
-}
+public record ReportPageQuery(
+        String sessionId,
+        @Min(1) Integer page,
+        @Min(1) Integer pageSize,
+        String keyword,
+        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+                String sortOrder) {}

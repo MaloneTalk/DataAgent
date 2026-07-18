@@ -27,6 +27,10 @@
     message: ChatMessageType;
   }>();
 
+  const emit = defineEmits<{
+    (e: 'previewReport', content: string): void;
+  }>();
+
   const SUMMARY_MARKER = '\n\nSummary：\n';
 
   const contentParts = computed(() => {
@@ -47,7 +51,11 @@
 <template>
   <div class="chat-message" :class="`chat-message--${message.role}`">
     <div class="chat-message__bubble">
-      <TracePanel v-if="message.role === 'agent'" :message="message" />
+      <TracePanel
+        v-if="message.role === 'agent'"
+        :message="message"
+        @preview-report="c => emit('previewReport', c)"
+      />
       <div v-if="contentParts.text" class="chat-message__content" v-html="renderedText"></div>
       <div v-if="contentParts.summary" class="chat-message__summary" v-html="renderedSummary"></div>
       <div
