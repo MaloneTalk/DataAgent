@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.PromptConverter;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
@@ -45,7 +46,6 @@ import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -89,7 +89,7 @@ public class SemanticMergeService {
 
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
         if (tableName == null || tableName.isBlank()) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "tableName must not be blank.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tableName must not be blank.");
         }
         String normalizedTableName = tableName.trim();
 
@@ -97,13 +97,11 @@ public class SemanticMergeService {
         try {
             physicalColumns = schemaReader.getTableSchema(datasource, normalizedTableName);
         } catch (SchemaReadException exception) {
-            throw new BusinessException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "Failed to read the database schema. Please try again later.");
+            throw new BusinessException(ErrorCode.SCHEMA_READ_FAILED);
         }
         if (physicalColumns.isEmpty()) {
             throw new BusinessException(
-                    HttpStatus.NOT_FOUND,
+                    ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
                     "The physical table does not exist or is unavailable. Synchronize the table"
                             + " schema and try again.");
         }
@@ -112,8 +110,7 @@ public class SemanticMergeService {
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
-            throw new BusinessException(
-                    HttpStatus.FORBIDDEN, "The table is hidden and cannot be queried.");
+            throw new BusinessException(ErrorCode.TABLE_HIDDEN);
         }
 
         Map<String, ColumnInfo> semanticColumnIndex =

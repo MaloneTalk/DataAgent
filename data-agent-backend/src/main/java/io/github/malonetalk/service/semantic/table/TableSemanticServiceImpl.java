@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic.table;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
@@ -38,7 +39,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -175,8 +175,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
-            throw new BusinessException(
-                    HttpStatus.NOT_FOUND, "Table semantic metadata does not exist.");
+            throw new BusinessException(ErrorCode.TABLE_SEMANTIC_NOT_FOUND);
         }
         tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
     }
@@ -210,7 +209,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         if (matchedIds.size() != normalizedNames.size()) {
             throw new BusinessException(
-                    HttpStatus.NOT_FOUND,
+                    ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
                     "Some table semantic metadata does not exist for datasource "
                             + datasourceId
                             + ".");
@@ -222,7 +221,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
             throw new BusinessException(
-                    HttpStatus.NOT_FOUND, "Datasource does not exist: " + datasourceId);
+                    ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 }

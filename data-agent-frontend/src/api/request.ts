@@ -21,6 +21,7 @@ import { ElMessage } from 'element-plus';
 
 interface ApiResponse<T = unknown> {
   code: number;
+  errorCode?: string;
   data: T;
   message: string;
   requestId?: string;
@@ -33,16 +34,18 @@ export interface FieldValidationError {
 
 export class ApiError extends Error {
   code?: number;
+  errorCode?: string;
   details?: unknown;
   requestId?: string;
 
   constructor(
     message: string,
-    options: { code?: number; details?: unknown; requestId?: string } = {},
+    options: { code?: number; errorCode?: string; details?: unknown; requestId?: string } = {},
   ) {
     super(message);
     this.name = 'ApiError';
     this.code = options.code;
+    this.errorCode = options.errorCode;
     this.details = options.details;
     this.requestId = options.requestId;
     Object.setPrototypeOf(this, ApiError.prototype);
@@ -90,6 +93,7 @@ function toApiError(
   const details = response?.data;
   return new ApiError(resolveMessage(response, fallbackMessage), {
     code: response?.code,
+    errorCode: response?.errorCode,
     details,
     requestId: response?.requestId || fallbackRequestId,
   });

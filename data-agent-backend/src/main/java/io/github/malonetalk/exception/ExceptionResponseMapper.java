@@ -20,45 +20,70 @@ package io.github.malonetalk.exception;
 import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
+import io.github.malonetalk.common.ErrorCode;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ExceptionMessageResolver {
+public class ExceptionResponseMapper {
 
-    public String resolveClientMessage(Throwable exception) {
+    public ErrorResponse resolve(Throwable exception) {
         if (exception instanceof BusinessException businessException) {
-            return defaultIfBlank(businessException.getMessage(), "Request failed.");
+            return fromBusinessException(businessException);
         }
         if (exception instanceof SqlSecurityException) {
-            return defaultIfBlank(
-                    exception.getMessage(),
-                    "The SQL statement does not meet the security requirements.");
+            return of(ErrorCode.SQL_NOT_ALLOWED, exception.getMessage());
         }
         if (exception instanceof SchemaReadException) {
-            return "Failed to read the database schema. Please try again later.";
+            return of(ErrorCode.SCHEMA_READ_FAILED);
         }
         if (exception instanceof SqlExecutionException) {
-            return "SQL execution failed. Please try again later.";
+            return of(ErrorCode.SQL_EXECUTION_FAILED);
         }
         if (exception instanceof DataIntegrityViolationException) {
-            return "The operation conflicts with the current data state.";
+            return of(ErrorCode.DATA_CONFLICT);
         }
         if (exception instanceof TransientDataAccessException) {
-            return "The data service is temporarily unavailable. Please try again later.";
+            return of(ErrorCode.DATA_SERVICE_UNAVAILABLE);
         }
         if (exception instanceof DataAccessException) {
-            return "Data access failed. Please try again later.";
+            return of(ErrorCode.DATA_ACCESS_FAILED);
         }
-        if (exception instanceof IllegalArgumentException) {
-            return "Invalid request parameters.";
+        return of(ErrorCode.INTERNAL_ERROR);
+    }
+
+    public ErrorResponse of(ErrorCode errorCode) {
+        return of(errorCode, errorCode.getDefaultMessage());
+    }
+
+    public ErrorResponse of(ErrorCode errorCode, String message) {
+        return new ErrorResponse(errorCode, defaultIfBlank(message, errorCode.getDefaultMessage()));
+    }
+
+    private ErrorResponse fromBusinessException(BusinessException exception) {
+        ErrorCode errorCode = exception.getErrorCode();
+        if (errorCode != null) {
+            return of(errorCode, exception.getMessage());
         }
-        return "Internal server error. Please try again later.";
+        return of(fallbackBusinessCode(exception), exception.getMessage());
+    }
+
+    private ErrorCode fallbackBusinessCode(BusinessException exception) {
+        return switch (exception.getStatus()) {
+            case BAD_REQUEST -> ErrorCode.BAD_REQUEST;
+            case NOT_FOUND -> ErrorCode.RESOURCE_NOT_FOUND;
+            case FORBIDDEN -> ErrorCode.FORBIDDEN;
+            case CONFLICT -> ErrorCode.DATA_CONFLICT;
+            case SERVICE_UNAVAILABLE -> ErrorCode.DATA_SERVICE_UNAVAILABLE;
+            default -> ErrorCode.INTERNAL_ERROR;
+        };
     }
 
     private String defaultIfBlank(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
     }
+
+    public record ErrorResponse(ErrorCode errorCode, String message) {}
 }

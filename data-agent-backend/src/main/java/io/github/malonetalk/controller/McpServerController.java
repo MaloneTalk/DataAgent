@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.McpServerConverter;
 import io.github.malonetalk.dto.McpServerRequest;
@@ -28,7 +29,6 @@ import io.github.malonetalk.service.McpServerService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -62,7 +62,7 @@ public class McpServerController {
     @PostMapping
     public Result<McpServerResponse> save(@Valid @RequestBody McpServerRequest request) {
         if (mcpServerService.findByName(request.name()) != null) {
-            throw new BusinessException(HttpStatus.CONFLICT, "MCP server name already exists.");
+            throw new BusinessException(ErrorCode.MCP_SERVER_NAME_CONFLICT);
         }
 
         McpServer mcpServer = mcpServerConverter.toEntity(request);
@@ -78,7 +78,7 @@ public class McpServerController {
         McpServer existing = requireMcpServer(id);
         McpServer nameConflict = mcpServerService.findByName(request.name());
         if (nameConflict != null && !id.equals(nameConflict.getId())) {
-            throw new BusinessException(HttpStatus.CONFLICT, "MCP server name already exists.");
+            throw new BusinessException(ErrorCode.MCP_SERVER_NAME_CONFLICT);
         }
 
         McpServer mcpServer = mcpServerConverter.toEntity(request);
@@ -127,14 +127,14 @@ public class McpServerController {
     private McpServer requireMcpServer(Integer id) {
         McpServer mcpServer = mcpServerService.findById(id);
         if (mcpServer == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "MCP server not found.");
+            throw new BusinessException(ErrorCode.MCP_SERVER_NOT_FOUND);
         }
         return mcpServer;
     }
 
     private void requireOperationSuccess(boolean success, String message) {
         if (!success) {
-            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, message);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, message);
         }
     }
 }

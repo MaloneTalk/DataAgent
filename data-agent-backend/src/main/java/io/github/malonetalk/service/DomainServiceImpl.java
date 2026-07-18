@@ -19,6 +19,7 @@ package io.github.malonetalk.service;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.DomainCreateRequest;
 import io.github.malonetalk.dto.DomainPageQuery;
@@ -33,7 +34,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -67,7 +67,7 @@ public class DomainServiceImpl implements DomainService {
     @Override
     public DomainInfo findById(Integer id) {
         if (id == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "id must not be null.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "id must not be null.");
         }
         return domainInfoMapper.selectById(id);
     }
@@ -80,7 +80,8 @@ public class DomainServiceImpl implements DomainService {
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
             throw new BusinessException(
-                    HttpStatus.CONFLICT, "Domain name already exists: " + normalizedName);
+                    ErrorCode.DOMAIN_NAME_CONFLICT,
+                    "Domain name already exists: " + normalizedName);
         }
         DomainInfo domainInfo = new DomainInfo();
         domainInfo.setName(normalizedName);
@@ -94,11 +95,12 @@ public class DomainServiceImpl implements DomainService {
     @Override
     public DomainInfo update(Integer id, DomainUpdateRequest request) {
         if (id == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "id must not be null.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "id must not be null.");
         }
         DomainInfo existing = findById(id);
         if (existing == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "Domain does not exist: id=" + id);
+            throw new BusinessException(
+                    ErrorCode.DOMAIN_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         String normalizedName =
                 SemanticUtils.trimToNotBlank(request.name(), "domain name")
@@ -106,7 +108,8 @@ public class DomainServiceImpl implements DomainService {
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
             throw new BusinessException(
-                    HttpStatus.CONFLICT, "Domain name already exists: " + normalizedName);
+                    ErrorCode.DOMAIN_NAME_CONFLICT,
+                    "Domain name already exists: " + normalizedName);
         }
         existing.setName(normalizedName);
         existing.setDescription(SemanticUtils.trimToNull(request.description()));
@@ -118,21 +121,22 @@ public class DomainServiceImpl implements DomainService {
     @Override
     public void delete(Integer id) {
         if (id == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "id must not be null.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "id must not be null.");
         }
         DomainInfo existing = findById(id);
         if (existing == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "Domain does not exist: id=" + id);
+            throw new BusinessException(
+                    ErrorCode.DOMAIN_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         if (SemanticConstants.DEFAULT_DOMAIN.equalsIgnoreCase(existing.getName())) {
             throw new BusinessException(
-                    HttpStatus.CONFLICT,
+                    ErrorCode.RESOURCE_IN_USE,
                     "The default domain cannot be deleted: " + existing.getName());
         }
         int referenceCount = tableInfoMapper.countByDomain(existing.getName());
         if (referenceCount > 0) {
             throw new BusinessException(
-                    HttpStatus.CONFLICT, "Domain is currently in use: " + existing.getName());
+                    ErrorCode.RESOURCE_IN_USE, "Domain is currently in use: " + existing.getName());
         }
         domainInfoMapper.deleteByIds(List.of(id));
     }

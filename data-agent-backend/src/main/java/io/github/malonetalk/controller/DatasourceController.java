@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
 import io.github.malonetalk.dto.DatasourceRequest;
@@ -28,7 +29,6 @@ import io.github.malonetalk.service.DatasourceService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -134,14 +134,14 @@ public class DatasourceController {
     private Datasource requireDatasource(Integer id) {
         Datasource datasource = dataSourceService.findById(id);
         if (datasource == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "Datasource not found.");
+            throw new BusinessException(ErrorCode.DATASOURCE_NOT_FOUND);
         }
         return datasource;
     }
 
     private void requireOperationSuccess(boolean success, String message) {
         if (!success) {
-            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, message);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, message);
         }
     }
 }

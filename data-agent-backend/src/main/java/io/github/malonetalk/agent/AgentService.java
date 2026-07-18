@@ -37,7 +37,7 @@ import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
-import io.github.malonetalk.exception.ExceptionMessageResolver;
+import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -57,7 +57,7 @@ public class AgentService {
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
     private final SkillLoaderService skillLoaderService;
-    private final ExceptionMessageResolver exceptionMessageResolver;
+    private final ExceptionResponseMapper exceptionResponseMapper;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -135,7 +135,7 @@ public class AgentService {
                         ChatStreamEventType.ERROR,
                         null,
                         true,
-                        exceptionMessageResolver.resolveClientMessage(exception),
+                        exceptionResponseMapper.resolve(exception).message(),
                         null,
                         null));
     }

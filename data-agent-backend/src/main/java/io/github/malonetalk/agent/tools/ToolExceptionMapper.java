@@ -18,7 +18,7 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.message.ToolResultBlock;
-import io.github.malonetalk.exception.ExceptionMessageResolver;
+import io.github.malonetalk.exception.ExceptionResponseMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -26,9 +26,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ToolExceptionMapper {
 
-    private final ExceptionMessageResolver exceptionMessageResolver;
+    private final ExceptionResponseMapper exceptionResponseMapper;
 
     public ToolResultBlock toToolResult(Exception exception) {
-        return ToolResultBlock.error(exceptionMessageResolver.resolveClientMessage(exception));
+        return ToolResultBlock.error(exceptionResponseMapper.resolve(exception).message());
     }
 }

@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic.column;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
@@ -38,7 +39,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -123,8 +123,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName);
         if (existing == null) {
-            throw new BusinessException(
-                    HttpStatus.NOT_FOUND, "Column semantic metadata does not exist.");
+            throw new BusinessException(ErrorCode.COLUMN_SEMANTIC_NOT_FOUND);
         }
         columnSemanticInfoMapper.deleteByDatasourceIdAndIds(
                 datasourceId, List.of(existing.getId()));
@@ -164,7 +163,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         }
         if (matchedIds.size() != normalizedColumnNames.size()) {
             throw new BusinessException(
-                    HttpStatus.NOT_FOUND,
+                    ErrorCode.COLUMN_SEMANTIC_NOT_FOUND,
                     "Some column semantic metadata does not exist for table "
                             + normalizedTableName
                             + ".");
@@ -176,7 +175,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
             throw new BusinessException(
-                    HttpStatus.NOT_FOUND, "Datasource does not exist: " + datasourceId);
+                    ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 }

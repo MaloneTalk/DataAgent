@@ -20,9 +20,11 @@ package io.github.malonetalk.exception;
 import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.config.RequestIdFilter;
 import io.github.malonetalk.dto.FieldValidationError;
+import io.github.malonetalk.exception.ExceptionResponseMapper.ErrorResponse;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -54,12 +56,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-    private final ExceptionMessageResolver exceptionMessageResolver;
+    private final ExceptionResponseMapper exceptionResponseMapper;
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Result<Object>> handleBusinessException(BusinessException exception) {
-        return response(
-                exception.getStatus(), exceptionMessageResolver.resolveClientMessage(exception));
+        return response(exceptionResponseMapper.resolve(exception));
     }
 
     @ExceptionHandler({
@@ -69,7 +70,7 @@ public class GlobalExceptionHandler {
         HttpMessageNotReadableException.class
     })
     public ResponseEntity<Result<Object>> handleBadRequest(Exception exception) {
-        return response(HttpStatus.BAD_REQUEST, resolveBadRequestMessage(exception));
+        return response(ErrorCode.BAD_REQUEST, resolveBadRequestMessage(exception));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -101,46 +102,41 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SqlSecurityException.class)
     public ResponseEntity<Result<Object>> handleSqlSecurityException(
             SqlSecurityException exception) {
-        return response(
-                HttpStatus.BAD_REQUEST, exceptionMessageResolver.resolveClientMessage(exception));
+        return response(exceptionResponseMapper.resolve(exception));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Result<Object>> handleResourceNotFound() {
-        return response(HttpStatus.NOT_FOUND, "Resource not found.");
+        return response(ErrorCode.RESOURCE_NOT_FOUND);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<Result<Object>> handleMethodNotSupported() {
-        return response(HttpStatus.METHOD_NOT_ALLOWED, "Request method is not supported.");
+        return response(ErrorCode.METHOD_NOT_ALLOWED);
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<Result<Object>> handleMediaTypeNotSupported() {
-        return response(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported.");
+        return response(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
     }
 
     @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
     public ResponseEntity<Result<Object>> handleMediaTypeNotAcceptable() {
-        return response(
-                HttpStatus.NOT_ACCEPTABLE, "No acceptable response media type is available.");
+        return response(ErrorCode.NOT_ACCEPTABLE);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Result<Object>> handleDataConflict(
             DataIntegrityViolationException exception) {
         log.warn("Data integrity conflict: {}", exception.getMessage());
-        return response(
-                HttpStatus.CONFLICT, exceptionMessageResolver.resolveClientMessage(exception));
+        return response(exceptionResponseMapper.resolve(exception));
     }
 
     @ExceptionHandler(TransientDataAccessException.class)
     public ResponseEntity<Result<Object>> handleTransientDataAccess(
             TransientDataAccessException exception) {
         log.error("Transient data access exception", exception);
-        return response(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                exceptionMessageResolver.resolveClientMessage(exception));
+        return response(exceptionResponseMapper.resolve(exception));
     }
 
     @ExceptionHandler({
@@ -150,15 +146,13 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<Result<Object>> handleInfrastructureException(Exception exception) {
         log.error("Infrastructure exception", exception);
-        return response(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                exceptionMessageResolver.resolveClientMessage(exception));
+        return response(exceptionResponseMapper.resolve(exception));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Result<Object>> handleUnexpectedException(Exception exception) {
         log.error("Unhandled exception", exception);
-        return response(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error.");
+        return response(ErrorCode.INTERNAL_ERROR);
     }
 
     private String resolveBadRequestMessage(Exception exception) {
@@ -188,7 +182,7 @@ public class GlobalExceptionHandler {
                         .map(FieldValidationError::message)
                         .orElse("Invalid request parameters.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Result.error(HttpStatus.BAD_REQUEST, message, errors, requestId()));
+                .body(Result.error(ErrorCode.VALIDATION_FAILED, message, errors, requestId()));
     }
 
     private List<FieldValidationError> toFieldValidationErrors(BindingResult bindingResult) {
@@ -215,8 +209,18 @@ public class GlobalExceptionHandler {
         return propertyPath.substring(separatorIndex + 1);
     }
 
-    private ResponseEntity<Result<Object>> response(HttpStatus status, String message) {
-        return ResponseEntity.status(status).body(Result.error(status, message, null, requestId()));
+    private ResponseEntity<Result<Object>> response(ErrorCode errorCode) {
+        return response(errorCode, errorCode.getDefaultMessage());
+    }
+
+    private ResponseEntity<Result<Object>> response(ErrorCode errorCode, String message) {
+        return response(exceptionResponseMapper.of(errorCode, message));
+    }
+
+    private ResponseEntity<Result<Object>> response(ErrorResponse errorResponse) {
+        ErrorCode errorCode = errorResponse.errorCode();
+        return ResponseEntity.status(errorCode.getHttpStatus())
+                .body(Result.error(errorCode, errorResponse.message(), null, requestId()));
     }
 
     private String requestId() {

@@ -15,6 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { ApiError } from './request';
+
 export type ChatStreamEventType =
   | 'summary'
   | 'tool_call'
@@ -72,30 +74,45 @@ export interface TurnItem {
 
 interface ApiErrorBody {
   code?: number;
+  errorCode?: string;
   message?: string;
+  data?: unknown;
+  requestId?: string;
 }
 
-async function resolveErrorMessage(response: Response, fallback: string): Promise<string> {
+async function resolveApiError(response: Response, fallback: string): Promise<ApiError> {
   try {
     const body = (await response.json()) as ApiErrorBody;
-    return body.message || fallback;
+    return new ApiError(body.message || fallback, {
+      code: body.code,
+      errorCode: body.errorCode,
+      details: body.data,
+      requestId: body.requestId || response.headers.get('x-request-id') || undefined,
+    });
   } catch {
-    return fallback;
+    return new ApiError(fallback, {
+      code: response.status,
+      requestId: response.headers.get('x-request-id') || undefined,
+    });
   }
 }
 
 export async function fetchSessionList(): Promise<SessionInfo[]> {
   const response = await fetch('/api/agent/sessions');
   if (!response.ok) {
-    const message = await resolveErrorMessage(
+    throw await resolveApiError(
       response,
       `Failed to fetch session list: ${response.status} ${response.statusText}`,
     );
-    throw new Error(message);
   }
   const body = await response.json();
   if (body.code !== 200) {
-    throw new Error(body.message || 'Failed to fetch session list');
+    throw new ApiError(body.message || 'Failed to fetch session list', {
+      code: body.code,
+      errorCode: body.errorCode,
+      details: body.data,
+      requestId: body.requestId,
+    });
   }
   return body.data as SessionInfo[];
 }
@@ -103,15 +120,19 @@ export async function fetchSessionList(): Promise<SessionInfo[]> {
 export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]> {
   const response = await fetch(`/api/agent/session/${encodeURIComponent(sessionId)}/history`);
   if (!response.ok) {
-    const message = await resolveErrorMessage(
+    throw await resolveApiError(
       response,
       `Failed to fetch session history: ${response.status} ${response.statusText}`,
     );
-    throw new Error(message);
   }
   const body = await response.json();
   if (body.code !== 200) {
-    throw new Error(body.message || 'Failed to fetch session history');
+    throw new ApiError(body.message || 'Failed to fetch session history', {
+      code: body.code,
+      errorCode: body.errorCode,
+      details: body.data,
+      requestId: body.requestId,
+    });
   }
   return body.data as TurnItem[];
 }
@@ -128,11 +149,10 @@ export async function* streamChat(
   });
 
   if (!response.ok) {
-    const message = await resolveErrorMessage(
+    throw await resolveApiError(
       response,
       `Chat stream failed: ${response.status} ${response.statusText}`,
     );
-    throw new Error(message);
   }
 
   const reader = response.body?.getReader();

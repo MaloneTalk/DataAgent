@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic.relation;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -35,7 +36,6 @@ import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,7 +116,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String tableName, UpdateLogicalTableRelationEnabledRequest request) {
         requireDatasource(request.datasourceId());
         if (request.enabled() == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "enabled cannot be null.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "enabled cannot be null.");
         }
         LogicalTableRelation relation =
                 requireRelation(request.datasourceId(), tableName, request.relationId());
@@ -159,7 +159,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .toList();
         if (matchedIds.size() != relationIds.size()) {
             throw new BusinessException(
-                    HttpStatus.NOT_FOUND,
+                    ErrorCode.LOGICAL_RELATION_NOT_FOUND,
                     "Some logical relations do not exist or do not belong to source table "
                             + normalizedTableName
                             + ".");
@@ -170,11 +170,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private void requireDatasource(Integer datasourceId) {
         if (datasourceId == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "datasourceId cannot be null.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "datasourceId cannot be null.");
         }
         if (datasourceService.findById(datasourceId) == null) {
             throw new BusinessException(
-                    HttpStatus.NOT_FOUND, "Datasource does not exist: " + datasourceId);
+                    ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 
@@ -251,21 +251,21 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             return;
         }
         throw new BusinessException(
-                HttpStatus.CONFLICT,
+                ErrorCode.LOGICAL_RELATION_CONFLICT,
                 "A logical relation already exists for the same source columns.");
     }
 
     private LogicalTableRelation requireRelation(
             Integer datasourceId, String tableName, Integer relationId) {
         if (relationId == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "relationId cannot be null.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "relationId cannot be null.");
         }
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
                 || !relation.getSourceTableName()
                         .equals(normalizeRequestTableName(tableName, "tableName"))) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "Logical relation does not exist.");
+            throw new BusinessException(ErrorCode.LOGICAL_RELATION_NOT_FOUND);
         }
         return relation;
     }
@@ -291,6 +291,6 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 exception.getMessage() == null
                         ? "Invalid request parameters."
                         : exception.getMessage();
-        return new BusinessException(HttpStatus.BAD_REQUEST, message);
+        return new BusinessException(ErrorCode.BAD_REQUEST, message);
     }
 }

@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.DomainCreateRequest;
 import io.github.malonetalk.dto.DomainPageQuery;
@@ -27,7 +28,6 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.DomainService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,7 +54,7 @@ public class DomainController {
         requireNonNegativeId(id);
         DomainInfo domain = domainService.findById(id);
         if (domain == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "Domain not found.");
+            throw new BusinessException(ErrorCode.DOMAIN_NOT_FOUND);
         }
         return Result.success(domain);
     }
@@ -80,7 +80,7 @@ public class DomainController {
 
     private void requireNonNegativeId(Integer id) {
         if (id == null || id < 0) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "id must not be negative.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "id must not be negative.");
         }
     }
 }

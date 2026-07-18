@@ -21,6 +21,7 @@ import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.util.JsonUtils;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
@@ -29,7 +30,6 @@ import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -67,7 +67,7 @@ public class GetTablesTool implements MarkAgentTool {
 
             if (activeDataSources.isEmpty()) {
                 throw new BusinessException(
-                        HttpStatus.NOT_FOUND,
+                        ErrorCode.NO_ACTIVE_DATASOURCE,
                         "No active datasource is available. Unable to retrieve tables.");
             }
 

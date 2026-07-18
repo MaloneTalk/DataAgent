@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 public class Result<T> implements Serializable {
 
     private Integer code;
+    private String errorCode;
     private String message;
     private T data;
     private String requestId;
@@ -38,6 +39,13 @@ public class Result<T> implements Serializable {
 
     public Result(Integer code, String message, T data) {
         this.code = code;
+        this.message = message;
+        this.data = data;
+    }
+
+    public Result(Integer code, String errorCode, String message, T data) {
+        this.code = code;
+        this.errorCode = errorCode;
         this.message = message;
         this.data = data;
     }
@@ -64,6 +72,14 @@ public class Result<T> implements Serializable {
 
     public static <T> Result<T> error(HttpStatus status, String message, T data, String requestId) {
         Result<T> result = new Result<>(status.value(), message, data);
+        result.setRequestId(requestId);
+        return result;
+    }
+
+    public static <T> Result<T> error(
+            ErrorCode errorCode, String message, T data, String requestId) {
+        Result<T> result =
+                new Result<>(errorCode.getHttpStatus().value(), errorCode.getCode(), message, data);
         result.setRequestId(requestId);
         return result;
     }
