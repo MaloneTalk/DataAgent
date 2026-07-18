@@ -40,7 +40,7 @@ public final class PromptConverter {
             PhysicalColumnInfo physicalColumn, Map<String, ColumnInfo> semanticByName) {
         ColumnInfo semanticColumn =
                 semanticByName.get(
-                        SemanticUtils.objectKey(
+                        SemanticUtils.normalizeObjectName(
                                 physicalColumn.columnName(),
                                 "Missing physical column name for prompt conversion."));
         if (!SemanticAvailabilityHelper.isColumnAvailable(
@@ -75,7 +75,7 @@ public final class PromptConverter {
             List<TableRelationPromptResponse> resolvedRelations) {
         TableInfo semanticTable =
                 semanticByName.get(
-                        SemanticUtils.objectKey(
+                        SemanticUtils.normalizeObjectName(
                                 physicalTable.tableName(),
                                 "Missing physical table name for prompt conversion."));
         if (!SemanticAvailabilityHelper.isTableAvailable(

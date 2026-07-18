@@ -156,7 +156,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .filter(
                                 column ->
                                         normalizedColumnNames.contains(
-                                                SemanticUtils.objectKey(
+                                                SemanticUtils.normalizeObjectName(
                                                         column.getColumnName(),
                                                         "Missing columnName while matching column"
                                                                 + " semantic reset.")))

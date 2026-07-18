@@ -120,7 +120,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 tableNames.stream()
                         .map(
                                 tableName ->
-                                        SemanticUtils.objectKey(
+                                        SemanticUtils.normalizeObjectName(
                                                 tableName,
                                                 "Missing tableName while building relation"
                                                         + " workspace page."))
@@ -132,7 +132,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .collect(
                                 Collectors.groupingBy(
                                         column ->
-                                                SemanticUtils.objectKey(
+                                                SemanticUtils.normalizeObjectName(
                                                         column.getTableName(),
                                                         "Missing tableName while grouping relation"
                                                                 + " workspace columns."),
@@ -145,7 +145,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                         semanticConverter.toWorkspaceTable(
                                                 table,
                                                 columnsByTableName.getOrDefault(
-                                                        SemanticUtils.objectKey(
+                                                        SemanticUtils.normalizeObjectName(
                                                                 table.getTableName(),
                                                                 "Missing tableName while mapping"
                                                                         + " relation workspace"
@@ -159,7 +159,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .filter(
                                 relation ->
                                         currentPageTableNames.contains(
-                                                SemanticUtils.objectKey(
+                                                SemanticUtils.normalizeObjectName(
                                                         relation.getTargetTableName(),
                                                         "Missing targetTableName while filtering"
                                                                 + " relation workspace"

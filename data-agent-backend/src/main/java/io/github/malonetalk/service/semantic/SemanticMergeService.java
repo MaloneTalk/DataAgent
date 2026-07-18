@@ -215,7 +215,7 @@ public class SemanticMergeService {
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
                         datasourceId, tableName)) {
             result.put(
-                    SemanticUtils.objectKey(
+                    SemanticUtils.normalizeObjectName(
                             column.getColumnName(),
                             "Missing columnName while building semantic column index."),
                     column);
@@ -259,7 +259,7 @@ public class SemanticMergeService {
             Map<String, TableInfo> map = new HashMap<>();
             for (TableInfo table : tables) {
                 map.put(
-                        SemanticUtils.objectKey(
+                        SemanticUtils.normalizeObjectName(
                                 table.getTableName(),
                                 "Missing tableName while building semantic table index."),
                         table);
@@ -273,7 +273,7 @@ public class SemanticMergeService {
 
         private TableInfo get(String tableName) {
             return index.get(
-                    SemanticUtils.objectKey(
+                    SemanticUtils.normalizeObjectName(
                             tableName, "Missing tableName while reading semantic table index."));
         }
 
@@ -290,12 +290,12 @@ public class SemanticMergeService {
             Map<String, Map<String, ColumnInfo>> map = new HashMap<>();
             for (ColumnInfo column : columns) {
                 map.computeIfAbsent(
-                                SemanticUtils.objectKey(
+                                SemanticUtils.normalizeObjectName(
                                         column.getTableName(),
                                         "Missing tableName while building semantic column index."),
                                 key -> new HashMap<>())
                         .put(
-                                SemanticUtils.objectKey(
+                                SemanticUtils.normalizeObjectName(
                                         column.getColumnName(),
                                         "Missing columnName while building semantic column index."),
                                 column);
@@ -306,13 +306,13 @@ public class SemanticMergeService {
         private ColumnInfo get(String tableName, String columnName) {
             Map<String, ColumnInfo> columns =
                     index.get(
-                            SemanticUtils.objectKey(
+                            SemanticUtils.normalizeObjectName(
                                     tableName,
                                     "Missing tableName while reading semantic column index."));
             return columns == null
                     ? null
                     : columns.get(
-                            SemanticUtils.objectKey(
+                            SemanticUtils.normalizeObjectName(
                                     columnName,
                                     "Missing columnName while reading semantic column index."));
         }
@@ -335,7 +335,7 @@ public class SemanticMergeService {
             Map<String, List<LogicalTableRelation>> map = new HashMap<>();
             for (LogicalTableRelation relation : relations) {
                 map.computeIfAbsent(
-                                SemanticUtils.objectKey(
+                                SemanticUtils.normalizeObjectName(
                                         relation.getSourceTableName(),
                                         "Missing sourceTableName while building relation index."),
                                 key -> new ArrayList<>())
@@ -346,7 +346,7 @@ public class SemanticMergeService {
 
         private List<LogicalTableRelation> get(String sourceTableName) {
             return index.getOrDefault(
-                    SemanticUtils.objectKey(
+                    SemanticUtils.normalizeObjectName(
                             sourceTableName,
                             "Missing sourceTableName while reading relation index."),
                     Collections.emptyList());

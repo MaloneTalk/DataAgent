@@ -90,10 +90,6 @@ public final class SemanticUtils {
         return requireTrimmed(value, missingMessage).toLowerCase(Locale.ROOT);
     }
 
-    public static String objectKey(String value, String missingMessage) {
-        return normalizeObjectName(value, missingMessage);
-    }
-
     public static boolean containsIgnoreCase(String value, String keyword) {
         String normalizedValue = trimToNull(value);
         String normalizedKeyword = trimToNull(keyword);

@@ -57,7 +57,7 @@ public class LogicalTableRelationHelper {
             }
             String normalizedColumnName = columnName.trim();
             String uniqueKey =
-                    SemanticUtils.objectKey(
+                    SemanticUtils.normalizeObjectName(
                             normalizedColumnName,
                             "Missing columnName while normalizing logical relation columns.");
             if (!uniqueKeys.add(uniqueKey)) {
@@ -73,7 +73,7 @@ public class LogicalTableRelationHelper {
         return normalizeColumnNames(columnNames, "columnNames").stream()
                 .map(
                         columnName ->
-                                SemanticUtils.objectKey(
+                                SemanticUtils.normalizeObjectName(
                                         columnName,
                                         "Missing columnName while building column signature."))
                 .reduce((left, right) -> left + RELATION_KEY_SEPARATOR + right)

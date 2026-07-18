@@ -273,7 +273,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 .collect(
                         Collectors.groupingBy(
                                 column ->
-                                        SemanticUtils.objectKey(
+                                        SemanticUtils.normalizeObjectName(
                                                 column.getTableName(),
                                                 "Missing tableName while grouping semantic"
                                                         + " columns for refresh."),
@@ -398,7 +398,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         Comparator<PhysicalTableInfo> comparator =
                 Comparator.comparing(
                         table ->
-                                SemanticUtils.objectKey(
+                                SemanticUtils.normalizeObjectName(
                                         table.tableName(),
                                         "Missing physical tableName while sorting table"
                                                 + " candidates."),

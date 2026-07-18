@@ -200,7 +200,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                         .filter(
                                 table ->
                                         normalizedNames.contains(
-                                                SemanticUtils.objectKey(
+                                                SemanticUtils.normalizeObjectName(
                                                         table.getTableName(),
                                                         "Missing tableName while matching table"
                                                                 + " semantic reset.")))
