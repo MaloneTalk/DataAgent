@@ -153,30 +153,32 @@ public class SemanticSyncApplyService {
         TableInfo existingTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existingTable == null) {
-            return SyncTableResult.builder()
-                    .tableName(normalizedTableName)
-                    .physicalTableFound(false)
-                    .tableMarkedMissing(false)
-                    .missingColumnsMarked(0)
-                    .message("物理表不存在")
-                    .build();
+            // 语义层本无此表记录，无任何"标缺失"动作发生 → 事件标志为 false
+            return buildMissingResult(normalizedTableName, false, 0);
         }
 
-        boolean tableMarkedMissing = !Boolean.FALSE.equals(existingTable.getPhysicalStatus());
-        if (tableMarkedMissing) {
+        boolean alreadyMissing = Boolean.FALSE.equals(existingTable.getPhysicalStatus());
+        boolean tableMarkedAsMissing = !alreadyMissing;
+        if (tableMarkedAsMissing) {
             existingTable.setPhysicalStatus(Boolean.FALSE);
             existingTable.setUpdateTime(now);
             tableInfoMapper.updatePhysicalCacheFields(existingTable);
         }
-        int missingColumnsMarked =
-                markAllColumnsMissing(
-                        columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
-                                datasourceId, normalizedTableName),
-                        now);
+        // 整张表缺失 → 其下所有语义列一并标缺失（差量标缺失见 markMissingColumns）
+        List<ColumnInfo> semanticColumns =
+                columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
+                        datasourceId, normalizedTableName);
+        int missingColumnsMarked = markAllColumnsMissing(semanticColumns, now);
+        return buildMissingResult(
+                existingTable.getTableName(), tableMarkedAsMissing, missingColumnsMarked);
+    }
+
+    private SyncTableResult buildMissingResult(
+            String tableName, boolean tableMarkedAsMissing, int missingColumnsMarked) {
         return SyncTableResult.builder()
-                .tableName(existingTable.getTableName())
+                .tableName(tableName)
                 .physicalTableFound(false)
-                .tableMarkedMissing(tableMarkedMissing)
+                .tableMarkedAsMissing(tableMarkedAsMissing)
                 .missingColumnsMarked(missingColumnsMarked)
                 .message("物理表不存在")
                 .build();

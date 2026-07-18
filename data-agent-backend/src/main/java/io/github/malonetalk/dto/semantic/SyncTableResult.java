@@ -26,7 +26,8 @@ public record SyncTableResult(
         boolean tableAdded,
         boolean tableReactivated,
         boolean tableUpdated,
-        boolean tableMarkedMissing,
+        // 本次同步是否对这张表执行了"标缺失"动作（语义层无记录则无动作，为 false）
+        boolean tableMarkedAsMissing,
         int addedColumns,
         int reactivatedColumns,
         int updatedColumns,

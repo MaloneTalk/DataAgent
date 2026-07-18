@@ -45,7 +45,7 @@ public class SemanticSyncResultService {
             if (result.tableUpdated()) {
                 updatedTables++;
             }
-            if (result.tableMarkedMissing()) {
+            if (result.tableMarkedAsMissing()) {
                 missingTablesMarked++;
             }
             addedColumns += result.addedColumns();

@@ -61,7 +61,7 @@ export interface SyncTableResult {
   tableAdded: boolean;
   tableReactivated: boolean;
   tableUpdated: boolean;
-  tableMarkedMissing: boolean;
+  tableMarkedAsMissing: boolean;
   addedColumns: number;
   reactivatedColumns: number;
   updatedColumns: number;
