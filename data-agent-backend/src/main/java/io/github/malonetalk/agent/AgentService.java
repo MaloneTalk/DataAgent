@@ -85,31 +85,17 @@ public class AgentService {
 
     public Flux<ChatStreamEvent> chatStream(
             String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
+        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults))
+                .onErrorResume(this::toErrorEvent);
+    }
+
+    private Flux<ChatStreamEvent> streamAgent(
+            String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
         ReActAgent agent = createAgent();
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
-
-        Msg userMsg;
-        if (toolResults != null && !toolResults.isEmpty()) {
-            List<ContentBlock> blocks =
-                    toolResults.stream()
-                            .<ContentBlock>map(
-                                    tr ->
-                                            ToolResultBlock.builder()
-                                                    .id(tr.toolCallId())
-                                                    .name(tr.toolName())
-                                                    .output(
-                                                            TextBlock.builder()
-                                                                    .text(tr.output())
-                                                                    .build())
-                                                    .build())
-                            .toList();
-            userMsg = Msg.builder().role(MsgRole.TOOL).content(blocks).build();
-        } else {
-            String text = userInput != null ? userInput : "";
-            userMsg = Msg.builder().textContent(text).build();
-        }
+        Msg userMsg = buildUserMessage(userInput, toolResults);
 
         StreamOptions streamOptions =
                 StreamOptions.builder()
@@ -121,8 +107,25 @@ public class AgentService {
         return agent.stream(userMsg, streamOptions)
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapIterable(EventConverter::map)
-                .onErrorResume(this::toErrorEvent)
                 .doFinally(signalType -> agent.saveTo(session, sessionId));
+    }
+
+    private Msg buildUserMessage(String userInput, List<ChatRequest.ToolResultInput> toolResults) {
+        if (toolResults == null || toolResults.isEmpty()) {
+            String text = userInput != null ? userInput : "";
+            return Msg.builder().textContent(text).build();
+        }
+        List<ContentBlock> blocks =
+                toolResults.stream().<ContentBlock>map(this::toToolResultBlock).toList();
+        return Msg.builder().role(MsgRole.TOOL).content(blocks).build();
+    }
+
+    private ToolResultBlock toToolResultBlock(ChatRequest.ToolResultInput toolResult) {
+        return ToolResultBlock.builder()
+                .id(toolResult.toolCallId())
+                .name(toolResult.toolName())
+                .output(TextBlock.builder().text(toolResult.output()).build())
+                .build();
     }
 
     private Flux<ChatStreamEvent> toErrorEvent(Throwable exception) {

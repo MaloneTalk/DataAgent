@@ -23,6 +23,30 @@ interface ApiResponse<T = unknown> {
   code: number;
   data: T;
   message: string;
+  requestId?: string;
+}
+
+export interface FieldValidationError {
+  field: string;
+  message: string;
+}
+
+export class ApiError extends Error {
+  code?: number;
+  details?: unknown;
+  requestId?: string;
+
+  constructor(
+    message: string,
+    options: { code?: number; details?: unknown; requestId?: string } = {},
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = options.code;
+    this.details = options.details;
+    this.requestId = options.requestId;
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
 }
 
 const service: AxiosInstance = axios.create({
@@ -43,18 +67,53 @@ service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const res = response.data;
     if (res.code !== 200) {
-      const message = res.message || '请求失败';
-      ElMessage.error(message);
-      return Promise.reject(new Error(message));
+      const apiError = toApiError(res, '请求失败');
+      ElMessage.error(apiError.message);
+      return Promise.reject(apiError);
     }
     return response;
   },
   error => {
-    const message = error.response?.data?.message || error.message || '网络错误';
-    ElMessage.error(message);
-    return Promise.reject(new Error(message));
+    const responseBody = error.response?.data as ApiResponse | undefined;
+    const requestId = responseBody?.requestId || error.response?.headers?.['x-request-id'];
+    const apiError = toApiError(responseBody, error.message || '网络错误', requestId);
+    ElMessage.error(apiError.message);
+    return Promise.reject(apiError);
   },
 );
+
+function toApiError(
+  response: ApiResponse | undefined,
+  fallbackMessage: string,
+  fallbackRequestId?: string,
+): ApiError {
+  const details = response?.data;
+  return new ApiError(resolveMessage(response, fallbackMessage), {
+    code: response?.code,
+    details,
+    requestId: response?.requestId || fallbackRequestId,
+  });
+}
+
+function resolveMessage(response: ApiResponse | undefined, fallbackMessage: string): string {
+  if (isFieldValidationErrors(response?.data)) {
+    return response.data.map(error => `${error.field}: ${error.message}`).join('\n');
+  }
+  return response?.message || fallbackMessage;
+}
+
+function isFieldValidationErrors(value: unknown): value is FieldValidationError[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      item =>
+        item !== null &&
+        typeof item === 'object' &&
+        typeof (item as FieldValidationError).field === 'string' &&
+        typeof (item as FieldValidationError).message === 'string',
+    )
+  );
+}
 
 export default service;
 export type { ApiResponse };

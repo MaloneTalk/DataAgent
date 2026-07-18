@@ -21,11 +21,13 @@ import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.config.RequestIdFilter;
 import io.github.malonetalk.dto.FieldValidationError;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
@@ -171,24 +173,6 @@ public class GlobalExceptionHandler {
         if (exception instanceof ServletRequestBindingException) {
             return "Invalid request binding.";
         }
-        if (exception instanceof MethodArgumentNotValidException validationException) {
-            return validationException.getBindingResult().getAllErrors().stream()
-                    .findFirst()
-                    .map(error -> error.getDefaultMessage())
-                    .orElse("Invalid request parameters.");
-        }
-        if (exception instanceof BindException bindException) {
-            return bindException.getAllErrors().stream()
-                    .findFirst()
-                    .map(error -> error.getDefaultMessage())
-                    .orElse("Invalid request parameters.");
-        }
-        if (exception instanceof ConstraintViolationException violationException) {
-            return violationException.getConstraintViolations().stream()
-                    .findFirst()
-                    .map(violation -> violation.getMessage())
-                    .orElse("Invalid request parameters.");
-        }
         if (exception instanceof HttpMessageNotReadableException) {
             return "Malformed request body.";
         }
@@ -204,7 +188,7 @@ public class GlobalExceptionHandler {
                         .map(FieldValidationError::message)
                         .orElse("Invalid request parameters.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Result.error(HttpStatus.BAD_REQUEST, message, errors));
+                .body(Result.error(HttpStatus.BAD_REQUEST, message, errors, requestId()));
     }
 
     private List<FieldValidationError> toFieldValidationErrors(BindingResult bindingResult) {
@@ -232,6 +216,10 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<Result<Object>> response(HttpStatus status, String message) {
-        return ResponseEntity.status(status).body(Result.error(status, message));
+        return ResponseEntity.status(status).body(Result.error(status, message, null, requestId()));
+    }
+
+    private String requestId() {
+        return MDC.get(RequestIdFilter.MDC_KEY);
     }
 }
