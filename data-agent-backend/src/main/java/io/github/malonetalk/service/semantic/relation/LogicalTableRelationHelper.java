@@ -41,8 +41,8 @@ public class LogicalTableRelationHelper {
         this.objectMapper = objectMapper;
     }
 
-    public String normalizeTableName(String tableName, String label) {
-        return SemanticUtils.objectKey(tableName, label);
+    public String normalizeTableName(String tableName, String missingMessage) {
+        return SemanticUtils.normalizeObjectName(tableName, missingMessage);
     }
 
     public List<String> normalizeColumnNames(List<String> columnNames, String fieldName) {
@@ -56,7 +56,10 @@ public class LogicalTableRelationHelper {
                 throw new IllegalArgumentException(fieldName + " contains a blank column name.");
             }
             String normalizedColumnName = columnName.trim();
-            String uniqueKey = SemanticUtils.objectKey(normalizedColumnName);
+            String uniqueKey =
+                    SemanticUtils.objectKey(
+                            normalizedColumnName,
+                            "Missing columnName while normalizing logical relation columns.");
             if (!uniqueKeys.add(uniqueKey)) {
                 throw new IllegalArgumentException(
                         fieldName + " contains duplicate column: " + normalizedColumnName);
@@ -68,7 +71,11 @@ public class LogicalTableRelationHelper {
 
     public String buildColumnSignature(List<String> columnNames) {
         return normalizeColumnNames(columnNames, "columnNames").stream()
-                .map(SemanticUtils::objectKey)
+                .map(
+                        columnName ->
+                                SemanticUtils.objectKey(
+                                        columnName,
+                                        "Missing columnName while building column signature."))
                 .reduce((left, right) -> left + RELATION_KEY_SEPARATOR + right)
                 .orElse("");
     }
@@ -78,11 +85,13 @@ public class LogicalTableRelationHelper {
             List<String> sourceColumnNames,
             String targetTableName,
             List<String> targetColumnNames) {
-        return SemanticUtils.objectKey(sourceTableName, "sourceTableName")
+        return SemanticUtils.normalizeObjectName(
+                        sourceTableName, "Missing sourceTableName for logical relation key.")
                 + RELATION_TABLE_COLUMN_SEPARATOR
                 + buildColumnSignature(sourceColumnNames)
                 + RELATION_GROUP_SEPARATOR
-                + SemanticUtils.objectKey(targetTableName, "targetTableName")
+                + SemanticUtils.normalizeObjectName(
+                        targetTableName, "Missing targetTableName for logical relation key.")
                 + RELATION_TABLE_COLUMN_SEPARATOR
                 + buildColumnSignature(targetColumnNames);
     }

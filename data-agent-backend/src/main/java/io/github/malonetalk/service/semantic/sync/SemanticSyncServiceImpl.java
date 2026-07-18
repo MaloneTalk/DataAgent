@@ -73,7 +73,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                 Collectors.toMap(
                                         table ->
                                                 SemanticUtils.normalizeObjectName(
-                                                        table.getTableName()),
+                                                        table.getTableName(),
+                                                        "Missing tableName while indexing synced"
+                                                                + " semantic tables."),
                                         table -> table,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
@@ -91,7 +93,10 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                                 SemanticUtils.trimToNull(table.remarks()),
                                                 semanticTables.containsKey(
                                                         SemanticUtils.normalizeObjectName(
-                                                                table.tableName()))))
+                                                                table.tableName(),
+                                                                "Missing physical tableName while"
+                                                                        + " listing table"
+                                                                        + " candidates."))))
                         .toList();
 
         int fromIndex = Math.min((pageNumber - 1) * pageSize, filtered.size());
@@ -110,14 +115,20 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                 Collectors.toMap(
                                         table ->
                                                 SemanticUtils.normalizeObjectName(
-                                                        table.tableName()),
+                                                        table.tableName(),
+                                                        "Missing physical tableName while loading"
+                                                                + " tables for semantic sync."),
                                         table -> table,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
         Set<String> selectedTableNames =
                 request.tableNames().stream()
-                        .map(name -> SemanticUtils.trimToNotBlank(name, "tableName"))
-                        .map(SemanticUtils::normalizeObjectName)
+                        .map(
+                                name ->
+                                        SemanticUtils.normalizeObjectName(
+                                                name,
+                                                "Missing tableName for selected table semantic"
+                                                        + " sync."))
                         .collect(Collectors.toCollection(LinkedHashSet::new));
 
         List<SyncTableResult> results = new ArrayList<>();
@@ -150,7 +161,10 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                 Collectors.toMap(
                                         table ->
                                                 SemanticUtils.normalizeObjectName(
-                                                        table.tableName()),
+                                                        table.tableName(),
+                                                        "Missing physical tableName while loading"
+                                                                + " tables for physical status"
+                                                                + " refresh."),
                                         table -> table,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
@@ -171,7 +185,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                     loadSemanticColumnsByTable(request.datasourceId(), page, physicalTables);
             for (TableInfo tableInfo : page) {
                 String normalizedTableName =
-                        SemanticUtils.normalizeObjectName(tableInfo.getTableName());
+                        SemanticUtils.normalizeObjectName(
+                                tableInfo.getTableName(),
+                                "Missing tableName while refreshing physical status.");
                 PhysicalTableInfo physicalTable = physicalTables.get(normalizedTableName);
                 if (physicalTable == null) {
                     results.add(
@@ -207,10 +223,21 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return schemaReader.getTableColumnNames(datasource, tableNames).entrySet().stream()
                 .collect(
                         Collectors.toMap(
-                                entry -> SemanticUtils.normalizeObjectName(entry.getKey()),
+                                entry ->
+                                        SemanticUtils.normalizeObjectName(
+                                                entry.getKey(),
+                                                "Missing tableName while loading physical column"
+                                                        + " names."),
                                 entry ->
                                         entry.getValue().stream()
-                                                .map(SemanticUtils::normalizeObjectName)
+                                                .map(
+                                                        columnName ->
+                                                                SemanticUtils.normalizeObjectName(
+                                                                        columnName,
+                                                                        "Missing columnName while"
+                                                                                + " loading"
+                                                                                + " physical"
+                                                                                + " column names."))
                                                 .collect(
                                                         Collectors.toCollection(
                                                                 LinkedHashSet::new)),
@@ -231,7 +258,10 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                         .filter(
                                 tableName ->
                                         physicalTables.containsKey(
-                                                SemanticUtils.normalizeObjectName(tableName)))
+                                                SemanticUtils.normalizeObjectName(
+                                                        tableName,
+                                                        "Missing tableName while loading semantic"
+                                                                + " columns for refresh.")))
                         .distinct()
                         .toList();
         if (tableNames.isEmpty()) {
@@ -242,7 +272,11 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 .stream()
                 .collect(
                         Collectors.groupingBy(
-                                column -> SemanticUtils.objectKey(column.getTableName()),
+                                column ->
+                                        SemanticUtils.objectKey(
+                                                column.getTableName(),
+                                                "Missing tableName while grouping semantic"
+                                                        + " columns for refresh."),
                                 LinkedHashMap::new,
                                 Collectors.toList()));
     }
@@ -285,7 +319,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                 Collectors.toMap(
                                         column ->
                                                 SemanticUtils.normalizeObjectName(
-                                                        column.getColumnName()),
+                                                        column.getColumnName(),
+                                                        "Missing columnName while indexing"
+                                                                + " semantic columns for sync."),
                                         column -> column,
                                         (left, _right) -> left,
                                         LinkedHashMap::new));
@@ -298,7 +334,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
 
         for (PhysicalColumnInfo physicalColumn : physicalColumns) {
             String normalizedColumnName =
-                    SemanticUtils.normalizeObjectName(physicalColumn.columnName());
+                    SemanticUtils.normalizeObjectName(
+                            physicalColumn.columnName(),
+                            "Missing physical columnName while syncing table.");
             physicalColumnNames.add(normalizedColumnName);
             SemanticSyncApplyService.ColumnSyncDiff columnSyncDiff =
                     semanticSyncApplyService.ensureColumnPresent(
@@ -359,7 +397,11 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     private Comparator<PhysicalTableInfo> buildTableComparator(boolean sortDescending) {
         Comparator<PhysicalTableInfo> comparator =
                 Comparator.comparing(
-                        table -> SemanticUtils.objectKey(table.tableName()),
+                        table ->
+                                SemanticUtils.objectKey(
+                                        table.tableName(),
+                                        "Missing physical tableName while sorting table"
+                                                + " candidates."),
                         Comparator.naturalOrder());
         return sortDescending ? comparator.reversed() : comparator;
     }
