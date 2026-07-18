@@ -196,7 +196,9 @@ public class SemanticSyncApplyService {
         int missingColumnsMarked = 0;
         for (ColumnInfo semanticColumn : semanticColumns) {
             if (physicalColumnNames.contains(
-                    SemanticUtils.normalizeObjectName(semanticColumn.getColumnName()))) {
+                    SemanticUtils.normalizeObjectName(
+                            semanticColumn.getColumnName(),
+                            "Missing semantic columnName while marking missing columns."))) {
                 continue;
             }
             if (Boolean.FALSE.equals(semanticColumn.getPhysicalStatus())) {

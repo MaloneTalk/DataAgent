@@ -139,7 +139,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName = SemanticUtils.objectKey(request.tableName(), "tableName");
+        String normalizedTableName =
+                SemanticUtils.normalizeObjectName(
+                        request.tableName(), "Missing tableName for table semantic update.");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -167,7 +169,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
+        String normalizedTableName =
+                SemanticUtils.requireTrimmed(
+                        tableName, "Missing tableName for table semantic reset.");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
@@ -184,14 +188,22 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         Set<String> normalizedNames =
                 tableNames.stream()
-                        .map(name -> SemanticUtils.objectKey(name, "tableName"))
+                        .map(
+                                name ->
+                                        SemanticUtils.normalizeObjectName(
+                                                name,
+                                                "Missing tableName for batch table semantic"
+                                                        + " reset."))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 tableInfoMapper.selectByDatasourceId(datasourceId).stream()
                         .filter(
                                 table ->
                                         normalizedNames.contains(
-                                                SemanticUtils.objectKey(table.getTableName())))
+                                                SemanticUtils.objectKey(
+                                                        table.getTableName(),
+                                                        "Missing tableName while matching table"
+                                                                + " semantic reset.")))
                         .map(TableInfo::getId)
                         .distinct()
                         .toList();

@@ -84,7 +84,9 @@ public class SemanticMergeService {
     }
 
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
-        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
+        String normalizedTableName =
+                SemanticUtils.requireTrimmed(
+                        tableName, "Missing tableName for merged table schema lookup.");
 
         List<PhysicalColumnInfo> physicalColumns =
                 schemaReader.getTableSchema(datasource, normalizedTableName);
@@ -212,7 +214,11 @@ public class SemanticMergeService {
         for (ColumnInfo column :
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
                         datasourceId, tableName)) {
-            result.put(SemanticUtils.objectKey(column.getColumnName()), column);
+            result.put(
+                    SemanticUtils.objectKey(
+                            column.getColumnName(),
+                            "Missing columnName while building semantic column index."),
+                    column);
         }
         return result;
     }
@@ -252,7 +258,11 @@ public class SemanticMergeService {
         private static TableNameIndex of(List<TableInfo> tables) {
             Map<String, TableInfo> map = new HashMap<>();
             for (TableInfo table : tables) {
-                map.put(SemanticUtils.objectKey(table.getTableName()), table);
+                map.put(
+                        SemanticUtils.objectKey(
+                                table.getTableName(),
+                                "Missing tableName while building semantic table index."),
+                        table);
             }
             return new TableNameIndex(map);
         }
@@ -262,7 +272,9 @@ public class SemanticMergeService {
         }
 
         private TableInfo get(String tableName) {
-            return index.get(SemanticUtils.objectKey(tableName));
+            return index.get(
+                    SemanticUtils.objectKey(
+                            tableName, "Missing tableName while reading semantic table index."));
         }
 
         private boolean isHidden(String tableName) {
@@ -278,16 +290,31 @@ public class SemanticMergeService {
             Map<String, Map<String, ColumnInfo>> map = new HashMap<>();
             for (ColumnInfo column : columns) {
                 map.computeIfAbsent(
-                                SemanticUtils.objectKey(column.getTableName()),
+                                SemanticUtils.objectKey(
+                                        column.getTableName(),
+                                        "Missing tableName while building semantic column index."),
                                 key -> new HashMap<>())
-                        .put(SemanticUtils.objectKey(column.getColumnName()), column);
+                        .put(
+                                SemanticUtils.objectKey(
+                                        column.getColumnName(),
+                                        "Missing columnName while building semantic column index."),
+                                column);
             }
             return new TableColumnIndex(map);
         }
 
         private ColumnInfo get(String tableName, String columnName) {
-            Map<String, ColumnInfo> columns = index.get(SemanticUtils.objectKey(tableName));
-            return columns == null ? null : columns.get(SemanticUtils.objectKey(columnName));
+            Map<String, ColumnInfo> columns =
+                    index.get(
+                            SemanticUtils.objectKey(
+                                    tableName,
+                                    "Missing tableName while reading semantic column index."));
+            return columns == null
+                    ? null
+                    : columns.get(
+                            SemanticUtils.objectKey(
+                                    columnName,
+                                    "Missing columnName while reading semantic column index."));
         }
 
         private boolean hasHiddenColumn(String tableName, List<String> columnNames) {
@@ -308,7 +335,9 @@ public class SemanticMergeService {
             Map<String, List<LogicalTableRelation>> map = new HashMap<>();
             for (LogicalTableRelation relation : relations) {
                 map.computeIfAbsent(
-                                SemanticUtils.objectKey(relation.getSourceTableName()),
+                                SemanticUtils.objectKey(
+                                        relation.getSourceTableName(),
+                                        "Missing sourceTableName while building relation index."),
                                 key -> new ArrayList<>())
                         .add(relation);
             }
@@ -317,7 +346,10 @@ public class SemanticMergeService {
 
         private List<LogicalTableRelation> get(String sourceTableName) {
             return index.getOrDefault(
-                    SemanticUtils.objectKey(sourceTableName), Collections.emptyList());
+                    SemanticUtils.objectKey(
+                            sourceTableName,
+                            "Missing sourceTableName while reading relation index."),
+                    Collections.emptyList());
         }
     }
 }

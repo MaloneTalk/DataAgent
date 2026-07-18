@@ -66,7 +66,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             RelationSemanticPageQuery query) {
         requireDatasource(query.datasourceId());
         String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
+                logicalTableRelationHelper.normalizeTableName(
+                        query.tableName(), "Missing tableName for logical relation page query.");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
@@ -116,14 +117,25 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
         List<String> tableNames = page.stream().map(TableInfo::getTableName).distinct().toList();
         Set<String> currentPageTableNames =
-                tableNames.stream().map(SemanticUtils::objectKey).collect(Collectors.toSet());
+                tableNames.stream()
+                        .map(
+                                tableName ->
+                                        SemanticUtils.objectKey(
+                                                tableName,
+                                                "Missing tableName while building relation"
+                                                        + " workspace page."))
+                        .collect(Collectors.toSet());
         Map<String, List<ColumnInfo>> columnsByTableName =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableNames(query.datasourceId(), tableNames)
                         .stream()
                         .collect(
                                 Collectors.groupingBy(
-                                        column -> SemanticUtils.objectKey(column.getTableName()),
+                                        column ->
+                                                SemanticUtils.objectKey(
+                                                        column.getTableName(),
+                                                        "Missing tableName while grouping relation"
+                                                                + " workspace columns."),
                                         LinkedHashMap::new,
                                         Collectors.toList()));
         List<RelationWorkspaceTableResponse> nodes =
@@ -134,7 +146,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                                 table,
                                                 columnsByTableName.getOrDefault(
                                                         SemanticUtils.objectKey(
-                                                                table.getTableName()),
+                                                                table.getTableName(),
+                                                                "Missing tableName while mapping"
+                                                                        + " relation workspace"
+                                                                        + " table."),
                                                         List.of())))
                         .toList();
         List<LogicalTableRelationResponse> relations =
@@ -145,7 +160,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                 relation ->
                                         currentPageTableNames.contains(
                                                 SemanticUtils.objectKey(
-                                                        relation.getTargetTableName())))
+                                                        relation.getTargetTableName(),
+                                                        "Missing targetTableName while filtering"
+                                                                + " relation workspace"
+                                                                + " relations.")))
                         .map(semanticConverter::toResponse)
                         .toList();
 
@@ -225,7 +243,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId, String tableName, List<Integer> relationIds) {
         requireDatasource(datasourceId);
         String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
+                logicalTableRelationHelper.normalizeTableName(
+                        tableName, "Missing tableName for batch logical relation delete.");
         if (relationIds == null || relationIds.isEmpty()) {
             return 0;
         }
@@ -362,7 +381,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String description,
             Boolean enabled) {
         relation.setSourceTableName(
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
+                logicalTableRelationHelper.normalizeTableName(
+                        tableName, "Missing source tableName for logical relation save."));
         List<String> normalizedSourceColumns =
                 logicalTableRelationHelper.normalizeColumnNames(
                         sourceColumnNames, "sourceColumnNames");
@@ -371,7 +391,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         relation.setSourceColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(normalizedSourceColumns));
         relation.setTargetTableName(
-                logicalTableRelationHelper.normalizeTableName(targetTableName, "targetTableName"));
+                logicalTableRelationHelper.normalizeTableName(
+                        targetTableName, "Missing targetTableName for logical relation save."));
         List<String> normalizedTargetColumns =
                 logicalTableRelationHelper.normalizeColumnNames(
                         targetColumnNames, "targetColumnNames");
@@ -410,7 +431,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
-                || !relation.getSourceTableName().equals(SemanticUtils.objectKey(tableName))) {
+                || !relation.getSourceTableName()
+                        .equals(
+                                SemanticUtils.normalizeObjectName(
+                                        tableName,
+                                        "Missing tableName for logical relation lookup."))) {
             throw new IllegalArgumentException("Logical relation does not exist.");
         }
         return relation;

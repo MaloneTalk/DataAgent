@@ -59,9 +59,9 @@ public final class SemanticUtils {
         return value.trim();
     }
 
-    public static String trimToNotBlank(String value, String label) {
+    public static String requireTrimmed(String value, String missingMessage) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(label + " cannot be blank.");
+            throw new IllegalArgumentException(missingMessage);
         }
         return value.trim();
     }
@@ -86,16 +86,12 @@ public final class SemanticUtils {
                 : normalized.toLowerCase(Locale.ROOT);
     }
 
-    public static String normalizeObjectName(String value) {
-        return trimToNotBlank(value, "objectName").toLowerCase(Locale.ROOT);
+    public static String normalizeObjectName(String value, String missingMessage) {
+        return requireTrimmed(value, missingMessage).toLowerCase(Locale.ROOT);
     }
 
-    public static String objectKey(String value) {
-        return normalizeObjectName(value);
-    }
-
-    public static String objectKey(String value, String label) {
-        return trimToNotBlank(value, label).toLowerCase(Locale.ROOT);
+    public static String objectKey(String value, String missingMessage) {
+        return normalizeObjectName(value, missingMessage);
     }
 
     public static boolean containsIgnoreCase(String value, String keyword) {
