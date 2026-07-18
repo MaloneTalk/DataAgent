@@ -162,8 +162,13 @@ public class SemanticSyncApplyService {
         TableInfo existingTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existingTable == null) {
-            return new SyncTableResult(
-                    normalizedTableName, false, false, false, false, false, 0, 0, 0, 0, "物理表不存在");
+            return SyncTableResult.builder()
+                    .tableName(normalizedTableName)
+                    .physicalTableFound(false)
+                    .tableMarkedMissing(false)
+                    .missingColumnsMarked(0)
+                    .message("物理表不存在")
+                    .build();
         }
 
         boolean tableMarkedMissing = !Boolean.FALSE.equals(existingTable.getPhysicalStatus());
@@ -177,18 +182,13 @@ public class SemanticSyncApplyService {
                         columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
                                 datasourceId, normalizedTableName),
                         now);
-        return new SyncTableResult(
-                existingTable.getTableName(),
-                false,
-                false,
-                false,
-                false,
-                tableMarkedMissing,
-                0,
-                0,
-                0,
-                missingColumnsMarked,
-                "物理表不存在");
+        return SyncTableResult.builder()
+                .tableName(existingTable.getTableName())
+                .physicalTableFound(false)
+                .tableMarkedMissing(tableMarkedMissing)
+                .missingColumnsMarked(missingColumnsMarked)
+                .message("物理表不存在")
+                .build();
     }
 
     public int markMissingColumns(

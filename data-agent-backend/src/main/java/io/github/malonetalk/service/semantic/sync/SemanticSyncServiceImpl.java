@@ -255,18 +255,12 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         int missingColumnsMarked =
                 semanticSyncApplyService.markMissingColumns(
                         semanticColumns, physicalColumnNames, now);
-        return new SyncTableResult(
-                tableInfo.getTableName(),
-                true,
-                false,
-                false,
-                false,
-                false,
-                0,
-                0,
-                0,
-                missingColumnsMarked,
-                "Physical column status refreshed");
+        return SyncTableResult.builder()
+                .tableName(tableInfo.getTableName())
+                .physicalTableFound(true)
+                .missingColumnsMarked(missingColumnsMarked)
+                .message("Physical column status refreshed")
+                .build();
     }
 
     private SyncTableResult syncSingleTable(
@@ -331,18 +325,18 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 semanticSyncApplyService.markMissingColumns(
                         semanticColumns, physicalColumnNames, now);
 
-        return new SyncTableResult(
-                physicalTable.tableName(),
-                true,
-                tableSyncDiff.added(),
-                tableSyncDiff.reactivated(),
-                tableSyncDiff.updated(),
-                false,
-                addedColumns,
-                reactivatedColumns,
-                updatedColumns,
-                missingColumnsMarked,
-                "同步完成");
+        return SyncTableResult.builder()
+                .tableName(physicalTable.tableName())
+                .physicalTableFound(true)
+                .tableAdded(tableSyncDiff.added())
+                .tableReactivated(tableSyncDiff.reactivated())
+                .tableUpdated(tableSyncDiff.updated())
+                .addedColumns(addedColumns)
+                .reactivatedColumns(reactivatedColumns)
+                .updatedColumns(updatedColumns)
+                .missingColumnsMarked(missingColumnsMarked)
+                .message("同步完成")
+                .build();
     }
 
     private Datasource requireDatasource(Integer datasourceId) {
