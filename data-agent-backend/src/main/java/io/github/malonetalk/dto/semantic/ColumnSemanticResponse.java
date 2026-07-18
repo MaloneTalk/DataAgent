@@ -30,6 +30,11 @@ public record ColumnSemanticResponse(
         Boolean primaryKey,
         Boolean isVisible,
         Boolean hasPhysicalColumn,
+        // 最终可用性（推导值，非存储字段）：effective = isVisible && hasPhysicalColumn。
+        // 与 isVisible 含义不同——isVisible 只表示用户是否手动隐藏该列；
+        // effective 还需物理列依然存在，二者任一为假即为 false。
+        // 它由 SemanticConverter 调 SemanticAvailabilityHelper.isColumnAvailable(USER_OPERATION) 计算，
+        // 前端据此渲染“有效/无效”徽标。
         Boolean effective,
         String invalidReason,
         LocalDateTime updateTime) {}
