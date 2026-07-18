@@ -203,9 +203,6 @@
                 </executions>
                 <configuration>
                     <java>
-                        <excludes>
-                            <exclude>**/io/github/malonetalk/utils/MsgUtils.java</exclude>
-                        </excludes>
                         <removeUnusedImports/>
                         <forbidWildcardImports/>
                         <formatAnnotations/>

@@ -21,6 +21,7 @@ export type ChatStreamEventType =
   | 'tool_result'
   | 'thinking'
   | 'text'
+  | 'report'
   | 'question';
 
 export interface ToolCallInfo {

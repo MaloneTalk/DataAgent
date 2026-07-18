@@ -94,3 +94,14 @@ INSERT INTO `domain_info` (`name`, `description`, `create_time`, `update_time`)
 SELECT 'default', '默认领域', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM `domain_info` WHERE `name` = 'default');
 
+CREATE TABLE IF NOT EXISTS `report` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `content` LONGTEXT NOT NULL COMMENT '报告正文',
+    `title` VARCHAR(500) NOT NULL COMMENT '报告标题',
+    `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `is_deleted` TINYINT(1) DEFAULT 0 COMMENT '是否删除',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_session_id` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告表';

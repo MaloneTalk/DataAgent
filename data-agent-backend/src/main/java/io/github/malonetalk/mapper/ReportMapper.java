@@ -15,25 +15,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.enums;
+package io.github.malonetalk.mapper;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.AllArgsConstructor;
+import io.github.malonetalk.dto.ReportPageQuery;
+import io.github.malonetalk.entity.Report;
+import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
-@AllArgsConstructor
-public enum ChatStreamEventType {
-    SUMMARY("summary"),
-    TOOL_CALL("tool_call"),
-    TOOL_RESULT("tool_result"),
-    THINKING("thinking"),
-    TEXT("text"),
-    REPORT("report"),
-    QUESTION("question");
+@Mapper
+public interface ReportMapper {
 
-    private final String code;
+    int insert(Report report);
 
-    @JsonValue
-    public String getCode() {
-        return code;
-    }
+    List<Report> selectPage(
+            @Param("query") ReportPageQuery query, @Param("sortDescending") boolean sortDescending);
+
+    int deleteById(@Param("id") Integer id);
+
+    Report selectById(@Param("id") Integer id);
 }

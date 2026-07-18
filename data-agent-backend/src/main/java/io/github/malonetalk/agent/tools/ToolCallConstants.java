@@ -15,25 +15,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.enums;
+package io.github.malonetalk.agent.tools;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.AllArgsConstructor;
+public final class ToolCallConstants {
 
-@AllArgsConstructor
-public enum ChatStreamEventType {
-    SUMMARY("summary"),
-    TOOL_CALL("tool_call"),
-    TOOL_RESULT("tool_result"),
-    THINKING("thinking"),
-    TEXT("text"),
-    REPORT("report"),
-    QUESTION("question");
-
-    private final String code;
-
-    @JsonValue
-    public String getCode() {
-        return code;
+    private ToolCallConstants() {
+        throw new IllegalCallerException("No ToolNameConstants for you!");
     }
+
+    public static final String ASK_USER = "ask_user";
+
+    public static final String GENERATE_REPORT = "generate_report";
+
+    public static final String SUCCESS = "SUCCESS";
+
+    public static final String SEPARATOR = ": ";
+
+    public static final String FAIL = "FAIL";
+
+    public static final String SUCCESS_PREFIX = SUCCESS + SEPARATOR;
+
+    public static final String FAIL_PREFIX = FAIL + SEPARATOR;
 }

@@ -24,6 +24,10 @@
     message: ChatMessage;
   }>();
 
+  const emit = defineEmits<{
+    (e: 'previewReport', content: string): void;
+  }>();
+
   const isExpanded = ref(true);
 
   function toggleExpand() {
@@ -63,6 +67,7 @@
     tool_call: { label: 'Action' },
     tool_result: { label: 'Observation' },
     question: { label: 'Question' },
+    report: { label: 'Report' },
   };
 
   function getStepRenderer(type: ChatStreamEventType): StepRenderer {
@@ -88,6 +93,9 @@
     }
     if (step.type === 'question') {
       return `等待用户回答: ${step.content ?? ''}`;
+    }
+    if (step.type === 'report') {
+      return '报告已生成';
     }
     return step.content ?? '';
   }
@@ -130,6 +138,11 @@
         <div v-if="step.type === 'tool_result' && step.toolResult" class="trace-step__code">
           <div class="code-label">Output:</div>
           <pre class="code-block">{{ displayMultiline(step.toolResult.output) }}</pre>
+        </div>
+        <div v-if="step.type === 'report' && step.toolResult" class="trace-step__code">
+          <el-button link type="primary" @click="emit('previewReport', step.toolResult!.output)">
+            预览报告
+          </el-button>
         </div>
       </div>
     </div>
@@ -258,6 +271,13 @@
   }
   .trace-step--summary .trace-step__label {
     color: #7c3aed;
+  }
+
+  .trace-step--report {
+    color: #2563eb;
+  }
+  .trace-step--report .trace-step__label {
+    color: #2563eb;
   }
 
   .trace-step__code {
