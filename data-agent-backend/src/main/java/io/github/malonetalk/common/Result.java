@@ -61,14 +61,6 @@ public class Result<T> implements Serializable {
         return new Result<>(200, message, data);
     }
 
-    public static <T> Result<T> error(HttpStatus status, String message) {
-        return new Result<>(status.value(), message);
-    }
-
-    public static <T> Result<T> error(HttpStatus status, String message, T data) {
-        return new Result<>(status.value(), message, data);
-    }
-
     public static <T> Result<T> error(ErrorCode errorCode, String message, T data) {
         Result<T> result =
                 new Result<>(errorCode.getHttpStatus().value(), errorCode.getCode(), message, data);

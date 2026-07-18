@@ -20,6 +20,7 @@ package io.github.malonetalk.exception;
 import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
+import io.github.malonetalk.agent.datasource.SqlExecutor.SqlValidationException;
 import io.github.malonetalk.common.ErrorCode;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -33,8 +34,11 @@ public class ExceptionResponseMapper {
         if (exception instanceof BusinessException businessException) {
             return fromBusinessException(businessException);
         }
+        if (exception instanceof SqlValidationException) {
+            return of(ErrorCode.BAD_REQUEST, exception.getMessage());
+        }
         if (exception instanceof SqlSecurityException) {
-            return of(ErrorCode.SQL_NOT_ALLOWED, exception.getMessage());
+            return of(ErrorCode.SQL_NOT_ALLOWED);
         }
         if (exception instanceof SchemaReadException) {
             return of(ErrorCode.SCHEMA_READ_FAILED);
@@ -63,22 +67,7 @@ public class ExceptionResponseMapper {
     }
 
     private ErrorResponse fromBusinessException(BusinessException exception) {
-        ErrorCode errorCode = exception.getErrorCode();
-        if (errorCode != null) {
-            return of(errorCode, exception.getMessage());
-        }
-        return of(fallbackBusinessCode(exception), exception.getMessage());
-    }
-
-    private ErrorCode fallbackBusinessCode(BusinessException exception) {
-        return switch (exception.getStatus()) {
-            case BAD_REQUEST -> ErrorCode.BAD_REQUEST;
-            case NOT_FOUND -> ErrorCode.RESOURCE_NOT_FOUND;
-            case FORBIDDEN -> ErrorCode.FORBIDDEN;
-            case CONFLICT -> ErrorCode.DATA_CONFLICT;
-            case SERVICE_UNAVAILABLE -> ErrorCode.DATA_SERVICE_UNAVAILABLE;
-            default -> ErrorCode.INTERNAL_ERROR;
-        };
+        return of(exception.getErrorCode(), exception.getMessage());
     }
 
     private String defaultIfBlank(String value, String defaultValue) {

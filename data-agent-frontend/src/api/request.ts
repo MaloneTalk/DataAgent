@@ -31,6 +31,8 @@ export interface FieldValidationError {
   message: string;
 }
 
+export type FieldErrorMap = Record<string, string>;
+
 export class ApiError extends Error {
   code?: number;
   errorCode?: string;
@@ -100,7 +102,17 @@ function resolveMessage(response: ApiResponse | undefined, fallbackMessage: stri
   return response?.message || fallbackMessage;
 }
 
-function isFieldValidationErrors(value: unknown): value is FieldValidationError[] {
+export function getFieldErrorMap(error: unknown): FieldErrorMap {
+  if (!(error instanceof ApiError) || !isFieldValidationErrors(error.details)) {
+    return {};
+  }
+  return error.details.reduce<FieldErrorMap>((result, item) => {
+    result[item.field] = item.message;
+    return result;
+  }, {});
+}
+
+export function isFieldValidationErrors(value: unknown): value is FieldValidationError[] {
   return (
     Array.isArray(value) &&
     value.every(

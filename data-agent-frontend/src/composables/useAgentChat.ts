@@ -29,6 +29,7 @@ export interface TraceStep {
   content: string | null;
   toolCall: { id: string; name: string; input: Record<string, unknown> } | null;
   toolResult: { id: string; name: string; output: string } | null;
+  errorCode: string | null;
 }
 
 export interface ChatMessage {
@@ -198,12 +199,14 @@ export function useAgentChat(initialSessionId?: string) {
     content: string | null;
     toolCall: TraceStep['toolCall'];
     toolResult: TraceStep['toolResult'];
+    errorCode?: string | null;
   }): TraceStep {
     return {
       type: event.type,
       content: event.content,
       toolCall: event.toolCall,
       toolResult: event.toolResult,
+      errorCode: event.errorCode ?? null,
     };
   }
 

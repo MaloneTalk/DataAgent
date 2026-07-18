@@ -16,9 +16,10 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref } from 'vue';
+  import { onMounted, reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import { getFieldErrorMap } from '@/api/request';
   import {
     getDomainPage,
     createDomain,
@@ -53,6 +54,7 @@
     name: '',
     description: '',
   });
+  const domainFieldErrors = reactive<Record<string, string>>({});
   const selectedDomain = ref<DomainInfo | null>(null);
 
   const domainRules: FormRules<DomainEditForm> = {
@@ -93,6 +95,7 @@
   };
 
   const handleOpenDomainCreate = () => {
+    clearDomainFieldErrors();
     selectedDomain.value = null;
     Object.assign(domainForm, {
       name: '',
@@ -102,6 +105,7 @@
   };
 
   const handleOpenDomainEdit = (row: DomainInfo) => {
+    clearDomainFieldErrors();
     selectedDomain.value = row;
     Object.assign(domainForm, {
       name: row.name,
@@ -115,6 +119,7 @@
       return;
     }
 
+    clearDomainFieldErrors();
     const valid = await domainFormRef.value.validate().catch(() => false);
     if (!valid) {
       return;
@@ -137,10 +142,23 @@
 
       domainDialogVisible.value = false;
       await loadDomainPage();
+    } catch (error) {
+      applyDomainFieldErrors(error);
     } finally {
       domainSubmitLoading.value = false;
     }
   };
+
+  const clearDomainFieldErrors = () => {
+    Object.keys(domainFieldErrors).forEach(key => delete domainFieldErrors[key]);
+  };
+
+  const applyDomainFieldErrors = (error: unknown) => {
+    clearDomainFieldErrors();
+    Object.assign(domainFieldErrors, getFieldErrorMap(error));
+  };
+
+  watch(domainForm, clearDomainFieldErrors, { deep: true });
 
   const handleDeleteDomain = async (row: DomainInfo) => {
     try {
@@ -232,10 +250,10 @@
       width="640px"
     >
       <el-form ref="domainFormRef" :model="domainForm" :rules="domainRules" label-width="110px">
-        <el-form-item label="领域名称" prop="name">
+        <el-form-item label="领域名称" prop="name" :error="domainFieldErrors.name">
           <el-input v-model="domainForm.name" placeholder="例如：会员、订单、商品" />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
+        <el-form-item label="描述" prop="description" :error="domainFieldErrors.description">
           <el-input
             v-model="domainForm.description"
             type="textarea"

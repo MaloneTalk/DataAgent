@@ -64,11 +64,11 @@ public class SqlExecutor {
 
     private void validateSql(String sql) {
         if (sql == null || sql.isBlank()) {
-            throw new IllegalArgumentException("SQL must not be empty");
+            throw new SqlValidationException("SQL must not be empty.");
         }
 
         if (!SELECT_PATTERN.matcher(sql).find()) {
-            throw new SqlSecurityException("Only SELECT queries are allowed. Received: " + sql);
+            throw new SqlSecurityException("Only SELECT queries are allowed.");
         }
 
         if (FORBIDDEN_PATTERN.matcher(sql).find()) {
@@ -129,6 +129,12 @@ public class SqlExecutor {
 
     public static class SqlSecurityException extends RuntimeException {
         public SqlSecurityException(String message) {
+            super(message);
+        }
+    }
+
+    public static class SqlValidationException extends RuntimeException {
+        public SqlValidationException(String message) {
             super(message);
         }
     }

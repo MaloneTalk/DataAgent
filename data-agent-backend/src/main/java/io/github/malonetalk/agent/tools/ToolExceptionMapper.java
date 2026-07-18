@@ -17,8 +17,11 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.message.ToolResultBlock;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.exception.ExceptionResponseMapper.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -27,8 +30,22 @@ import org.springframework.stereotype.Component;
 public class ToolExceptionMapper {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
+    private final ObjectMapper objectMapper;
 
     public ToolResultBlock toToolResult(Exception exception) {
-        return ToolResultBlock.error(exceptionResponseMapper.resolve(exception).message());
+        ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
+        return ToolResultBlock.error(toPayload(errorResponse));
     }
+
+    private String toPayload(ErrorResponse errorResponse) {
+        ToolErrorPayload payload =
+                new ToolErrorPayload(errorResponse.errorCode().getCode(), errorResponse.message());
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException exception) {
+            return errorResponse.errorCode().getCode() + ": " + errorResponse.message();
+        }
+    }
+
+    private record ToolErrorPayload(String errorCode, String message) {}
 }

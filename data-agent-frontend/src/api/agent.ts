@@ -51,6 +51,7 @@ export interface ChatStreamEvent {
   content: string | null;
   toolCall: ToolCallInfo | null;
   toolResult: ToolResultInfo | null;
+  errorCode: string | null;
 }
 
 export interface SessionInfo {

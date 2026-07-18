@@ -91,7 +91,8 @@
       return `等待用户回答: ${step.content ?? ''}`;
     }
     if (step.type === 'error') {
-      return step.content ?? '请求失败';
+      const message = step.content ?? '请求失败';
+      return step.errorCode ? `[${step.errorCode}] ${message}` : message;
     }
     return step.content ?? '';
   }

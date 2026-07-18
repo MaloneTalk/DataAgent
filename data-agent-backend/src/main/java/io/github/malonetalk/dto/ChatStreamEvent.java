@@ -28,7 +28,18 @@ public record ChatStreamEvent(
         boolean isLast,
         String content,
         ToolCallInfo toolCall,
-        ToolResultInfo toolResult) {
+        ToolResultInfo toolResult,
+        String errorCode) {
+
+    public ChatStreamEvent(
+            ChatStreamEventType type,
+            String messageId,
+            boolean isLast,
+            String content,
+            ToolCallInfo toolCall,
+            ToolResultInfo toolResult) {
+        this(type, messageId, isLast, content, toolCall, toolResult, null);
+    }
 
     public record ToolCallInfo(String id, String name, Map<String, Object> input) {}
 

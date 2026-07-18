@@ -19,19 +19,11 @@ package io.github.malonetalk.exception;
 
 import io.github.malonetalk.common.ErrorCode;
 import lombok.Getter;
-import org.springframework.http.HttpStatus;
 
 @Getter
 public class BusinessException extends RuntimeException {
 
     private final ErrorCode errorCode;
-    private final HttpStatus status;
-
-    public BusinessException(HttpStatus status, String message) {
-        super(message);
-        this.errorCode = null;
-        this.status = status;
-    }
 
     public BusinessException(ErrorCode errorCode) {
         this(errorCode, errorCode.getDefaultMessage());
@@ -40,6 +32,5 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode, String message) {
         super(message);
         this.errorCode = errorCode;
-        this.status = errorCode.getHttpStatus();
     }
 }

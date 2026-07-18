@@ -20,6 +20,7 @@ package io.github.malonetalk.exception;
 import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
+import io.github.malonetalk.agent.datasource.SqlExecutor.SqlValidationException;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.FieldValidationError;
@@ -31,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
@@ -100,6 +100,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SqlSecurityException.class)
     public ResponseEntity<Result<Object>> handleSqlSecurityException(
             SqlSecurityException exception) {
+        return response(exceptionResponseMapper.resolve(exception));
+    }
+
+    @ExceptionHandler(SqlValidationException.class)
+    public ResponseEntity<Result<Object>> handleSqlValidationException(
+            SqlValidationException exception) {
         return response(exceptionResponseMapper.resolve(exception));
     }
 
@@ -179,7 +185,7 @@ public class GlobalExceptionHandler {
                         .findFirst()
                         .map(FieldValidationError::message)
                         .orElse("Invalid request parameters.");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getHttpStatus())
                 .body(Result.error(ErrorCode.VALIDATION_FAILED, message, errors));
     }
 

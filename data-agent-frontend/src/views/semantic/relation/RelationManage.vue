@@ -20,6 +20,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
   import type { DatasourceResponse } from '@/api/datasource';
+  import { getFieldErrorMap } from '@/api/request';
   import {
     createLogicalRelation,
     deleteLogicalRelation,
@@ -74,6 +75,7 @@
     description: '',
     enabled: true,
   });
+  const relationFieldErrors = reactive<Record<string, string>>({});
   const relationSourceColumns = ref<RelationCandidateColumnResponse[]>([]);
   const relationTargetColumns = ref<RelationCandidateColumnResponse[]>([]);
   const suppressRelationTableWatch = ref(false);
@@ -309,6 +311,7 @@
   }
 
   function resetRelationForm() {
+    clearRelationFieldErrors();
     Object.assign(relationForm, {
       sourceTableName: '',
       sourceColumnNames: [],
@@ -348,6 +351,7 @@
   }
 
   async function handleDragCreateRelation(payload: RelationDragCreatePayload) {
+    clearRelationFieldErrors();
     if (payload.sourceTableName === payload.targetTableName) {
       ElMessage.warning('不能把关系拖回同一张表');
       return;
@@ -379,6 +383,7 @@
   }
 
   async function handleEditRelation(relation: LogicalTableRelationResponse) {
+    clearRelationFieldErrors();
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键仅展示，不支持直接编辑');
       return;
@@ -415,6 +420,7 @@
   }
 
   async function handleSubmitRelation() {
+    clearRelationFieldErrors();
     if (typeof selectedDatasourceId.value !== 'number') {
       return;
     }
@@ -459,9 +465,20 @@
       relationDialogVisible.value = false;
       resetRelationForm();
       await loadRelationData();
+    } catch (error) {
+      applyRelationFieldErrors(error);
     } finally {
       relationSubmitLoading.value = false;
     }
+  }
+
+  function clearRelationFieldErrors() {
+    Object.keys(relationFieldErrors).forEach(key => delete relationFieldErrors[key]);
+  }
+
+  function applyRelationFieldErrors(error: unknown) {
+    clearRelationFieldErrors();
+    Object.assign(relationFieldErrors, getFieldErrorMap(error));
   }
 
   async function handleDeleteRelation(relation: LogicalTableRelationResponse) {
@@ -534,6 +551,8 @@
     resetRelationForm();
     await loadRelationData();
   });
+
+  watch(relationForm, clearRelationFieldErrors, { deep: true });
 </script>
 
 <template>
@@ -602,6 +621,7 @@
       :loading="relationSubmitLoading"
       :relation="selectedRelation"
       :form="relationForm"
+      :field-errors="relationFieldErrors"
       :nodes="relationNodes"
       :source-columns="relationSourceColumns"
       :target-columns="relationTargetColumns"

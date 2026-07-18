@@ -38,6 +38,7 @@ import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.exception.ExceptionResponseMapper.ErrorResponse;
 import io.github.malonetalk.utils.MsgUtils;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -130,14 +131,16 @@ public class AgentService {
 
     private Flux<ChatStreamEvent> toErrorEvent(Throwable exception) {
         log.error("Agent stream failed", exception);
+        ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
         return Flux.just(
                 new ChatStreamEvent(
                         ChatStreamEventType.ERROR,
                         null,
                         true,
-                        exceptionResponseMapper.resolve(exception).message(),
+                        errorResponse.message(),
                         null,
-                        null));
+                        null,
+                        errorResponse.errorCode().getCode()));
     }
 
     private ReActAgent createAgent() {

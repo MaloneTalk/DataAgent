@@ -19,6 +19,7 @@
   import { onMounted, reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import { getFieldErrorMap } from '@/api/request';
   import {
     getActiveDatasourceId,
     getColumnSemanticPage,
@@ -60,6 +61,7 @@
     columnDescription: '',
     isVisible: true,
   });
+  const fieldErrors = reactive<Record<string, string>>({});
   const rules: FormRules<ColumnEditForm> = {
     tableName: [{ required: true, message: '表名不能为空', trigger: 'blur' }],
     columnName: [{ required: true, message: '列名不能为空', trigger: 'blur' }],
@@ -139,6 +141,7 @@
   };
 
   const handleOpenEdit = (row: ColumnSemanticInfo) => {
+    clearFieldErrors();
     Object.assign(form, {
       tableName: selectedTableName.value,
       columnName: row.columnName,
@@ -150,6 +153,7 @@
 
   const handleSubmit = async () => {
     if (!formRef.value) return;
+    clearFieldErrors();
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
     const activeDatasourceId = await ensureDatasourceId();
@@ -166,11 +170,22 @@
       dialogVisible.value = false;
       await loadPage();
     } catch (err) {
-      ElMessage.error((err as Error).message);
+      applyFieldErrors(err);
     } finally {
       submitLoading.value = false;
     }
   };
+
+  const clearFieldErrors = () => {
+    Object.keys(fieldErrors).forEach(key => delete fieldErrors[key]);
+  };
+
+  const applyFieldErrors = (error: unknown) => {
+    clearFieldErrors();
+    Object.assign(fieldErrors, getFieldErrorMap(error));
+  };
+
+  watch(form, clearFieldErrors, { deep: true });
 
   const handleReset = async (row: ColumnSemanticInfo) => {
     try {
@@ -288,13 +303,13 @@
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="表名" prop="tableName">
+        <el-form-item label="表名" prop="tableName" :error="fieldErrors.tableName">
           <el-input v-model="form.tableName" disabled />
         </el-form-item>
-        <el-form-item label="列名" prop="columnName">
+        <el-form-item label="列名" prop="columnName" :error="fieldErrors.columnName">
           <el-input v-model="form.columnName" disabled />
         </el-form-item>
-        <el-form-item label="语义描述" prop="columnDescription">
+        <el-form-item label="语义描述" prop="columnDescription" :error="fieldErrors.columnDescription">
           <el-input
             v-model="form.columnDescription"
             type="textarea"
@@ -302,7 +317,7 @@
             placeholder="请输入列的语义描述信息（为空时将使用物理描述）"
           />
         </el-form-item>
-        <el-form-item label="可见性" prop="isVisible">
+        <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">
           <el-switch v-model="form.isVisible" active-text="可见" inactive-text="隐藏" />
         </el-form-item>
       </el-form>
