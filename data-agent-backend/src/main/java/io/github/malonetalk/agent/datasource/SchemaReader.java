@@ -69,12 +69,12 @@ public class SchemaReader {
 
     public Map<String, Set<String>> getTableColumnNames(
             Datasource datasource, Collection<String> tableNames) {
+        if (tableNames == null || tableNames.isEmpty()) {
+            return Map.of();
+        }
         Map<String, Set<String>> columnNamesByTable = new LinkedHashMap<>();
         for (String tableName : tableNames) {
             columnNamesByTable.putIfAbsent(tableName, new LinkedHashSet<>());
-        }
-        if (columnNamesByTable.isEmpty()) {
-            return columnNamesByTable;
         }
 
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
