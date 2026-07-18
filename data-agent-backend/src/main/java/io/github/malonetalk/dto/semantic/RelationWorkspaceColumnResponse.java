@@ -17,6 +17,9 @@
  */
 package io.github.malonetalk.dto.semantic;
 
+import lombok.Builder;
+
+@Builder
 public record RelationWorkspaceColumnResponse(
         String columnName,
         String description,

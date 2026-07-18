@@ -18,7 +18,9 @@
 package io.github.malonetalk.dto.semantic;
 
 import java.util.List;
+import lombok.Builder;
 
+@Builder
 public record RelationWorkspaceTableResponse(
         String tableName,
         String domain,

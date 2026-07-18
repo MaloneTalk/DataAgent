@@ -113,29 +113,38 @@ public class SemanticConverter {
 
     public RelationWorkspaceTableResponse toWorkspaceTable(
             TableInfo tableInfo, List<ColumnInfo> columns) {
-        return new RelationWorkspaceTableResponse(
-                tableInfo.getTableName(),
-                SemanticUtils.normalizeDomain(tableInfo.getDomain()),
-                SemanticUtils.firstNonBlank(
-                        tableInfo.getTableDescription(), tableInfo.getPhysicalTableDescription()),
-                SemanticAvailabilityHelper.isTableAvailable(
-                        tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
-                SemanticAvailabilityHelper.tableInvalidReason(
-                        tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
-                columns.stream().map(this::toWorkspaceColumn).toList());
+        return RelationWorkspaceTableResponse.builder()
+                .tableName(tableInfo.getTableName())
+                .domain(SemanticUtils.normalizeDomain(tableInfo.getDomain()))
+                .description(
+                        SemanticUtils.firstNonBlank(
+                                tableInfo.getTableDescription(),
+                                tableInfo.getPhysicalTableDescription()))
+                .operable(
+                        SemanticAvailabilityHelper.isTableAvailable(
+                                tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                .invalidReason(
+                        SemanticAvailabilityHelper.tableInvalidReason(
+                                tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                .columns(columns.stream().map(this::toWorkspaceColumn).toList())
+                .build();
     }
 
     public RelationWorkspaceColumnResponse toWorkspaceColumn(ColumnInfo columnInfo) {
-        return new RelationWorkspaceColumnResponse(
-                columnInfo.getColumnName(),
-                SemanticUtils.firstNonBlank(
-                        columnInfo.getColumnDescription(),
-                        columnInfo.getPhysicalColumnDescription()),
-                SemanticUtils.trimToNull(columnInfo.getTypeName()),
-                columnInfo.getPrimaryKey(),
-                SemanticAvailabilityHelper.isColumnAvailable(
-                        columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION),
-                SemanticAvailabilityHelper.columnInvalidReason(
-                        columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION));
+        return RelationWorkspaceColumnResponse.builder()
+                .columnName(columnInfo.getColumnName())
+                .description(
+                        SemanticUtils.firstNonBlank(
+                                columnInfo.getColumnDescription(),
+                                columnInfo.getPhysicalColumnDescription()))
+                .typeName(SemanticUtils.trimToNull(columnInfo.getTypeName()))
+                .primaryKey(columnInfo.getPrimaryKey())
+                .operable(
+                        SemanticAvailabilityHelper.isColumnAvailable(
+                                columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                .invalidReason(
+                        SemanticAvailabilityHelper.columnInvalidReason(
+                                columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION))
+                .build();
     }
 }
