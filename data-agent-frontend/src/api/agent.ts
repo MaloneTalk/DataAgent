@@ -77,7 +77,6 @@ interface ApiErrorBody {
   errorCode?: string;
   message?: string;
   data?: unknown;
-  requestId?: string;
 }
 
 async function resolveApiError(response: Response, fallback: string): Promise<ApiError> {
@@ -87,12 +86,10 @@ async function resolveApiError(response: Response, fallback: string): Promise<Ap
       code: body.code,
       errorCode: body.errorCode,
       details: body.data,
-      requestId: body.requestId || response.headers.get('x-request-id') || undefined,
     });
   } catch {
     return new ApiError(fallback, {
       code: response.status,
-      requestId: response.headers.get('x-request-id') || undefined,
     });
   }
 }
@@ -111,7 +108,6 @@ export async function fetchSessionList(): Promise<SessionInfo[]> {
       code: body.code,
       errorCode: body.errorCode,
       details: body.data,
-      requestId: body.requestId,
     });
   }
   return body.data as SessionInfo[];
@@ -131,7 +127,6 @@ export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]
       code: body.code,
       errorCode: body.errorCode,
       details: body.data,
-      requestId: body.requestId,
     });
   }
   return body.data as TurnItem[];

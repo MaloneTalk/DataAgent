@@ -28,7 +28,6 @@ public class Result<T> implements Serializable {
     private String errorCode;
     private String message;
     private T data;
-    private String requestId;
 
     public Result() {}
 
@@ -70,17 +69,9 @@ public class Result<T> implements Serializable {
         return new Result<>(status.value(), message, data);
     }
 
-    public static <T> Result<T> error(HttpStatus status, String message, T data, String requestId) {
-        Result<T> result = new Result<>(status.value(), message, data);
-        result.setRequestId(requestId);
-        return result;
-    }
-
-    public static <T> Result<T> error(
-            ErrorCode errorCode, String message, T data, String requestId) {
+    public static <T> Result<T> error(ErrorCode errorCode, String message, T data) {
         Result<T> result =
                 new Result<>(errorCode.getHttpStatus().value(), errorCode.getCode(), message, data);
-        result.setRequestId(requestId);
         return result;
     }
 }

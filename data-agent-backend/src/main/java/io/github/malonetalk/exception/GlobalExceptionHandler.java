@@ -22,14 +22,12 @@ import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.config.RequestIdFilter;
 import io.github.malonetalk.dto.FieldValidationError;
 import io.github.malonetalk.exception.ExceptionResponseMapper.ErrorResponse;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
@@ -182,7 +180,7 @@ public class GlobalExceptionHandler {
                         .map(FieldValidationError::message)
                         .orElse("Invalid request parameters.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Result.error(ErrorCode.VALIDATION_FAILED, message, errors, requestId()));
+                .body(Result.error(ErrorCode.VALIDATION_FAILED, message, errors));
     }
 
     private List<FieldValidationError> toFieldValidationErrors(BindingResult bindingResult) {
@@ -220,10 +218,6 @@ public class GlobalExceptionHandler {
     private ResponseEntity<Result<Object>> response(ErrorResponse errorResponse) {
         ErrorCode errorCode = errorResponse.errorCode();
         return ResponseEntity.status(errorCode.getHttpStatus())
-                .body(Result.error(errorCode, errorResponse.message(), null, requestId()));
-    }
-
-    private String requestId() {
-        return MDC.get(RequestIdFilter.MDC_KEY);
+                .body(Result.error(errorCode, errorResponse.message(), null));
     }
 }

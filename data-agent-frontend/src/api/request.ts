@@ -24,7 +24,6 @@ interface ApiResponse<T = unknown> {
   errorCode?: string;
   data: T;
   message: string;
-  requestId?: string;
 }
 
 export interface FieldValidationError {
@@ -36,18 +35,16 @@ export class ApiError extends Error {
   code?: number;
   errorCode?: string;
   details?: unknown;
-  requestId?: string;
 
   constructor(
     message: string,
-    options: { code?: number; errorCode?: string; details?: unknown; requestId?: string } = {},
+    options: { code?: number; errorCode?: string; details?: unknown } = {},
   ) {
     super(message);
     this.name = 'ApiError';
     this.code = options.code;
     this.errorCode = options.errorCode;
     this.details = options.details;
-    this.requestId = options.requestId;
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
@@ -78,8 +75,7 @@ service.interceptors.response.use(
   },
   error => {
     const responseBody = error.response?.data as ApiResponse | undefined;
-    const requestId = responseBody?.requestId || error.response?.headers?.['x-request-id'];
-    const apiError = toApiError(responseBody, error.message || '网络错误', requestId);
+    const apiError = toApiError(responseBody, error.message || '网络错误');
     ElMessage.error(apiError.message);
     return Promise.reject(apiError);
   },
@@ -88,14 +84,12 @@ service.interceptors.response.use(
 function toApiError(
   response: ApiResponse | undefined,
   fallbackMessage: string,
-  fallbackRequestId?: string,
 ): ApiError {
   const details = response?.data;
   return new ApiError(resolveMessage(response, fallbackMessage), {
     code: response?.code,
     errorCode: response?.errorCode,
     details,
-    requestId: response?.requestId || fallbackRequestId,
   });
 }
 
