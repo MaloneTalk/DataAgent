@@ -215,7 +215,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation relation =
                 requireRelation(request.datasourceId(), tableName, request.relationId());
         if (Boolean.TRUE.equals(request.enabled())) {
-            ensureRelationOperandsOperable(relation);
+            ensureRelationEndpointsOperable(relation);
         }
         return logicalTableRelationMapper.updateEnabled(
                         request.relationId(),
@@ -285,7 +285,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 request.targetTableName(),
                 request.description(),
                 request.enabled());
-        ensureRelationOperandsOperable(relation);
+        ensureRelationEndpointsOperable(relation);
         relation.setCreateTime(LocalDateTime.now());
         relation.setUpdateTime(LocalDateTime.now());
         return relation;
@@ -303,10 +303,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 request.targetTableName(),
                 request.description(),
                 request.enabled());
-        ensureRelationOperandsOperable(relation);
+        ensureRelationEndpointsOperable(relation);
     }
 
-    private void ensureRelationOperandsOperable(LogicalTableRelation relation) {
+    private void ensureRelationEndpointsOperable(LogicalTableRelation relation) {
         ensureTableOperable(
                 relation.getDatasourceId(), relation.getSourceTableName(), "sourceTable");
         ensureTableOperable(
@@ -336,7 +336,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             throw new IllegalArgumentException(
                     fieldName + " " + tableName + " semantic metadata does not exist.");
         }
-        if (!SemanticAvailabilityHelper.isUnavailable(
+        if (SemanticAvailabilityHelper.isTableAvailable(
                 tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)) {
             return;
         }
@@ -358,7 +358,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 throw new IllegalArgumentException(
                         fieldName + " " + columnName + " semantic metadata does not exist.");
             }
-            if (!SemanticAvailabilityHelper.isUnavailable(
+            if (SemanticAvailabilityHelper.isColumnAvailable(
                     columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)) {
                 continue;
             }

@@ -58,29 +58,24 @@ public class SemanticSyncApplyService {
                         tableInfoMapper.selectByDatasourceIdAndTableName(
                                 datasourceId, normalizedTableName);
             }
-        }
-        if (existingTable == null) {
-            return new TableSyncDiff(false, false, false);
+            // 并发冲突后仍查不到（极端 race / 事务可见性），放弃本次同步
+            if (existingTable == null) {
+                return new TableSyncDiff(false, false, false);
+            }
         }
 
         boolean reactivated = Boolean.FALSE.equals(existingTable.getPhysicalStatus());
         boolean descriptionChanged =
                 !Objects.equals(
                         existingTable.getPhysicalTableDescription(), physicalTableDescription);
-        boolean updated = descriptionChanged;
         if (reactivated || descriptionChanged) {
             existingTable.setPhysicalTableDescription(physicalTableDescription);
             existingTable.setPhysicalStatus(Boolean.TRUE);
             existingTable.setUpdateTime(now);
             tableInfoMapper.updatePhysicalCacheFields(existingTable);
         }
-        if (reactivated) {
-            return new TableSyncDiff(false, true, updated);
-        }
-        if (updated) {
-            return new TableSyncDiff(false, false, true);
-        }
-        return new TableSyncDiff(false, false, false);
+        // 已存在路径：added 恒为 false，reactivated/updated 直接透传（塌缩三分支，行为不变）
+        return new TableSyncDiff(false, reactivated, descriptionChanged);
     }
 
     public ColumnSyncDiff ensureColumnPresent(
@@ -94,6 +89,7 @@ public class SemanticSyncApplyService {
             Map<String, ColumnInfo> semanticColumnMap) {
         ColumnInfo existingColumn = semanticColumnMap.get(normalizedColumnName);
         if (existingColumn == null) {
+            // 列不存在：尝试插入；若并发插入已抢建则回退为重载（并回填 semanticColumnMap）
             try {
                 columnSemanticInfoMapper.insert(
                         buildNewColumnInfo(
@@ -113,9 +109,10 @@ public class SemanticSyncApplyService {
                                 normalizedColumnName,
                                 semanticColumnMap);
             }
-        }
-        if (existingColumn == null) {
-            return new ColumnSyncDiff(false, false, false);
+            // 并发冲突后仍查不到（极端 race / 事务可见性），放弃本次同步
+            if (existingColumn == null) {
+                return new ColumnSyncDiff(false, false, false);
+            }
         }
 
         boolean reactivated = Boolean.FALSE.equals(existingColumn.getPhysicalStatus());
@@ -123,8 +120,7 @@ public class SemanticSyncApplyService {
                 !Objects.equals(
                         existingColumn.getPhysicalColumnDescription(), physicalColumnDescription);
         boolean typeChanged = !Objects.equals(existingColumn.getTypeName(), typeName);
-        boolean primaryKeyChanged =
-                !Objects.equals(existingColumn.getPrimaryKey(), Boolean.valueOf(primaryKey));
+        boolean primaryKeyChanged = !Objects.equals(existingColumn.getPrimaryKey(), primaryKey);
         boolean updated = descriptionChanged || typeChanged || primaryKeyChanged;
         if (reactivated || updated) {
             existingColumn.setPhysicalColumnDescription(physicalColumnDescription);
@@ -134,13 +130,8 @@ public class SemanticSyncApplyService {
             existingColumn.setUpdateTime(now);
             columnSemanticInfoMapper.updatePhysicalCacheFields(existingColumn);
         }
-        if (reactivated) {
-            return new ColumnSyncDiff(false, true, updated);
-        }
-        if (updated) {
-            return new ColumnSyncDiff(false, false, true);
-        }
-        return new ColumnSyncDiff(false, false, false);
+        // 已存在路径：added 恒为 false，reactivated/updated 直接透传（塌缩三分支，行为不变）
+        return new ColumnSyncDiff(false, reactivated, updated);
     }
 
     private ColumnInfo loadColumnInsertedConcurrently(
