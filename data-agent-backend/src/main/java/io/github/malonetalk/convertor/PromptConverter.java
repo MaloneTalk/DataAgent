@@ -26,6 +26,7 @@ import io.github.malonetalk.dto.prompt.TableRelationPromptResponse;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
+import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,7 @@ public final class PromptConverter {
                                 physicalColumn.columnName(),
                                 "Missing physical column name for prompt conversion."));
         if (!SemanticAvailabilityHelper.isColumnAvailable(
-                semanticColumn, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
+                semanticColumn, UsageLevelEnum.AI_PROMPT)) {
             return null;
         }
 
@@ -78,8 +79,7 @@ public final class PromptConverter {
                         SemanticUtils.normalizeObjectName(
                                 physicalTable.tableName(),
                                 "Missing physical table name for prompt conversion."));
-        if (!SemanticAvailabilityHelper.isTableAvailable(
-                semanticTable, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
+        if (!SemanticAvailabilityHelper.isTableAvailable(semanticTable, UsageLevelEnum.AI_PROMPT)) {
             return null;
         }
 

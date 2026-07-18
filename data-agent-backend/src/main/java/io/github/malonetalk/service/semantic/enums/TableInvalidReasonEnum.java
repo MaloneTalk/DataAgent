@@ -15,16 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.semantic;
+package io.github.malonetalk.service.semantic.enums;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-public record PhysicalTableCandidatePageQuery(
-        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
-        @Min(value = 1, message = "page 不能小于 1") Integer page,
-        @Min(value = 1, message = "pageSize 不能小于 1") Integer pageSize,
-        String keyword,
-        @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
-                String sortOrder) {}
+@Getter
+@AllArgsConstructor
+public enum TableInvalidReasonEnum {
+    PHYSICAL_TABLE_NOT_FOUND("物理表不存在"),
+    TABLE_HIDDEN("表已隐藏"),
+    TABLE_UNAVAILABLE("表不可用");
+
+    private final String reason;
+}

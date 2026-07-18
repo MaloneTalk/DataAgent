@@ -39,6 +39,7 @@ import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
+import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -336,8 +337,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             throw new IllegalArgumentException(
                     fieldName + " " + tableName + " semantic metadata does not exist.");
         }
-        if (SemanticAvailabilityHelper.isTableAvailable(
-                tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)) {
+        if (SemanticAvailabilityHelper.isTableAvailable(tableInfo, UsageLevelEnum.USER_OPERATION)) {
             return;
         }
         throw new IllegalArgumentException(
@@ -345,7 +345,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         fieldName,
                         tableName,
                         SemanticAvailabilityHelper.tableInvalidReason(
-                                tableInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)));
+                                tableInfo, UsageLevelEnum.USER_OPERATION)));
     }
 
     private void ensureColumnsOperable(
@@ -359,7 +359,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         fieldName + " " + columnName + " semantic metadata does not exist.");
             }
             if (SemanticAvailabilityHelper.isColumnAvailable(
-                    columnInfo, SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)) {
+                    columnInfo, UsageLevelEnum.USER_OPERATION)) {
                 continue;
             }
             throw new IllegalArgumentException(
@@ -367,8 +367,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                             fieldName,
                             columnName,
                             SemanticAvailabilityHelper.columnInvalidReason(
-                                    columnInfo,
-                                    SemanticAvailabilityHelper.UsageLevel.USER_OPERATION)));
+                                    columnInfo, UsageLevelEnum.USER_OPERATION)));
         }
     }
 

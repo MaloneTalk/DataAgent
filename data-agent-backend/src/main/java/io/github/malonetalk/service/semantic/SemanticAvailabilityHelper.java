@@ -19,76 +19,66 @@ package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.service.semantic.enums.ColumnInvalidReasonEnum;
+import io.github.malonetalk.service.semantic.enums.TableInvalidReasonEnum;
+import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import java.util.Objects;
 
+// TODO 不应该抛出NPE
 public final class SemanticAvailabilityHelper {
 
     private SemanticAvailabilityHelper() {}
 
-    public enum UsageLevel {
-        AI_PROMPT,
-        FRONTEND_DISPLAY,
-        USER_OPERATION
-    }
-
-    public static boolean isTableAvailable(TableInfo tableInfo, UsageLevel usageLevel) {
-        Objects.requireNonNull(tableInfo, "tableInfo");
-        if (usageLevel == UsageLevel.FRONTEND_DISPLAY) {
+    public static boolean isTableAvailable(TableInfo tableInfo, UsageLevelEnum usageLevel) {
+        Objects.requireNonNull(tableInfo, "tableInfo should not be null");
+        if (usageLevel == UsageLevelEnum.FRONTEND_DISPLAY) {
             return true;
         }
         return Boolean.TRUE.equals(tableInfo.getIsVisible()) && hasPhysicalTable(tableInfo);
     }
 
-    public static boolean isColumnAvailable(ColumnInfo columnInfo, UsageLevel usageLevel) {
-        Objects.requireNonNull(columnInfo, "columnInfo");
-        if (usageLevel == UsageLevel.FRONTEND_DISPLAY) {
+    public static boolean isColumnAvailable(ColumnInfo columnInfo, UsageLevelEnum usageLevel) {
+        Objects.requireNonNull(columnInfo, "columnInfo should not be null");
+        if (usageLevel == UsageLevelEnum.FRONTEND_DISPLAY) {
             return true;
         }
         return Boolean.TRUE.equals(columnInfo.getIsVisible()) && hasPhysicalColumn(columnInfo);
     }
 
     public static boolean hasPhysicalTable(TableInfo tableInfo) {
-        Objects.requireNonNull(tableInfo, "tableInfo");
+        Objects.requireNonNull(tableInfo, "tableInfo should not be null");
         return !Boolean.FALSE.equals(tableInfo.getPhysicalStatus());
     }
 
     public static boolean hasPhysicalColumn(ColumnInfo columnInfo) {
-        Objects.requireNonNull(columnInfo, "columnInfo");
+        Objects.requireNonNull(columnInfo, "columnInfo should not be null");
         return !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
     }
 
-    public static boolean isUnavailable(TableInfo tableInfo, UsageLevel usageLevel) {
-        return !isTableAvailable(tableInfo, usageLevel);
-    }
-
-    public static boolean isUnavailable(ColumnInfo columnInfo, UsageLevel usageLevel) {
-        return !isColumnAvailable(columnInfo, usageLevel);
-    }
-
-    public static String tableInvalidReason(TableInfo tableInfo, UsageLevel usageLevel) {
+    public static String tableInvalidReason(TableInfo tableInfo, UsageLevelEnum usageLevel) {
         if (isTableAvailable(tableInfo, usageLevel)) {
             return null;
         }
         if (!hasPhysicalTable(tableInfo)) {
-            return "物理表不存在";
+            return TableInvalidReasonEnum.PHYSICAL_TABLE_NOT_FOUND.getReason();
         }
         if (!Boolean.TRUE.equals(tableInfo.getIsVisible())) {
-            return "表已隐藏";
+            return TableInvalidReasonEnum.TABLE_HIDDEN.getReason();
         }
-        return "表不可用";
+        return TableInvalidReasonEnum.TABLE_UNAVAILABLE.getReason();
     }
 
-    public static String columnInvalidReason(ColumnInfo columnInfo, UsageLevel usageLevel) {
+    public static String columnInvalidReason(ColumnInfo columnInfo, UsageLevelEnum usageLevel) {
         if (isColumnAvailable(columnInfo, usageLevel)) {
             return null;
         }
         if (!hasPhysicalColumn(columnInfo)) {
-            return "物理列不存在";
+            return ColumnInvalidReasonEnum.PHYSICAL_COLUMN_NOT_FOUND.getReason();
         }
         if (!Boolean.TRUE.equals(columnInfo.getIsVisible())) {
-            return "列已隐藏";
+            return ColumnInvalidReasonEnum.COLUMN_HIDDEN.getReason();
         }
-        return "列不可用";
+        return ColumnInvalidReasonEnum.COLUMN_UNAVAILABLE.getReason();
     }
 
     public static String unavailableMessage(String fieldName, String objectName, String reason) {
