@@ -279,6 +279,10 @@ public class SemanticMergeService {
 
         private boolean isHidden(String tableName) {
             TableInfo tableInfo = get(tableName);
+            if (tableInfo == null) {
+                // 表不在已加载的语义索引里：当作“未隐藏”保留，避免误丢合法关系
+                return false;
+            }
             return !SemanticAvailabilityHelper.isTableAvailable(
                     tableInfo, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT);
         }
@@ -320,6 +324,10 @@ public class SemanticMergeService {
         private boolean hasHiddenColumn(String tableName, List<String> columnNames) {
             for (String columnName : columnNames) {
                 ColumnInfo columnInfo = get(tableName, columnName);
+                if (columnInfo == null) {
+                    // 列不在已加载的语义索引里：当作“未隐藏”保留
+                    return false;
+                }
                 if (!SemanticAvailabilityHelper.isColumnAvailable(
                         columnInfo, SemanticAvailabilityHelper.UsageLevel.AI_PROMPT)) {
                     return true;

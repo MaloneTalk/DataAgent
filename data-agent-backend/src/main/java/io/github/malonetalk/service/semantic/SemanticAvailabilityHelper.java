@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
+import java.util.Objects;
 
 public final class SemanticAvailabilityHelper {
 
@@ -31,9 +32,7 @@ public final class SemanticAvailabilityHelper {
     }
 
     public static boolean isTableAvailable(TableInfo tableInfo, UsageLevel usageLevel) {
-        if (tableInfo == null) {
-            return true;
-        }
+        Objects.requireNonNull(tableInfo, "tableInfo");
         if (usageLevel == UsageLevel.FRONTEND_DISPLAY) {
             return true;
         }
@@ -41,9 +40,7 @@ public final class SemanticAvailabilityHelper {
     }
 
     public static boolean isColumnAvailable(ColumnInfo columnInfo, UsageLevel usageLevel) {
-        if (columnInfo == null) {
-            return true;
-        }
+        Objects.requireNonNull(columnInfo, "columnInfo");
         if (usageLevel == UsageLevel.FRONTEND_DISPLAY) {
             return true;
         }
@@ -51,11 +48,13 @@ public final class SemanticAvailabilityHelper {
     }
 
     public static boolean hasPhysicalTable(TableInfo tableInfo) {
-        return tableInfo == null || !Boolean.FALSE.equals(tableInfo.getPhysicalStatus());
+        Objects.requireNonNull(tableInfo, "tableInfo");
+        return !Boolean.FALSE.equals(tableInfo.getPhysicalStatus());
     }
 
     public static boolean hasPhysicalColumn(ColumnInfo columnInfo) {
-        return columnInfo == null || !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
+        Objects.requireNonNull(columnInfo, "columnInfo");
+        return !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
     }
 
     public static boolean isUnavailable(TableInfo tableInfo, UsageLevel usageLevel) {
