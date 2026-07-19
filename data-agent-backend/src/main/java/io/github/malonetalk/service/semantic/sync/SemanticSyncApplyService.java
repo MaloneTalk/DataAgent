@@ -174,9 +174,7 @@ public class SemanticSyncApplyService {
     }
 
     private void markMissingTables(
-            Integer datasourceId,
-            List<String> tableNames,
-            LocalDateTime now) {
+            Integer datasourceId, List<String> tableNames, LocalDateTime now) {
         if (!tableNames.isEmpty()) {
             tableInfoMapper.markPhysicalMissingByDatasourceIdAndTableNames(
                     datasourceId, tableNames, now);
@@ -205,8 +203,7 @@ public class SemanticSyncApplyService {
         int reactivatedColumns = 0;
         int updatedColumns = 0;
         for (ColumnSyncSource column : table.columns()) {
-            ColumnInfo existingColumn =
-                    existingColumnIndex.get(column.columnName());
+            ColumnInfo existingColumn = existingColumnIndex.get(column.columnName());
             if (existingColumn == null) {
                 addedColumns++;
                 continue;
@@ -214,8 +211,7 @@ public class SemanticSyncApplyService {
             if (Boolean.FALSE.equals(existingColumn.getPhysicalStatus())) {
                 reactivatedColumns++;
             }
-            if (!Objects.equals(
-                            existingColumn.getPhysicalColumnDescription(), column.description())
+            if (!Objects.equals(existingColumn.getPhysicalColumnDescription(), column.description())
                     || !Objects.equals(existingColumn.getTypeName(), column.typeName())
                     || !Objects.equals(existingColumn.getPrimaryKey(), column.primaryKey())) {
                 updatedColumns++;
@@ -352,8 +348,5 @@ public class SemanticSyncApplyService {
             List<ColumnSyncSource> columns) {}
 
     public record ColumnSyncSource(
-            String columnName,
-            String description,
-            String typeName,
-            Boolean primaryKey) {}
+            String columnName, String description, String typeName, Boolean primaryKey) {}
 }

@@ -62,8 +62,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         String keyword = SemanticUtils.trimToNull(query.keyword());
         Comparator<PhysicalTableInfo> comparator =
-                Comparator.comparing(
-                        PhysicalTableInfo::tableName, String.CASE_INSENSITIVE_ORDER);
+                Comparator.comparing(PhysicalTableInfo::tableName, String.CASE_INSENSITIVE_ORDER);
         if (SemanticUtils.isDescendingSort(query.sortOrder())) {
             comparator = comparator.reversed();
         }
@@ -105,8 +104,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         Set<String> selectedTableNames = new LinkedHashSet<>();
         for (String tableName : request.tableNames()) {
             selectedTableNames.add(
-                    SemanticUtils.normalizeObjectName(
-                            tableName, "Missing physical tableName."));
+                    SemanticUtils.normalizeObjectName(tableName, "Missing physical tableName."));
         }
 
         List<TableSyncSource> presentTables = new ArrayList<>();
@@ -135,7 +133,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                 loadPhysicalColumnNamesByTable(datasource, physicalTables);
         List<SyncTableResult> results =
                 semanticSyncApplyService.refreshPhysicalStatus(
-                        request.datasourceId(), physicalTables.keySet(), physicalColumnNamesByTable);
+                        request.datasourceId(),
+                        physicalTables.keySet(),
+                        physicalColumnNamesByTable);
         return semanticSyncResultService.summarize(results);
     }
 
