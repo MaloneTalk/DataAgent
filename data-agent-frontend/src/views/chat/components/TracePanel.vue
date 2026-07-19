@@ -16,12 +16,16 @@
  -->
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
-  import type { TraceStep, ChatMessage } from '@/composables/useAgentChat';
+  import { computed, ref } from 'vue';
   import type { ChatStreamEventType } from '@/api/agent';
+  import type { ChatMessage, TraceStep } from '@/composables/useAgentChat';
 
   const props = defineProps<{
     message: ChatMessage;
+  }>();
+
+  const emit = defineEmits<{
+    (e: 'previewReport', content: string): void;
   }>();
 
   const isExpanded = ref(true);
@@ -45,13 +49,13 @@
     const parts: string[] = [];
     const total = toolCallCount.value + toolResultCount.value;
     if (total > 0) {
-      parts.push(`${total} Tools Called`);
+      parts.push(`${total} 次工具调用`);
     }
     const thinkCount = stepCounts.value.thinking || 0;
     if (thinkCount > 0) {
-      parts.push(`${thinkCount} Thoughts`);
+      parts.push(`${thinkCount} 条思考`);
     }
-    return parts.join(' · ') || `${props.message.traceSteps.length} Steps`;
+    return parts.join(' | ') || `${props.message.traceSteps.length} 个步骤`;
   });
 
   interface StepRenderer {
@@ -59,11 +63,12 @@
   }
 
   const stepRenderers: Record<string, StepRenderer> = {
-    thinking: { label: 'Thought' },
-    tool_call: { label: 'Action' },
-    tool_result: { label: 'Observation' },
-    question: { label: 'Question' },
-    error: { label: 'Error' },
+    thinking: { label: '思考' },
+    tool_call: { label: '动作' },
+    tool_result: { label: '观察' },
+    question: { label: '问题' },
+    report: { label: '报告' },
+    error: { label: '错误' },
   };
 
   function getStepRenderer(type: ChatStreamEventType): StepRenderer {
@@ -90,6 +95,9 @@
     if (step.type === 'question') {
       return `等待用户回答: ${step.content ?? ''}`;
     }
+    if (step.type === 'report') {
+      return '报告已生成';
+    }
     if (step.type === 'error') {
       const message = step.content ?? '请求失败';
       return step.errorCode ? `[${step.errorCode}] ${message}` : message;
@@ -114,8 +122,8 @@
 <template>
   <div v-if="message.traceSteps.length > 0" class="trace-panel" :class="{ expanded: isExpanded }">
     <div class="trace-panel__header" @click="toggleExpand">
-      <span class="trace-panel__arrow">▶</span>
-      <span class="trace-panel__dot">●</span>
+      <span class="trace-panel__arrow">></span>
+      <span class="trace-panel__dot"></span>
       <span class="trace-panel__title">Agent 思考与执行链路</span>
       <span class="trace-panel__summary">{{ summaryLabel }}</span>
     </div>
@@ -135,6 +143,11 @@
         <div v-if="step.type === 'tool_result' && step.toolResult" class="trace-step__code">
           <div class="code-label">Output:</div>
           <pre class="code-block">{{ displayMultiline(step.toolResult.output) }}</pre>
+        </div>
+        <div v-if="step.type === 'report' && step.toolResult" class="trace-step__code">
+          <el-button link type="primary" @click="emit('previewReport', step.toolResult!.output)">
+            预览报告
+          </el-button>
         </div>
       </div>
     </div>
@@ -180,8 +193,10 @@
   }
 
   .trace-panel__dot {
-    color: #16a34a;
-    font-size: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #16a34a;
   }
 
   .trace-panel__title {
@@ -230,44 +245,37 @@
     white-space: pre-wrap;
   }
 
-  .trace-step--thinking {
-    color: var(--app-text-muted);
-  }
+  .trace-step--thinking,
   .trace-step--thinking .trace-step__label {
     color: var(--app-text-muted);
   }
 
-  .trace-step--tool_call {
-    color: var(--app-link);
-  }
+  .trace-step--tool_call,
   .trace-step--tool_call .trace-step__label {
     color: var(--app-link);
   }
 
-  .trace-step--tool_result {
-    color: #16a34a;
-  }
+  .trace-step--tool_result,
   .trace-step--tool_result .trace-step__label {
     color: #16a34a;
   }
 
-  .trace-step--question {
-    color: #d97706;
-  }
+  .trace-step--question,
   .trace-step--question .trace-step__label {
     color: #d97706;
   }
 
-  .trace-step--summary {
-    color: #7c3aed;
-  }
+  .trace-step--summary,
   .trace-step--summary .trace-step__label {
     color: #7c3aed;
   }
 
-  .trace-step--error {
-    color: #dc2626;
+  .trace-step--report,
+  .trace-step--report .trace-step__label {
+    color: #2563eb;
   }
+
+  .trace-step--error,
   .trace-step--error .trace-step__label {
     color: #dc2626;
   }

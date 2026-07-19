@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 public class AskUserTool implements MarkAgentTool {
 
     @Tool(
-            name = "ask_user",
+            name = ToolCallConstants.ASK_USER,
             description =
                     "Ask the user a question when an operation is unclear or requires"
                             + " confirmation. Execution resumes after the user responds.")

@@ -72,7 +72,7 @@
         <agentscope.version>1.0.11</agentscope.version>
         <spotless.version>3.4.0</spotless.version>
         <google-java-format.version>1.28.0</google-java-format.version>
-        <mybatis-springboot-starter.version>4.0.0</mybatis-springboot-starter.version>
+        <mybatis-springboot-starter.version>4.0.1</mybatis-springboot-starter.version>
         <pagehelper-spring-boot.version>2.1.1</pagehelper-spring-boot.version>
         <lombok.version>1.18.42</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
@@ -203,9 +203,6 @@
                 </executions>
                 <configuration>
                     <java>
-                        <excludes>
-                            <exclude>**/io/github/malonetalk/utils/MsgUtils.java</exclude>
-                        </excludes>
                         <removeUnusedImports/>
                         <forbidWildcardImports/>
                         <formatAnnotations/>

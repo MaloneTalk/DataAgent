@@ -18,11 +18,8 @@
 <script setup lang="ts">
   import { computed, reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
-  import type {
-    LogicalTableRelationResponse,
-    RelationCandidateColumnResponse,
-  } from '@/api/semantic';
-  import type { RelationForm, TableNodeLayout } from '../types';
+  import type { LogicalTableRelationResponse } from '@/api/semantic';
+  import type { RelationColumnNode, RelationForm, TableNodeLayout } from '../types';
 
   const props = defineProps<{
     visible: boolean;
@@ -30,8 +27,8 @@
     relation: LogicalTableRelationResponse | null;
     form: RelationForm;
     nodes: TableNodeLayout[];
-    sourceColumns: RelationCandidateColumnResponse[];
-    targetColumns: RelationCandidateColumnResponse[];
+    sourceColumns: RelationColumnNode[];
+    targetColumns: RelationColumnNode[];
     fieldErrors: Record<string, string>;
   }>();
 
@@ -129,23 +126,29 @@
             :key="node.tableName"
             :label="node.tableName"
             :value="node.tableName"
+            :disabled="!node.operable"
           />
         </el-select>
       </el-form-item>
 
-      <el-form-item label="源列" prop="sourceColumnNames" :error="fieldErrors.sourceColumnNames">
+      <el-form-item
+        label="源列"
+        prop="sourceColumnNames"
+        :error="fieldErrors.sourceColumnNames"
+      >
         <el-select
           v-model="localForm.sourceColumnNames"
           multiple
           collapse-tags
           collapse-tags-tooltip
-          placeholder="选择一个或多个源列"
+          placeholder="选择源列"
         >
           <el-option
             v-for="column in sourceColumns"
             :key="column.columnName"
             :label="`${column.columnName} (${column.typeName || 'UNKNOWN'})`"
             :value="column.columnName"
+            :disabled="!column.operable"
           />
         </el-select>
       </el-form-item>
@@ -162,23 +165,29 @@
             :key="node.tableName"
             :label="node.tableName"
             :value="node.tableName"
+            :disabled="!node.operable"
           />
         </el-select>
       </el-form-item>
 
-      <el-form-item label="目标列" prop="targetColumnNames" :error="fieldErrors.targetColumnNames">
+      <el-form-item
+        label="目标列"
+        prop="targetColumnNames"
+        :error="fieldErrors.targetColumnNames"
+      >
         <el-select
           v-model="localForm.targetColumnNames"
           multiple
           collapse-tags
           collapse-tags-tooltip
-          placeholder="选择与源列数量一致的目标列"
+          placeholder="选择目标列"
         >
           <el-option
             v-for="column in targetColumns"
             :key="column.columnName"
             :label="`${column.columnName} (${column.typeName || 'UNKNOWN'})`"
             :value="column.columnName"
+            :disabled="!column.operable"
           />
         </el-select>
       </el-form-item>
@@ -188,7 +197,7 @@
           v-model="localForm.description"
           type="textarea"
           :rows="3"
-          placeholder="可填写这条逻辑外键的业务说明"
+          placeholder="可选填写这条逻辑外键的业务说明"
         />
       </el-form-item>
 

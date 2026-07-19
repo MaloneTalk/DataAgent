@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.service.semantic;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
@@ -32,7 +32,6 @@ import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -75,8 +74,8 @@ public class DomainServiceImpl implements DomainService {
     @Override
     public DomainInfo create(DomainCreateRequest request) {
         String normalizedName =
-                SemanticUtils.trimToNotBlank(request.name(), "domain name")
-                        .toLowerCase(Locale.ROOT);
+                SemanticUtils.normalizeObjectName(
+                        request.name(), "Missing domain name for domain creation.");
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
             throw new BusinessException(
@@ -103,8 +102,8 @@ public class DomainServiceImpl implements DomainService {
                     ErrorCode.DOMAIN_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         String normalizedName =
-                SemanticUtils.trimToNotBlank(request.name(), "domain name")
-                        .toLowerCase(Locale.ROOT);
+                SemanticUtils.normalizeObjectName(
+                        request.name(), "Missing domain name for domain update.");
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
             throw new BusinessException(

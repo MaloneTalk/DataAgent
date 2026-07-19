@@ -35,7 +35,6 @@ import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +52,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Override
     public PageResponse<ColumnSemanticResponse> getColumnPage(ColumnSemanticPageQuery query) {
         SemanticUtils.requireDatasourceId(query.datasourceId());
-        String normalizedTableName = SemanticUtils.trimToNotBlank(query.tableName(), "tableName");
+        String normalizedTableName =
+                SemanticUtils.requireTrimmed(
+                        query.tableName(), "Missing tableName for column semantic page query.");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         Datasource datasource = datasourceService.findById(query.datasourceId());
@@ -82,10 +83,11 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public void updateColumnSemantic(String tableName, ColumnSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName =
-                SemanticUtils.trimToNotBlank(tableName, "tableName").toLowerCase(Locale.ROOT);
+                SemanticUtils.normalizeObjectName(
+                        tableName, "Missing tableName for column semantic update.");
         String normalizedColumnName =
-                SemanticUtils.trimToNotBlank(request.columnName(), "columnName")
-                        .toLowerCase(Locale.ROOT);
+                SemanticUtils.normalizeObjectName(
+                        request.columnName(), "Missing columnName for column semantic update.");
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -96,6 +98,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnInfo.setColumnName(normalizedColumnName);
             columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setIsVisible(request.isVisible());
+            columnInfo.setPhysicalStatus(Boolean.FALSE);
             columnInfo.setCreateTime(LocalDateTime.now());
             columnInfo.setUpdateTime(LocalDateTime.now());
             columnSemanticInfoMapper.insert(columnInfo);
@@ -106,7 +109,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
-        columnSemanticInfoMapper.update(existing);
+        columnSemanticInfoMapper.updateSemanticFields(existing);
     }
 
     @Override
@@ -133,7 +136,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     public int resetColumnSemantics(
             Integer datasourceId, String tableName, List<String> columnNames) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
+        String normalizedTableName =
+                SemanticUtils.requireTrimmed(
+                        tableName, "Missing tableName for batch column semantic reset.");
         if (columnNames == null || columnNames.isEmpty()) {
             return 0;
         }
@@ -141,8 +146,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnNames.stream()
                         .map(
                                 columnName ->
-                                        SemanticUtils.trimToNotBlank(columnName, "columnName")
-                                                .toLowerCase(Locale.ROOT))
+                                        SemanticUtils.normalizeObjectName(
+                                                columnName,
+                                                "Missing columnName for batch column semantic"
+                                                        + " reset."))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 columnSemanticInfoMapper
@@ -151,10 +158,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         .filter(
                                 column ->
                                         normalizedColumnNames.contains(
-                                                SemanticUtils.trimToNotBlank(
-                                                                column.getColumnName(),
-                                                                "columnName")
-                                                        .toLowerCase(Locale.ROOT)))
+                                                SemanticUtils.normalizeObjectName(
+                                                        column.getColumnName(),
+                                                        "Missing columnName while matching column"
+                                                                + " semantic reset.")))
                         .map(ColumnInfo::getId)
                         .distinct()
                         .toList();

@@ -18,7 +18,7 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue';
   import DomainManage from './components/DomainManage.vue';
-  import RelationManage from './relation/RelationManage.vue';
+  import RelationManage from './components/RelationManage.vue';
   import TableSemanticManage from './components/TableSemanticManage.vue';
 
   const activeTab = ref<'domain' | 'table' | 'relation'>('domain');

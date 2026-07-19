@@ -35,6 +35,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
@@ -42,7 +43,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -88,10 +88,9 @@ public class SemanticMergeService {
     }
 
     public List<ColumnPromptResponse> getTableSchema(Datasource datasource, String tableName) {
-        if (tableName == null || tableName.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "tableName must not be blank.");
-        }
-        String normalizedTableName = tableName.trim();
+        String normalizedTableName =
+                SemanticUtils.requireTrimmed(
+                        tableName, "Missing tableName for merged table schema lookup.");
 
         List<PhysicalColumnInfo> physicalColumns;
         try {
@@ -109,6 +108,10 @@ public class SemanticMergeService {
         TableInfo semanticTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
+        if (semanticTable != null && !SemanticAvailabilityHelper.hasPhysicalTable(semanticTable)) {
+            throw new IllegalArgumentException(
+                    "Table " + normalizedTableName + " does not exist physically.");
+        }
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
             throw new BusinessException(ErrorCode.TABLE_HIDDEN);
         }
@@ -221,7 +224,11 @@ public class SemanticMergeService {
         for (ColumnInfo column :
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
                         datasourceId, tableName)) {
-            result.put(column.getColumnName().toLowerCase(Locale.ROOT), column);
+            result.put(
+                    SemanticUtils.normalizeObjectName(
+                            column.getColumnName(),
+                            "Missing columnName while building semantic column index."),
+                    column);
         }
         return result;
     }
@@ -261,7 +268,11 @@ public class SemanticMergeService {
         private static TableNameIndex of(List<TableInfo> tables) {
             Map<String, TableInfo> map = new HashMap<>();
             for (TableInfo table : tables) {
-                map.put(table.getTableName().toLowerCase(Locale.ROOT), table);
+                map.put(
+                        SemanticUtils.normalizeObjectName(
+                                table.getTableName(),
+                                "Missing tableName while building semantic table index."),
+                        table);
             }
             return new TableNameIndex(map);
         }
@@ -271,12 +282,19 @@ public class SemanticMergeService {
         }
 
         private TableInfo get(String tableName) {
-            return index.get(tableName.toLowerCase(Locale.ROOT));
+            return index.get(
+                    SemanticUtils.normalizeObjectName(
+                            tableName, "Missing tableName while reading semantic table index."));
         }
 
         private boolean isHidden(String tableName) {
             TableInfo tableInfo = get(tableName);
-            return tableInfo != null && !Boolean.TRUE.equals(tableInfo.getIsVisible());
+            if (tableInfo == null) {
+                // 表不在已加载的语义索引里：当作“未隐藏”保留，避免误丢合法关系
+                return false;
+            }
+            return !SemanticAvailabilityHelper.isTableAvailable(
+                    tableInfo, UsageLevelEnum.AI_PROMPT);
         }
     }
 
@@ -286,22 +304,42 @@ public class SemanticMergeService {
             Map<String, Map<String, ColumnInfo>> map = new HashMap<>();
             for (ColumnInfo column : columns) {
                 map.computeIfAbsent(
-                                column.getTableName().toLowerCase(Locale.ROOT),
+                                SemanticUtils.normalizeObjectName(
+                                        column.getTableName(),
+                                        "Missing tableName while building semantic column index."),
                                 key -> new HashMap<>())
-                        .put(column.getColumnName().toLowerCase(Locale.ROOT), column);
+                        .put(
+                                SemanticUtils.normalizeObjectName(
+                                        column.getColumnName(),
+                                        "Missing columnName while building semantic column index."),
+                                column);
             }
             return new TableColumnIndex(map);
         }
 
         private ColumnInfo get(String tableName, String columnName) {
-            Map<String, ColumnInfo> columns = index.get(tableName.toLowerCase(Locale.ROOT));
-            return columns == null ? null : columns.get(columnName.toLowerCase(Locale.ROOT));
+            Map<String, ColumnInfo> columns =
+                    index.get(
+                            SemanticUtils.normalizeObjectName(
+                                    tableName,
+                                    "Missing tableName while reading semantic column index."));
+            return columns == null
+                    ? null
+                    : columns.get(
+                            SemanticUtils.normalizeObjectName(
+                                    columnName,
+                                    "Missing columnName while reading semantic column index."));
         }
 
         private boolean hasHiddenColumn(String tableName, List<String> columnNames) {
             for (String columnName : columnNames) {
                 ColumnInfo columnInfo = get(tableName, columnName);
-                if (columnInfo != null && !Boolean.TRUE.equals(columnInfo.getIsVisible())) {
+                if (columnInfo == null) {
+                    // 列不在已加载的语义索引里：当作“未隐藏”保留
+                    return false;
+                }
+                if (!SemanticAvailabilityHelper.isColumnAvailable(
+                        columnInfo, UsageLevelEnum.AI_PROMPT)) {
                     return true;
                 }
             }
@@ -315,7 +353,9 @@ public class SemanticMergeService {
             Map<String, List<LogicalTableRelation>> map = new HashMap<>();
             for (LogicalTableRelation relation : relations) {
                 map.computeIfAbsent(
-                                relation.getSourceTableName().toLowerCase(Locale.ROOT),
+                                SemanticUtils.normalizeObjectName(
+                                        relation.getSourceTableName(),
+                                        "Missing sourceTableName while building relation index."),
                                 key -> new ArrayList<>())
                         .add(relation);
             }
@@ -324,7 +364,10 @@ public class SemanticMergeService {
 
         private List<LogicalTableRelation> get(String sourceTableName) {
             return index.getOrDefault(
-                    sourceTableName.toLowerCase(Locale.ROOT), Collections.emptyList());
+                    SemanticUtils.normalizeObjectName(
+                            sourceTableName,
+                            "Missing sourceTableName while reading relation index."),
+                    Collections.emptyList());
         }
     }
 }

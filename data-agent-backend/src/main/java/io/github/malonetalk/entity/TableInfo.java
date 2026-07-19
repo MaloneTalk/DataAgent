@@ -25,10 +25,12 @@ public class TableInfo {
 
     private Integer id;
     private String tableName;
+    private String physicalTableDescription;
     private String tableDescription;
     private String domain;
     private Integer datasourceId;
     private Boolean isVisible;
+    private Boolean physicalStatus;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

@@ -35,7 +35,6 @@ import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -143,8 +142,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
         String normalizedTableName =
-                SemanticUtils.trimToNotBlank(request.tableName(), "tableName")
-                        .toLowerCase(Locale.ROOT);
+                SemanticUtils.normalizeObjectName(
+                        request.tableName(), "Missing tableName for table semantic update.");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -155,6 +154,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             tableInfo.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
             tableInfo.setDomain(SemanticUtils.normalizeDomain(request.domain()));
             tableInfo.setIsVisible(request.isVisible());
+            tableInfo.setPhysicalStatus(Boolean.FALSE);
             tableInfo.setCreateTime(LocalDateTime.now());
             tableInfo.setUpdateTime(LocalDateTime.now());
             tableInfoMapper.insert(tableInfo);
@@ -165,13 +165,15 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         existing.setDomain(SemanticUtils.normalizeDomain(request.domain()));
         existing.setIsVisible(request.isVisible());
         existing.setUpdateTime(LocalDateTime.now());
-        tableInfoMapper.update(existing);
+        tableInfoMapper.updateSemanticFields(existing);
     }
 
     @Override
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
-        String normalizedTableName = SemanticUtils.trimToNotBlank(tableName, "tableName");
+        String normalizedTableName =
+                SemanticUtils.requireTrimmed(
+                        tableName, "Missing tableName for table semantic reset.");
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
@@ -190,17 +192,20 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 tableNames.stream()
                         .map(
                                 name ->
-                                        SemanticUtils.trimToNotBlank(name, "tableName")
-                                                .toLowerCase(Locale.ROOT))
+                                        SemanticUtils.normalizeObjectName(
+                                                name,
+                                                "Missing tableName for batch table semantic"
+                                                        + " reset."))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<Integer> matchedIds =
                 tableInfoMapper.selectByDatasourceId(datasourceId).stream()
                         .filter(
                                 table ->
                                         normalizedNames.contains(
-                                                SemanticUtils.trimToNotBlank(
-                                                                table.getTableName(), "tableName")
-                                                        .toLowerCase(Locale.ROOT)))
+                                                SemanticUtils.normalizeObjectName(
+                                                        table.getTableName(),
+                                                        "Missing tableName while matching table"
+                                                                + " semantic reset.")))
                         .map(TableInfo::getId)
                         .distinct()
                         .toList();

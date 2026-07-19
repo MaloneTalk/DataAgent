@@ -32,7 +32,6 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.enums.ChatStreamEventType;
-import io.github.malonetalk.utils.MsgUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -235,7 +234,7 @@ public class SessionService {
             if (messages != null) {
                 for (Msg msg : messages) {
                     if (msg.getRole() == MsgRole.USER) {
-                        title = MsgUtils.getTextContent(msg);
+                        title = getTextContent(msg);
                         if (title.length() > 30) {
                             title = title.substring(0, 30);
                         }
@@ -253,5 +252,33 @@ public class SessionService {
 
         result.sort((a, b) -> b.lastActiveAt().compareTo(a.lastActiveAt()));
         return result;
+    }
+
+    /**
+     * Extract text content from a message. Concatenates text from all
+     * text-containing blocks (TextBlock and ThinkingBlock).
+     */
+    private static String getTextContent(Msg msg) {
+        String thinking =
+                msg.getContent().stream()
+                        .filter(block -> block instanceof ThinkingBlock)
+                        .map(block -> ((ThinkingBlock) block).getThinking())
+                        .collect(Collectors.joining("\n"));
+
+        String text =
+                msg.getContent().stream()
+                        .filter(block -> block instanceof TextBlock)
+                        .map(block -> ((TextBlock) block).getText())
+                        .collect(Collectors.joining("\n"));
+
+        if (!thinking.isEmpty() && !text.isEmpty()) {
+            return thinking + "\n\n" + text;
+        } else if (!thinking.isEmpty()) {
+            return thinking;
+        } else if (!text.isEmpty()) {
+            return text;
+        } else {
+            return "[No response]";
+        }
     }
 }

@@ -18,9 +18,11 @@
 package io.github.malonetalk.enums;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
-@AllArgsConstructor
+@Getter
+@RequiredArgsConstructor
 public enum ChatStreamEventType {
     SUMMARY("summary"),
     TOOL_CALL("tool_call"),
@@ -28,6 +30,7 @@ public enum ChatStreamEventType {
     THINKING("thinking"),
     TEXT("text"),
     QUESTION("question"),
+    REPORT("report"),
     ERROR("error");
 
     private final String code;

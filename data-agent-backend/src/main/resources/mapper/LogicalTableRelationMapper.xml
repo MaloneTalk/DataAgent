@@ -35,6 +35,16 @@
         ORDER BY id DESC
     </select>
 
+    <select id="selectByDatasourceIdAndSourceTables" resultMap="BaseResultMap">
+        SELECT * FROM logical_table_relation
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(source_table_name) IN
+        <foreach collection="sourceTableNames" item="sourceTableName" open="(" separator="," close=")">
+            LOWER(#{sourceTableName})
+        </foreach>
+        ORDER BY id DESC
+    </select>
+
     <select id="selectPageByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation
         WHERE datasource_id = #{query.datasourceId}

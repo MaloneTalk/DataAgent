@@ -311,11 +311,15 @@
       return;
     }
 
+    const previousSnapshot = readLayoutSnapshot();
     const snapshot: SemanticRelationLayoutSnapshot = {
       version: RELATION_LAYOUT_STORAGE_VERSION,
-      nodes: Object.fromEntries(
-        localNodes.value.map(node => [node.tableName, { x: node.x, y: node.y }]),
-      ),
+      nodes: {
+        ...(previousSnapshot?.nodes ?? {}),
+        ...Object.fromEntries(
+          localNodes.value.map(node => [node.tableName, { x: node.x, y: node.y }]),
+        ),
+      },
       viewport: {
         scale: viewport.scale,
         offsetX: viewport.offsetX,
@@ -324,7 +328,11 @@
       updatedAt: new Date().toISOString(),
     };
 
-    globalThis.localStorage.setItem(layoutStorageKey.value, JSON.stringify(snapshot));
+    try {
+      globalThis.localStorage.setItem(layoutStorageKey.value, JSON.stringify(snapshot));
+    } catch {
+      // Browser storage can be unavailable in strict privacy modes.
+    }
   }
 
   function schedulePersistLayout() {
@@ -381,12 +389,12 @@
     const dropElement = globalThis.document
       .elementFromPoint(clientX, clientY)
       ?.closest?.('.relation-column-item') as {
-      dataset?: { tableName?: string; columnName?: string };
+      dataset?: { tableName?: string; columnName?: string; operable?: string };
     } | null;
 
     const tableName = dropElement?.dataset?.tableName;
     const columnName = dropElement?.dataset?.columnName;
-    if (!tableName || !columnName) {
+    if (!tableName || !columnName || dropElement?.dataset?.operable !== 'true') {
       return null;
     }
 
@@ -460,6 +468,10 @@
     event.stopPropagation();
     const node = nodeMap.value.get(tableName);
     if (!node) {
+      return;
+    }
+    const column = node.columns.find(item => item.columnName === columnName);
+    if (!node.operable || !column?.operable) {
       return;
     }
 
@@ -548,6 +560,11 @@
 
   function handleDropColumnEnter(tableName: string, columnName: string) {
     if (!dragRelation.value) {
+      return;
+    }
+    const node = nodeMap.value.get(tableName);
+    const column = node?.columns.find(item => item.columnName === columnName);
+    if (!node?.operable || !column?.operable) {
       return;
     }
     hoveredDropColumn.value = { tableName, columnName };
@@ -780,6 +797,9 @@
                 <h4>{{ node.tableName }}</h4>
                 <p>{{ node.domain || '未设置业务域' }}</p>
               </div>
+              <el-tag v-if="!node.operable" type="warning" size="small">
+                {{ node.invalidReason || '不可操作' }}
+              </el-tag>
             </header>
             <p class="relation-node-desc">{{ node.description || '暂无语义描述' }}</p>
             <ul class="relation-node-columns">
@@ -789,7 +809,10 @@
                 class="relation-column-item"
                 :data-table-name="node.tableName"
                 :data-column-name="column.columnName"
+                :data-operable="String(node.operable && column.operable)"
+                :title="column.invalidReason || undefined"
                 :class="{
+                  'is-disabled': !node.operable || !column.operable,
                   'is-drag-source':
                     dragRelation?.sourceTableName === node.tableName &&
                     dragRelation?.sourceColumnName === column.columnName,
@@ -827,7 +850,7 @@
           <h4>已记录关系</h4>
           <div v-if="relationError" class="error-tip">{{ relationError }}</div>
           <div v-if="!relations.length && !loading" class="canvas-empty">
-            当前数据源还没有逻辑外键
+            当前页表还没有逻辑外键
           </div>
           <article
             v-for="relation in relations"
@@ -1011,6 +1034,13 @@
     font-weight: 600;
   }
 
+  .relation-node-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
   .relation-node-header p {
     margin: 0;
     color: var(--app-text-muted);
@@ -1050,6 +1080,11 @@
   .relation-column-item.is-drag-source {
     border-color: var(--app-text-secondary);
     background: var(--app-bg-hover);
+  }
+
+  .relation-column-item.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .relation-column-item.is-drag-target {

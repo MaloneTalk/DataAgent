@@ -25,7 +25,7 @@ import io.github.malonetalk.dto.DomainUpdateRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.DomainInfo;
 import io.github.malonetalk.exception.BusinessException;
-import io.github.malonetalk.service.DomainService;
+import io.github.malonetalk.service.semantic.DomainService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;

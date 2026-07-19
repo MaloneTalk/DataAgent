@@ -7,8 +7,12 @@
         <result column="datasource_id" property="datasourceId"/>
         <result column="table_name" property="tableName"/>
         <result column="column_name" property="columnName"/>
+        <result column="physical_column_description" property="physicalColumnDescription"/>
+        <result column="type_name" property="typeName"/>
+        <result column="primary_key" property="primaryKey"/>
         <result column="column_description" property="columnDescription"/>
         <result column="is_visible" property="isVisible"/>
+        <result column="physical_status" property="physicalStatus"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
@@ -24,6 +28,16 @@
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) = LOWER(#{tableName})
         ORDER BY column_name ASC, id ASC
+    </select>
+
+    <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
+        SELECT * FROM column_info
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(table_name) IN
+        <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
+            LOWER(#{tableName})
+        </foreach>
+        ORDER BY table_name ASC, column_name ASC, id ASC
     </select>
 
     <select id="selectPageByDatasourceIdAndTableName" resultMap="BaseResultMap">
@@ -54,15 +68,39 @@
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO column_info (
-            datasource_id, table_name, column_name, column_description,
-            is_visible, create_time, update_time
+            datasource_id, table_name, column_name, physical_column_description, type_name,
+            primary_key, column_description, is_visible, physical_status, create_time, update_time
         ) VALUES (
-            #{datasourceId}, #{tableName}, #{columnName}, #{columnDescription},
-            #{isVisible}, #{createTime}, #{updateTime}
+            #{datasourceId}, #{tableName}, #{columnName}, #{physicalColumnDescription},
+            #{typeName}, COALESCE(#{primaryKey}, 0), #{columnDescription},
+            COALESCE(#{isVisible}, 1), COALESCE(#{physicalStatus}, 1),
+            COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
         )
     </insert>
 
-    <update id="update" parameterType="io.github.malonetalk.entity.ColumnInfo">
+    <insert id="batchUpsertPhysicalCache">
+        INSERT INTO column_info (
+            datasource_id, table_name, column_name, physical_column_description, type_name,
+            primary_key, column_description, is_visible, physical_status, create_time, update_time
+        ) VALUES
+        <foreach collection="columns" item="column" separator=",">
+            (
+                #{column.datasourceId}, #{column.tableName}, #{column.columnName},
+                #{column.physicalColumnDescription}, #{column.typeName},
+                COALESCE(#{column.primaryKey}, 0), #{column.columnDescription},
+                COALESCE(#{column.isVisible}, 1), COALESCE(#{column.physicalStatus}, 1),
+                COALESCE(#{column.createTime}, NOW()), COALESCE(#{column.updateTime}, NOW())
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            physical_column_description = VALUES(physical_column_description),
+            type_name = VALUES(type_name),
+            primary_key = VALUES(primary_key),
+            physical_status = VALUES(physical_status),
+            update_time = VALUES(update_time)
+    </insert>
+
+    <update id="updateSemanticFields" parameterType="io.github.malonetalk.entity.ColumnInfo">
         UPDATE column_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
@@ -72,6 +110,30 @@
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
+    </update>
+
+    <update id="updatePhysicalCacheFields" parameterType="io.github.malonetalk.entity.ColumnInfo">
+        UPDATE column_info
+        <set>
+            physical_column_description = #{physicalColumnDescription},
+            type_name = #{typeName},
+            primary_key = #{primaryKey},
+            <if test="physicalStatus != null">physical_status = #{physicalStatus},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="markPhysicalMissingByIds">
+        UPDATE column_info
+        SET physical_status = 0,
+            update_time = #{now}
+        WHERE datasource_id = #{datasourceId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>
 
     <delete id="deleteByDatasourceId">

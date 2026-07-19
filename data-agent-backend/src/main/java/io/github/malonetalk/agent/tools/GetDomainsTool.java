@@ -20,7 +20,7 @@ package io.github.malonetalk.agent.tools;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.util.JsonUtils;
-import io.github.malonetalk.service.DomainService;
+import io.github.malonetalk.service.semantic.DomainService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
