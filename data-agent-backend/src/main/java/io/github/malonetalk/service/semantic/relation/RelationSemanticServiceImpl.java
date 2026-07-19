@@ -42,6 +42,7 @@ import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
+import io.github.malonetalk.utils.AssertUtils;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -210,9 +211,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public boolean updateRelationSemanticEnabled(
             String tableName, UpdateLogicalTableRelationEnabledRequest request) {
         requireDatasource(request.datasourceId());
-        if (request.enabled() == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "enabled cannot be null.");
-        }
+        AssertUtils.requireNonNull(request.enabled(), "enabled cannot be null.");
         LogicalTableRelation relation =
                 requireRelation(request.datasourceId(), tableName, request.relationId());
         if (Boolean.TRUE.equals(request.enabled())) {
@@ -267,9 +266,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private void requireDatasource(Integer datasourceId) {
-        if (datasourceId == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "datasourceId cannot be null.");
-        }
+        AssertUtils.requireNonNull(datasourceId, "datasourceId cannot be null.");
         if (datasourceService.findById(datasourceId) == null) {
             throw new BusinessException(
                     ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
@@ -421,9 +418,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private LogicalTableRelation requireRelation(
             Integer datasourceId, String tableName, Integer relationId) {
-        if (relationId == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "relationId cannot be null.");
-        }
+        AssertUtils.requireNonNull(relationId, "relationId cannot be null.");
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())

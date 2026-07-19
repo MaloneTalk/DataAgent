@@ -71,6 +71,12 @@ public class GlobalExceptionHandler {
         return response(ErrorCode.BAD_REQUEST, resolveBadRequestMessage(exception));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Result<Object>> handleIllegalArgumentException(
+            IllegalArgumentException exception) {
+        return response(exceptionResponseMapper.resolve(exception));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
             MethodArgumentNotValidException exception) {

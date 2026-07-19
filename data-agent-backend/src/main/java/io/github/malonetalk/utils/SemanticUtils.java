@@ -28,15 +28,13 @@ public final class SemanticUtils {
     private SemanticUtils() {}
 
     public static void requireDatasourceId(Integer datasourceId) {
-        if (datasourceId == null) {
-            throw new IllegalArgumentException("datasourceId cannot be null.");
-        }
+        AssertUtils.requireNonNull(datasourceId, "datasourceId cannot be null.");
     }
 
     /**
      * @param sortOrder nullable, treated as asc
      * @return true if sortOrder is "desc" (case-insensitive)
-     * @throws IllegalArgumentException if not null / "asc" / "desc"
+     * @throws IllegalArgumentException if not null / "asc" / "desc"; mapped to BAD_REQUEST
      */
     public static boolean isDescendingSort(String sortOrder) {
         if (sortOrder == null) {
@@ -60,10 +58,7 @@ public final class SemanticUtils {
     }
 
     public static String requireTrimmed(String value, String missingMessage) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(missingMessage);
-        }
-        return value.trim();
+        return AssertUtils.requireNotBlank(value, missingMessage);
     }
 
     public static String firstNonBlank(String... values) {

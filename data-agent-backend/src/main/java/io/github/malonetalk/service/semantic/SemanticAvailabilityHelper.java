@@ -22,15 +22,14 @@ import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.enums.ColumnInvalidReasonEnum;
 import io.github.malonetalk.service.semantic.enums.TableInvalidReasonEnum;
 import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
-import java.util.Objects;
+import io.github.malonetalk.utils.AssertUtils;
 
-// TODO 不应该抛出NPE
 public final class SemanticAvailabilityHelper {
 
     private SemanticAvailabilityHelper() {}
 
     public static boolean isTableAvailable(TableInfo tableInfo, UsageLevelEnum usageLevel) {
-        Objects.requireNonNull(tableInfo, "tableInfo should not be null");
+        AssertUtils.requireNonNull(tableInfo, "tableInfo should not be null");
         if (usageLevel == UsageLevelEnum.FRONTEND_DISPLAY) {
             return true;
         }
@@ -38,7 +37,7 @@ public final class SemanticAvailabilityHelper {
     }
 
     public static boolean isColumnAvailable(ColumnInfo columnInfo, UsageLevelEnum usageLevel) {
-        Objects.requireNonNull(columnInfo, "columnInfo should not be null");
+        AssertUtils.requireNonNull(columnInfo, "columnInfo should not be null");
         if (usageLevel == UsageLevelEnum.FRONTEND_DISPLAY) {
             return true;
         }
@@ -46,12 +45,12 @@ public final class SemanticAvailabilityHelper {
     }
 
     public static boolean hasPhysicalTable(TableInfo tableInfo) {
-        Objects.requireNonNull(tableInfo, "tableInfo should not be null");
+        AssertUtils.requireNonNull(tableInfo, "tableInfo should not be null");
         return !Boolean.FALSE.equals(tableInfo.getPhysicalStatus());
     }
 
     public static boolean hasPhysicalColumn(ColumnInfo columnInfo) {
-        Objects.requireNonNull(columnInfo, "columnInfo should not be null");
+        AssertUtils.requireNonNull(columnInfo, "columnInfo should not be null");
         return !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
     }
 
