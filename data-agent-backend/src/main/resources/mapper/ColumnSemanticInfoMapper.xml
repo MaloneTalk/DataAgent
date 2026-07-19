@@ -78,6 +78,28 @@
         )
     </insert>
 
+    <insert id="batchUpsertPhysicalCache">
+        INSERT INTO column_info (
+            datasource_id, table_name, column_name, physical_column_description, type_name,
+            primary_key, column_description, is_visible, physical_status, create_time, update_time
+        ) VALUES
+        <foreach collection="columns" item="column" separator=",">
+            (
+                #{column.datasourceId}, #{column.tableName}, #{column.columnName},
+                #{column.physicalColumnDescription}, #{column.typeName},
+                COALESCE(#{column.primaryKey}, 0), #{column.columnDescription},
+                COALESCE(#{column.isVisible}, 1), COALESCE(#{column.physicalStatus}, 1),
+                COALESCE(#{column.createTime}, NOW()), COALESCE(#{column.updateTime}, NOW())
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            physical_column_description = VALUES(physical_column_description),
+            type_name = VALUES(type_name),
+            primary_key = VALUES(primary_key),
+            physical_status = VALUES(physical_status),
+            update_time = VALUES(update_time)
+    </insert>
+
     <update id="updateSemanticFields" parameterType="io.github.malonetalk.entity.ColumnInfo">
         UPDATE column_info
         <set>
@@ -100,6 +122,18 @@
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
+    </update>
+
+    <update id="markPhysicalMissingByIds">
+        UPDATE column_info
+        SET physical_status = 0,
+            update_time = #{now}
+        WHERE datasource_id = #{datasourceId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>
 
     <delete id="deleteByDatasourceId">

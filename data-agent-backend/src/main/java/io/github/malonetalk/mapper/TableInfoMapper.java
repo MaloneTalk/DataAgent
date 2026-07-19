@@ -19,6 +19,7 @@ package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.entity.TableInfo;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -43,6 +44,17 @@ public interface TableInfoMapper {
 
     TableInfo selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
+
+    List<TableInfo> selectByDatasourceIdAndTableNames(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableNames") List<String> tableNames);
+
+    int batchUpsertPhysicalCache(@Param("tables") List<TableInfo> tables);
+
+    int markPhysicalMissingByDatasourceIdAndTableNames(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableNames") List<String> tableNames,
+            @Param("now") LocalDateTime now);
 
     List<TableInfo> selectByDatasourceIdAndDomains(
             @Param("datasourceId") Integer datasourceId, @Param("domains") List<String> domains);

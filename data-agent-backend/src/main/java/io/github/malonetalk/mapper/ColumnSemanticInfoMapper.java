@@ -19,6 +19,7 @@ package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.entity.ColumnInfo;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -46,9 +47,16 @@ public interface ColumnSemanticInfoMapper {
 
     int insert(ColumnInfo columnInfo);
 
+    int batchUpsertPhysicalCache(@Param("columns") List<ColumnInfo> columns);
+
     int updateSemanticFields(ColumnInfo columnInfo);
 
     int updatePhysicalCacheFields(ColumnInfo columnInfo);
+
+    int markPhysicalMissingByIds(
+            @Param("datasourceId") Integer datasourceId,
+            @Param("ids") List<Integer> ids,
+            @Param("now") LocalDateTime now);
 
     int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
 

@@ -17,9 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.sync;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.agent.datasource.SchemaReader;
+import io.github.malonetalk.agent.datasource.SchemaReader.PhysicalTablePage;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -29,16 +28,14 @@ import io.github.malonetalk.dto.semantic.RefreshPhysicalStatusRequest;
 import io.github.malonetalk.dto.semantic.SyncTableResult;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
-import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;
+import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.PhysicalStatusRefreshPlan;
+import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
 import io.github.malonetalk.utils.SemanticUtils;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -47,7 +44,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
@@ -56,7 +52,6 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
 
     private final DatasourceService datasourceService;
     private final TableInfoMapper tableInfoMapper;
-    private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final SchemaReader schemaReader;
     private final SemanticSyncApplyService semanticSyncApplyService;
     private final SemanticSyncResultService semanticSyncResultService;
@@ -68,61 +63,37 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         Datasource datasource = requireDatasource(query.datasourceId());
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        List<PhysicalTableInfo> physicalTables = schemaReader.getTables(datasource);
-        Map<String, TableInfo> semanticTables =
-                tableInfoMapper.selectByDatasourceId(query.datasourceId()).stream()
-                        .collect(
-                                Collectors.toMap(
-                                        table ->
-                                                SemanticUtils.normalizeObjectName(
-                                                        table.getTableName(),
-                                                        "Missing tableName while indexing synced"
-                                                                + " semantic tables."),
-                                        table -> table,
-                                        (left, _right) -> left,
-                                        LinkedHashMap::new));
         String keyword = SemanticUtils.trimToNull(query.keyword());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-
-        List<PhysicalTableCandidateResponse> filtered =
-                physicalTables.stream()
-                        .filter(table -> matchesKeyword(table, keyword))
-                        .sorted(buildTableComparator(sortDescending))
+        PhysicalTablePage tablePage =
+                schemaReader.getTablePage(
+                        datasource, keyword, sortDescending, pageNumber, pageSize);
+        List<PhysicalTableInfo> pageTables = tablePage.items();
+        Set<String> syncedTableNames = loadSyncedTableNames(query.datasourceId(), pageTables);
+        List<PhysicalTableCandidateResponse> responses =
+                pageTables.stream()
                         .map(
                                 table ->
                                         new PhysicalTableCandidateResponse(
                                                 table.tableName(),
                                                 SemanticUtils.trimToNull(table.remarks()),
-                                                semanticTables.containsKey(
+                                                syncedTableNames.contains(
                                                         SemanticUtils.normalizeObjectName(
                                                                 table.tableName(),
                                                                 "Missing physical tableName while"
                                                                         + " listing table"
                                                                         + " candidates."))))
                         .toList();
-
-        int fromIndex = Math.min((pageNumber - 1) * pageSize, filtered.size());
-        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
-        return PageResponse.of(
-                filtered.subList(fromIndex, toIndex), filtered.size(), pageNumber, pageSize);
+        return PageResponse.of(responses, tablePage.total(), pageNumber, pageSize);
     }
 
     @Override
-    @Transactional
     public SyncTableSemanticsResponse syncTables(SyncTableSemanticsRequest request) {
         Datasource datasource = requireDatasource(request.datasourceId());
         Map<String, PhysicalTableInfo> physicalTables =
-                schemaReader.getTables(datasource).stream()
-                        .collect(
-                                Collectors.toMap(
-                                        table ->
-                                                SemanticUtils.normalizeObjectName(
-                                                        table.tableName(),
-                                                        "Missing physical tableName while loading"
-                                                                + " tables for semantic sync."),
-                                        table -> table,
-                                        (left, _right) -> left,
-                                        LinkedHashMap::new));
+                loadPhysicalTableIndex(
+                        datasource,
+                        "Missing physical tableName while loading tables for semantic sync.");
         Set<String> selectedTableNames =
                 request.tableNames().stream()
                         .map(
@@ -133,131 +104,108 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                                         + " sync."))
                         .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        List<SyncTableResult> results = new ArrayList<>();
+        List<TableSyncSource> presentTables = new ArrayList<>();
+        List<String> missingTableNames = new ArrayList<>();
         for (String normalizedTableName : selectedTableNames) {
             PhysicalTableInfo physicalTable = physicalTables.get(normalizedTableName);
-            SyncTableResult result =
-                    physicalTable == null
-                            ? semanticSyncApplyService.markMissingTable(
-                                    request.datasourceId(),
-                                    normalizedTableName,
-                                    LocalDateTime.now())
-                            : syncSingleTable(
-                                    datasource,
-                                    request.datasourceId(),
-                                    physicalTable,
-                                    normalizedTableName);
-            results.add(result);
+            if (physicalTable == null) {
+                missingTableNames.add(normalizedTableName);
+                continue;
+            }
+            presentTables.add(readTableSyncSource(datasource, physicalTable, normalizedTableName));
         }
 
-        return semanticSyncResultService.summarize(results);
+        List<SyncTableResult> results =
+                transactionTemplate.execute(
+                        status ->
+                                semanticSyncApplyService.applyTableSync(
+                                        request.datasourceId(), presentTables, missingTableNames));
+        return semanticSyncResultService.summarize(results == null ? List.of() : results);
     }
 
     @Override
     public SyncTableSemanticsResponse refreshPhysicalStatus(RefreshPhysicalStatusRequest request) {
         Datasource datasource = requireDatasource(request.datasourceId());
         Map<String, PhysicalTableInfo> physicalTables =
-                schemaReader.getTables(datasource).stream()
-                        .collect(
-                                Collectors.toMap(
-                                        table ->
-                                                SemanticUtils.normalizeObjectName(
-                                                        table.tableName(),
-                                                        "Missing physical tableName while loading"
-                                                                + " tables for physical status"
-                                                                + " refresh."),
-                                        table -> table,
-                                        (left, _right) -> left,
-                                        LinkedHashMap::new));
+                loadPhysicalTableIndex(
+                        datasource,
+                        "Missing physical tableName while loading tables for physical status"
+                                + " refresh.");
         Map<String, Set<String>> physicalColumnNamesByTable =
                 loadPhysicalColumnNamesByTable(datasource, physicalTables);
-        int pageNumber = 1;
-        int pageSize = PageResponse.resolvePageSize(100);
-        List<SyncTableResult> results = new ArrayList<>();
-
-        while (true) {
-            PhysicalStatusPageRefresh pageRefresh =
-                    refreshPhysicalStatusPage(
-                            request.datasourceId(),
-                            physicalTables,
-                            physicalColumnNamesByTable,
-                            pageNumber,
-                            pageSize);
-            if (!pageRefresh.hasRows()) {
-                break;
-            }
-            results.addAll(pageRefresh.results());
-            if (pageRefresh.pageNumber() >= pageRefresh.pageCount()) {
-                break;
-            }
-            pageNumber++;
-        }
-
-        return semanticSyncResultService.summarize(results);
+        PhysicalStatusRefreshPlan refreshPlan =
+                semanticSyncApplyService.buildPhysicalStatusRefreshPlan(
+                        request.datasourceId(), physicalTables, physicalColumnNamesByTable);
+        List<SyncTableResult> results =
+                transactionTemplate.execute(
+                        status -> semanticSyncApplyService.applyPhysicalStatusRefresh(refreshPlan));
+        return semanticSyncResultService.summarize(results == null ? List.of() : results);
     }
 
-    private PhysicalStatusPageRefresh refreshPhysicalStatusPage(
-            Integer datasourceId,
-            Map<String, PhysicalTableInfo> physicalTables,
-            Map<String, Set<String>> physicalColumnNamesByTable,
-            int pageNumber,
-            int pageSize) {
-        return transactionTemplate.execute(
-                status -> {
-                    PageHelper.startPage(pageNumber, pageSize);
-                    Page<TableInfo> page =
-                            (Page<TableInfo>) tableInfoMapper.selectByDatasourceId(datasourceId);
-                    if (page.isEmpty()) {
-                        return new PhysicalStatusPageRefresh(
-                                false, page.getPageNum(), page.getPages(), List.of());
-                    }
-                    Map<String, List<ColumnInfo>> semanticColumnsByTable =
-                            loadSemanticColumnsByTable(datasourceId, page, physicalTables);
-                    List<SyncTableResult> results =
-                            refreshPhysicalStatusForTables(
-                                    datasourceId,
-                                    page,
-                                    physicalTables,
-                                    physicalColumnNamesByTable,
-                                    semanticColumnsByTable);
-                    return new PhysicalStatusPageRefresh(
-                            true, page.getPageNum(), page.getPages(), results);
-                });
+    private Map<String, PhysicalTableInfo> loadPhysicalTableIndex(
+            Datasource datasource, String missingMessage) {
+        // External schema reads stay outside the write transaction; only the prepared diff is
+        // applied transactionally.
+        return schemaReader.getTables(datasource).stream()
+                .collect(
+                        Collectors.toMap(
+                                table ->
+                                        SemanticUtils.normalizeObjectName(
+                                                table.tableName(), missingMessage),
+                                table -> table,
+                                (left, _right) -> left,
+                                LinkedHashMap::new));
     }
 
-    private List<SyncTableResult> refreshPhysicalStatusForTables(
-            Integer datasourceId,
-            List<TableInfo> tableInfos,
-            Map<String, PhysicalTableInfo> physicalTables,
-            Map<String, Set<String>> physicalColumnNamesByTable,
-            Map<String, List<ColumnInfo>> semanticColumnsByTable) {
-        List<SyncTableResult> results = new ArrayList<>();
-        for (TableInfo tableInfo : tableInfos) {
-            String normalizedTableName =
-                    SemanticUtils.normalizeObjectName(
-                            tableInfo.getTableName(),
-                            "Missing tableName while refreshing physical status.");
-            PhysicalTableInfo physicalTable = physicalTables.get(normalizedTableName);
-            if (physicalTable == null) {
-                results.add(
-                        semanticSyncApplyService.markMissingTable(
-                                datasourceId, normalizedTableName, LocalDateTime.now()));
-                continue;
-            }
-            SyncTableResult result =
-                    markMissingColumnsForPresentTable(
-                            tableInfo,
-                            semanticColumnsByTable.getOrDefault(normalizedTableName, List.of()),
-                            physicalColumnNamesByTable.getOrDefault(normalizedTableName, Set.of()));
-            if (result.missingColumnsMarked() > 0) {
-                results.add(result);
-            }
+    private Set<String> loadSyncedTableNames(
+            Integer datasourceId, List<PhysicalTableInfo> pageTables) {
+        // Candidate pages only need sync status for the current page, not every semantic table.
+        if (pageTables.isEmpty()) {
+            return Set.of();
         }
-        return results;
+        List<String> tableNames =
+                pageTables.stream().map(PhysicalTableInfo::tableName).distinct().toList();
+        return tableInfoMapper.selectByDatasourceIdAndTableNames(datasourceId, tableNames).stream()
+                .map(
+                        table ->
+                                SemanticUtils.normalizeObjectName(
+                                        table.getTableName(),
+                                        "Missing tableName while loading synced table"
+                                                + " candidates."))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private TableSyncSource readTableSyncSource(
+            Datasource datasource, PhysicalTableInfo physicalTable, String normalizedTableName) {
+        // Snapshot physical columns before opening the transaction so JDBC metadata latency does
+        // not extend row lock time.
+        List<ColumnSyncSource> columns =
+                schemaReader.getTableSchema(datasource, physicalTable.tableName()).stream()
+                        .map(column -> toColumnSyncSource(normalizedTableName, column))
+                        .toList();
+        return new TableSyncSource(
+                normalizedTableName,
+                physicalTable.tableName(),
+                SemanticUtils.trimToNull(physicalTable.remarks()),
+                columns);
+    }
+
+    private ColumnSyncSource toColumnSyncSource(
+            String normalizedTableName, PhysicalColumnInfo physicalColumn) {
+        return new ColumnSyncSource(
+                normalizedTableName,
+                SemanticUtils.normalizeObjectName(
+                        physicalColumn.columnName(),
+                        "Missing physical columnName while syncing table."),
+                SemanticUtils.trimToNull(physicalColumn.remarks()),
+                SemanticUtils.trimToNull(physicalColumn.typeName()),
+                physicalColumn.primaryKey());
     }
 
     private Map<String, Set<String>> loadPhysicalColumnNamesByTable(
             Datasource datasource, Map<String, PhysicalTableInfo> physicalTables) {
+        // Refresh compares semantic cache against the current physical schema first, then applies
+        // missing-status updates in one short transaction.
         List<String> tableNames =
                 physicalTables.values().stream().map(PhysicalTableInfo::tableName).toList();
         return schemaReader.getTableColumnNames(datasource, tableNames).entrySet().stream()
@@ -288,135 +236,6 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                 LinkedHashMap::new));
     }
 
-    private Map<String, List<ColumnInfo>> loadSemanticColumnsByTable(
-            Integer datasourceId,
-            List<TableInfo> tableInfos,
-            Map<String, PhysicalTableInfo> physicalTables) {
-        List<String> tableNames =
-                tableInfos.stream()
-                        .map(TableInfo::getTableName)
-                        .filter(
-                                tableName ->
-                                        physicalTables.containsKey(
-                                                SemanticUtils.normalizeObjectName(
-                                                        tableName,
-                                                        "Missing tableName while loading semantic"
-                                                                + " columns for refresh.")))
-                        .distinct()
-                        .toList();
-        if (tableNames.isEmpty()) {
-            return Map.of();
-        }
-        return columnSemanticInfoMapper
-                .selectByDatasourceIdAndTableNames(datasourceId, tableNames)
-                .stream()
-                .collect(
-                        Collectors.groupingBy(
-                                column ->
-                                        SemanticUtils.normalizeObjectName(
-                                                column.getTableName(),
-                                                "Missing tableName while grouping semantic"
-                                                        + " columns for refresh."),
-                                LinkedHashMap::new,
-                                Collectors.toList()));
-    }
-
-    private SyncTableResult markMissingColumnsForPresentTable(
-            TableInfo tableInfo,
-            List<ColumnInfo> semanticColumns,
-            Set<String> physicalColumnNames) {
-        LocalDateTime now = LocalDateTime.now();
-        int missingColumnsMarked =
-                semanticSyncApplyService.markMissingColumns(
-                        semanticColumns, physicalColumnNames, now);
-        return SyncTableResult.builder()
-                .tableName(tableInfo.getTableName())
-                .physicalTableFound(true)
-                .missingColumnsMarked(missingColumnsMarked)
-                .message("Physical column status refreshed")
-                .build();
-    }
-
-    private SyncTableResult syncSingleTable(
-            Datasource datasource,
-            Integer datasourceId,
-            PhysicalTableInfo physicalTable,
-            String normalizedTableName) {
-        LocalDateTime now = LocalDateTime.now();
-        SemanticSyncApplyService.TableSyncDiff tableSyncDiff =
-                semanticSyncApplyService.ensureTablePresent(
-                        datasourceId,
-                        normalizedTableName,
-                        SemanticUtils.trimToNull(physicalTable.remarks()),
-                        now);
-
-        List<ColumnInfo> semanticColumns =
-                columnSemanticInfoMapper.selectByDatasourceIdAndTableName(
-                        datasourceId, normalizedTableName);
-        Map<String, ColumnInfo> semanticColumnMap =
-                semanticColumns.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        column ->
-                                                SemanticUtils.normalizeObjectName(
-                                                        column.getColumnName(),
-                                                        "Missing columnName while indexing"
-                                                                + " semantic columns for sync."),
-                                        column -> column,
-                                        (left, _right) -> left,
-                                        LinkedHashMap::new));
-        List<PhysicalColumnInfo> physicalColumns =
-                schemaReader.getTableSchema(datasource, physicalTable.tableName());
-        Set<String> physicalColumnNames = new LinkedHashSet<>();
-        int addedColumns = 0;
-        int reactivatedColumns = 0;
-        int updatedColumns = 0;
-
-        for (PhysicalColumnInfo physicalColumn : physicalColumns) {
-            String normalizedColumnName =
-                    SemanticUtils.normalizeObjectName(
-                            physicalColumn.columnName(),
-                            "Missing physical columnName while syncing table.");
-            physicalColumnNames.add(normalizedColumnName);
-            SemanticSyncApplyService.ColumnSyncDiff columnSyncDiff =
-                    semanticSyncApplyService.ensureColumnPresent(
-                            datasourceId,
-                            normalizedTableName,
-                            normalizedColumnName,
-                            SemanticUtils.trimToNull(physicalColumn.remarks()),
-                            SemanticUtils.trimToNull(physicalColumn.typeName()),
-                            physicalColumn.primaryKey(),
-                            now,
-                            semanticColumnMap);
-            if (columnSyncDiff.added()) {
-                addedColumns++;
-            }
-            if (columnSyncDiff.reactivated()) {
-                reactivatedColumns++;
-            }
-            if (columnSyncDiff.updated()) {
-                updatedColumns++;
-            }
-        }
-
-        int missingColumnsMarked =
-                semanticSyncApplyService.markMissingColumns(
-                        semanticColumns, physicalColumnNames, now);
-
-        return SyncTableResult.builder()
-                .tableName(physicalTable.tableName())
-                .physicalTableFound(true)
-                .tableAdded(tableSyncDiff.added())
-                .tableReactivated(tableSyncDiff.reactivated())
-                .tableUpdated(tableSyncDiff.updated())
-                .addedColumns(addedColumns)
-                .reactivatedColumns(reactivatedColumns)
-                .updatedColumns(updatedColumns)
-                .missingColumnsMarked(missingColumnsMarked)
-                .message("同步完成")
-                .build();
-    }
-
     private Datasource requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
         Datasource datasource = datasourceService.findById(datasourceId);
@@ -425,27 +244,4 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         }
         return datasource;
     }
-
-    private boolean matchesKeyword(PhysicalTableInfo table, String keyword) {
-        if (keyword == null) {
-            return true;
-        }
-        return SemanticUtils.containsIgnoreCase(table.tableName(), keyword)
-                || SemanticUtils.containsIgnoreCase(table.remarks(), keyword);
-    }
-
-    private Comparator<PhysicalTableInfo> buildTableComparator(boolean sortDescending) {
-        Comparator<PhysicalTableInfo> comparator =
-                Comparator.comparing(
-                        table ->
-                                SemanticUtils.normalizeObjectName(
-                                        table.tableName(),
-                                        "Missing physical tableName while sorting table"
-                                                + " candidates."),
-                        Comparator.naturalOrder());
-        return sortDescending ? comparator.reversed() : comparator;
-    }
-
-    private record PhysicalStatusPageRefresh(
-            boolean hasRows, int pageNumber, int pageCount, List<SyncTableResult> results) {}
 }

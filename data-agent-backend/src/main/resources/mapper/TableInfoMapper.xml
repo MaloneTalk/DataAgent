@@ -45,6 +45,16 @@
         LIMIT 1
     </select>
 
+    <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(table_name) IN
+        <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
+            LOWER(#{tableName})
+        </foreach>
+        ORDER BY table_name ASC, id ASC
+    </select>
+
     <insert id="insert" parameterType="io.github.malonetalk.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO table_info (
             table_name, physical_table_description, table_description, domain, datasource_id,
@@ -56,6 +66,25 @@
             COALESCE(#{physicalStatus}, 1),
             COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
         )
+    </insert>
+
+    <insert id="batchUpsertPhysicalCache">
+        INSERT INTO table_info (
+            table_name, physical_table_description, table_description, domain, datasource_id,
+            is_visible, physical_status, create_time, update_time
+        ) VALUES
+        <foreach collection="tables" item="table" separator=",">
+            (
+                #{table.tableName}, #{table.physicalTableDescription}, #{table.tableDescription},
+                #{table.domain}, #{table.datasourceId}, COALESCE(#{table.isVisible}, 1),
+                COALESCE(#{table.physicalStatus}, 1),
+                COALESCE(#{table.createTime}, NOW()), COALESCE(#{table.updateTime}, NOW())
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            physical_table_description = VALUES(physical_table_description),
+            physical_status = VALUES(physical_status),
+            update_time = VALUES(update_time)
     </insert>
 
     <update id="updateSemanticFields" parameterType="io.github.malonetalk.entity.TableInfo">
@@ -78,6 +107,18 @@
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
+    </update>
+
+    <update id="markPhysicalMissingByDatasourceIdAndTableNames">
+        UPDATE table_info
+        SET physical_status = 0,
+            update_time = #{now}
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(table_name) IN
+        <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
+            LOWER(#{tableName})
+        </foreach>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>
 
     <select id="selectByDatasourceIdAndDomains" resultMap="BaseResultMap">
