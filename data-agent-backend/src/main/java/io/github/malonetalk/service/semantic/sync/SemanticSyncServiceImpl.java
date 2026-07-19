@@ -18,7 +18,6 @@
 package io.github.malonetalk.service.semantic.sync;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.agent.datasource.SchemaReader.PhysicalTablePage;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -36,6 +35,7 @@ import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.Physi
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -63,12 +63,17 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         Datasource datasource = requireDatasource(query.datasourceId());
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
+        List<PhysicalTableInfo> physicalTables = schemaReader.getTables(datasource);
         String keyword = SemanticUtils.trimToNull(query.keyword());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-        PhysicalTablePage tablePage =
-                schemaReader.getTablePage(
-                        datasource, keyword, sortDescending, pageNumber, pageSize);
-        List<PhysicalTableInfo> pageTables = tablePage.items();
+        List<PhysicalTableInfo> filteredTables =
+                physicalTables.stream()
+                        .filter(table -> matchesKeyword(table, keyword))
+                        .sorted(buildTableComparator(sortDescending))
+                        .toList();
+        int fromIndex = Math.min((pageNumber - 1) * pageSize, filteredTables.size());
+        int toIndex = Math.min(fromIndex + pageSize, filteredTables.size());
+        List<PhysicalTableInfo> pageTables = filteredTables.subList(fromIndex, toIndex);
         Set<String> syncedTableNames = loadSyncedTableNames(query.datasourceId(), pageTables);
         List<PhysicalTableCandidateResponse> responses =
                 pageTables.stream()
@@ -84,7 +89,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                                                         + " listing table"
                                                                         + " candidates."))))
                         .toList();
-        return PageResponse.of(responses, tablePage.total(), pageNumber, pageSize);
+        return PageResponse.of(responses, filteredTables.size(), pageNumber, pageSize);
     }
 
     @Override
@@ -243,5 +248,25 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
             throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
         }
         return datasource;
+    }
+
+    private boolean matchesKeyword(PhysicalTableInfo table, String keyword) {
+        if (keyword == null) {
+            return true;
+        }
+        return SemanticUtils.containsIgnoreCase(table.tableName(), keyword)
+                || SemanticUtils.containsIgnoreCase(table.remarks(), keyword);
+    }
+
+    private Comparator<PhysicalTableInfo> buildTableComparator(boolean sortDescending) {
+        Comparator<PhysicalTableInfo> comparator =
+                Comparator.comparing(
+                        table ->
+                                SemanticUtils.normalizeObjectName(
+                                        table.tableName(),
+                                        "Missing physical tableName while sorting table"
+                                                + " candidates."),
+                        Comparator.naturalOrder());
+        return sortDescending ? comparator.reversed() : comparator;
     }
 }
