@@ -18,8 +18,10 @@
 package io.github.malonetalk.utils;
 
 import io.github.malonetalk.common.Constants;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
+import io.github.malonetalk.exception.BusinessException;
 import java.util.List;
 import java.util.Locale;
 
@@ -34,7 +36,6 @@ public final class SemanticUtils {
     /**
      * @param sortOrder nullable, treated as asc
      * @return true if sortOrder is "desc" (case-insensitive)
-     * @throws IllegalArgumentException if not null / "asc" / "desc"; mapped to BAD_REQUEST
      */
     public static boolean isDescendingSort(String sortOrder) {
         if (sortOrder == null) {
@@ -46,7 +47,8 @@ public final class SemanticUtils {
         if (Constants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
             return true;
         }
-        throw new IllegalArgumentException(
+        throw new BusinessException(
+                ErrorCode.BAD_REQUEST,
                 "sortOrder must be 'asc' or 'desc', but got: " + sortOrder);
     }
 

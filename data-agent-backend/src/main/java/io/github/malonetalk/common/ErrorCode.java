@@ -40,6 +40,7 @@ public enum ErrorCode {
             "NO_ACTIVE_DATASOURCE", HttpStatus.NOT_FOUND, "No active datasource is available."),
     DOMAIN_NOT_FOUND("DOMAIN_NOT_FOUND", HttpStatus.NOT_FOUND, "Domain not found."),
     MCP_SERVER_NOT_FOUND("MCP_SERVER_NOT_FOUND", HttpStatus.NOT_FOUND, "MCP server not found."),
+    REPORT_NOT_FOUND("REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "Report not found."),
     TABLE_SEMANTIC_NOT_FOUND(
             "TABLE_SEMANTIC_NOT_FOUND",
             HttpStatus.NOT_FOUND,

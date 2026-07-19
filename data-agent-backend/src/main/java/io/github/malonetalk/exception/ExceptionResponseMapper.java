@@ -37,9 +37,6 @@ public class ExceptionResponseMapper {
         if (exception instanceof SqlValidationException) {
             return of(ErrorCode.BAD_REQUEST, exception.getMessage());
         }
-        if (exception instanceof IllegalArgumentException) {
-            return of(ErrorCode.BAD_REQUEST, exception.getMessage());
-        }
         if (exception instanceof SqlSecurityException) {
             return of(ErrorCode.SQL_NOT_ALLOWED);
         }

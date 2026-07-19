@@ -24,6 +24,8 @@ import static io.github.malonetalk.common.SemanticConstants.RELATION_TABLE_COLUM
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.utils.AssertUtils;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.LinkedHashSet;
@@ -59,7 +61,8 @@ public class LogicalTableRelationHelper {
                             normalizedColumnName,
                             "Missing columnName while normalizing logical relation columns.");
             if (!uniqueKeys.add(uniqueKey)) {
-                throw new IllegalArgumentException(
+                throw new BusinessException(
+                        ErrorCode.BAD_REQUEST,
                         fieldName + " contains duplicate column: " + normalizedColumnName);
             }
             normalizedColumns.add(normalizedColumnName);
@@ -99,7 +102,8 @@ public class LogicalTableRelationHelper {
             return objectMapper.writeValueAsString(
                     normalizeColumnNames(columnNames, "columnNames"));
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("Failed to serialize relation columns.", e);
+            throw new BusinessException(
+                    ErrorCode.OPERATION_FAILED, "Failed to serialize relation columns.");
         }
     }
 
@@ -111,8 +115,9 @@ public class LogicalTableRelationHelper {
             return normalizeColumnNames(
                     objectMapper.readValue(normalizedJson, STRING_LIST_TYPE), fieldName);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(
-                    "Failed to parse relation columns from " + fieldName + ".", e);
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST,
+                    "Failed to parse relation columns from " + fieldName + ".");
         }
     }
 }

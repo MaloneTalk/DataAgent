@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.dto.pagination;
 
+import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.exception.BusinessException;
 import java.util.Collections;
 import java.util.List;
 
@@ -40,7 +42,8 @@ public record PageResponse<T>(
     public static int resolvePage(Integer page) {
         int resolvedPage = page == null ? DEFAULT_PAGE : page;
         if (resolvedPage < 1) {
-            throw new IllegalArgumentException("page must be greater than or equal to 1.");
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "page must be greater than or equal to 1.");
         }
         return resolvedPage;
     }
@@ -48,10 +51,12 @@ public record PageResponse<T>(
     public static int resolvePageSize(Integer pageSize) {
         int resolvedPageSize = pageSize == null ? DEFAULT_PAGE_SIZE : pageSize;
         if (resolvedPageSize < 1) {
-            throw new IllegalArgumentException("pageSize must be greater than or equal to 1.");
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "pageSize must be greater than or equal to 1.");
         }
         if (resolvedPageSize > MAX_PAGE_SIZE) {
-            throw new IllegalArgumentException("pageSize must be less than or equal to 100.");
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "pageSize must be less than or equal to 100.");
         }
         return resolvedPageSize;
     }

@@ -80,6 +80,6 @@ public class DomainController {
     }
 
     private void requireNonNegativeId(Integer id) {
-        AssertUtils.requireNonNegative(id, "id must not be negative.");
+        AssertUtils.requireNonNegative(id, "id must be non-negative.");
     }
 }

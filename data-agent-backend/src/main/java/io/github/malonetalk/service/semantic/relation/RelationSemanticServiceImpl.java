@@ -69,7 +69,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public PageResponse<LogicalTableRelationResponse> getRelationPage(
             RelationSemanticPageQuery query) {
         requireDatasource(query.datasourceId());
-        String normalizedTableName = normalizeRequestTableName(query.tableName(), "tableName");
+        String normalizedTableName =
+                logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
@@ -242,7 +243,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public int deleteRelationSemantics(
             Integer datasourceId, String tableName, List<Integer> relationIds) {
         requireDatasource(datasourceId);
-        String normalizedTableName = normalizeRequestTableName(tableName, "tableName");
+        String normalizedTableName =
+                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         if (relationIds == null || relationIds.isEmpty()) {
             return 0;
         }
@@ -333,13 +335,15 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         TableInfo tableInfo =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
         if (tableInfo == null) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(
+                    ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
                     fieldName + " " + tableName + " semantic metadata does not exist.");
         }
         if (SemanticAvailabilityHelper.isTableAvailable(tableInfo, UsageLevelEnum.USER_OPERATION)) {
             return;
         }
-        throw new IllegalArgumentException(
+        throw new BusinessException(
+                ErrorCode.DATA_CONFLICT,
                 SemanticAvailabilityHelper.unavailableMessage(
                         fieldName,
                         tableName,
@@ -354,14 +358,16 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                     columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                             datasourceId, tableName, columnName);
             if (columnInfo == null) {
-                throw new IllegalArgumentException(
+                throw new BusinessException(
+                        ErrorCode.COLUMN_SEMANTIC_NOT_FOUND,
                         fieldName + " " + columnName + " semantic metadata does not exist.");
             }
             if (SemanticAvailabilityHelper.isColumnAvailable(
                     columnInfo, UsageLevelEnum.USER_OPERATION)) {
                 continue;
             }
-            throw new IllegalArgumentException(
+            throw new BusinessException(
+                    ErrorCode.DATA_CONFLICT,
                     SemanticAvailabilityHelper.unavailableMessage(
                             fieldName,
                             columnName,
@@ -378,16 +384,20 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String targetTableName,
             String description,
             Boolean enabled) {
-        relation.setSourceTableName(normalizeRequestTableName(tableName, "tableName"));
+        relation.setSourceTableName(
+                logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
         List<String> normalizedSourceColumns =
-                normalizeRequestColumnNames(sourceColumnNames, "sourceColumnNames");
+                logicalTableRelationHelper.normalizeColumnNames(
+                        sourceColumnNames, "sourceColumnNames");
         relation.setSourceColumnNamesJson(
                 logicalTableRelationHelper.toJson(normalizedSourceColumns));
         relation.setSourceColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(normalizedSourceColumns));
-        relation.setTargetTableName(normalizeRequestTableName(targetTableName, "targetTableName"));
+        relation.setTargetTableName(
+                logicalTableRelationHelper.normalizeTableName(targetTableName, "targetTableName"));
         List<String> normalizedTargetColumns =
-                normalizeRequestColumnNames(targetColumnNames, "targetColumnNames");
+                logicalTableRelationHelper.normalizeColumnNames(
+                        targetColumnNames, "targetColumnNames");
         relation.setTargetColumnNamesJson(
                 logicalTableRelationHelper.toJson(normalizedTargetColumns));
         relation.setTargetColumnSignature(
@@ -423,33 +433,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
                 || !relation.getSourceTableName()
-                        .equals(normalizeRequestTableName(tableName, "tableName"))) {
+                        .equals(
+                                logicalTableRelationHelper.normalizeTableName(
+                                        tableName, "tableName"))) {
             throw new BusinessException(ErrorCode.LOGICAL_RELATION_NOT_FOUND);
         }
         return relation;
-    }
-
-    private String normalizeRequestTableName(String tableName, String fieldName) {
-        try {
-            return logicalTableRelationHelper.normalizeTableName(tableName, fieldName);
-        } catch (IllegalArgumentException exception) {
-            throw toBadRequest(exception);
-        }
-    }
-
-    private List<String> normalizeRequestColumnNames(List<String> columnNames, String fieldName) {
-        try {
-            return logicalTableRelationHelper.normalizeColumnNames(columnNames, fieldName);
-        } catch (IllegalArgumentException exception) {
-            throw toBadRequest(exception);
-        }
-    }
-
-    private BusinessException toBadRequest(IllegalArgumentException exception) {
-        String message =
-                exception.getMessage() == null
-                        ? "Invalid request parameters."
-                        : exception.getMessage();
-        return new BusinessException(ErrorCode.BAD_REQUEST, message);
     }
 }

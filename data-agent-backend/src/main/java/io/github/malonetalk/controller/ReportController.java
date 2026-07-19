@@ -45,7 +45,7 @@ public class ReportController {
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Integer id) {
-        AssertUtils.requireNonNegative(id, "id must not be negative.");
+        AssertUtils.requireNonNegative(id, "id must be non-negative.");
         reportService.deleteById(id);
         return Result.success(true);
     }
