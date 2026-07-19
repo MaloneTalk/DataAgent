@@ -68,6 +68,10 @@ public class GlobalExceptionHandler {
         HttpMessageNotReadableException.class
     })
     public ResponseEntity<Result<Object>> handleBadRequest(Exception exception) {
+        BusinessException businessException = findBusinessException(exception);
+        if (businessException != null) {
+            return response(exceptionResponseMapper.resolve(businessException));
+        }
         return response(ErrorCode.BAD_REQUEST, resolveBadRequestMessage(exception));
     }
 
@@ -211,6 +215,17 @@ public class GlobalExceptionHandler {
             return propertyPath;
         }
         return propertyPath.substring(separatorIndex + 1);
+    }
+
+    private BusinessException findBusinessException(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof BusinessException businessException) {
+                return businessException;
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     private ResponseEntity<Result<Object>> response(ErrorCode errorCode) {

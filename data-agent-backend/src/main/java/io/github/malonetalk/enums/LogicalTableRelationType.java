@@ -19,6 +19,8 @@ package io.github.malonetalk.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.exception.BusinessException;
 import java.util.Arrays;
 import lombok.AllArgsConstructor;
 
@@ -36,11 +38,16 @@ public enum LogicalTableRelationType {
     @JsonCreator
     public static LogicalTableRelationType fromCode(String code) {
         if (code == null || code.isBlank()) {
-            throw new IllegalArgumentException("relationType cannot be blank.");
+            throw new BusinessException(
+                    ErrorCode.INVALID_RELATION_TYPE, "relationType cannot be blank.");
         }
         return Arrays.stream(values())
                 .filter(value -> value.code.equalsIgnoreCase(code))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown relationType: " + code));
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.INVALID_RELATION_TYPE,
+                                        "Unknown relationType: " + code));
     }
 }

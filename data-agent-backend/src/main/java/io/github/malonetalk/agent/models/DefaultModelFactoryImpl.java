@@ -18,6 +18,8 @@
 package io.github.malonetalk.agent.models;
 
 import io.agentscope.core.model.Model;
+import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.exception.BusinessException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,12 +56,14 @@ public class DefaultModelFactoryImpl implements ModelFactory {
     @Override
     public Model getInstance(ModelConfig config) {
         if (!StringUtils.hasText(config.getProvider())) {
-            throw new IllegalArgumentException("provider should not be empty!");
+            throw new BusinessException(
+                    ErrorCode.MODEL_PROVIDER_UNAVAILABLE, "Model provider should not be empty.");
         }
         ModelProvider provider = providerMap.get(config.getProvider());
         if (provider == null) {
-            throw new IllegalArgumentException(
-                    "Illegal provider argument: " + config.getProvider());
+            throw new BusinessException(
+                    ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
+                    "Unsupported model provider: " + config.getProvider());
         }
         return provider.createModel(config);
     }

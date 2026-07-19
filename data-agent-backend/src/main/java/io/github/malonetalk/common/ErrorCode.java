@@ -38,6 +38,10 @@ public enum ErrorCode {
     DATASOURCE_NOT_FOUND("DATASOURCE_NOT_FOUND", HttpStatus.NOT_FOUND, "Datasource not found."),
     NO_ACTIVE_DATASOURCE(
             "NO_ACTIVE_DATASOURCE", HttpStatus.NOT_FOUND, "No active datasource is available."),
+    UNSUPPORTED_DATASOURCE_TYPE(
+            "UNSUPPORTED_DATASOURCE_TYPE",
+            HttpStatus.BAD_REQUEST,
+            "Datasource type is not supported."),
     DOMAIN_NOT_FOUND("DOMAIN_NOT_FOUND", HttpStatus.NOT_FOUND, "Domain not found."),
     MCP_SERVER_NOT_FOUND("MCP_SERVER_NOT_FOUND", HttpStatus.NOT_FOUND, "MCP server not found."),
     REPORT_NOT_FOUND("REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "Report not found."),
@@ -51,6 +55,8 @@ public enum ErrorCode {
             "Column semantic metadata does not exist."),
     LOGICAL_RELATION_NOT_FOUND(
             "LOGICAL_RELATION_NOT_FOUND", HttpStatus.NOT_FOUND, "Logical relation does not exist."),
+    INVALID_RELATION_TYPE(
+            "INVALID_RELATION_TYPE", HttpStatus.BAD_REQUEST, "Relation type is invalid."),
 
     DOMAIN_NAME_CONFLICT(
             "DOMAIN_NAME_CONFLICT", HttpStatus.CONFLICT, "Domain name already exists."),
@@ -83,6 +89,10 @@ public enum ErrorCode {
             "SCHEMA_READ_FAILED",
             HttpStatus.SERVICE_UNAVAILABLE,
             "Failed to read the database schema. Please try again later."),
+    MODEL_PROVIDER_UNAVAILABLE(
+            "MODEL_PROVIDER_UNAVAILABLE",
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Model provider is unavailable."),
     DATA_SERVICE_UNAVAILABLE(
             "DATA_SERVICE_UNAVAILABLE",
             HttpStatus.SERVICE_UNAVAILABLE,

@@ -103,7 +103,7 @@ public class LogicalTableRelationHelper {
                     normalizeColumnNames(columnNames, "columnNames"));
         } catch (JsonProcessingException e) {
             throw new BusinessException(
-                    ErrorCode.OPERATION_FAILED, "Failed to serialize relation columns.");
+                    ErrorCode.OPERATION_FAILED, "Failed to serialize relation columns.", e);
         }
     }
 
@@ -117,7 +117,8 @@ public class LogicalTableRelationHelper {
         } catch (JsonProcessingException e) {
             throw new BusinessException(
                     ErrorCode.BAD_REQUEST,
-                    "Failed to parse relation columns from " + fieldName + ".");
+                    "Failed to parse relation columns from " + fieldName + ".",
+                    e);
         }
     }
 }
