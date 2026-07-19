@@ -25,8 +25,12 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +64,36 @@ public class SchemaReader {
             log.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
             throw new SchemaReadException(
                     "Failed to read schema for table " + tableName + ": " + e.getMessage(), e);
+        }
+    }
+
+    public Map<String, Set<String>> getTableColumnNames(
+            Datasource datasource, Collection<String> tableNames) {
+        if (tableNames == null || tableNames.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Set<String>> columnNamesByTable = new LinkedHashMap<>();
+        for (String tableName : tableNames) {
+            columnNamesByTable.putIfAbsent(tableName, new LinkedHashSet<>());
+        }
+
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+
+        try (Connection conn = ds.getConnection()) {
+            DatabaseMetaData metaData = conn.getMetaData();
+            try (ResultSet rs =
+                    metaData.getColumns(conn.getCatalog(), conn.getSchema(), "%", null)) {
+                while (rs.next()) {
+                    Set<String> columnNames = columnNamesByTable.get(rs.getString("TABLE_NAME"));
+                    if (columnNames != null) {
+                        columnNames.add(rs.getString("COLUMN_NAME"));
+                    }
+                }
+            }
+            return columnNamesByTable;
+        } catch (SQLException e) {
+            log.error("Failed to read column names for tables: {}", e.getMessage(), e);
+            throw new SchemaReadException("Failed to read column names: " + e.getMessage(), e);
         }
     }
 

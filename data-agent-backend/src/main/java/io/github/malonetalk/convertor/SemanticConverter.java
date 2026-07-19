@@ -20,11 +20,15 @@ package io.github.malonetalk.convertor;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
+import io.github.malonetalk.dto.semantic.RelationWorkspaceColumnResponse;
+import io.github.malonetalk.dto.semantic.RelationWorkspaceTableResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.LogicalTableRelationType;
+import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
+import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
@@ -39,25 +43,41 @@ public class SemanticConverter {
 
     public TableSemanticResponse toResponse(TableInfo tableInfo) {
         Boolean isVisible = tableInfo.getIsVisible();
+        boolean hasPhysicalTable = SemanticAvailabilityHelper.hasPhysicalTable(tableInfo);
         return TableSemanticResponse.builder()
                 .id(tableInfo.getId())
                 .tableName(tableInfo.getTableName())
                 .domain(SemanticUtils.normalizeDomain(tableInfo.getDomain()))
+                .physicalTableDescription(
+                        SemanticUtils.trimToNull(tableInfo.getPhysicalTableDescription()))
                 .tableDescription(SemanticUtils.trimToNull(tableInfo.getTableDescription()))
                 .isVisible(isVisible)
-                .hasPhysicalTable(true)
+                .hasPhysicalTable(hasPhysicalTable)
+                .invalidReason(
+                        SemanticAvailabilityHelper.tableInvalidReason(
+                                tableInfo, UsageLevelEnum.USER_OPERATION))
                 .updateTime(tableInfo.getUpdateTime())
                 .build();
     }
 
     public ColumnSemanticResponse toResponse(ColumnInfo columnInfo) {
+        boolean hasPhysicalColumn = SemanticAvailabilityHelper.hasPhysicalColumn(columnInfo);
         return ColumnSemanticResponse.builder()
                 .id(columnInfo.getId())
                 .columnName(columnInfo.getColumnName())
+                .physicalColumnDescription(
+                        SemanticUtils.trimToNull(columnInfo.getPhysicalColumnDescription()))
                 .columnDescription(columnInfo.getColumnDescription())
+                .typeName(SemanticUtils.trimToNull(columnInfo.getTypeName()))
+                .primaryKey(columnInfo.getPrimaryKey())
                 .isVisible(columnInfo.getIsVisible())
-                .hasPhysicalColumn(true)
-                .effective(Boolean.TRUE.equals(columnInfo.getIsVisible()))
+                .hasPhysicalColumn(hasPhysicalColumn)
+                .effective(
+                        SemanticAvailabilityHelper.isColumnAvailable(
+                                columnInfo, UsageLevelEnum.USER_OPERATION))
+                .invalidReason(
+                        SemanticAvailabilityHelper.columnInvalidReason(
+                                columnInfo, UsageLevelEnum.USER_OPERATION))
                 .updateTime(columnInfo.getUpdateTime())
                 .build();
     }
@@ -89,6 +109,43 @@ public class SemanticConverter {
                 .enabled(relation.getIsEnabled())
                 .createTime(relation.getCreateTime())
                 .updateTime(relation.getUpdateTime())
+                .build();
+    }
+
+    public RelationWorkspaceTableResponse toWorkspaceTable(
+            TableInfo tableInfo, List<ColumnInfo> columns) {
+        return RelationWorkspaceTableResponse.builder()
+                .tableName(tableInfo.getTableName())
+                .domain(SemanticUtils.normalizeDomain(tableInfo.getDomain()))
+                .description(
+                        SemanticUtils.firstNonBlank(
+                                tableInfo.getTableDescription(),
+                                tableInfo.getPhysicalTableDescription()))
+                .operable(
+                        SemanticAvailabilityHelper.isTableAvailable(
+                                tableInfo, UsageLevelEnum.USER_OPERATION))
+                .invalidReason(
+                        SemanticAvailabilityHelper.tableInvalidReason(
+                                tableInfo, UsageLevelEnum.USER_OPERATION))
+                .columns(columns.stream().map(this::toWorkspaceColumn).toList())
+                .build();
+    }
+
+    public RelationWorkspaceColumnResponse toWorkspaceColumn(ColumnInfo columnInfo) {
+        return RelationWorkspaceColumnResponse.builder()
+                .columnName(columnInfo.getColumnName())
+                .description(
+                        SemanticUtils.firstNonBlank(
+                                columnInfo.getColumnDescription(),
+                                columnInfo.getPhysicalColumnDescription()))
+                .typeName(SemanticUtils.trimToNull(columnInfo.getTypeName()))
+                .primaryKey(columnInfo.getPrimaryKey())
+                .operable(
+                        SemanticAvailabilityHelper.isColumnAvailable(
+                                columnInfo, UsageLevelEnum.USER_OPERATION))
+                .invalidReason(
+                        SemanticAvailabilityHelper.columnInvalidReason(
+                                columnInfo, UsageLevelEnum.USER_OPERATION))
                 .build();
     }
 }

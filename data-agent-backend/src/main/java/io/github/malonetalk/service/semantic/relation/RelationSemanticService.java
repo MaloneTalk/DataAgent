@@ -21,6 +21,8 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
+import io.github.malonetalk.dto.semantic.RelationWorkspacePageQuery;
+import io.github.malonetalk.dto.semantic.RelationWorkspaceResponse;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import java.util.List;
@@ -28,6 +30,8 @@ import java.util.List;
 public interface RelationSemanticService {
 
     PageResponse<LogicalTableRelationResponse> getRelationPage(RelationSemanticPageQuery query);
+
+    RelationWorkspaceResponse getRelationWorkspace(RelationWorkspacePageQuery query);
 
     LogicalTableRelationResponse createRelationSemantic(
             String tableName, BindLogicalTableRelationRequest request);

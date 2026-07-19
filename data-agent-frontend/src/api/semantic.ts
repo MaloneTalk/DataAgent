@@ -19,10 +19,10 @@ import request, { type ApiResponse } from './request';
 import { getDatasourceList } from './datasource';
 import type { PageResponse } from './domain';
 
-export interface RelationCandidateTableResponse {
+export interface PhysicalTableCandidateResponse {
   tableName: string;
-  domain: string | null;
-  description: string | null;
+  physicalTableDescription: string | null;
+  synced: boolean;
 }
 
 export interface TableSemanticResponse {
@@ -39,13 +39,6 @@ export interface TableSemanticResponse {
 
 export type TableSemanticInfo = TableSemanticResponse;
 
-export interface RelationCandidateColumnResponse {
-  columnName: string;
-  description: string | null;
-  typeName: string | null;
-  primaryKey: boolean | null;
-}
-
 export interface ColumnSemanticResponse {
   id: number | null;
   columnName: string;
@@ -61,6 +54,32 @@ export interface ColumnSemanticResponse {
 }
 
 export type ColumnSemanticInfo = ColumnSemanticResponse;
+
+export interface SyncTableResult {
+  tableName: string;
+  physicalTableFound: boolean;
+  tableAdded: boolean;
+  tableReactivated: boolean;
+  tableUpdated: boolean;
+  tableMarkedAsMissing: boolean;
+  addedColumns: number;
+  reactivatedColumns: number;
+  updatedColumns: number;
+  missingColumnsMarked: number;
+  message: string;
+}
+
+export interface SyncTableSemanticsResponse {
+  addedTables: number;
+  reactivatedTables: number;
+  updatedTables: number;
+  missingTablesMarked: number;
+  addedColumns: number;
+  reactivatedColumns: number;
+  updatedColumns: number;
+  missingColumnsMarked: number;
+  results: SyncTableResult[];
+}
 
 export interface LogicalTableRelationResponse {
   id: number | null;
@@ -79,6 +98,29 @@ export interface LogicalTableRelationResponse {
   updateTime: string | null;
 }
 
+export interface RelationWorkspaceColumnResponse {
+  columnName: string;
+  description: string | null;
+  typeName: string | null;
+  primaryKey: boolean | null;
+  operable: boolean;
+  invalidReason: string | null;
+}
+
+export interface RelationWorkspaceTableResponse {
+  tableName: string;
+  domain: string | null;
+  description: string | null;
+  operable: boolean;
+  invalidReason: string | null;
+  columns: RelationWorkspaceColumnResponse[];
+}
+
+export interface RelationWorkspaceResponse {
+  nodes: PageResponse<RelationWorkspaceTableResponse>;
+  relations: LogicalTableRelationResponse[];
+}
+
 export interface TableSemanticPageQuery {
   datasourceId: number;
   page?: number;
@@ -88,12 +130,6 @@ export interface TableSemanticPageQuery {
 }
 
 export type ColumnSemanticPageQuery = TableSemanticPageQuery;
-export type RelationCandidateTableQuery = TableSemanticPageQuery;
-
-export interface RelationCandidateColumnQuery extends TableSemanticPageQuery {
-  tableName: string;
-}
-
 export interface LogicalRelationQuery {
   datasourceId: number;
   tableName: string;
@@ -149,10 +185,13 @@ export function getTableSemanticPage(query: TableSemanticPageQuery) {
   });
 }
 
-export function getRelationCandidateTablePage(params: RelationCandidateTableQuery) {
-  return request.get<ApiResponse<PageResponse<TableSemanticResponse>>>('/semantic/tables', {
-    params,
-  });
+export function getPhysicalTableCandidatePage(query: TableSemanticPageQuery) {
+  return request.get<ApiResponse<PageResponse<PhysicalTableCandidateResponse>>>(
+    '/semantic/tables/sync/candidates',
+    {
+      params: query,
+    },
+  );
 }
 
 export function getTableSemanticNames(datasourceId: number) {
@@ -177,16 +216,29 @@ export function resetTableSemantic(datasourceId: number, tableName: string) {
   });
 }
 
-export function getColumnSemanticPage(tableName: string, query: ColumnSemanticPageQuery) {
-  return request.get<ApiResponse<PageResponse<ColumnSemanticInfo>>>(
-    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
+export function syncTableSemantics(datasourceId: number, tableNames: string[]) {
+  return request.post<ApiResponse<SyncTableSemanticsResponse>>('/semantic/tables/sync', {
+    datasourceId,
+    tableNames,
+  });
+}
+
+export function refreshPhysicalStatus(datasourceId: number) {
+  return request.post<ApiResponse<SyncTableSemanticsResponse>>(
+    '/semantic/tables/sync/physical-status',
+    { datasourceId },
+  );
+}
+
+export function getRelationWorkspace(query: TableSemanticPageQuery) {
+  return request.get<ApiResponse<RelationWorkspaceResponse>>(
+    '/semantic/tables/relations/workspace',
     { params: query },
   );
 }
 
-export function getRelationCandidateColumnPage(params: RelationCandidateColumnQuery) {
-  const { tableName, ...query } = params;
-  return request.get<ApiResponse<PageResponse<ColumnSemanticResponse>>>(
+export function getColumnSemanticPage(tableName: string, query: ColumnSemanticPageQuery) {
+  return request.get<ApiResponse<PageResponse<ColumnSemanticInfo>>>(
     `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
     { params: query },
   );

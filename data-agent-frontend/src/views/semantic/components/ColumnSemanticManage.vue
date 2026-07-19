@@ -244,11 +244,23 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="物理状态" width="120" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.hasPhysicalColumn ? 'success' : 'warning'" size="small">
+            {{ row.hasPhysicalColumn ? '存在' : '缺失' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="effective" label="有效性" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.effective ? 'success' : 'warning'" size="small">
             {{ row.effective ? '有效' : '无效' }}
           </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="失效原因" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.invalidReason || '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="updateTime" label="更新时间" width="180" />

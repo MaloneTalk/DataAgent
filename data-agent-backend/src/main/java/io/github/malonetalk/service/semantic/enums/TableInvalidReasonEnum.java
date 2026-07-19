@@ -15,22 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.service.semantic.enums;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-@Data
-public class TableInfo {
+@Getter
+@AllArgsConstructor
+public enum TableInvalidReasonEnum {
+    PHYSICAL_TABLE_NOT_FOUND("物理表不存在"),
+    TABLE_HIDDEN("表已隐藏"),
+    TABLE_UNAVAILABLE("表不可用");
 
-    private Integer id;
-    private String tableName;
-    private String physicalTableDescription;
-    private String tableDescription;
-    private String domain;
-    private Integer datasourceId;
-    private Boolean isVisible;
-    private Boolean physicalStatus;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    private final String reason;
 }

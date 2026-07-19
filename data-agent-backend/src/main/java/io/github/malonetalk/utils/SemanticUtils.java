@@ -59,11 +59,24 @@ public final class SemanticUtils {
         return value.trim();
     }
 
-    public static String trimToNotBlank(String value, String label) {
+    public static String requireTrimmed(String value, String missingMessage) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(label + " cannot be blank.");
+            throw new IllegalArgumentException(missingMessage);
         }
         return value.trim();
+    }
+
+    public static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = trimToNull(value);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
     }
 
     public static String normalizeDomain(String domain) {
@@ -71,6 +84,20 @@ public final class SemanticUtils {
         return normalized == null
                 ? SemanticConstants.DEFAULT_DOMAIN
                 : normalized.toLowerCase(Locale.ROOT);
+    }
+
+    public static String normalizeObjectName(String value, String missingMessage) {
+        return requireTrimmed(value, missingMessage).toLowerCase(Locale.ROOT);
+    }
+
+    public static boolean containsIgnoreCase(String value, String keyword) {
+        String normalizedValue = trimToNull(value);
+        String normalizedKeyword = trimToNull(keyword);
+        return normalizedValue != null
+                && normalizedKeyword != null
+                && normalizedValue
+                        .toLowerCase(Locale.ROOT)
+                        .contains(normalizedKeyword.toLowerCase(Locale.ROOT));
     }
 
     public static String formatTableSchema(String tableName, List<ColumnPromptResponse> columns) {

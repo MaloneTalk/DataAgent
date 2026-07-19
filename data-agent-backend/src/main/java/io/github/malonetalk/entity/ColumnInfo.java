@@ -27,8 +27,12 @@ public class ColumnInfo {
     private Integer datasourceId;
     private String tableName;
     private String columnName;
+    private String physicalColumnDescription;
+    private String typeName;
+    private Boolean primaryKey;
     private String columnDescription;
     private Boolean isVisible;
+    private Boolean physicalStatus;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

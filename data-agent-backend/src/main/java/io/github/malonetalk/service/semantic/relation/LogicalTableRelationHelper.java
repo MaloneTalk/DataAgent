@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
@@ -42,8 +41,8 @@ public class LogicalTableRelationHelper {
         this.objectMapper = objectMapper;
     }
 
-    public String normalizeTableName(String tableName, String label) {
-        return SemanticUtils.trimToNotBlank(tableName, label).toLowerCase(Locale.ROOT);
+    public String normalizeTableName(String tableName, String missingMessage) {
+        return SemanticUtils.normalizeObjectName(tableName, missingMessage);
     }
 
     public List<String> normalizeColumnNames(List<String> columnNames, String fieldName) {
@@ -57,7 +56,10 @@ public class LogicalTableRelationHelper {
                 throw new IllegalArgumentException(fieldName + " contains a blank column name.");
             }
             String normalizedColumnName = columnName.trim();
-            String uniqueKey = normalizedColumnName.toLowerCase(Locale.ROOT);
+            String uniqueKey =
+                    SemanticUtils.normalizeObjectName(
+                            normalizedColumnName,
+                            "Missing columnName while normalizing logical relation columns.");
             if (!uniqueKeys.add(uniqueKey)) {
                 throw new IllegalArgumentException(
                         fieldName + " contains duplicate column: " + normalizedColumnName);
@@ -69,7 +71,11 @@ public class LogicalTableRelationHelper {
 
     public String buildColumnSignature(List<String> columnNames) {
         return normalizeColumnNames(columnNames, "columnNames").stream()
-                .map(columnName -> columnName.toLowerCase(Locale.ROOT))
+                .map(
+                        columnName ->
+                                SemanticUtils.normalizeObjectName(
+                                        columnName,
+                                        "Missing columnName while building column signature."))
                 .reduce((left, right) -> left + RELATION_KEY_SEPARATOR + right)
                 .orElse("");
     }
@@ -79,13 +85,13 @@ public class LogicalTableRelationHelper {
             List<String> sourceColumnNames,
             String targetTableName,
             List<String> targetColumnNames) {
-        return SemanticUtils.trimToNotBlank(sourceTableName, "sourceTableName")
-                        .toLowerCase(Locale.ROOT)
+        return SemanticUtils.normalizeObjectName(
+                        sourceTableName, "Missing sourceTableName for logical relation key.")
                 + RELATION_TABLE_COLUMN_SEPARATOR
                 + buildColumnSignature(sourceColumnNames)
                 + RELATION_GROUP_SEPARATOR
-                + SemanticUtils.trimToNotBlank(targetTableName, "targetTableName")
-                        .toLowerCase(Locale.ROOT)
+                + SemanticUtils.normalizeObjectName(
+                        targetTableName, "Missing targetTableName for logical relation key.")
                 + RELATION_TABLE_COLUMN_SEPARATOR
                 + buildColumnSignature(targetColumnNames);
     }
