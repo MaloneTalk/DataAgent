@@ -81,7 +81,7 @@ public final class SemanticAvailabilityHelper {
     }
 
     public static String unavailableMessage(String fieldName, String objectName, String reason) {
-        String fallbackReason = reason == null || reason.isBlank() ? "不可用" : reason;
+        String fallbackReason = reason == null || reason.isBlank() ? "unavailable" : reason;
         return fieldName + " " + objectName + " is unavailable: " + fallbackReason;
     }
 }
