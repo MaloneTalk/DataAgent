@@ -44,8 +44,11 @@ public final class PromptConverter {
                         SemanticUtils.normalizeObjectName(
                                 physicalColumn.columnName(),
                                 "Missing physical column name for prompt conversion."));
-        if (!SemanticAvailabilityHelper.isColumnAvailable(
-                semanticColumn, UsageLevelEnum.AI_PROMPT)) {
+        // null = 没有语义列记录，视为纯物理列、纳入 prompt；
+        // 仅在确有语义记录且不可用时才跳过
+        if (semanticColumn != null
+                && !SemanticAvailabilityHelper.isColumnAvailable(
+                        semanticColumn, UsageLevelEnum.AI_PROMPT)) {
             return null;
         }
 
@@ -79,7 +82,11 @@ public final class PromptConverter {
                         SemanticUtils.normalizeObjectName(
                                 physicalTable.tableName(),
                                 "Missing physical table name for prompt conversion."));
-        if (!SemanticAvailabilityHelper.isTableAvailable(semanticTable, UsageLevelEnum.AI_PROMPT)) {
+        // ponytail: null = 没有语义表记录，视为纯物理表、纳入 prompt；
+        // 仅在确有语义记录且不可用时才跳过
+        if (semanticTable != null
+                && !SemanticAvailabilityHelper.isTableAvailable(
+                        semanticTable, UsageLevelEnum.AI_PROMPT)) {
             return null;
         }
 
