@@ -115,8 +115,14 @@ public class EventConverter {
             ContentBlock block, EventType eventType, String messageId, boolean isLast) {
         if (block instanceof ThinkingBlock tb) {
             return convertThinking(tb, messageId, isLast);
-        } else if (block instanceof ToolUseBlock tub && eventType != EventType.REASONING) {
-            return convertToolUse(tub, messageId, isLast);
+        } else if (block instanceof ToolUseBlock tub) {
+            // ponytail: REASONING streams tool calls incrementally; the isLast
+            // REASONING event emits the complete call in handleReasoningLast,
+            // so skip partial blocks here instead of warning on them.
+            if (eventType != EventType.REASONING) {
+                return convertToolUse(tub, messageId, isLast);
+            }
+            return null;
         } else if (block instanceof ToolResultBlock trb) {
             return convertToolResult(trb, messageId, isLast);
         } else if (block instanceof TextBlock tb) {
