@@ -24,7 +24,10 @@ import io.github.malonetalk.service.semantic.enums.TableInvalidReasonEnum;
 import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import java.util.Objects;
 
-// TODO 不应该抛出NPE
+/**
+ * 可用性判定。所有方法都要求传入的语义记录非空：调用方在拿不到语义记录时，
+ * 应自行决定「无记录」的语义（例如物理表回退为可用），而不是把 null 塞进来。
+ */
 public final class SemanticAvailabilityHelper {
 
     private SemanticAvailabilityHelper() {}
