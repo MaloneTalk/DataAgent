@@ -37,10 +37,12 @@ import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
+import io.github.malonetalk.web.TraceIdFilter;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
@@ -101,9 +103,25 @@ public class AgentService {
                         .includeReasoningResult(true)
                         .build();
 
+        // traceId 从请求线程的 MDC 取出（TraceIdFilter 已设置），贴到 agent.stream 这个「源头」上：
+        // doOnEach 在 agentscope 的异步发射线程上触发（早于下游 EventConverter），保证内部日志也带 traceId。
+        String traceId = MDC.get(TraceIdFilter.TRACE_ID_MDC_KEY);
         return agent.stream(userMsg, streamOptions)
+                .doOnEach(
+                        signal -> {
+                            if (traceId != null && !traceId.isBlank()) {
+                                MDC.put(TraceIdFilter.TRACE_ID_MDC_KEY, traceId);
+                            }
+                        })
+                .doFinally(
+                        signalType ->
+                                log.info(
+                                        "SSE chat stream finished: sessionId={}, signal={}",
+                                        sessionId,
+                                        signalType))
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> agent.saveTo(session, sessionId))
+                .doFinally(st -> MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY))
                 .flatMapIterable(eventConverter::map);
     }
 
