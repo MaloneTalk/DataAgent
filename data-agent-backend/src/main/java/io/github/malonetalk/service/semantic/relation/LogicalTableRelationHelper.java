@@ -109,8 +109,7 @@ public class LogicalTableRelationHelper {
 
     public List<String> fromJson(String columnNamesJson, String fieldName) {
         String normalizedJson =
-                AssertUtils.requireNotBlank(
-                        columnNamesJson, fieldName + " json cannot be blank.");
+                AssertUtils.requireNotBlank(columnNamesJson, fieldName + " json cannot be blank.");
         try {
             return normalizeColumnNames(
                     objectMapper.readValue(normalizedJson, STRING_LIST_TYPE), fieldName);

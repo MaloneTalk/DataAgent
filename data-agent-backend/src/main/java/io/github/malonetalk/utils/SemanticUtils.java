@@ -48,8 +48,7 @@ public final class SemanticUtils {
             return true;
         }
         throw new BusinessException(
-                ErrorCode.BAD_REQUEST,
-                "sortOrder must be 'asc' or 'desc', but got: " + sortOrder);
+                ErrorCode.BAD_REQUEST, "sortOrder must be 'asc' or 'desc', but got: " + sortOrder);
     }
 
     public static String trimToNull(String value) {

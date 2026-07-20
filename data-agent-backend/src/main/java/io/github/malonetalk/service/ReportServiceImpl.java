@@ -101,7 +101,6 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private BusinessException reportNotFound(Integer id) {
-        return new BusinessException(
-                ErrorCode.REPORT_NOT_FOUND, "Report does not exist: id=" + id);
+        return new BusinessException(ErrorCode.REPORT_NOT_FOUND, "Report does not exist: id=" + id);
     }
 }

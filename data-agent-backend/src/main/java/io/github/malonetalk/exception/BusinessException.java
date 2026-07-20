@@ -20,6 +20,7 @@ package io.github.malonetalk.exception;
 import io.github.malonetalk.common.ErrorCode;
 import lombok.Getter;
 
+/** 业务异常基类，携带统一 ErrorCode，交由全局异常处理、SSE 和 tool 错误映射统一输出。 */
 @Getter
 public class BusinessException extends RuntimeException {
 

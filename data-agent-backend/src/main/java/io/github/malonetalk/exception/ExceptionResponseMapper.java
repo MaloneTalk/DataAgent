@@ -27,9 +27,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.stereotype.Component;
 
+/** 将已知异常统一映射为 ErrorCode 和对外提示，供 HTTP、SSE、agent tool 共用。 */
 @Component
 public class ExceptionResponseMapper {
 
+    /** 统一异常映射入口；先拆包业务异常，再按基础设施异常类型兜底映射。 */
     public ErrorResponse resolve(Throwable exception) {
         BusinessException businessException = findBusinessException(exception);
         if (businessException != null) {
@@ -59,22 +61,27 @@ public class ExceptionResponseMapper {
         return of(ErrorCode.INTERNAL_ERROR);
     }
 
+    /** 使用错误码默认文案构造响应错误信息。 */
     public ErrorResponse of(ErrorCode errorCode) {
         return of(errorCode, errorCode.getDefaultMessage());
     }
 
+    /** 使用调用方指定文案构造响应错误信息，空文案回退到错误码默认文案。 */
     public ErrorResponse of(ErrorCode errorCode, String message) {
         return new ErrorResponse(errorCode, defaultIfBlank(message, errorCode.getDefaultMessage()));
     }
 
+    /** 保留业务异常携带的错误码，同时统一处理空 message 的回退。 */
     private ErrorResponse fromBusinessException(BusinessException exception) {
         return of(exception.getErrorCode(), exception.getMessage());
     }
 
+    /** 对外错误文案不能是空值，避免前端拿到不可展示的 message。 */
     private String defaultIfBlank(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
     }
 
+    /** 沿 cause 链查找业务异常，让被框架或第三方库包装过的错误仍能保留原 ErrorCode。 */
     private BusinessException findBusinessException(Throwable exception) {
         Throwable current = exception;
         while (current != null) {

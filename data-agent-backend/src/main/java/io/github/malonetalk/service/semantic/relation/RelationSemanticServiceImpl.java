@@ -34,8 +34,8 @@ import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledReques
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.LogicalTableRelation;
-import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;

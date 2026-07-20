@@ -21,6 +21,7 @@ import java.io.Serializable;
 import lombok.Data;
 import org.springframework.http.HttpStatus;
 
+/** 统一 API 响应体；错误响应通过 errorCode 暴露稳定业务码，message 暴露展示文案。 */
 @Data
 public class Result<T> implements Serializable {
 
@@ -61,6 +62,7 @@ public class Result<T> implements Serializable {
         return new Result<>(200, message, data);
     }
 
+    /** 错误响应统一从 ErrorCode 派生 HTTP code 和业务 errorCode。 */
     public static <T> Result<T> error(ErrorCode errorCode, String message, T data) {
         Result<T> result =
                 new Result<>(errorCode.getHttpStatus().value(), errorCode.getCode(), message, data);

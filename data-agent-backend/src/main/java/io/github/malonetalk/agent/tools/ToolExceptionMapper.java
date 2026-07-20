@@ -25,6 +25,7 @@ import io.github.malonetalk.exception.ExceptionResponseMapper.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+/** 将 agent tool 内部异常转换为结构化 ToolResultBlock.error，避免工具异常打断整条 SSE 流。 */
 @Component
 @RequiredArgsConstructor
 public class ToolExceptionMapper {
@@ -37,6 +38,7 @@ public class ToolExceptionMapper {
         return ToolResultBlock.error(toPayload(errorResponse));
     }
 
+    /** ToolResultBlock.error 只接收字符串，这里把错误码和文案压成稳定 JSON payload。 */
     private String toPayload(ErrorResponse errorResponse) {
         ToolErrorPayload payload =
                 new ToolErrorPayload(errorResponse.errorCode().getCode(), errorResponse.message());

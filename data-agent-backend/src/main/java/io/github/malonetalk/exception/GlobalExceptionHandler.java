@@ -49,6 +49,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+/** HTTP 全局异常处理入口，负责把异常转换成带 errorCode 的统一 Result 响应。 */
 @RestControllerAdvice
 @Slf4j
 @RequiredArgsConstructor
@@ -56,11 +57,13 @@ public class GlobalExceptionHandler {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
 
+    /** 业务异常已携带 ErrorCode，直接交给统一 mapper 输出。 */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Result<Object>> handleBusinessException(BusinessException exception) {
         return response(exceptionResponseMapper.resolve(exception));
     }
 
+    /** Spring 请求解析类错误默认是 BAD_REQUEST，但先允许 mapper 识别其中包装的业务异常。 */
     @ExceptionHandler({
         MethodArgumentTypeMismatchException.class,
         MissingServletRequestParameterException.class,
@@ -75,17 +78,20 @@ public class GlobalExceptionHandler {
         return response(ErrorCode.BAD_REQUEST, resolveBadRequestMessage(exception));
     }
 
+    /** Bean Validation 的字段错误返回 VALIDATION_FAILED，并把字段错误放入 data。 */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
             MethodArgumentNotValidException exception) {
         return validationResponse(toFieldValidationErrors(exception.getBindingResult()));
     }
 
+    /** 表单或查询参数绑定错误同样按字段校验失败返回。 */
     @ExceptionHandler(BindException.class)
     public ResponseEntity<Result<Object>> handleBindException(BindException exception) {
         return validationResponse(toFieldValidationErrors(exception.getBindingResult()));
     }
 
+    /** 方法参数上的约束校验失败需要从 propertyPath 中提取最后一级字段名。 */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Result<Object>> handleConstraintViolation(
             ConstraintViolationException exception) {
@@ -163,6 +169,7 @@ public class GlobalExceptionHandler {
         return response(ErrorCode.INTERNAL_ERROR);
     }
 
+    /** 为 Spring 请求解析异常提供稳定、不过度泄露内部细节的 BAD_REQUEST 文案。 */
     private String resolveBadRequestMessage(Exception exception) {
         if (exception instanceof MethodArgumentTypeMismatchException mismatchException) {
             return "Invalid value for request parameter '" + mismatchException.getName() + "'.";
@@ -183,6 +190,7 @@ public class GlobalExceptionHandler {
                 : exception.getMessage();
     }
 
+    /** 字段校验响应使用第一条错误作为主 message，完整字段错误列表放在 data。 */
     private ResponseEntity<Result<Object>> validationResponse(List<FieldValidationError> errors) {
         String message =
                 errors.stream()
@@ -193,10 +201,12 @@ public class GlobalExceptionHandler {
                 .body(Result.error(ErrorCode.VALIDATION_FAILED, message, errors));
     }
 
+    /** 将 Spring BindingResult 转为前端稳定消费的字段错误结构。 */
     private List<FieldValidationError> toFieldValidationErrors(BindingResult bindingResult) {
         return bindingResult.getAllErrors().stream().map(this::toFieldValidationError).toList();
     }
 
+    /** FieldError 使用字段名，ObjectError 回退到对象名。 */
     private FieldValidationError toFieldValidationError(ObjectError error) {
         String field =
                 error instanceof FieldError fieldError
@@ -209,6 +219,7 @@ public class GlobalExceptionHandler {
         return new FieldValidationError(field, message);
     }
 
+    /** ConstraintViolation 的路径可能带方法名或对象名前缀，这里只保留最后一级字段。 */
     private String resolveConstraintField(String propertyPath) {
         int separatorIndex = propertyPath.lastIndexOf('.');
         if (separatorIndex < 0 || separatorIndex == propertyPath.length() - 1) {
@@ -217,14 +228,17 @@ public class GlobalExceptionHandler {
         return propertyPath.substring(separatorIndex + 1);
     }
 
+    /** 按错误码默认文案组装 HTTP 响应。 */
     private ResponseEntity<Result<Object>> response(ErrorCode errorCode) {
         return response(errorCode, errorCode.getDefaultMessage());
     }
 
+    /** 按错误码和指定文案组装 HTTP 响应。 */
     private ResponseEntity<Result<Object>> response(ErrorCode errorCode, String message) {
         return response(exceptionResponseMapper.of(errorCode, message));
     }
 
+    /** 最终响应出口：HTTP 状态码、业务 errorCode 和 message 在这里对齐。 */
     private ResponseEntity<Result<Object>> response(ErrorResponse errorResponse) {
         ErrorCode errorCode = errorResponse.errorCode();
         return ResponseEntity.status(errorCode.getHttpStatus())

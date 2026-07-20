@@ -21,6 +21,7 @@ import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
 import java.util.Collection;
 
+/** 业务断言工具：请求或语义参数不满足前置条件时统一抛出 BAD_REQUEST 业务异常。 */
 public final class AssertUtils {
 
     private AssertUtils() {}
