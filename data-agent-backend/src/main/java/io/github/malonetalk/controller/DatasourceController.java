@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
@@ -60,7 +61,9 @@ public class DatasourceController {
 
     @PostMapping
     public Result<Boolean> save(@Valid @RequestBody DatasourceRequest request) {
+        DataSourceType type = requireDatasourceType(request.type());
         Datasource datasource = datasourceConverter.toEntity(request);
+        datasource.setType(type.getCode());
         datasource.setStatus(Status.INACTIVE.getCode());
         requireOperationSuccess(
                 dataSourceService.save(datasource), "Failed to save the datasource.");
@@ -70,9 +73,10 @@ public class DatasourceController {
     @PutMapping("/{id}")
     public Result<Boolean> update(
             @PathVariable Integer id, @Valid @RequestBody DatasourceRequest request) {
+        DataSourceType type = requireDatasourceType(request.type());
         Datasource datasource = requireDatasource(id);
         datasource.setName(request.name());
-        datasource.setType(request.type());
+        datasource.setType(type.getCode());
         datasource.setHost(request.host());
         datasource.setPort(request.port());
         datasource.setDatabaseName(request.databaseName());
@@ -137,6 +141,15 @@ public class DatasourceController {
             throw new BusinessException(ErrorCode.DATASOURCE_NOT_FOUND);
         }
         return datasource;
+    }
+
+    private DataSourceType requireDatasourceType(String type) {
+        return DataSourceType.fromCode(type)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.UNSUPPORTED_DATASOURCE_TYPE,
+                                        "Unsupported datasource type: " + type));
     }
 
     private void requireOperationSuccess(boolean success, String message) {

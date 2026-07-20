@@ -31,7 +31,8 @@ import org.springframework.stereotype.Component;
 public class ExceptionResponseMapper {
 
     public ErrorResponse resolve(Throwable exception) {
-        if (exception instanceof BusinessException businessException) {
+        BusinessException businessException = findBusinessException(exception);
+        if (businessException != null) {
             return fromBusinessException(businessException);
         }
         if (exception instanceof SqlValidationException) {
@@ -72,6 +73,17 @@ public class ExceptionResponseMapper {
 
     private String defaultIfBlank(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
+    }
+
+    private BusinessException findBusinessException(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof BusinessException businessException) {
+                return businessException;
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     public record ErrorResponse(ErrorCode errorCode, String message) {}
