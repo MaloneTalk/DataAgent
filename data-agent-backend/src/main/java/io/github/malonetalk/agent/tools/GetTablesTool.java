@@ -25,6 +25,7 @@ import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.List;
@@ -61,36 +62,31 @@ public class GetTablesTool implements MarkAgentTool {
                                     """,
                             required = false)
                     List<String> domains) {
-        try {
-            List<Datasource> activeDataSources =
-                    dataSourceService.findByStatus(Status.ACTIVE.getCode());
+        return toolExceptionMapper.run(
+                "get tables",
+                () -> {
+                    List<Datasource> activeDataSources =
+                            dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
-            if (activeDataSources.isEmpty()) {
-                throw new BusinessException(
-                        ErrorCode.NO_ACTIVE_DATASOURCE,
-                        "No active datasource is available. Unable to retrieve tables.");
-            }
+                    if (activeDataSources.isEmpty()) {
+                        throw BusinessException.of(
+                                ErrorCode.NO_ACTIVE_DATASOURCE,
+                                "No active datasource is available. Unable to retrieve tables.");
+                    }
 
-            if (activeDataSources.size() > 1) {
-                log.warn(
-                        "Found {} active data sources, using the first one. This may cause data"
-                                + " inconsistency.",
-                        activeDataSources.size());
-            }
+                    if (activeDataSources.size() > 1) {
+                        log.warn(
+                                "Found {} active data sources, using the first one. This may cause"
+                                        + " data inconsistency.",
+                                activeDataSources.size());
+                    }
 
-            Datasource dataSource = activeDataSources.get(0);
-            return ToolResultBlock.text(
-                    JsonUtils.getJsonCodec()
-                            .toJson(
-                                    tableSemanticService.listMergedTablesByDomains(
-                                            dataSource.getId(), domains)));
-        } catch (Exception exception) {
-            if (exception instanceof BusinessException) {
-                log.warn("Failed to get tables: {}", exception.getMessage());
-            } else {
-                log.error("Failed to get tables", exception);
-            }
-            return toolExceptionMapper.toToolResult(exception);
-        }
+                    Datasource dataSource = activeDataSources.get(0);
+                    return ToolResultBlock.text(
+                            JsonUtils.getJsonCodec()
+                                    .toJson(
+                                            tableSemanticService.listMergedTablesByDomains(
+                                                    dataSource.getId(), domains)));
+                });
     }
 }

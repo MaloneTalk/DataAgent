@@ -26,17 +26,41 @@ public class BusinessException extends RuntimeException {
 
     private final ErrorCode errorCode;
 
-    public BusinessException(ErrorCode errorCode) {
+    private BusinessException(ErrorCode errorCode) {
         this(errorCode, errorCode.getDefaultMessage());
     }
 
-    public BusinessException(ErrorCode errorCode, String message) {
+    private BusinessException(ErrorCode errorCode, String message) {
         super(message);
         this.errorCode = errorCode;
     }
 
-    public BusinessException(ErrorCode errorCode, String message, Throwable cause) {
+    private BusinessException(ErrorCode errorCode, String message, Throwable cause) {
         super(message, cause);
         this.errorCode = errorCode;
+    }
+
+    public static BusinessException of(ErrorCode errorCode) {
+        return new BusinessException(errorCode);
+    }
+
+    public static BusinessException of(ErrorCode errorCode, String message) {
+        return new BusinessException(errorCode, message);
+    }
+
+    public static BusinessException of(ErrorCode errorCode, String message, Throwable cause) {
+        return new BusinessException(errorCode, message, cause);
+    }
+
+    public static BusinessException badRequest(String message) {
+        return of(ErrorCode.BAD_REQUEST, message);
+    }
+
+    public static BusinessException operationFailed(String message) {
+        return of(ErrorCode.OPERATION_FAILED, message);
+    }
+
+    public static BusinessException operationFailed(String message, Throwable cause) {
+        return of(ErrorCode.OPERATION_FAILED, message, cause);
     }
 }

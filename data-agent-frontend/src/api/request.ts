@@ -70,7 +70,7 @@ service.interceptors.response.use(
     const res = response.data;
     if (res.code !== 200) {
       const apiError = toApiError(res, '请求失败');
-      ElMessage.error(apiError.message);
+      showApiError(apiError);
       return Promise.reject(apiError);
     }
     return response;
@@ -78,7 +78,7 @@ service.interceptors.response.use(
   error => {
     const responseBody = error.response?.data as ApiResponse | undefined;
     const apiError = toApiError(responseBody, error.message || '网络错误');
-    ElMessage.error(apiError.message);
+    showApiError(apiError);
     return Promise.reject(apiError);
   },
 );
@@ -100,6 +100,12 @@ function resolveMessage(response: ApiResponse | undefined, fallbackMessage: stri
     return response.data.map(error => `${error.field}: ${error.message}`).join('\n');
   }
   return response?.message || fallbackMessage;
+}
+
+function showApiError(error: ApiError) {
+  if (!isFieldValidationErrors(error.details)) {
+    ElMessage.error(error.message);
+  }
 }
 
 export function getFieldErrorMap(error: unknown): FieldErrorMap {

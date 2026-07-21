@@ -56,12 +56,12 @@ public class DefaultModelFactoryImpl implements ModelFactory {
     @Override
     public Model getInstance(ModelConfig config) {
         if (!StringUtils.hasText(config.getProvider())) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.MODEL_PROVIDER_UNAVAILABLE, "Model provider should not be empty.");
         }
         ModelProvider provider = providerMap.get(config.getProvider());
         if (provider == null) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
                     "Unsupported model provider: " + config.getProvider());
         }

@@ -18,7 +18,6 @@
 package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.PromptConverter;
@@ -92,14 +91,10 @@ public class SemanticMergeService {
                 SemanticUtils.requireTrimmed(
                         tableName, "Missing tableName for merged table schema lookup.");
 
-        List<PhysicalColumnInfo> physicalColumns;
-        try {
-            physicalColumns = schemaReader.getTableSchema(datasource, normalizedTableName);
-        } catch (SchemaReadException exception) {
-            throw new BusinessException(ErrorCode.SCHEMA_READ_FAILED);
-        }
+        List<PhysicalColumnInfo> physicalColumns =
+                schemaReader.getTableSchema(datasource, normalizedTableName);
         if (physicalColumns.isEmpty()) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
                     "The physical table does not exist or is unavailable. Synchronize the table"
                             + " schema and try again.");
@@ -109,12 +104,12 @@ public class SemanticMergeService {
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
         if (semanticTable != null && !SemanticAvailabilityHelper.hasPhysicalTable(semanticTable)) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
                     "Table " + normalizedTableName + " does not exist physically.");
         }
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
-            throw new BusinessException(ErrorCode.TABLE_HIDDEN);
+            throw BusinessException.of(ErrorCode.TABLE_HIDDEN);
         }
 
         Map<String, ColumnInfo> semanticColumnIndex =

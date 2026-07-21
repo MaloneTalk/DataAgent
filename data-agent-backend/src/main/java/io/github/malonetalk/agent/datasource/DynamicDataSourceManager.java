@@ -51,7 +51,7 @@ public class DynamicDataSourceManager {
                 DataSourceType.fromCode(datasource.getType())
                         .orElseThrow(
                                 () ->
-                                        new BusinessException(
+                                        BusinessException.of(
                                                 ErrorCode.UNSUPPORTED_DATASOURCE_TYPE,
                                                 "Unsupported datasource type: "
                                                         + datasource.getType()));

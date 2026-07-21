@@ -47,7 +47,7 @@ public final class SemanticUtils {
         if (Constants.SORT_ORDER_DESC.equalsIgnoreCase(sortOrder)) {
             return true;
         }
-        throw new BusinessException(
+        throw BusinessException.of(
                 ErrorCode.BAD_REQUEST, "sortOrder must be 'asc' or 'desc', but got: " + sortOrder);
     }
 

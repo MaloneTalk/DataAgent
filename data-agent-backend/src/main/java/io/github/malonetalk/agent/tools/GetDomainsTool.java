@@ -20,12 +20,11 @@ package io.github.malonetalk.agent.tools;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.util.JsonUtils;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.semantic.DomainService;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @AllArgsConstructor
 public class GetDomainsTool implements MarkAgentTool {
@@ -39,12 +38,10 @@ public class GetDomainsTool implements MarkAgentTool {
                     "Get available data domains in the datasource. Call this tool first to discover"
                             + " what domains are available before querying tables.")
     public ToolResultBlock getDomains() {
-        try {
-            return ToolResultBlock.text(
-                    JsonUtils.getJsonCodec().toJson(domainService.listDomainNames()));
-        } catch (Exception exception) {
-            log.error("Failed to get domains", exception);
-            return toolExceptionMapper.toToolResult(exception);
-        }
+        return toolExceptionMapper.run(
+                "get domains",
+                () ->
+                        ToolResultBlock.text(
+                                JsonUtils.getJsonCodec().toJson(domainService.listDomainNames())));
     }
 }

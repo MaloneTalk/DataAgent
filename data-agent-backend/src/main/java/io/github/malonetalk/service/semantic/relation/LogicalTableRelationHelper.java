@@ -61,7 +61,7 @@ public class LogicalTableRelationHelper {
                             normalizedColumnName,
                             "Missing columnName while normalizing logical relation columns.");
             if (!uniqueKeys.add(uniqueKey)) {
-                throw new BusinessException(
+                throw BusinessException.of(
                         ErrorCode.BAD_REQUEST,
                         fieldName + " contains duplicate column: " + normalizedColumnName);
             }
@@ -102,8 +102,7 @@ public class LogicalTableRelationHelper {
             return objectMapper.writeValueAsString(
                     normalizeColumnNames(columnNames, "columnNames"));
         } catch (JsonProcessingException e) {
-            throw new BusinessException(
-                    ErrorCode.OPERATION_FAILED, "Failed to serialize relation columns.", e);
+            throw BusinessException.operationFailed("Failed to serialize relation columns.", e);
         }
     }
 
@@ -114,7 +113,7 @@ public class LogicalTableRelationHelper {
             return normalizeColumnNames(
                     objectMapper.readValue(normalizedJson, STRING_LIST_TYPE), fieldName);
         } catch (JsonProcessingException e) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.BAD_REQUEST,
                     "Failed to parse relation columns from " + fieldName + ".",
                     e);

@@ -26,6 +26,7 @@ import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -50,33 +51,28 @@ public class ExecuteSqlTool implements MarkAgentTool {
     public ToolResultBlock executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
-        try {
-            List<Datasource> activeDataSources =
-                    dataSourceService.findByStatus(Status.ACTIVE.getCode());
+        return toolExceptionMapper.run(
+                "execute SQL",
+                () -> {
+                    List<Datasource> activeDataSources =
+                            dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
-            if (activeDataSources.isEmpty()) {
-                throw new BusinessException(
-                        ErrorCode.NO_ACTIVE_DATASOURCE,
-                        "No active datasource is available. Unable to execute SQL.");
-            }
+                    if (activeDataSources.isEmpty()) {
+                        throw BusinessException.of(
+                                ErrorCode.NO_ACTIVE_DATASOURCE,
+                                "No active datasource is available. Unable to execute SQL.");
+                    }
 
-            if (activeDataSources.size() > 1) {
-                log.warn(
-                        "Found {} active data sources, using the first one.",
-                        activeDataSources.size());
-            }
+                    if (activeDataSources.size() > 1) {
+                        log.warn(
+                                "Found {} active data sources, using the first one.",
+                                activeDataSources.size());
+                    }
 
-            Datasource datasource = activeDataSources.get(0);
-            QueryResult result = sqlExecutor.execute(datasource, sql);
-            return ToolResultBlock.text(formatResult(result));
-        } catch (Exception exception) {
-            if (exception instanceof BusinessException) {
-                log.warn("Failed to execute SQL: {}", exception.getMessage());
-            } else {
-                log.error("Failed to execute SQL", exception);
-            }
-            return toolExceptionMapper.toToolResult(exception);
-        }
+                    Datasource datasource = activeDataSources.get(0);
+                    QueryResult result = sqlExecutor.execute(datasource, sql);
+                    return ToolResultBlock.text(formatResult(result));
+                });
     }
 
     private String formatResult(QueryResult result) {

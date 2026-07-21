@@ -17,9 +17,11 @@
  */
 package io.github.malonetalk.agent.datasource;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.exception.BusinessException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -50,7 +52,10 @@ public class SchemaReader {
             return getTables(conn);
         } catch (SQLException e) {
             log.error("Failed to read tables: {}", e.getMessage(), e);
-            throw new SchemaReadException("Failed to read tables: " + e.getMessage(), e);
+            throw BusinessException.of(
+                    ErrorCode.SCHEMA_READ_FAILED,
+                    ErrorCode.SCHEMA_READ_FAILED.getDefaultMessage(),
+                    e);
         }
     }
 
@@ -62,8 +67,10 @@ public class SchemaReader {
             return getColumns(conn, tableName, primaryKeys);
         } catch (SQLException e) {
             log.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
-            throw new SchemaReadException(
-                    "Failed to read schema for table " + tableName + ": " + e.getMessage(), e);
+            throw BusinessException.of(
+                    ErrorCode.SCHEMA_READ_FAILED,
+                    ErrorCode.SCHEMA_READ_FAILED.getDefaultMessage(),
+                    e);
         }
     }
 
@@ -93,7 +100,10 @@ public class SchemaReader {
             return columnNamesByTable;
         } catch (SQLException e) {
             log.error("Failed to read column names for tables: {}", e.getMessage(), e);
-            throw new SchemaReadException("Failed to read column names: " + e.getMessage(), e);
+            throw BusinessException.of(
+                    ErrorCode.SCHEMA_READ_FAILED,
+                    ErrorCode.SCHEMA_READ_FAILED.getDefaultMessage(),
+                    e);
         }
     }
 
@@ -157,11 +167,5 @@ public class SchemaReader {
         }
 
         return columns;
-    }
-
-    public static class SchemaReadException extends RuntimeException {
-        public SchemaReadException(String message, Throwable cause) {
-            super(message, cause);
-        }
     }
 }

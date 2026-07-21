@@ -17,9 +17,11 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.ReportService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ import org.springframework.util.StringUtils;
 public class GenerateReportTool implements MarkAgentTool {
 
     private final ReportService reportService;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     private static final String DEFAULT_SESSION = "__default__";
 
@@ -45,12 +48,12 @@ public class GenerateReportTool implements MarkAgentTool {
                     报告正文需基于用户问题、SQL 查询结果和分析过程，生成结构化、逻辑清晰的 Markdown 文档。
                     需要展示图表时使用 ```echarts 代码块，内容为纯 JSON 的 ECharts Option 配置。
 
-                    返回值：工具返回 "SUCCESS <报告ID>" 表示保存成功，返回 "FAIL: <原因>" 表示保存失败及失败原因。
+                    返回值：工具返回 "SUCCESS: <报告ID>" 表示保存成功；失败时返回结构化工具错误。
                     当保存失败时，请尽可能重试（有限次），尝试恢复。如果失败原因无法通过有限次重试解决，
                     则将失败原因告知用户，并直接将完整的报告内容输出给用户。
                     当保存成功时，无需将报告内容复述给用户，直接告知用户"报告生成成功，请查看"即可。
                     """)
-    public String generateReport(
+    public ToolResultBlock generateReport(
             @ToolParam(
                             name = "title",
                             description =
@@ -83,12 +86,13 @@ public class GenerateReportTool implements MarkAgentTool {
             log.warn("工具上下文中不存在session_id，使用默认session存储");
             sessionId = DEFAULT_SESSION;
         }
-        try {
-            int id = reportService.create(sessionId, title, markdownText);
-            return ToolCallConstants.SUCCESS_PREFIX + id;
-        } catch (Exception e) {
-            log.warn("报告保存失败", e);
-            return ToolCallConstants.FAIL_PREFIX + e.getMessage();
-        }
+        String reportSessionId = sessionId;
+        return toolExceptionMapper.run(
+                "generate report",
+                () ->
+                        ToolResultBlock.text(
+                                ToolCallConstants.SUCCESS_PREFIX
+                                        + reportService.create(
+                                                reportSessionId, title, markdownText)));
     }
 }

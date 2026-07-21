@@ -126,7 +126,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName);
         if (existing == null) {
-            throw new BusinessException(ErrorCode.COLUMN_SEMANTIC_NOT_FOUND);
+            throw BusinessException.of(ErrorCode.COLUMN_SEMANTIC_NOT_FOUND);
         }
         columnSemanticInfoMapper.deleteByDatasourceIdAndIds(
                 datasourceId, List.of(existing.getId()));
@@ -169,7 +169,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             return 0;
         }
         if (matchedIds.size() != normalizedColumnNames.size()) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.COLUMN_SEMANTIC_NOT_FOUND,
                     "Some column semantic metadata does not exist for table "
                             + normalizedTableName
@@ -181,7 +181,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }

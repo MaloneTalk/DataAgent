@@ -138,7 +138,7 @@ public class DatasourceController {
     private Datasource requireDatasource(Integer id) {
         Datasource datasource = dataSourceService.findById(id);
         if (datasource == null) {
-            throw new BusinessException(ErrorCode.DATASOURCE_NOT_FOUND);
+            throw BusinessException.of(ErrorCode.DATASOURCE_NOT_FOUND);
         }
         return datasource;
     }
@@ -147,14 +147,14 @@ public class DatasourceController {
         return DataSourceType.fromCode(type)
                 .orElseThrow(
                         () ->
-                                new BusinessException(
+                                BusinessException.of(
                                         ErrorCode.UNSUPPORTED_DATASOURCE_TYPE,
                                         "Unsupported datasource type: " + type));
     }
 
     private void requireOperationSuccess(boolean success, String message) {
         if (!success) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, message);
+            throw BusinessException.operationFailed(message);
         }
     }
 }

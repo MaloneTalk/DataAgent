@@ -17,15 +17,15 @@
  */
 package io.github.malonetalk.exception;
 
-import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlValidationException;
 import io.github.malonetalk.common.ErrorCode;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** 将已知异常统一映射为 ErrorCode 和对外提示，供 HTTP、SSE、agent tool 共用。 */
 @Component
@@ -37,18 +37,6 @@ public class ExceptionResponseMapper {
         if (businessException != null) {
             return fromBusinessException(businessException);
         }
-        if (exception instanceof SqlValidationException) {
-            return of(ErrorCode.BAD_REQUEST, exception.getMessage());
-        }
-        if (exception instanceof SqlSecurityException) {
-            return of(ErrorCode.SQL_NOT_ALLOWED);
-        }
-        if (exception instanceof SchemaReadException) {
-            return of(ErrorCode.SCHEMA_READ_FAILED);
-        }
-        if (exception instanceof SqlExecutionException) {
-            return of(ErrorCode.SQL_EXECUTION_FAILED);
-        }
         if (exception instanceof DataIntegrityViolationException) {
             return of(ErrorCode.DATA_CONFLICT);
         }
@@ -57,6 +45,18 @@ public class ExceptionResponseMapper {
         }
         if (exception instanceof DataAccessException) {
             return of(ErrorCode.DATA_ACCESS_FAILED);
+        }
+        if (exception instanceof NoResourceFoundException) {
+            return of(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (exception instanceof HttpRequestMethodNotSupportedException) {
+            return of(ErrorCode.METHOD_NOT_ALLOWED);
+        }
+        if (exception instanceof HttpMediaTypeNotSupportedException) {
+            return of(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
+        }
+        if (exception instanceof HttpMediaTypeNotAcceptableException) {
+            return of(ErrorCode.NOT_ACCEPTABLE);
         }
         return of(ErrorCode.INTERNAL_ERROR);
     }
@@ -92,6 +92,4 @@ public class ExceptionResponseMapper {
         }
         return null;
     }
-
-    public record ErrorResponse(ErrorCode errorCode, String message) {}
 }

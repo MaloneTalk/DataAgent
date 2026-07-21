@@ -77,7 +77,7 @@ public class DomainServiceImpl implements DomainService {
                         request.name(), "Missing domain name for domain creation.");
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.DOMAIN_NAME_CONFLICT,
                     "Domain name already exists: " + normalizedName);
         }
@@ -95,7 +95,7 @@ public class DomainServiceImpl implements DomainService {
         AssertUtils.requireNonNull(id, "id must not be null.");
         DomainInfo existing = findById(id);
         if (existing == null) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.DOMAIN_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         String normalizedName =
@@ -103,7 +103,7 @@ public class DomainServiceImpl implements DomainService {
                         request.name(), "Missing domain name for domain update.");
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.DOMAIN_NAME_CONFLICT,
                     "Domain name already exists: " + normalizedName);
         }
@@ -119,17 +119,17 @@ public class DomainServiceImpl implements DomainService {
         AssertUtils.requireNonNull(id, "id must not be null.");
         DomainInfo existing = findById(id);
         if (existing == null) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.DOMAIN_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         if (SemanticConstants.DEFAULT_DOMAIN.equalsIgnoreCase(existing.getName())) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.RESOURCE_IN_USE,
                     "The default domain cannot be deleted: " + existing.getName());
         }
         int referenceCount = tableInfoMapper.countByDomain(existing.getName());
         if (referenceCount > 0) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.RESOURCE_IN_USE, "Domain is currently in use: " + existing.getName());
         }
         domainInfoMapper.deleteByIds(List.of(id));

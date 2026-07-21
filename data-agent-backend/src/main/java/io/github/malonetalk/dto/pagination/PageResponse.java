@@ -42,7 +42,7 @@ public record PageResponse<T>(
     public static int resolvePage(Integer page) {
         int resolvedPage = page == null ? DEFAULT_PAGE : page;
         if (resolvedPage < 1) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.BAD_REQUEST, "page must be greater than or equal to 1.");
         }
         return resolvedPage;
@@ -51,11 +51,11 @@ public record PageResponse<T>(
     public static int resolvePageSize(Integer pageSize) {
         int resolvedPageSize = pageSize == null ? DEFAULT_PAGE_SIZE : pageSize;
         if (resolvedPageSize < 1) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.BAD_REQUEST, "pageSize must be greater than or equal to 1.");
         }
         if (resolvedPageSize > MAX_PAGE_SIZE) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.BAD_REQUEST, "pageSize must be less than or equal to 100.");
         }
         return resolvedPageSize;

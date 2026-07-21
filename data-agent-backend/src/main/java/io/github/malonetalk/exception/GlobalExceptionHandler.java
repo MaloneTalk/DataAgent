@@ -17,37 +17,25 @@
  */
 package io.github.malonetalk.exception;
 
-import io.github.malonetalk.agent.datasource.SchemaReader.SchemaReadException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlValidationException;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.FieldValidationError;
-import io.github.malonetalk.exception.ExceptionResponseMapper.ErrorResponse;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.TransientDataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
-import org.springframework.web.HttpMediaTypeNotAcceptableException;
-import org.springframework.web.HttpMediaTypeNotSupportedException;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** HTTP 全局异常处理入口，负责把异常转换成带 errorCode 的统一 Result 响应。 */
 @RestControllerAdvice
@@ -56,12 +44,6 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
-
-    /** 业务异常已携带 ErrorCode，直接交给统一 mapper 输出。 */
-    @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<Result<Object>> handleBusinessException(BusinessException exception) {
-        return response(exceptionResponseMapper.resolve(exception));
-    }
 
     /** Spring 请求解析类错误默认是 BAD_REQUEST，但先允许 mapper 识别其中包装的业务异常。 */
     @ExceptionHandler({
@@ -107,66 +89,11 @@ public class GlobalExceptionHandler {
         return validationResponse(errors);
     }
 
-    @ExceptionHandler(SqlSecurityException.class)
-    public ResponseEntity<Result<Object>> handleSqlSecurityException(
-            SqlSecurityException exception) {
-        return response(exceptionResponseMapper.resolve(exception));
-    }
-
-    @ExceptionHandler(SqlValidationException.class)
-    public ResponseEntity<Result<Object>> handleSqlValidationException(
-            SqlValidationException exception) {
-        return response(exceptionResponseMapper.resolve(exception));
-    }
-
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<Result<Object>> handleResourceNotFound() {
-        return response(ErrorCode.RESOURCE_NOT_FOUND);
-    }
-
-    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<Result<Object>> handleMethodNotSupported() {
-        return response(ErrorCode.METHOD_NOT_ALLOWED);
-    }
-
-    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-    public ResponseEntity<Result<Object>> handleMediaTypeNotSupported() {
-        return response(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
-    }
-
-    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
-    public ResponseEntity<Result<Object>> handleMediaTypeNotAcceptable() {
-        return response(ErrorCode.NOT_ACCEPTABLE);
-    }
-
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Result<Object>> handleDataConflict(
-            DataIntegrityViolationException exception) {
-        log.warn("Data integrity conflict: {}", exception.getMessage());
-        return response(exceptionResponseMapper.resolve(exception));
-    }
-
-    @ExceptionHandler(TransientDataAccessException.class)
-    public ResponseEntity<Result<Object>> handleTransientDataAccess(
-            TransientDataAccessException exception) {
-        log.error("Transient data access exception", exception);
-        return response(exceptionResponseMapper.resolve(exception));
-    }
-
-    @ExceptionHandler({
-        SchemaReadException.class,
-        SqlExecutionException.class,
-        DataAccessException.class
-    })
-    public ResponseEntity<Result<Object>> handleInfrastructureException(Exception exception) {
-        log.error("Infrastructure exception", exception);
-        return response(exceptionResponseMapper.resolve(exception));
-    }
-
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Result<Object>> handleUnexpectedException(Exception exception) {
-        log.error("Unhandled exception", exception);
-        return response(ErrorCode.INTERNAL_ERROR);
+    public ResponseEntity<Result<Object>> handleException(Exception exception) {
+        ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
+        logMappedException(exception, errorResponse);
+        return response(errorResponse);
     }
 
     /** 为 Spring 请求解析异常提供稳定、不过度泄露内部细节的 BAD_REQUEST 文案。 */
@@ -228,9 +155,10 @@ public class GlobalExceptionHandler {
         return propertyPath.substring(separatorIndex + 1);
     }
 
-    /** 按错误码默认文案组装 HTTP 响应。 */
-    private ResponseEntity<Result<Object>> response(ErrorCode errorCode) {
-        return response(errorCode, errorCode.getDefaultMessage());
+    private void logMappedException(Exception exception, ErrorResponse errorResponse) {
+        if (errorResponse.isServerError()) {
+            log.error("Mapped server exception", exception);
+        }
     }
 
     /** 按错误码和指定文案组装 HTTP 响应。 */

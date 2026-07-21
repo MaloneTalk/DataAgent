@@ -17,7 +17,6 @@
  */
 package io.github.malonetalk.utils;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
 import java.util.Collection;
 
@@ -28,26 +27,26 @@ public final class AssertUtils {
 
     public static void requireNonNull(Object value, String message) {
         if (value == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, message);
+            throw BusinessException.badRequest(message);
         }
     }
 
     public static void requireNonNegative(Integer value, String message) {
         if (value == null || value < 0) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, message);
+            throw BusinessException.badRequest(message);
         }
     }
 
     public static String requireNotBlank(String value, String message) {
         if (value == null || value.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, message);
+            throw BusinessException.badRequest(message);
         }
         return value.trim();
     }
 
     public static void requireNotEmpty(Collection<?> value, String message) {
         if (value == null || value.isEmpty()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, message);
+            throw BusinessException.badRequest(message);
         }
     }
 }

@@ -177,7 +177,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
-            throw new BusinessException(ErrorCode.TABLE_SEMANTIC_NOT_FOUND);
+            throw BusinessException.of(ErrorCode.TABLE_SEMANTIC_NOT_FOUND);
         }
         tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
     }
@@ -213,7 +213,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return 0;
         }
         if (matchedIds.size() != normalizedNames.size()) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
                     "Some table semantic metadata does not exist for datasource "
                             + datasourceId
@@ -225,7 +225,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }

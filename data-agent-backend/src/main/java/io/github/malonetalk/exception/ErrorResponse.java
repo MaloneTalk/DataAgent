@@ -15,21 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.exception;
 
-public final class ToolCallConstants {
+import io.github.malonetalk.common.ErrorCode;
 
-    private ToolCallConstants() {
-        throw new IllegalCallerException("No ToolNameConstants for you!");
+public record ErrorResponse(ErrorCode errorCode, String message) {
+
+    public boolean isServerError() {
+        return errorCode.getHttpStatus().is5xxServerError();
     }
-
-    public static final String ASK_USER = "ask_user";
-
-    public static final String GENERATE_REPORT = "generate_report";
-
-    public static final String SUCCESS = "SUCCESS";
-
-    public static final String SEPARATOR = ": ";
-
-    public static final String SUCCESS_PREFIX = SUCCESS + SEPARATOR;
 }

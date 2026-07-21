@@ -38,7 +38,7 @@ public enum LogicalTableRelationType {
     @JsonCreator
     public static LogicalTableRelationType fromCode(String code) {
         if (code == null || code.isBlank()) {
-            throw new BusinessException(
+            throw BusinessException.of(
                     ErrorCode.INVALID_RELATION_TYPE, "relationType cannot be blank.");
         }
         return Arrays.stream(values())
@@ -46,7 +46,7 @@ public enum LogicalTableRelationType {
                 .findFirst()
                 .orElseThrow(
                         () ->
-                                new BusinessException(
+                                BusinessException.of(
                                         ErrorCode.INVALID_RELATION_TYPE,
                                         "Unknown relationType: " + code));
     }

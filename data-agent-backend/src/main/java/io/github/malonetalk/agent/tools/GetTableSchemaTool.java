@@ -25,6 +25,7 @@ import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -56,35 +57,32 @@ public class GetTableSchemaTool implements MarkAgentTool {
     public ToolResultBlock getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {
-        try {
-            List<Datasource> activeDataSources =
-                    dataSourceService.findByStatus(Status.ACTIVE.getCode());
+        return toolExceptionMapper.run(
+                "get table schema",
+                () -> {
+                    List<Datasource> activeDataSources =
+                            dataSourceService.findByStatus(Status.ACTIVE.getCode());
 
-            if (activeDataSources.isEmpty()) {
-                throw new BusinessException(
-                        ErrorCode.NO_ACTIVE_DATASOURCE,
-                        "No active datasource is available. Unable to retrieve the table schema.");
-            }
+                    if (activeDataSources.isEmpty()) {
+                        throw BusinessException.of(
+                                ErrorCode.NO_ACTIVE_DATASOURCE,
+                                "No active datasource is available. Unable to retrieve the table"
+                                        + " schema.");
+                    }
 
-            if (activeDataSources.size() > 1) {
-                log.warn(
-                        "Found {} active data sources, using the first one.",
-                        activeDataSources.size());
-            }
+                    if (activeDataSources.size() > 1) {
+                        log.warn(
+                                "Found {} active data sources, using the first one.",
+                                activeDataSources.size());
+                    }
 
-            Datasource datasource = activeDataSources.get(0);
+                    Datasource datasource = activeDataSources.get(0);
 
-            List<ColumnPromptResponse> columns =
-                    columnSemanticService.getMergedTableSchema(datasource.getId(), tableName);
-            return ToolResultBlock.text(SemanticUtils.formatTableSchema(tableName, columns));
-        } catch (Exception exception) {
-            if (exception instanceof BusinessException) {
-                log.warn(
-                        "Failed to get table schema for {}: {}", tableName, exception.getMessage());
-            } else {
-                log.error("Failed to get table schema: " + tableName, exception);
-            }
-            return toolExceptionMapper.toToolResult(exception);
-        }
+                    List<ColumnPromptResponse> columns =
+                            columnSemanticService.getMergedTableSchema(
+                                    datasource.getId(), tableName);
+                    return ToolResultBlock.text(
+                            SemanticUtils.formatTableSchema(tableName, columns));
+                });
     }
 }

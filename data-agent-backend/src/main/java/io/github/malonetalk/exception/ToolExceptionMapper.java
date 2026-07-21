@@ -15,27 +15,34 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.exception;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.message.ToolResultBlock;
-import io.github.malonetalk.exception.ExceptionResponseMapper;
-import io.github.malonetalk.exception.ExceptionResponseMapper.ErrorResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /** 将 agent tool 内部异常转换为结构化 ToolResultBlock.error，避免工具异常打断整条 SSE 流。 */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ToolExceptionMapper {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
     private final ObjectMapper objectMapper;
 
-    public ToolResultBlock toToolResult(Exception exception) {
-        ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
-        return ToolResultBlock.error(toPayload(errorResponse));
+    public ToolResultBlock run(String actionName, ToolAction action) {
+        try {
+            return action.run();
+        } catch (Exception exception) {
+            ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
+            if (errorResponse.isServerError()) {
+                log.error("Tool action failed: {}", actionName, exception);
+            }
+            return ToolResultBlock.error(toPayload(errorResponse));
+        }
     }
 
     /** ToolResultBlock.error 只接收字符串，这里把错误码和文案压成稳定 JSON payload。 */
@@ -50,4 +57,9 @@ public class ToolExceptionMapper {
     }
 
     private record ToolErrorPayload(String errorCode, String message) {}
+
+    @FunctionalInterface
+    public interface ToolAction {
+        ToolResultBlock run() throws Exception;
+    }
 }

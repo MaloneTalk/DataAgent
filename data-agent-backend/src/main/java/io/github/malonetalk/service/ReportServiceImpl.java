@@ -54,7 +54,7 @@ public class ReportServiceImpl implements ReportService {
         report.setCreateTime(LocalDateTime.now());
         report.setUpdateTime(LocalDateTime.now());
         if (reportMapper.insert(report) <= 0) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to save report.");
+            throw BusinessException.operationFailed("Failed to save report.");
         }
         return report.getId();
     }
@@ -101,6 +101,6 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private BusinessException reportNotFound(Integer id) {
-        return new BusinessException(ErrorCode.REPORT_NOT_FOUND, "Report does not exist: id=" + id);
+        return BusinessException.of(ErrorCode.REPORT_NOT_FOUND, "Report does not exist: id=" + id);
     }
 }

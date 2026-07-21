@@ -17,7 +17,9 @@
  */
 package io.github.malonetalk.agent.datasource;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.exception.BusinessException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -58,22 +60,24 @@ public class SqlExecutor {
             return doExecute(conn, sql);
         } catch (SQLException e) {
             log.error("SQL execution failed: {}", e.getMessage(), e);
-            throw new SqlExecutionException("SQL execution failed: " + e.getMessage(), e);
+            throw BusinessException.of(
+                    ErrorCode.SQL_EXECUTION_FAILED,
+                    ErrorCode.SQL_EXECUTION_FAILED.getDefaultMessage(),
+                    e);
         }
     }
 
     private void validateSql(String sql) {
         if (sql == null || sql.isBlank()) {
-            throw new SqlValidationException("SQL must not be empty.");
+            throw BusinessException.badRequest("SQL must not be empty.");
         }
 
         if (!SELECT_PATTERN.matcher(sql).find()) {
-            throw new SqlSecurityException("Only SELECT queries are allowed.");
+            throw BusinessException.of(ErrorCode.SQL_NOT_ALLOWED);
         }
 
         if (FORBIDDEN_PATTERN.matcher(sql).find()) {
-            throw new SqlSecurityException(
-                    "SQL contains forbidden statements. Only SELECT is allowed.");
+            throw BusinessException.of(ErrorCode.SQL_NOT_ALLOWED);
         }
     }
 
@@ -119,23 +123,5 @@ public class SqlExecutor {
 
         builder.totalRows(rowCount).truncated(truncated);
         return builder.build();
-    }
-
-    public static class SqlExecutionException extends RuntimeException {
-        public SqlExecutionException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
-    public static class SqlSecurityException extends RuntimeException {
-        public SqlSecurityException(String message) {
-            super(message);
-        }
-    }
-
-    public static class SqlValidationException extends RuntimeException {
-        public SqlValidationException(String message) {
-            super(message);
-        }
     }
 }
