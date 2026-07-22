@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.MetricInfoMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.MetricInfo">
+        <id column="id" property="id"/>
+        <result column="datasource_id" property="datasourceId"/>
+        <result column="metric_key" property="metricKey"/>
+        <result column="name" property="name"/>
+        <result column="aliases" property="aliases"/>
+        <result column="measure_expr" property="measureExpr"/>
+        <result column="filters" property="filters"/>
+        <result column="time_field" property="timeField"/>
+        <result column="description" property="description"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM metric_info
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectByKey" resultMap="BaseResultMap">
+        SELECT * FROM metric_info
+        WHERE datasource_id = #{datasourceId}
+          AND LOWER(metric_key) = LOWER(#{metricKey})
+        LIMIT 1
+    </select>
+
+    <select id="selectAllByDatasource" resultMap="BaseResultMap">
+        SELECT * FROM metric_info
+        WHERE datasource_id = #{datasourceId}
+        ORDER BY name ASC, id ASC
+    </select>
+
+    <!-- 命中:精确 name 优先,其次 aliases/description 包含提示词。
+         metric_key 仅作程序化引用(供 skill/API 直接 getByKey),不参与自然语言匹配。
+         匹配大小写不敏感靠 LOWER();本表排序规则为 utf8mb4_unicode_ci(_ci 已大小写不敏感),
+         故 LOWER 在此冗余但无害——若换 _bin 库仍可兜底。
+         性能:datasource_id 复合索引先把候选集砍到单个数据源(数十~数百行),
+         段内逐行 LIKE 可接受;前导通配符 '%x%' 与 LOWER(列) 会使 aliases/description 索引用不上,
+         但候选集已极小,无需优化。仅当指标膨胀到成千上万条时再改 FULLTEXT 索引。 -->
+    <select id="matchByHint" resultMap="BaseResultMap">
+        SELECT * FROM metric_info
+        WHERE datasource_id = #{datasourceId}
+          AND (
+            LOWER(name) = LOWER(#{hint})
+            OR LOWER(aliases) LIKE CONCAT('%', LOWER(#{hint}), '%')
+            OR LOWER(description) LIKE CONCAT('%', LOWER(#{hint}), '%')
+          )
+        ORDER BY
+          CASE WHEN LOWER(name) = LOWER(#{hint})
+               THEN 0 ELSE 1 END,
+          id ASC
+    </select>
+
+    <select id="suggest" resultMap="BaseResultMap">
+        SELECT * FROM metric_info
+        WHERE datasource_id = #{datasourceId}
+        ORDER BY name ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.MetricInfo"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO metric_info (
+            datasource_id, metric_key, name, aliases,
+            measure_expr, filters, time_field, description,
+            create_time, update_time
+        ) VALUES (
+            #{datasourceId}, #{metricKey}, #{name}, #{aliases},
+            #{measureExpr}, #{filters}, #{timeField}, #{description},
+            #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update" parameterType="io.github.malonetalk.entity.MetricInfo">
+        UPDATE metric_info
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="aliases != null">aliases = #{aliases},</if>
+            <if test="measureExpr != null">measure_expr = #{measureExpr},</if>
+            <if test="filters != null">filters = #{filters},</if>
+            <if test="timeField != null">time_field = #{timeField},</if>
+            <if test="description != null">description = #{description},</if>
+            update_time = #{updateTime}
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByIds">
+        DELETE FROM metric_info
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>
