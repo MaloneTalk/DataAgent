@@ -24,9 +24,7 @@ import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -48,19 +46,10 @@ public class ExecuteSqlTool implements MarkAgentTool {
     public String executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-        if (activeDataSources.isEmpty()) {
+        Datasource datasource = dataSourceService.getActiveDatasource().orElse(null);
+        if (datasource == null) {
             return "No active datasource available, cannot execute SQL.";
         }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one.", activeDataSources.size());
-        }
-
-        Datasource datasource = activeDataSources.get(0);
 
         try {
             QueryResult result = sqlExecutor.execute(datasource, sql);

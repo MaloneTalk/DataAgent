@@ -21,7 +21,6 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -53,20 +52,10 @@ public class GetTableSchemaTool implements MarkAgentTool {
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {
         try {
-            List<Datasource> activeDataSources =
-                    dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-            if (activeDataSources.isEmpty()) {
+            Datasource datasource = dataSourceService.getActiveDatasource().orElse(null);
+            if (datasource == null) {
                 return "No active datasource available, cannot get table schema.";
             }
-
-            if (activeDataSources.size() > 1) {
-                log.warn(
-                        "Found {} active data sources, using the first one.",
-                        activeDataSources.size());
-            }
-
-            Datasource datasource = activeDataSources.get(0);
 
             List<ColumnPromptResponse> columns =
                     columnSemanticService.getMergedTableSchema(datasource.getId(), tableName);

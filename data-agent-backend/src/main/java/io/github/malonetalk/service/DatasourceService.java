@@ -19,6 +19,7 @@ package io.github.malonetalk.service;
 
 import io.github.malonetalk.entity.Datasource;
 import java.util.List;
+import java.util.Optional;
 
 public interface DatasourceService {
 
@@ -33,6 +34,8 @@ public interface DatasourceService {
     boolean deleteById(Integer id);
 
     List<Datasource> findByStatus(String status);
+
+    Optional<Datasource> getActiveDatasource();
 
     List<Datasource> findByType(String type);
 

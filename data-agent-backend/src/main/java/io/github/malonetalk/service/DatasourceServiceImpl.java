@@ -18,12 +18,16 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class DatasourceServiceImpl implements DatasourceService {
@@ -61,6 +65,15 @@ public class DatasourceServiceImpl implements DatasourceService {
     @Override
     public List<Datasource> findByStatus(String status) {
         return dataSourceMapper.selectByStatus(status);
+    }
+
+    @Override
+    public Optional<Datasource> getActiveDatasource() {
+        List<Datasource> active = findByStatus(Status.ACTIVE.getCode());
+        if (active.size() > 1) {
+            log.warn("Found {} active data sources, using the first one.", active.size());
+        }
+        return active.isEmpty() ? Optional.empty() : Optional.of(active.get(0));
     }
 
     @Override
