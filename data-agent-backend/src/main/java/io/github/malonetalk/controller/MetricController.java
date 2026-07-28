@@ -18,8 +18,12 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.convertor.MetricConverter;
+import io.github.malonetalk.dto.MetricRequest;
+import io.github.malonetalk.dto.MetricResponse;
 import io.github.malonetalk.entity.MetricInfo;
 import io.github.malonetalk.service.MetricService;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,15 +43,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class MetricController {
 
     private final MetricService metricService;
+    private final MetricConverter metricConverter;
 
     @PostMapping
-    public Result<MetricInfo> create(@RequestBody MetricInfo metricInfo) {
-        return Result.success(metricService.create(metricInfo));
+    public Result<MetricResponse> create(@Valid @RequestBody MetricRequest request) {
+        MetricInfo entity = metricConverter.toEntity(request);
+        return Result.success(metricConverter.toResponse(metricService.create(entity)));
     }
 
     @PutMapping("/{id}")
-    public Result<MetricInfo> update(@PathVariable Integer id, @RequestBody MetricInfo metricInfo) {
-        return Result.success(metricService.update(id, metricInfo));
+    public Result<MetricResponse> update(
+            @PathVariable Integer id, @Valid @RequestBody MetricRequest request) {
+        MetricInfo entity = metricConverter.toEntity(request);
+        return Result.success(metricConverter.toResponse(metricService.update(id, entity)));
     }
 
     @DeleteMapping("/{id}")
@@ -57,17 +65,18 @@ public class MetricController {
     }
 
     @GetMapping("/{id}")
-    public Result<MetricInfo> getById(@PathVariable Integer id) {
-        return Result.success(metricService.getById(id));
+    public Result<MetricResponse> getById(@PathVariable Integer id) {
+        return Result.success(metricConverter.toResponse(metricService.getById(id)));
     }
 
     @GetMapping("/key/{metricKey}")
-    public Result<MetricInfo> getByKey(@PathVariable String metricKey) {
-        return Result.success(metricService.getByKey(metricKey));
+    public Result<MetricResponse> getByKey(@PathVariable String metricKey) {
+        return Result.success(metricConverter.toResponse(metricService.getByKey(metricKey)));
     }
 
     @GetMapping
-    public Result<List<MetricInfo>> listAll() {
-        return Result.success(metricService.listAll());
+    public Result<List<MetricResponse>> listAll() {
+        return Result.success(
+                metricService.listAll().stream().map(metricConverter::toResponse).toList());
     }
 }
