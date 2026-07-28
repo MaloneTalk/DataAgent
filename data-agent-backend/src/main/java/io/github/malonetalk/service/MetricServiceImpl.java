@@ -93,8 +93,34 @@ public class MetricServiceImpl implements MetricService {
     public MetricInfo create(MetricInfo metricInfo) {
         Integer dsId = activeDatasourceId();
         String key = SemanticUtils.normalizeObjectName(metricInfo.getMetricKey(), "指标 key 不能为空");
-        if (metricInfoMapper.selectAnyByKey(dsId, key) != null) {
-            throw new IllegalArgumentException("指标 key 已存在（含已删除记录）: " + key);
+        MetricInfo existing = metricInfoMapper.selectAnyByKey(dsId, key);
+        if (existing != null) {
+            // 已逻辑删除的同 key 记录:直接复活并按提交内容更新,避免只能去库里改字段才能复用 key。
+            if (Boolean.TRUE.equals(existing.getIsDeleted())) {
+                if (SemanticUtils.trimToNull(metricInfo.getName()) != null) {
+                    existing.setName(metricInfo.getName());
+                }
+                if (metricInfo.getAliases() != null) {
+                    existing.setAliases(metricInfo.getAliases());
+                }
+                if (metricInfo.getMeasureExpr() != null) {
+                    existing.setMeasureExpr(metricInfo.getMeasureExpr());
+                }
+                if (metricInfo.getFilters() != null) {
+                    existing.setFilters(metricInfo.getFilters());
+                }
+                if (metricInfo.getTimeField() != null) {
+                    existing.setTimeField(metricInfo.getTimeField());
+                }
+                if (metricInfo.getDescription() != null) {
+                    existing.setDescription(metricInfo.getDescription());
+                }
+                existing.setIsDeleted(false);
+                existing.setUpdateTime(LocalDateTime.now());
+                metricInfoMapper.restoreById(existing);
+                return existing;
+            }
+            throw new IllegalArgumentException("指标 key 已存在: " + key);
         }
         metricInfo.setDatasourceId(dsId);
         metricInfo.setMetricKey(key);

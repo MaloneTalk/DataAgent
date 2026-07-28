@@ -31,6 +31,8 @@ public interface MetricInfoMapper {
 
     int deleteByIds(@Param("ids") List<Integer> ids);
 
+    int restoreById(MetricInfo metricInfo);
+
     MetricInfo selectById(@Param("id") Integer id);
 
     MetricInfo selectByKey(

@@ -114,4 +114,20 @@
         AND is_deleted = 0
     </update>
 
+    <!-- 恢复(复活)逻辑删除的行:直接置 is_deleted=0 并应用提交内容;不做 is_deleted=0 过滤,以便复活。 -->
+    <update id="restoreById" parameterType="io.github.malonetalk.entity.MetricInfo">
+        UPDATE metric_info
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="aliases != null">aliases = #{aliases},</if>
+            <if test="measureExpr != null">measure_expr = #{measureExpr},</if>
+            <if test="filters != null">filters = #{filters},</if>
+            <if test="timeField != null">time_field = #{timeField},</if>
+            <if test="description != null">description = #{description},</if>
+            is_deleted = 0,
+            update_time = #{updateTime}
+        </set>
+        WHERE id = #{id} AND is_deleted = 1
+    </update>
+
 </mapper>
