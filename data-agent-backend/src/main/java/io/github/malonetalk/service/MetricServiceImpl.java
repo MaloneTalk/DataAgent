@@ -57,30 +57,9 @@ public class MetricServiceImpl implements MetricService {
         }
         MetricInfo best = candidates.get(0);
         if (candidates.size() == 1) {
-            return formatCaliber(best);
+            return best.toCaliberText();
         }
         return formatCaliberWithAlternatives(best, candidates.subList(1, candidates.size()));
-    }
-
-    private String formatCaliber(MetricInfo m) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("指标口径: %s (%s)%n", m.getName(), m.getMetricKey()));
-        if (m.getAliases() != null) {
-            sb.append(String.format("同义词: %s%n", m.getAliases()));
-        }
-        if (m.getMeasureExpr() != null) {
-            sb.append(String.format("度量: %s%n", m.getMeasureExpr()));
-        }
-        if (m.getFilters() != null) {
-            sb.append(String.format("过滤: %s%n", m.getFilters()));
-        }
-        if (m.getTimeField() != null) {
-            sb.append(String.format("时间字段: %s%n", m.getTimeField()));
-        }
-        if (m.getDescription() != null) {
-            sb.append(String.format("说明: %s%n", m.getDescription()));
-        }
-        return sb.toString();
     }
 
     private String formatNotFound(String hint, List<MetricInfo> suggestions) {
@@ -99,7 +78,7 @@ public class MetricServiceImpl implements MetricService {
     }
 
     private String formatCaliberWithAlternatives(MetricInfo best, List<MetricInfo> others) {
-        StringBuilder sb = new StringBuilder(formatCaliber(best));
+        StringBuilder sb = new StringBuilder(best.toCaliberText());
         sb.append(
                 String.format(
                         "%n（注意:有多个相近指标,请确认你要的是\"%s\"。其他候选: %s）%n",
@@ -114,8 +93,8 @@ public class MetricServiceImpl implements MetricService {
     public MetricInfo create(MetricInfo metricInfo) {
         Integer dsId = activeDatasourceId();
         String key = SemanticUtils.normalizeObjectName(metricInfo.getMetricKey(), "指标 key 不能为空");
-        if (metricInfoMapper.selectByKey(dsId, key) != null) {
-            throw new IllegalArgumentException("指标 key 已存在: " + key);
+        if (metricInfoMapper.selectAnyByKey(dsId, key) != null) {
+            throw new IllegalArgumentException("指标 key 已存在（含已删除记录）: " + key);
         }
         metricInfo.setDatasourceId(dsId);
         metricInfo.setMetricKey(key);
@@ -159,10 +138,10 @@ public class MetricServiceImpl implements MetricService {
         if (id == null) {
             throw new IllegalArgumentException("id 不能为空");
         }
-        if (getById(id) == null) {
+        int affected = metricInfoMapper.deleteByIds(List.of(id));
+        if (affected == 0) {
             throw new IllegalArgumentException("指标不存在: id=" + id);
         }
-        metricInfoMapper.deleteByIds(List.of(id));
     }
 
     @Override

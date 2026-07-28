@@ -34,4 +34,30 @@ public class MetricInfo {
     private String description;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private Boolean isDeleted;
+
+    /**
+     * 渲染指标口径文本,供大模型在合成 SQL 时消费。
+     * 仅依赖实体自身字段,无外部依赖,因此放在实体内部而非 Service。
+     */
+    public String toCaliberText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("指标口径: %s (%s)%n", name, metricKey));
+        if (aliases != null) {
+            sb.append(String.format("同义词: %s%n", aliases));
+        }
+        if (measureExpr != null) {
+            sb.append(String.format("度量: %s%n", measureExpr));
+        }
+        if (filters != null) {
+            sb.append(String.format("过滤: %s%n", filters));
+        }
+        if (timeField != null) {
+            sb.append(String.format("时间字段: %s%n", timeField));
+        }
+        if (description != null) {
+            sb.append(String.format("说明: %s%n", description));
+        }
+        return sb.toString();
+    }
 }

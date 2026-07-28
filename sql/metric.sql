@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS `metric_info` (
     `description` TEXT DEFAULT NULL COMMENT '业务口径说明/规则',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_datasource_metric_key` (`datasource_id`, `metric_key`),
     KEY `idx_datasource_name` (`datasource_id`, `name`),

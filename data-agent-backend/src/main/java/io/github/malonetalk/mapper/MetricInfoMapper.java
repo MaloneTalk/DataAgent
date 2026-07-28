@@ -36,6 +36,9 @@ public interface MetricInfoMapper {
     MetricInfo selectByKey(
             @Param("datasourceId") Integer datasourceId, @Param("metricKey") String metricKey);
 
+    MetricInfo selectAnyByKey(
+            @Param("datasourceId") Integer datasourceId, @Param("metricKey") String metricKey);
+
     List<MetricInfo> selectAllByDatasource(@Param("datasourceId") Integer datasourceId);
 
     List<MetricInfo> matchByHint(
