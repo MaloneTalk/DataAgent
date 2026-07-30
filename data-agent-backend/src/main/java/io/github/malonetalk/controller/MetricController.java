@@ -24,9 +24,11 @@ import io.github.malonetalk.dto.MetricResponse;
 import io.github.malonetalk.entity.MetricInfo;
 import io.github.malonetalk.service.MetricService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @AllArgsConstructor
+@Validated
 @RequestMapping("/api/metric")
 public class MetricController {
 
@@ -53,19 +56,21 @@ public class MetricController {
 
     @PutMapping("/{id}")
     public Result<MetricResponse> update(
-            @PathVariable Integer id, @Valid @RequestBody MetricRequest request) {
+            @PathVariable @Positive(message = "id 必须为正数") Integer id,
+            @Valid @RequestBody MetricRequest request) {
         MetricInfo entity = metricConverter.toEntity(request);
         return Result.success(metricConverter.toResponse(metricService.update(id, entity)));
     }
 
     @DeleteMapping("/{id}")
-    public Result<Boolean> delete(@PathVariable Integer id) {
+    public Result<Boolean> delete(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
         metricService.delete(id);
         return Result.success(true);
     }
 
     @GetMapping("/{id}")
-    public Result<MetricResponse> getById(@PathVariable Integer id) {
+    public Result<MetricResponse> getById(
+            @PathVariable @Positive(message = "id 必须为正数") Integer id) {
         return Result.success(metricConverter.toResponse(metricService.getById(id)));
     }
 
