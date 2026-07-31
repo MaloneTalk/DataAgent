@@ -92,9 +92,7 @@ public class ExecutePythonTool implements MarkAgentTool {
             }
 
             String output =
-                    new String(
-                            process.getInputStream().readAllBytes(),
-                            StandardCharsets.UTF_8);
+                    new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             if (process.exitValue() != 0) {
                 return "Error (exit " + process.exitValue() + "):\n" + output;
