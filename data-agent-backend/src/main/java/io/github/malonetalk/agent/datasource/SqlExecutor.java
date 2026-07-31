@@ -25,10 +25,14 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.Select;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -36,45 +40,59 @@ import org.springframework.stereotype.Component;
 @AllArgsConstructor
 public class SqlExecutor {
 
-    private static final int MAX_ROWS = 200;
+    static final int MAX_ROWS = 200;
     private static final int QUERY_TIMEOUT_SECONDS = 30;
-
-    private static final Pattern SELECT_PATTERN =
-            Pattern.compile("^\\s*SELECT\\s", Pattern.CASE_INSENSITIVE);
-
-    private static final Pattern FORBIDDEN_PATTERN =
-            Pattern.compile(
-                    ";\\s*(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\\s",
-                    Pattern.CASE_INSENSITIVE);
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
     public QueryResult execute(Datasource datasource, String sql) {
-        validateSql(sql);
+        String validatedSql = validateAndTransform(sql);
 
         DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            return doExecute(conn, sql);
+            return doExecute(conn, validatedSql);
         } catch (SQLException e) {
             log.error("SQL execution failed: {}", e.getMessage(), e);
             throw new SqlExecutionException("SQL execution failed: " + e.getMessage(), e);
         }
     }
 
-    private void validateSql(String sql) {
+    String validateAndTransform(String sql) {
         if (sql == null || sql.isBlank()) {
             throw new IllegalArgumentException("SQL must not be empty");
         }
 
-        if (!SELECT_PATTERN.matcher(sql).find()) {
-            throw new SqlSecurityException("Only SELECT queries are allowed. Received: " + sql);
+        Statement stmt;
+        try {
+            stmt = CCJSqlParserUtil.parse(sql);
+        } catch (JSQLParserException e) {
+            throw new SqlSecurityException("Invalid SQL syntax: " + e.getMessage());
         }
 
-        if (FORBIDDEN_PATTERN.matcher(sql).find()) {
+        if (!(stmt instanceof Select select)) {
             throw new SqlSecurityException(
-                    "SQL contains forbidden statements. Only SELECT is allowed.");
+                    "Only SELECT queries are allowed. Got: "
+                            + stmt.getClass().getSimpleName()
+                            + ". SQL: "
+                            + sql);
         }
+
+        // Block SELECT ... INTO (MySQL OUTFILE / DUMPFILE / table)
+        PlainSelect ps = select.getPlainSelect();
+        if (ps != null && ps.getIntoTables() != null) {
+            throw new SqlSecurityException("SELECT INTO is not allowed.");
+        }
+
+        //  inject LIMIT if absent, to prevent full table scans
+        if (!hasLimit(select)) {
+            return "SELECT * FROM (" + sql + ") AS _sandbox LIMIT " + MAX_ROWS;
+        }
+        return sql;
+    }
+
+    private boolean hasLimit(Select select) {
+        return select.getLimit() != null || select.getFetch() != null;
     }
 
     private QueryResult doExecute(Connection conn, String sql) throws SQLException {
