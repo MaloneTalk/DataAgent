@@ -9,6 +9,8 @@
 [![License: AGPL v3](https://img.shields.io/github/license/MaloneTalk/DataAgent)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/MaloneTalk/DataAgent)
 
+> **项目状态**：由于开发时间有限，项目仍在持续打磨中，部分功能与文档可能尚未完善。开发者会持续迭代，同时也非常期待社区的参与——欢迎提交 Issue 与 PR。
+
 ## ✨ 特性
 
 - **自然语言查数**：基于 LLM + ReAct 工具调用，把自然语言转为 SQL 并在目标库执行，全程流式输出。
@@ -74,7 +76,7 @@ pnpm install && pnpm dev
 
 ## 🤝 贡献
 
-欢迎 Issue 与 PR。开发规范与提交流程见 [docs/contributing.md](docs/contributing.md)。
+由于时间关系，项目仍在持续完善中，开发者深知其中尚有诸多不完善之处，会继续努力迭代。同时也真诚欢迎社区的参与：提交 Issue 反馈问题与建议、补充文档、修复 Bug、实现新特性……任何形式的贡献都欢迎。开发规范与提交流程见 [docs/contributing.md](docs/contributing.md)。
 
 ## 📄 许可证
 
