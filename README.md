@@ -2,7 +2,7 @@
 
 > An LLM-powered data query agent that maps business language to data through a semantic layer.
 
-**Data Agent** 是一个面向业务人员的自然语言数据查询智能体：你用中文提问，它把问题理解成 SQL、在目标数据库上执行，并以流式对话的方式把结果与分析返回给你。它内置**语义层**，把"业务语言"映射到"数据表示"，让 LLM 真正"懂业务"。
+**Data Agent** 是一个面向业务人员的自然语言数据分析智能体：你用中文提问，它把问题理解成 SQL 或 Python 分析代码、执行查询与统计计算，并以流式对话的方式把结果与分析返回给你。它内置**语义层**，把"业务语言"映射到"数据表示"，让 LLM 真正"懂业务"。
 
 [![Backend CI](https://github.com/MaloneTalk/DataAgent/actions/workflows/backend.yml/badge.svg)](https://github.com/MaloneTalk/DataAgent/actions/workflows/backend.yml)
 [![Frontend CI](https://github.com/MaloneTalk/DataAgent/actions/workflows/frontend.yml/badge.svg)](https://github.com/MaloneTalk/DataAgent/actions/workflows/frontend.yml)
@@ -14,6 +14,7 @@
 ## ✨ 特性
 
 - **自然语言查数**：基于 LLM + ReAct 工具调用，把自然语言转为 SQL 并在目标库执行，全程流式输出。
+- **Python 数据分析**：对查询结果自动执行统计分析（相关性、回归、分布检验），补齐 SQL 在复杂统计计算上的短板。
 - **多模型可切换**：内置 OpenAI / Ollama / 通义 DashScope / Anthropic 等提供商，换底座模型不影响已沉淀的业务知识。
 - **多数据源**：支持查询 MySQL、PostgreSQL、Oracle。
 - **语义层**：域（Domain）/ 逻辑表 / 逻辑列 / 表关系 / 指标口径的业务映射，让 LLM 真正"懂业务"。
@@ -30,7 +31,7 @@
                             ▼
                      AgentService (ReAct 循环)
        ┌───────────────┴───────────────┬──────────────────┐
-   LLM(可切换底座)              工具集(SQL/Schema/反问/报表)      语义层 (MySQL)
+   LLM(可切换底座)              工具集(SQL/Schema/Python/反问/报表)      语义层 (MySQL)
                             │
                             ▼
                      目标数据源 (MySQL / PG / Oracle)
@@ -45,7 +46,7 @@
 
 > 完整、带截图的步骤见 [docs/getting-started.md](docs/getting-started.md)。
 
-**前置依赖**：JDK 17+、Maven 3.9+、Node 18+、pnpm 8+、MySQL 8+。
+**前置依赖**：JDK 17+、Maven 3.9+、Node 18+、pnpm 8+、MySQL 8+、Python 3+（需安装 pandas、numpy、scipy）。
 
 ```bash
 # 1. 建元数据库并初始化表结构
