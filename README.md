@@ -7,6 +7,7 @@
 [![Backend CI](https://github.com/MaloneTalk/DataAgent/actions/workflows/backend.yml/badge.svg)](https://github.com/MaloneTalk/DataAgent/actions/workflows/backend.yml)
 [![Frontend CI](https://github.com/MaloneTalk/DataAgent/actions/workflows/frontend.yml/badge.svg)](https://github.com/MaloneTalk/DataAgent/actions/workflows/frontend.yml)
 [![License: AGPL v3](https://img.shields.io/github/license/MaloneTalk/DataAgent)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/MaloneTalk/DataAgent)
 
 ## ✨ 特性
 
@@ -78,3 +79,4 @@ pnpm install && pnpm dev
 ## 📄 许可证
 
 本项目基于 [AGPL-3.0](LICENSE) 开源。
+

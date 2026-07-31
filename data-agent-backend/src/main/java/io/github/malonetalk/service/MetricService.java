@@ -17,27 +17,23 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.MetricInfo;
 import java.util.List;
-import java.util.Optional;
 
-public interface DatasourceService {
+public interface MetricService {
 
-    List<Datasource> findAll();
+    /** 供 agent 工具调用:按自然语言提示返回指标口径文本(含命中/多候选/未命中三种结果)。 */
+    String getCaliberByHint(String hint);
 
-    Datasource findById(Integer id);
+    MetricInfo create(MetricInfo metricInfo);
 
-    boolean save(Datasource dataSource);
+    MetricInfo update(Integer id, MetricInfo metricInfo);
 
-    boolean update(Datasource dataSource);
+    void delete(Integer id);
 
-    boolean deleteById(Integer id);
+    MetricInfo getById(Integer id);
 
-    List<Datasource> findByStatus(String status);
+    MetricInfo getByKey(String metricKey);
 
-    Optional<Datasource> getActiveDatasource();
-
-    List<Datasource> findByType(String type);
-
-    boolean updateStatus(Integer id, String status);
+    List<MetricInfo> listAll();
 }

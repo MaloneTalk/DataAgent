@@ -15,29 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.convertor;
 
-import io.github.malonetalk.entity.Datasource;
-import java.util.List;
-import java.util.Optional;
+import io.github.malonetalk.dto.MetricRequest;
+import io.github.malonetalk.dto.MetricResponse;
+import io.github.malonetalk.entity.MetricInfo;
+import org.mapstruct.Mapper;
 
-public interface DatasourceService {
+@Mapper(componentModel = "spring")
+public interface MetricConverter {
 
-    List<Datasource> findAll();
+    MetricInfo toEntity(MetricRequest request);
 
-    Datasource findById(Integer id);
-
-    boolean save(Datasource dataSource);
-
-    boolean update(Datasource dataSource);
-
-    boolean deleteById(Integer id);
-
-    List<Datasource> findByStatus(String status);
-
-    Optional<Datasource> getActiveDatasource();
-
-    List<Datasource> findByType(String type);
-
-    boolean updateStatus(Integer id, String status);
+    MetricResponse toResponse(MetricInfo metricInfo);
 }

@@ -21,7 +21,6 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.Collections;
@@ -58,21 +57,10 @@ public class GetTablesTool implements MarkAgentTool {
                                     """,
                             required = false)
                     List<String> domains) {
-        List<Datasource> activeDataSources =
-                dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-        if (activeDataSources.isEmpty()) {
+        Datasource dataSource = dataSourceService.getActiveDatasource().orElse(null);
+        if (dataSource == null) {
             return Collections.emptyList();
         }
-
-        if (activeDataSources.size() > 1) {
-            log.warn(
-                    "Found {} active data sources, using the first one. This may cause data"
-                            + " inconsistency.",
-                    activeDataSources.size());
-        }
-
-        Datasource dataSource = activeDataSources.get(0);
         return tableSemanticService.listMergedTablesByDomains(dataSource.getId(), domains);
     }
 }
