@@ -22,7 +22,7 @@ import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.dto.ReportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.service.ReportService;
-import io.github.malonetalk.utils.AssertUtils;
+import io.github.malonetalk.utils.RequestAssert;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,7 +45,7 @@ public class ReportController {
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Integer id) {
-        AssertUtils.requireNonNegative(id, "id must be non-negative.");
+        RequestAssert.requireNonNegative(id, "id must be non-negative.");
         reportService.deleteById(id);
         return Result.success(true);
     }

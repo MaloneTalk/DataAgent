@@ -26,7 +26,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
-import io.github.malonetalk.utils.AssertUtils;
+import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -49,12 +49,12 @@ public class LogicalTableRelationHelper {
     }
 
     public List<String> normalizeColumnNames(List<String> columnNames, String fieldName) {
-        AssertUtils.requireNotEmpty(columnNames, fieldName + " cannot be empty.");
+        RequestAssert.requireNotEmpty(columnNames, fieldName + " cannot be empty.");
         Set<String> uniqueKeys = new LinkedHashSet<>();
         Set<String> normalizedColumns = new LinkedHashSet<>();
         for (String columnName : columnNames) {
             String normalizedColumnName =
-                    AssertUtils.requireNotBlank(
+                    RequestAssert.requireNotBlank(
                             columnName, fieldName + " contains a blank column name.");
             String uniqueKey =
                     SemanticUtils.normalizeObjectName(
@@ -108,7 +108,8 @@ public class LogicalTableRelationHelper {
 
     public List<String> fromJson(String columnNamesJson, String fieldName) {
         String normalizedJson =
-                AssertUtils.requireNotBlank(columnNamesJson, fieldName + " json cannot be blank.");
+                RequestAssert.requireNotBlank(
+                        columnNamesJson, fieldName + " json cannot be blank.");
         try {
             return normalizeColumnNames(
                     objectMapper.readValue(normalizedJson, STRING_LIST_TYPE), fieldName);

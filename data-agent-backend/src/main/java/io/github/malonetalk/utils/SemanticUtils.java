@@ -30,7 +30,7 @@ public final class SemanticUtils {
     private SemanticUtils() {}
 
     public static void requireDatasourceId(Integer datasourceId) {
-        AssertUtils.requireNonNull(datasourceId, "datasourceId cannot be null.");
+        RequestAssert.requireNonNull(datasourceId, "datasourceId cannot be null.");
     }
 
     /**
@@ -59,7 +59,7 @@ public final class SemanticUtils {
     }
 
     public static String requireTrimmed(String value, String missingMessage) {
-        return AssertUtils.requireNotBlank(value, missingMessage);
+        return RequestAssert.requireNotBlank(value, missingMessage);
     }
 
     public static String firstNonBlank(String... values) {

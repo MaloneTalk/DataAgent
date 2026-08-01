@@ -20,7 +20,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
   import type { DatasourceResponse } from '@/api/datasource';
-  import { getFieldErrorMap } from '@/api/request';
+  import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     createLogicalRelation,
     deleteLogicalRelation,
@@ -90,7 +90,11 @@
     description: '',
     enabled: true,
   });
-  const relationFieldErrors = reactive<Record<string, string>>({});
+  const {
+    fieldErrors: relationFieldErrors,
+    clearFieldErrors: clearRelationFieldErrors,
+    applyFieldErrors: applyRelationFieldErrors,
+  } = useFieldErrors(relationForm);
   const relationSourceColumns = ref<RelationColumnNode[]>([]);
   const relationTargetColumns = ref<RelationColumnNode[]>([]);
   const suppressRelationTableWatch = ref(false);
@@ -483,15 +487,6 @@
     }
   }
 
-  function clearRelationFieldErrors() {
-    Object.keys(relationFieldErrors).forEach(key => delete relationFieldErrors[key]);
-  }
-
-  function applyRelationFieldErrors(error: unknown) {
-    clearRelationFieldErrors();
-    Object.assign(relationFieldErrors, getFieldErrorMap(error));
-  }
-
   async function handleDeleteRelation(relation: LogicalTableRelationResponse) {
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键仅展示，不支持删除');
@@ -567,8 +562,6 @@
     resetRelationForm();
     await loadRelationData();
   });
-
-  watch(relationForm, clearRelationFieldErrors, { deep: true });
 </script>
 
 <template>

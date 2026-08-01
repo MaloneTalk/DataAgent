@@ -20,10 +20,10 @@ package io.github.malonetalk.utils;
 import io.github.malonetalk.exception.BusinessException;
 import java.util.Collection;
 
-/** 业务断言工具：请求或语义参数不满足前置条件时统一抛出 BAD_REQUEST 业务异常。 */
-public final class AssertUtils {
+/** 请求边界断言工具：参数不满足前置条件时统一抛出 BAD_REQUEST 业务异常。 */
+public final class RequestAssert {
 
-    private AssertUtils() {}
+    private RequestAssert() {}
 
     public static void requireNonNull(Object value, String message) {
         if (value == null) {

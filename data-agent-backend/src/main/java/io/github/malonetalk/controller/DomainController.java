@@ -26,7 +26,7 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.DomainInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.semantic.DomainService;
-import io.github.malonetalk.utils.AssertUtils;
+import io.github.malonetalk.utils.RequestAssert;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -80,6 +80,6 @@ public class DomainController {
     }
 
     private void requireNonNegativeId(Integer id) {
-        AssertUtils.requireNonNegative(id, "id must be non-negative.");
+        RequestAssert.requireNonNegative(id, "id must be non-negative.");
     }
 }

@@ -16,10 +16,10 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, nextTick, watch } from 'vue';
+  import { onMounted, reactive, ref, nextTick } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
-  import { getFieldErrorMap } from '@/api/request';
+  import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     getActiveDatasourceId,
     getTableSemanticPage,
@@ -65,7 +65,7 @@
     tableDescription: '',
     isVisible: true,
   });
-  const fieldErrors = reactive<Record<string, string>>({});
+  const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
   const rules: FormRules<TableEditForm> = {
     tableName: [{ required: true, message: '表名不能为空', trigger: 'blur' }],
   };
@@ -180,17 +180,6 @@
       submitLoading.value = false;
     }
   };
-
-  const clearFieldErrors = () => {
-    Object.keys(fieldErrors).forEach(key => delete fieldErrors[key]);
-  };
-
-  const applyFieldErrors = (error: unknown) => {
-    clearFieldErrors();
-    Object.assign(fieldErrors, getFieldErrorMap(error));
-  };
-
-  watch(form, clearFieldErrors, { deep: true });
 
   const handleReset = async (row: TableSemanticInfo) => {
     try {

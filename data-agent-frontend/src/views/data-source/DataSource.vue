@@ -16,12 +16,12 @@
  -->
 
 <script setup lang="ts">
-  import { ref, reactive, onMounted, watch } from 'vue';
+  import { ref, reactive, onMounted } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
   import type { DatasourceResponse } from '@/api/datasource';
-  import { getFieldErrorMap } from '@/api/request';
+  import { useFieldErrors } from '@/composables/useFieldErrors';
 
   const {
     list: dataSourceList,
@@ -51,7 +51,7 @@
     connectionUrl: '',
     description: '',
   });
-  const fieldErrors = reactive<Record<string, string>>({});
+  const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
 
   onMounted(() => {
     fetchList();
@@ -86,17 +86,6 @@
       description: '',
     });
   };
-
-  const clearFieldErrors = () => {
-    Object.keys(fieldErrors).forEach(key => delete fieldErrors[key]);
-  };
-
-  const applyFieldErrors = (error: unknown) => {
-    clearFieldErrors();
-    Object.assign(fieldErrors, getFieldErrorMap(error));
-  };
-
-  watch(form, clearFieldErrors, { deep: true });
 
   const handleAdd = () => {
     resetForm();

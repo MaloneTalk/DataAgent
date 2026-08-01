@@ -17,9 +17,9 @@
  */
 package io.github.malonetalk.exception;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -30,8 +30,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ToolExceptionMapper {
 
+    public static final String METADATA_ERROR_CODE = "errorCode";
+    public static final String METADATA_ERROR_MESSAGE = "message";
+
     private final ExceptionResponseMapper exceptionResponseMapper;
-    private final ObjectMapper objectMapper;
 
     public ToolResultBlock run(String actionName, ToolAction action) {
         try {
@@ -41,22 +43,19 @@ public class ToolExceptionMapper {
             if (errorResponse.isServerError()) {
                 log.error("Tool action failed: {}", actionName, exception);
             }
-            return ToolResultBlock.error(toPayload(errorResponse));
+            return toToolError(errorResponse);
         }
     }
 
-    /** ToolResultBlock.error 只接收字符串，这里把错误码和文案压成稳定 JSON payload。 */
-    private String toPayload(ErrorResponse errorResponse) {
-        ToolErrorPayload payload =
-                new ToolErrorPayload(errorResponse.errorCode().getCode(), errorResponse.message());
-        try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException exception) {
-            return errorResponse.errorCode().getCode() + ": " + errorResponse.message();
-        }
+    private ToolResultBlock toToolError(ErrorResponse errorResponse) {
+        return ToolResultBlock.of(
+                TextBlock.builder().text(errorResponse.message()).build(),
+                Map.of(
+                        METADATA_ERROR_CODE,
+                        errorResponse.errorCode().getCode(),
+                        METADATA_ERROR_MESSAGE,
+                        errorResponse.message()));
     }
-
-    private record ToolErrorPayload(String errorCode, String message) {}
 
     @FunctionalInterface
     public interface ToolAction {

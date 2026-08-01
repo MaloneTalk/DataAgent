@@ -29,7 +29,7 @@ import io.github.malonetalk.entity.DomainInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.DomainInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
-import io.github.malonetalk.utils.AssertUtils;
+import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -66,7 +66,7 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public DomainInfo findById(Integer id) {
-        AssertUtils.requireNonNull(id, "id must not be null.");
+        RequestAssert.requireNonNull(id, "id must not be null.");
         return domainInfoMapper.selectById(id);
     }
 
@@ -92,7 +92,7 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public DomainInfo update(Integer id, DomainUpdateRequest request) {
-        AssertUtils.requireNonNull(id, "id must not be null.");
+        RequestAssert.requireNonNull(id, "id must not be null.");
         DomainInfo existing = findById(id);
         if (existing == null) {
             throw BusinessException.of(
@@ -116,7 +116,7 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public void delete(Integer id) {
-        AssertUtils.requireNonNull(id, "id must not be null.");
+        RequestAssert.requireNonNull(id, "id must not be null.");
         DomainInfo existing = findById(id);
         if (existing == null) {
             throw BusinessException.of(

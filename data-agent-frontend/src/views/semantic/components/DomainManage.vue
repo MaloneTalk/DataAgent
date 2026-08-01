@@ -16,10 +16,10 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, watch } from 'vue';
+  import { onMounted, reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
-  import { getFieldErrorMap } from '@/api/request';
+  import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     getDomainPage,
     createDomain,
@@ -54,7 +54,11 @@
     name: '',
     description: '',
   });
-  const domainFieldErrors = reactive<Record<string, string>>({});
+  const {
+    fieldErrors: domainFieldErrors,
+    clearFieldErrors: clearDomainFieldErrors,
+    applyFieldErrors: applyDomainFieldErrors,
+  } = useFieldErrors(domainForm);
   const selectedDomain = ref<DomainInfo | null>(null);
 
   const domainRules: FormRules<DomainEditForm> = {
@@ -148,17 +152,6 @@
       domainSubmitLoading.value = false;
     }
   };
-
-  const clearDomainFieldErrors = () => {
-    Object.keys(domainFieldErrors).forEach(key => delete domainFieldErrors[key]);
-  };
-
-  const applyDomainFieldErrors = (error: unknown) => {
-    clearDomainFieldErrors();
-    Object.assign(domainFieldErrors, getFieldErrorMap(error));
-  };
-
-  watch(domainForm, clearDomainFieldErrors, { deep: true });
 
   const handleDeleteDomain = async (row: DomainInfo) => {
     try {

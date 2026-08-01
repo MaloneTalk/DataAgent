@@ -27,7 +27,7 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.Report;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ReportMapper;
-import io.github.malonetalk.utils.AssertUtils;
+import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,9 +43,9 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public int create(String sessionId, String title, String content) {
-        AssertUtils.requireNotBlank(sessionId, "sessionId cannot be blank.");
-        AssertUtils.requireNotBlank(title, "report title cannot be blank.");
-        AssertUtils.requireNotBlank(content, "report content cannot be blank.");
+        RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
+        RequestAssert.requireNotBlank(title, "report title cannot be blank.");
+        RequestAssert.requireNotBlank(content, "report content cannot be blank.");
         Report report = new Report();
         report.setSessionId(sessionId);
         report.setTitle(title);
@@ -83,7 +83,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public ReportResponse findById(Integer id) {
-        AssertUtils.requireNonNull(id, "id cannot be null.");
+        RequestAssert.requireNonNull(id, "id cannot be null.");
         Report report = reportMapper.selectById(id);
         if (report == null) {
             throw reportNotFound(id);
@@ -93,7 +93,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public void deleteById(Integer id) {
-        AssertUtils.requireNonNull(id, "id cannot be null.");
+        RequestAssert.requireNonNull(id, "id cannot be null.");
         int affected = reportMapper.deleteById(id);
         if (affected == 0) {
             throw reportNotFound(id);
