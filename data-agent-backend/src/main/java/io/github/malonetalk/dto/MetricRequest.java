@@ -15,29 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.dto;
 
-import io.github.malonetalk.entity.Datasource;
-import java.util.List;
-import java.util.Optional;
+import jakarta.validation.constraints.NotBlank;
 
-public interface DatasourceService {
-
-    List<Datasource> findAll();
-
-    Datasource findById(Integer id);
-
-    boolean save(Datasource dataSource);
-
-    boolean update(Datasource dataSource);
-
-    boolean deleteById(Integer id);
-
-    List<Datasource> findByStatus(String status);
-
-    Optional<Datasource> getActiveDatasource();
-
-    List<Datasource> findByType(String type);
-
-    boolean updateStatus(Integer id, String status);
-}
+/**
+ * 指标口径的入参边界类。只暴露客户端可编辑的字段,不暴露 id/时间/逻辑删除等由系统控制的列,
+ * 避免实体直收请求体导致的越权赋值(over-posting)。
+ */
+public record MetricRequest(
+        @NotBlank(message = "metricKey 不能为空") String metricKey,
+        @NotBlank(message = "name 不能为空") String name,
+        String aliases,
+        String measureExpr,
+        String filters,
+        String timeField,
+        String description) {}

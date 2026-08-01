@@ -24,16 +24,12 @@ import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
-import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @AllArgsConstructor
 public class ExecuteSqlTool implements MarkAgentTool {
@@ -54,22 +50,15 @@ public class ExecuteSqlTool implements MarkAgentTool {
         return toolExceptionMapper.run(
                 "execute SQL",
                 () -> {
-                    List<Datasource> activeDataSources =
-                            dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-                    if (activeDataSources.isEmpty()) {
-                        throw BusinessException.of(
-                                ErrorCode.NO_ACTIVE_DATASOURCE,
-                                "No active datasource is available. Unable to execute SQL.");
-                    }
-
-                    if (activeDataSources.size() > 1) {
-                        log.warn(
-                                "Found {} active data sources, using the first one.",
-                                activeDataSources.size());
-                    }
-
-                    Datasource datasource = activeDataSources.get(0);
+                    Datasource datasource =
+                            dataSourceService
+                                    .getActiveDatasource()
+                                    .orElseThrow(
+                                            () ->
+                                                    BusinessException.of(
+                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
+                                                            "No active datasource is available."
+                                                                    + " Unable to execute SQL."));
                     QueryResult result = sqlExecutor.execute(datasource, sql);
                     return ToolResultBlock.text(formatResult(result));
                 });

@@ -29,6 +29,7 @@
     { path: '/data-source', title: '数据源管理', icon: 'Connection' },
     { path: '/semantic', title: '语义管理', icon: 'Collection' },
     { path: '/report', title: '报告管理', icon: 'Document' },
+    { path: '/metric', title: '指标口径管理', icon: 'DataLine' },
   ];
 
   const activeMenu = computed(() => route.path);

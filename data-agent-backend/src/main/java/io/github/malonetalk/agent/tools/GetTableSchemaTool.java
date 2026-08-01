@@ -23,7 +23,6 @@ import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
@@ -31,10 +30,8 @@ import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @AllArgsConstructor
 public class GetTableSchemaTool implements MarkAgentTool {
@@ -60,24 +57,16 @@ public class GetTableSchemaTool implements MarkAgentTool {
         return toolExceptionMapper.run(
                 "get table schema",
                 () -> {
-                    List<Datasource> activeDataSources =
-                            dataSourceService.findByStatus(Status.ACTIVE.getCode());
-
-                    if (activeDataSources.isEmpty()) {
-                        throw BusinessException.of(
-                                ErrorCode.NO_ACTIVE_DATASOURCE,
-                                "No active datasource is available. Unable to retrieve the table"
-                                        + " schema.");
-                    }
-
-                    if (activeDataSources.size() > 1) {
-                        log.warn(
-                                "Found {} active data sources, using the first one.",
-                                activeDataSources.size());
-                    }
-
-                    Datasource datasource = activeDataSources.get(0);
-
+                    Datasource datasource =
+                            dataSourceService
+                                    .getActiveDatasource()
+                                    .orElseThrow(
+                                            () ->
+                                                    BusinessException.of(
+                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
+                                                            "No active datasource is available."
+                                                                    + " Unable to retrieve the"
+                                                                    + " table schema."));
                     List<ColumnPromptResponse> columns =
                             columnSemanticService.getMergedTableSchema(
                                     datasource.getId(), tableName);

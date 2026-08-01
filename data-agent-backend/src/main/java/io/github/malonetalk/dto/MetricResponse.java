@@ -15,29 +15,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.dto;
 
-import io.github.malonetalk.entity.Datasource;
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
 
-public interface DatasourceService {
-
-    List<Datasource> findAll();
-
-    Datasource findById(Integer id);
-
-    boolean save(Datasource dataSource);
-
-    boolean update(Datasource dataSource);
-
-    boolean deleteById(Integer id);
-
-    List<Datasource> findByStatus(String status);
-
-    Optional<Datasource> getActiveDatasource();
-
-    List<Datasource> findByType(String type);
-
-    boolean updateStatus(Integer id, String status);
-}
+/**
+ * 指标口径的出参边界类。与持久化实体解耦,不向调用方泄露 isDeleted 等内部状态。
+ */
+public record MetricResponse(
+        Integer id,
+        Integer datasourceId,
+        String metricKey,
+        String name,
+        String aliases,
+        String measureExpr,
+        String filters,
+        String timeField,
+        String description,
+        LocalDateTime createTime,
+        LocalDateTime updateTime) {}
