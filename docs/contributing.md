@@ -37,6 +37,15 @@
 - **为下一个读者写**：命名揭示意图，复杂逻辑拆小步。
 - 已启用 **Checkstyle**（含方法长度检查），CI 会拦截不合规代码。
 
+### AI 辅助编码（推荐 ponytail）
+
+我们**不反对**用 AI 辅助编写代码——欢迎用 AI 提升效率。但为了让 AI 产出的代码保持简洁、不堆砌多余抽象与样板，请在提交前用 **ponytail** skill 过一遍：
+
+- **写代码时**：加载 [ponytail](https://github.com/DietrichGebert/ponytail)，让它约束 AI 只写当下需要的最小实现，避免违背 YAGNI、过度封装与冗余样板。
+- **提交前审查**：用 ponytail 对自己的改动做一遍 review，删掉冗余代码、未使用的抽象与样板，再提 PR。
+
+这与本仓库 `AGENTS.md` 的"保持简单 / YAGNI / 优先复用"原则一致。AI 写的代码同样需要满足 Checkstyle 与 CI 要求。
+
 前端：ESLint + Prettier 统一风格，组件用 PascalCase，公共组件放 `components/`、页面组件放 `views/xxx/components/`。
 
 ## 3. 提交信息约定
