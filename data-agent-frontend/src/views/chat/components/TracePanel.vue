@@ -19,6 +19,7 @@
   import { computed, ref } from 'vue';
   import type { ChatStreamEventType } from '@/api/agent';
   import type { ChatMessage, TraceStep } from '@/composables/useAgentChat';
+  import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
   const props = defineProps<{
     message: ChatMessage;
@@ -76,20 +77,27 @@
   }
 
   function stepLabel(step: TraceStep): string {
-    if (step.type === 'tool_call' && step.toolCall?.name === 'ask_user') {
-      return '[向用户提问]';
+    if (step.type === 'tool_call' && isInteractiveTool(step.toolCall?.name)) {
+      return `[${INTERACTIVE_TOOLS[step.toolCall!.name].label}]`;
+    }
+    if (step.type === 'tool_result' && isInteractiveTool(step.toolResult?.name)) {
+      return `[${INTERACTIVE_TOOLS[step.toolResult!.name].resultLabel}]`;
     }
     return `[${getStepRenderer(step.type).label}]`;
   }
 
   function stepContent(step: TraceStep): string {
     if (step.type === 'tool_call' && step.toolCall) {
-      if (step.toolCall.name === 'ask_user') {
-        return (step.toolCall.input.question as string) ?? '等待用户输入...';
+      if (isInteractiveTool(step.toolCall.name)) {
+        const def = INTERACTIVE_TOOLS[step.toolCall.name];
+        return (step.toolCall.input[def.questionField] as string) ?? '等待用户输入...';
       }
       return `调用工具: ${step.toolCall.name}`;
     }
     if (step.type === 'tool_result' && step.toolResult) {
+      if (isInteractiveTool(step.toolResult.name)) {
+        return step.toolResult.output || '(无内容)';
+      }
       return `工具 ${step.toolResult.name} 返回结果`;
     }
     if (step.type === 'question') {
@@ -140,7 +148,14 @@
           <div class="code-label">Input:</div>
           <pre class="code-block">{{ displayMultiline(formatJson(step.toolCall.input)) }}</pre>
         </div>
-        <div v-if="step.type === 'tool_result' && step.toolResult" class="trace-step__code">
+        <div
+          v-if="
+            step.type === 'tool_result' &&
+            step.toolResult &&
+            !isInteractiveTool(step.toolResult.name)
+          "
+          class="trace-step__code"
+        >
           <div class="code-label">Output:</div>
           <pre class="code-block">{{ displayMultiline(step.toolResult.output) }}</pre>
         </div>

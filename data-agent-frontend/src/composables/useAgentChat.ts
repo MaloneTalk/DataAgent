@@ -17,6 +17,7 @@
 
 import { ref, shallowRef } from 'vue';
 import { streamChat, fetchSessionHistory, type ChatStreamEventType } from '@/api/agent';
+import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
 export interface PendingQuestion {
   toolCallId: string;
@@ -168,11 +169,12 @@ export function useAgentChat(initialSessionId?: string) {
           ) {
             msg.traceSteps = [...msg.traceSteps, toTraceStep(event)];
 
-            if (event.type === 'tool_call' && event.toolCall?.name === 'ask_user') {
+            if (event.type === 'tool_call' && isInteractiveTool(event.toolCall?.name)) {
+              const def = INTERACTIVE_TOOLS[event.toolCall!.name];
               pendingQuestion.value = {
-                toolCallId: event.toolCall.id,
-                toolName: event.toolCall.name,
-                question: (event.toolCall.input.question as string) ?? '',
+                toolCallId: event.toolCall!.id,
+                toolName: event.toolCall!.name,
+                question: (event.toolCall!.input[def.questionField] as string) ?? '',
               };
               msg.isStreaming = false;
             }
