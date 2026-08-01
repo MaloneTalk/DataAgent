@@ -131,11 +131,7 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item
-        label="源列"
-        prop="sourceColumnNames"
-        :error="fieldErrors.sourceColumnNames"
-      >
+      <el-form-item label="源列" prop="sourceColumnNames" :error="fieldErrors.sourceColumnNames">
         <el-select
           v-model="localForm.sourceColumnNames"
           multiple
@@ -170,11 +166,7 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item
-        label="目标列"
-        prop="targetColumnNames"
-        :error="fieldErrors.targetColumnNames"
-      >
+      <el-form-item label="目标列" prop="targetColumnNames" :error="fieldErrors.targetColumnNames">
         <el-select
           v-model="localForm.targetColumnNames"
           multiple

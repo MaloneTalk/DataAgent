@@ -321,7 +321,11 @@
         <el-form-item label="列名" prop="columnName" :error="fieldErrors.columnName">
           <el-input v-model="form.columnName" disabled />
         </el-form-item>
-        <el-form-item label="语义描述" prop="columnDescription" :error="fieldErrors.columnDescription">
+        <el-form-item
+          label="语义描述"
+          prop="columnDescription"
+          :error="fieldErrors.columnDescription"
+        >
           <el-input
             v-model="form.columnDescription"
             type="textarea"

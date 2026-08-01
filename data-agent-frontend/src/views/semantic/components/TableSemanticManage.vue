@@ -379,7 +379,11 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="语义描述" prop="tableDescription" :error="fieldErrors.tableDescription">
+        <el-form-item
+          label="语义描述"
+          prop="tableDescription"
+          :error="fieldErrors.tableDescription"
+        >
           <el-input
             v-model="form.tableDescription"
             type="textarea"

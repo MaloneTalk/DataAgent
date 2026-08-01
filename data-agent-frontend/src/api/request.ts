@@ -83,10 +83,7 @@ service.interceptors.response.use(
   },
 );
 
-function toApiError(
-  response: ApiResponse | undefined,
-  fallbackMessage: string,
-): ApiError {
+function toApiError(response: ApiResponse | undefined, fallbackMessage: string): ApiError {
   const details = response?.data;
   return new ApiError(resolveMessage(response, fallbackMessage), {
     code: response?.code,
