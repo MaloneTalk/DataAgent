@@ -31,34 +31,44 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @Component
 public class ExceptionResponseMapper {
 
-    /** 统一异常映射入口；先拆包业务异常，再按基础设施异常类型兜底映射。 */
+    /** 统一异常映射入口；沿 cause 链逐层识别，被框架包装过的异常仍能保留原 ErrorCode。 */
     public ErrorResponse resolve(Throwable exception) {
-        BusinessException businessException = findBusinessException(exception);
-        if (businessException != null) {
-            return fromBusinessException(businessException);
-        }
-        if (exception instanceof DataIntegrityViolationException) {
-            return of(ErrorCode.DATA_CONFLICT);
-        }
-        if (exception instanceof TransientDataAccessException) {
-            return of(ErrorCode.DATA_SERVICE_UNAVAILABLE);
-        }
-        if (exception instanceof DataAccessException) {
-            return of(ErrorCode.DATA_ACCESS_FAILED);
-        }
-        if (exception instanceof NoResourceFoundException) {
-            return of(ErrorCode.RESOURCE_NOT_FOUND);
-        }
-        if (exception instanceof HttpRequestMethodNotSupportedException) {
-            return of(ErrorCode.METHOD_NOT_ALLOWED);
-        }
-        if (exception instanceof HttpMediaTypeNotSupportedException) {
-            return of(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
-        }
-        if (exception instanceof HttpMediaTypeNotAcceptableException) {
-            return of(ErrorCode.NOT_ACCEPTABLE);
+        for (Throwable current = exception; current != null; current = current.getCause()) {
+            ErrorResponse mapped = map(current);
+            if (mapped != null) {
+                return mapped;
+            }
         }
         return of(ErrorCode.INTERNAL_ERROR);
+    }
+
+    /** 识别单层异常；认不出返回 null，由 resolve 继续沿 cause 链查找。 */
+    private ErrorResponse map(Throwable current) {
+        if (current instanceof BusinessException businessException) {
+            return fromBusinessException(businessException);
+        }
+        if (current instanceof DataIntegrityViolationException) {
+            return of(ErrorCode.DATA_CONFLICT);
+        }
+        if (current instanceof TransientDataAccessException) {
+            return of(ErrorCode.DATA_SERVICE_UNAVAILABLE);
+        }
+        if (current instanceof DataAccessException) {
+            return of(ErrorCode.DATA_ACCESS_FAILED);
+        }
+        if (current instanceof NoResourceFoundException) {
+            return of(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (current instanceof HttpRequestMethodNotSupportedException) {
+            return of(ErrorCode.METHOD_NOT_ALLOWED);
+        }
+        if (current instanceof HttpMediaTypeNotSupportedException) {
+            return of(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
+        }
+        if (current instanceof HttpMediaTypeNotAcceptableException) {
+            return of(ErrorCode.NOT_ACCEPTABLE);
+        }
+        return null;
     }
 
     /** 使用错误码默认文案构造响应错误信息。 */
@@ -79,17 +89,5 @@ public class ExceptionResponseMapper {
     /** 对外错误文案不能是空值，避免前端拿到不可展示的 message。 */
     private String defaultIfBlank(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
-    }
-
-    /** 沿 cause 链查找业务异常，让被框架或第三方库包装过的错误仍能保留原 ErrorCode。 */
-    private BusinessException findBusinessException(Throwable exception) {
-        Throwable current = exception;
-        while (current != null) {
-            if (current instanceof BusinessException businessException) {
-                return businessException;
-            }
-            current = current.getCause();
-        }
-        return null;
     }
 }

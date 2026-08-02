@@ -19,6 +19,7 @@ package io.github.malonetalk.exception;
 
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
+import io.agentscope.core.tool.ToolSuspendException;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,9 @@ public class ToolExceptionMapper {
     public ToolResultBlock run(String actionName, ToolAction action) {
         try {
             return action.run();
+        } catch (ToolSuspendException exception) {
+            // 挂起不是错误：交给 agentscope 走 ask_user/ask_caliber 恢复流程，吞掉会破坏交互语义。
+            throw exception;
         } catch (Exception exception) {
             ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
             if (errorResponse.isServerError()) {
