@@ -15,14 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { ApiError } from './request';
+
 export type ChatStreamEventType =
   | 'summary'
   | 'tool_call'
   | 'tool_result'
   | 'thinking'
   | 'text'
+  | 'question'
   | 'report'
-  | 'question';
+  | 'error';
 
 export interface ToolCallInfo {
   id: string;
@@ -49,6 +52,7 @@ export interface ChatStreamEvent {
   content: string | null;
   toolCall: ToolCallInfo | null;
   toolResult: ToolResultInfo | null;
+  errorCode: string | null;
 }
 
 export interface SessionInfo {
@@ -70,28 +74,53 @@ export interface TurnItem {
   traceSteps: ChatStreamEvent[];
 }
 
-export async function fetchSessionList(): Promise<SessionInfo[]> {
-  const response = await fetch('/api/agent/sessions');
+interface ApiErrorBody {
+  code?: number;
+  errorCode?: string;
+  message?: string;
+  data?: unknown;
+}
+
+async function resolveApiError(response: Response, fallback: string): Promise<ApiError> {
+  try {
+    const body = (await response.json()) as ApiErrorBody;
+    return new ApiError(body.message || fallback, {
+      code: body.code,
+      errorCode: body.errorCode,
+      details: body.data,
+    });
+  } catch {
+    return new ApiError(fallback, {
+      code: response.status,
+    });
+  }
+}
+
+async function fetchJson<T>(url: string, fallback: string): Promise<T> {
+  const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch session list: ${response.status} ${response.statusText}`);
+    throw await resolveApiError(response, `${fallback}: ${response.status} ${response.statusText}`);
   }
   const body = await response.json();
   if (body.code !== 200) {
-    throw new Error(body.message || 'Failed to fetch session list');
+    throw new ApiError(body.message || fallback, {
+      code: body.code,
+      errorCode: body.errorCode,
+      details: body.data,
+    });
   }
-  return body.data as SessionInfo[];
+  return body.data as T;
+}
+
+export async function fetchSessionList(): Promise<SessionInfo[]> {
+  return fetchJson<SessionInfo[]>('/api/agent/sessions', 'Failed to fetch session list');
 }
 
 export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]> {
-  const response = await fetch(`/api/agent/session/${encodeURIComponent(sessionId)}/history`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch session history: ${response.status} ${response.statusText}`);
-  }
-  const body = await response.json();
-  if (body.code !== 200) {
-    throw new Error(body.message || 'Failed to fetch session history');
-  }
-  return body.data as TurnItem[];
+  return fetchJson<TurnItem[]>(
+    `/api/agent/session/${encodeURIComponent(sessionId)}/history`,
+    'Failed to fetch session history',
+  );
 }
 
 export async function* streamChat(
@@ -106,7 +135,10 @@ export async function* streamChat(
   });
 
   if (!response.ok) {
-    throw new Error(`Chat stream failed: ${response.status} ${response.statusText}`);
+    throw await resolveApiError(
+      response,
+      `Chat stream failed: ${response.status} ${response.statusText}`,
+    );
   }
 
   const reader = response.body?.getReader();

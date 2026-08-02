@@ -15,28 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.enums;
+package io.github.malonetalk.dto;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-
-@Getter
-@RequiredArgsConstructor
-public enum ChatStreamEventType {
-    SUMMARY("summary"),
-    TOOL_CALL("tool_call"),
-    TOOL_RESULT("tool_result"),
-    THINKING("thinking"),
-    TEXT("text"),
-    QUESTION("question"),
-    REPORT("report"),
-    ERROR("error");
-
-    private final String code;
-
-    @JsonValue
-    public String getCode() {
-        return code;
-    }
-}
+public record FieldValidationError(String field, String message) {}

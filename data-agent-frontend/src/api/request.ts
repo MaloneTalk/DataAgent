@@ -21,8 +21,34 @@ import { ElMessage } from 'element-plus';
 
 interface ApiResponse<T = unknown> {
   code: number;
+  errorCode?: string;
   data: T;
   message: string;
+}
+
+export interface FieldValidationError {
+  field: string;
+  message: string;
+}
+
+export type FieldErrorMap = Record<string, string>;
+
+export class ApiError extends Error {
+  code?: number;
+  errorCode?: string;
+  details?: unknown;
+
+  constructor(
+    message: string,
+    options: { code?: number; errorCode?: string; details?: unknown } = {},
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = options.code;
+    this.errorCode = options.errorCode;
+    this.details = options.details;
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
 }
 
 const service: AxiosInstance = axios.create({
@@ -43,17 +69,65 @@ service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const res = response.data;
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败');
-      return Promise.reject(new Error(res.message || 'Error'));
+      const apiError = toApiError(res, '请求失败');
+      showApiError(apiError);
+      return Promise.reject(apiError);
     }
     return response;
   },
   error => {
-    const message = error.response?.data?.message || error.message || '网络错误';
-    ElMessage.error(message);
-    return Promise.reject(error);
+    const responseBody = error.response?.data as ApiResponse | undefined;
+    const apiError = toApiError(responseBody, error.message || '网络错误');
+    showApiError(apiError);
+    return Promise.reject(apiError);
   },
 );
+
+function toApiError(response: ApiResponse | undefined, fallbackMessage: string): ApiError {
+  const details = response?.data;
+  return new ApiError(resolveMessage(response, fallbackMessage), {
+    code: response?.code,
+    errorCode: response?.errorCode,
+    details,
+  });
+}
+
+function resolveMessage(response: ApiResponse | undefined, fallbackMessage: string): string {
+  if (isFieldValidationErrors(response?.data)) {
+    return response.data.map(error => `${error.field}: ${error.message}`).join('\n');
+  }
+  return response?.message || fallbackMessage;
+}
+
+function showApiError(error: ApiError) {
+  if (!isFieldValidationErrors(error.details)) {
+    ElMessage.error(error.message);
+  }
+}
+
+export function getFieldErrorMap(error: unknown): FieldErrorMap {
+  if (!(error instanceof ApiError) || !isFieldValidationErrors(error.details)) {
+    return {};
+  }
+  return error.details.reduce<FieldErrorMap>((result, item) => {
+    result[item.field] = item.message;
+    return result;
+  }, {});
+}
+
+export function isFieldValidationErrors(value: unknown): value is FieldValidationError[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      item =>
+        item !== null &&
+        typeof item === 'object' &&
+        typeof (item as FieldValidationError).field === 'string' &&
+        typeof (item as FieldValidationError).message === 'string',
+    )
+  );
+}
 
 export default service;
 export type { ApiResponse };

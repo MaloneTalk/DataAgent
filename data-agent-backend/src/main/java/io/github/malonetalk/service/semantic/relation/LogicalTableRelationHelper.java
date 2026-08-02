@@ -24,6 +24,9 @@ import static io.github.malonetalk.common.SemanticConstants.RELATION_TABLE_COLUM
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -46,22 +49,20 @@ public class LogicalTableRelationHelper {
     }
 
     public List<String> normalizeColumnNames(List<String> columnNames, String fieldName) {
-        if (columnNames == null || columnNames.isEmpty()) {
-            throw new IllegalArgumentException(fieldName + " cannot be empty.");
-        }
+        RequestAssert.requireNotEmpty(columnNames, fieldName + " cannot be empty.");
         Set<String> uniqueKeys = new LinkedHashSet<>();
         Set<String> normalizedColumns = new LinkedHashSet<>();
         for (String columnName : columnNames) {
-            if (columnName == null || columnName.isBlank()) {
-                throw new IllegalArgumentException(fieldName + " contains a blank column name.");
-            }
-            String normalizedColumnName = columnName.trim();
+            String normalizedColumnName =
+                    RequestAssert.requireNotBlank(
+                            columnName, fieldName + " contains a blank column name.");
             String uniqueKey =
                     SemanticUtils.normalizeObjectName(
                             normalizedColumnName,
                             "Missing columnName while normalizing logical relation columns.");
             if (!uniqueKeys.add(uniqueKey)) {
-                throw new IllegalArgumentException(
+                throw BusinessException.of(
+                        ErrorCode.BAD_REQUEST,
                         fieldName + " contains duplicate column: " + normalizedColumnName);
             }
             normalizedColumns.add(normalizedColumnName);
@@ -101,20 +102,23 @@ public class LogicalTableRelationHelper {
             return objectMapper.writeValueAsString(
                     normalizeColumnNames(columnNames, "columnNames"));
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("Failed to serialize relation columns.", e);
+            throw BusinessException.of(
+                    ErrorCode.OPERATION_FAILED, "Failed to serialize relation columns.", e);
         }
     }
 
     public List<String> fromJson(String columnNamesJson, String fieldName) {
-        if (columnNamesJson == null || columnNamesJson.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " json cannot be blank.");
-        }
+        String normalizedJson =
+                RequestAssert.requireNotBlank(
+                        columnNamesJson, fieldName + " json cannot be blank.");
         try {
             return normalizeColumnNames(
-                    objectMapper.readValue(columnNamesJson, STRING_LIST_TYPE), fieldName);
+                    objectMapper.readValue(normalizedJson, STRING_LIST_TYPE), fieldName);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(
-                    "Failed to parse relation columns from " + fieldName + ".", e);
+            throw BusinessException.of(
+                    ErrorCode.BAD_REQUEST,
+                    "Failed to parse relation columns from " + fieldName + ".",
+                    e);
         }
     }
 }

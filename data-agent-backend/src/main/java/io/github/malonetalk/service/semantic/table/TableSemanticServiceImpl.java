@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic.table;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
@@ -27,6 +28,7 @@ import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
@@ -175,7 +177,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
-            throw new IllegalArgumentException("Table semantic metadata does not exist.");
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Table semantic metadata does not exist.");
         }
         tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
     }
@@ -211,7 +214,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return 0;
         }
         if (matchedIds.size() != normalizedNames.size()) {
-            throw new IllegalArgumentException(
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     "Some table semantic metadata does not exist for datasource "
                             + datasourceId
                             + ".");
@@ -222,7 +226,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
         if (datasourceService.findById(datasourceId) == null) {
-            throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 }

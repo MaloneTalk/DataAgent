@@ -19,6 +19,7 @@
   import { onMounted, reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     getDomainPage,
     createDomain,
@@ -53,6 +54,11 @@
     name: '',
     description: '',
   });
+  const {
+    fieldErrors: domainFieldErrors,
+    clearFieldErrors: clearDomainFieldErrors,
+    applyFieldErrors: applyDomainFieldErrors,
+  } = useFieldErrors(domainForm);
   const selectedDomain = ref<DomainInfo | null>(null);
 
   const domainRules: FormRules<DomainEditForm> = {
@@ -93,6 +99,7 @@
   };
 
   const handleOpenDomainCreate = () => {
+    clearDomainFieldErrors();
     selectedDomain.value = null;
     Object.assign(domainForm, {
       name: '',
@@ -102,6 +109,7 @@
   };
 
   const handleOpenDomainEdit = (row: DomainInfo) => {
+    clearDomainFieldErrors();
     selectedDomain.value = row;
     Object.assign(domainForm, {
       name: row.name,
@@ -115,6 +123,7 @@
       return;
     }
 
+    clearDomainFieldErrors();
     const valid = await domainFormRef.value.validate().catch(() => false);
     if (!valid) {
       return;
@@ -137,6 +146,8 @@
 
       domainDialogVisible.value = false;
       await loadDomainPage();
+    } catch (error) {
+      applyDomainFieldErrors(error);
     } finally {
       domainSubmitLoading.value = false;
     }
@@ -232,10 +243,10 @@
       width="640px"
     >
       <el-form ref="domainFormRef" :model="domainForm" :rules="domainRules" label-width="110px">
-        <el-form-item label="领域名称" prop="name">
+        <el-form-item label="领域名称" prop="name" :error="domainFieldErrors.name">
           <el-input v-model="domainForm.name" placeholder="例如：会员、订单、商品" />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
+        <el-form-item label="描述" prop="description" :error="domainFieldErrors.description">
           <el-input
             v-model="domainForm.description"
             type="textarea"

@@ -17,51 +17,142 @@
  */
 package io.github.malonetalk.exception;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.dto.FieldValidationError;
 import jakarta.validation.ConstraintViolationException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.util.StringUtils;
 import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+/** HTTP 全局异常处理入口，负责把异常转换成带 errorCode 的统一 Result 响应。 */
 @RestControllerAdvice
+@Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final ExceptionResponseMapper exceptionResponseMapper;
 
     @ExceptionHandler({
-        IllegalArgumentException.class,
-        MethodArgumentNotValidException.class,
-        BindException.class,
-        ConstraintViolationException.class,
+        MethodArgumentTypeMismatchException.class,
+        MissingServletRequestParameterException.class,
+        ServletRequestBindingException.class,
         HttpMessageNotReadableException.class
     })
-    public Result<Boolean> handleBadRequest(Exception exception) {
-        String message =
-                StringUtils.hasText(exception.getMessage())
-                        ? exception.getMessage()
-                        : "Bad request";
-        return Result.error(400, message);
+    public ResponseEntity<Result<Object>> handleBadRequest(Exception exception) {
+        return response(ErrorCode.BAD_REQUEST, resolveBadRequestMessage(exception));
+    }
+
+    /** Bean Validation 的字段错误返回 VALIDATION_FAILED，并把字段错误放入 data。 */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception) {
+        return validationResponse(toFieldValidationErrors(exception.getBindingResult()));
+    }
+
+    /** 表单或查询参数绑定错误同样按字段校验失败返回。 */
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<Result<Object>> handleBindException(BindException exception) {
+        return validationResponse(toFieldValidationErrors(exception.getBindingResult()));
+    }
+
+    /** 方法参数上的约束校验失败需要从 propertyPath 中提取最后一级字段名。 */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Result<Object>> handleConstraintViolation(
+            ConstraintViolationException exception) {
+        List<FieldValidationError> errors =
+                exception.getConstraintViolations().stream()
+                        .map(
+                                violation ->
+                                        new FieldValidationError(
+                                                resolveConstraintField(
+                                                        violation.getPropertyPath().toString()),
+                                                violation.getMessage()))
+                        .toList();
+        return validationResponse(errors);
     }
 
     @ExceptionHandler(Exception.class)
-    public Result<Boolean> handleInternalError(Exception exception) {
-        // 带状态码的异常（如 404/405/409 的 ResponseStatusException）直接透传，
-        // 交给 Spring 默认的 ResponseStatusExceptionHandler 返回正确状态码，避免被误包成 500
-        if (exception instanceof ResponseStatusException rse) {
-            throw rse;
+    public ResponseEntity<Result<Object>> handleException(Exception exception) {
+        ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
+        logMappedException(exception, errorResponse);
+        return response(errorResponse);
+    }
+
+    private String resolveBadRequestMessage(Exception exception) {
+        if (exception instanceof HttpMessageNotReadableException) {
+            return "Malformed request body.";
         }
-        // MDC 中的 traceId 由 TraceIdFilter 注入，错误日志自动携带，便于按 traceId 串联排查
-        log.error("Unhandled server error", exception);
+        return exception.getMessage() == null
+                ? "Invalid request parameters."
+                : exception.getMessage();
+    }
+
+    /** 字段校验响应使用第一条错误作为主 message，完整字段错误列表放在 data。 */
+    private ResponseEntity<Result<Object>> validationResponse(List<FieldValidationError> errors) {
         String message =
-                StringUtils.hasText(exception.getMessage())
-                        ? exception.getMessage()
-                        : "Internal server error";
-        return Result.error(500, message);
+                errors.stream()
+                        .findFirst()
+                        .map(FieldValidationError::message)
+                        .orElse("Invalid request parameters.");
+        return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getHttpStatus())
+                .body(Result.error(ErrorCode.VALIDATION_FAILED, message, errors));
+    }
+
+    /** 将 Spring BindingResult 转为前端稳定消费的字段错误结构。 */
+    private List<FieldValidationError> toFieldValidationErrors(BindingResult bindingResult) {
+        return bindingResult.getAllErrors().stream().map(this::toFieldValidationError).toList();
+    }
+
+    /** FieldError 使用字段名，ObjectError 回退到对象名。 */
+    private FieldValidationError toFieldValidationError(ObjectError error) {
+        String field =
+                error instanceof FieldError fieldError
+                        ? fieldError.getField()
+                        : error.getObjectName();
+        String message =
+                error.getDefaultMessage() == null
+                        ? "Invalid request parameters."
+                        : error.getDefaultMessage();
+        return new FieldValidationError(field, message);
+    }
+
+    /** ConstraintViolation 的路径可能带方法名或对象名前缀，这里只保留最后一级字段。 */
+    private String resolveConstraintField(String propertyPath) {
+        int separatorIndex = propertyPath.lastIndexOf('.');
+        if (separatorIndex < 0 || separatorIndex == propertyPath.length() - 1) {
+            return propertyPath;
+        }
+        return propertyPath.substring(separatorIndex + 1);
+    }
+
+    private void logMappedException(Exception exception, ErrorResponse errorResponse) {
+        if (errorResponse.isServerError()) {
+            log.error("Mapped server exception", exception);
+        }
+    }
+
+    /** 按错误码和指定文案组装 HTTP 响应。 */
+    private ResponseEntity<Result<Object>> response(ErrorCode errorCode, String message) {
+        return response(exceptionResponseMapper.of(errorCode, message));
+    }
+
+    /** 最终响应出口：HTTP 状态码、业务 errorCode 和 message 在这里对齐。 */
+    private ResponseEntity<Result<Object>> response(ErrorResponse errorResponse) {
+        ErrorCode errorCode = errorResponse.errorCode();
+        return ResponseEntity.status(errorCode.getHttpStatus())
+                .body(Result.error(errorCode, errorResponse.message(), null));
     }
 }

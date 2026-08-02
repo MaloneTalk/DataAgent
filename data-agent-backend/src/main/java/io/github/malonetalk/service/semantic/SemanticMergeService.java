@@ -18,6 +18,7 @@
 package io.github.malonetalk.service.semantic;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.PromptConverter;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
@@ -29,6 +30,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.LogicalTableRelationType;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
@@ -92,19 +94,22 @@ public class SemanticMergeService {
         List<PhysicalColumnInfo> physicalColumns =
                 schemaReader.getTableSchema(datasource, normalizedTableName);
         if (physicalColumns.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Table " + normalizedTableName + " does not exist or has no readable columns.");
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND,
+                    "The physical table does not exist or is unavailable. Synchronize the table"
+                            + " schema and try again.");
         }
 
         TableInfo semanticTable =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         datasource.getId(), normalizedTableName);
         if (semanticTable != null && !SemanticAvailabilityHelper.hasPhysicalTable(semanticTable)) {
-            throw new IllegalArgumentException(
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     "Table " + normalizedTableName + " does not exist physically.");
         }
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {
-            throw new IllegalArgumentException("Table " + normalizedTableName + " is hidden.");
+            throw BusinessException.of(ErrorCode.TABLE_HIDDEN);
         }
 
         Map<String, ColumnInfo> semanticColumnIndex =
@@ -145,7 +150,7 @@ public class SemanticMergeService {
                 sourceColumns =
                         logicalTableRelationHelper.fromJson(
                                 relation.getSourceColumnNamesJson(), "sourceColumnNames");
-            } catch (IllegalArgumentException e) {
+            } catch (BusinessException e) {
                 log.warn(
                         "Skip relation id={}: invalid source columns - {}",
                         relation.getId(),
@@ -157,7 +162,7 @@ public class SemanticMergeService {
                 targetColumns =
                         logicalTableRelationHelper.fromJson(
                                 relation.getTargetColumnNamesJson(), "targetColumnNames");
-            } catch (IllegalArgumentException e) {
+            } catch (BusinessException e) {
                 log.warn(
                         "Skip relation id={}: invalid target columns - {}",
                         relation.getId(),

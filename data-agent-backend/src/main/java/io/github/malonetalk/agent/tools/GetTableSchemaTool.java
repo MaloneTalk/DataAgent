@@ -17,25 +17,28 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @AllArgsConstructor
 public class GetTableSchemaTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
     private final ColumnSemanticService columnSemanticService;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "get_table_schema",
@@ -48,21 +51,27 @@ public class GetTableSchemaTool implements MarkAgentTool {
                     otherwise). This tool should be called to understand the table \
                     structure before generating SQL.\
                     """)
-    public String getTableSchema(
+    public ToolResultBlock getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {
-        try {
-            Datasource datasource = dataSourceService.getActiveDatasource().orElse(null);
-            if (datasource == null) {
-                return "No active datasource available, cannot get table schema.";
-            }
-
-            List<ColumnPromptResponse> columns =
-                    columnSemanticService.getMergedTableSchema(datasource.getId(), tableName);
-            return SemanticUtils.formatTableSchema(tableName, columns);
-        } catch (Exception e) {
-            log.error("Failed to get table schema: " + tableName, e);
-            return "Failed to get table schema: " + e.getMessage();
-        }
+        return toolExceptionMapper.run(
+                "get table schema",
+                () -> {
+                    Datasource datasource =
+                            dataSourceService
+                                    .getActiveDatasource()
+                                    .orElseThrow(
+                                            () ->
+                                                    BusinessException.of(
+                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
+                                                            "No active datasource is available."
+                                                                    + " Unable to retrieve the"
+                                                                    + " table schema."));
+                    List<ColumnPromptResponse> columns =
+                            columnSemanticService.getMergedTableSchema(
+                                    datasource.getId(), tableName);
+                    return ToolResultBlock.text(
+                            SemanticUtils.formatTableSchema(tableName, columns));
+                });
     }
 }

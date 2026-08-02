@@ -20,15 +20,18 @@ package io.github.malonetalk.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import java.util.Map;
+import lombok.Builder;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Builder
 public record ChatStreamEvent(
         ChatStreamEventType type,
         String messageId,
         boolean isLast,
         String content,
         ToolCallInfo toolCall,
-        ToolResultInfo toolResult) {
+        ToolResultInfo toolResult,
+        String errorCode) {
 
     public record ToolCallInfo(String id, String name, Map<String, Object> input) {}
 

@@ -30,6 +30,7 @@ export interface TraceStep {
   content: string | null;
   toolCall: { id: string; name: string; input: Record<string, unknown> } | null;
   toolResult: { id: string; name: string; output: string } | null;
+  errorCode: string | null;
 }
 
 export interface ChatMessage {
@@ -140,11 +141,16 @@ export function useAgentChat(initialSessionId?: string) {
 
           if (event.type === 'summary' && event.content) {
             if (!summaryStarted) {
-              msg.content += '\n\nSummary：\n' + event.content;
+              msg.content += '\n\nSummary:\n' + event.content;
               summaryStarted = true;
             } else {
               msg.content += event.content;
             }
+          }
+
+          if (event.type === 'error') {
+            msg.content = msg.content || `请求失败: ${event.content ?? '请稍后重试'}`;
+            msg.traceSteps = [...msg.traceSteps, toTraceStep(event)];
           }
 
           if (event.type === 'thinking') {
@@ -152,15 +158,7 @@ export function useAgentChat(initialSessionId?: string) {
             if (lastStep && lastStep.type === 'thinking') {
               lastStep.content = (lastStep.content ?? '') + (event.content ?? '');
             } else {
-              msg.traceSteps = [
-                ...msg.traceSteps,
-                {
-                  type: event.type,
-                  content: event.content,
-                  toolCall: event.toolCall,
-                  toolResult: event.toolResult,
-                },
-              ];
+              msg.traceSteps = [...msg.traceSteps, toTraceStep(event)];
             }
           }
 
@@ -169,15 +167,7 @@ export function useAgentChat(initialSessionId?: string) {
             event.type === 'tool_result' ||
             event.type === 'report'
           ) {
-            msg.traceSteps = [
-              ...msg.traceSteps,
-              {
-                type: event.type,
-                content: event.content,
-                toolCall: event.toolCall,
-                toolResult: event.toolResult,
-              },
-            ];
+            msg.traceSteps = [...msg.traceSteps, toTraceStep(event)];
 
             if (event.type === 'tool_call' && isInteractiveTool(event.toolCall?.name)) {
               const def = INTERACTIVE_TOOLS[event.toolCall!.name];
@@ -213,6 +203,22 @@ export function useAgentChat(initialSessionId?: string) {
       isStreaming.value = false;
       abortController.value = null;
     }
+  }
+
+  function toTraceStep(event: {
+    type: ChatStreamEventType;
+    content: string | null;
+    toolCall: TraceStep['toolCall'];
+    toolResult: TraceStep['toolResult'];
+    errorCode?: string | null;
+  }): TraceStep {
+    return {
+      type: event.type,
+      content: event.content,
+      toolCall: event.toolCall,
+      toolResult: event.toolResult,
+      errorCode: event.errorCode ?? null,
+    };
   }
 
   function stopStreaming() {

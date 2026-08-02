@@ -37,6 +37,9 @@ import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
+import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.exception.ErrorResponse;
+import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.web.TraceIdFilter;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -57,6 +60,7 @@ public class AgentService {
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
     private final SkillLoaderService skillLoaderService;
+    private final ExceptionResponseMapper exceptionResponseMapper;
     private final EventConverter eventConverter;
     private Toolkit toolkit;
     private SkillBox skillBox;
@@ -70,31 +74,17 @@ public class AgentService {
 
     public Flux<ChatStreamEvent> chatStream(
             String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
+        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults))
+                .onErrorResume(this::toErrorEvent);
+    }
+
+    private Flux<ChatStreamEvent> streamAgent(
+            String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
         ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
-
-        Msg userMsg;
-        if (toolResults != null && !toolResults.isEmpty()) {
-            List<ContentBlock> blocks =
-                    toolResults.stream()
-                            .<ContentBlock>map(
-                                    tr ->
-                                            ToolResultBlock.builder()
-                                                    .id(tr.toolCallId())
-                                                    .name(tr.toolName())
-                                                    .output(
-                                                            TextBlock.builder()
-                                                                    .text(tr.output())
-                                                                    .build())
-                                                    .build())
-                            .toList();
-            userMsg = Msg.builder().role(MsgRole.TOOL).content(blocks).build();
-        } else {
-            String text = userInput != null ? userInput : "";
-            userMsg = Msg.builder().textContent(text).build();
-        }
+        Msg userMsg = buildUserMessage(userInput, toolResults);
 
         StreamOptions streamOptions =
                 StreamOptions.builder()
@@ -120,9 +110,44 @@ public class AgentService {
                                         sessionId,
                                         signalType))
                 .subscribeOn(Schedulers.boundedElastic())
-                .doFinally(signalType -> agent.saveTo(session, sessionId))
-                .doFinally(st -> MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY))
-                .flatMapIterable(eventConverter::map);
+                .flatMapIterable(eventConverter::map)
+                .doFinally(
+                        signalType -> {
+                            agent.saveTo(session, sessionId);
+                            MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
+                        });
+    }
+
+    private Msg buildUserMessage(String userInput, List<ChatRequest.ToolResultInput> toolResults) {
+        if (toolResults == null || toolResults.isEmpty()) {
+            String text = userInput != null ? userInput : "";
+            return Msg.builder().textContent(text).build();
+        }
+        List<ContentBlock> blocks =
+                toolResults.stream().<ContentBlock>map(this::toToolResultBlock).toList();
+        return Msg.builder().role(MsgRole.TOOL).content(blocks).build();
+    }
+
+    private ToolResultBlock toToolResultBlock(ChatRequest.ToolResultInput toolResult) {
+        return ToolResultBlock.builder()
+                .id(toolResult.toolCallId())
+                .name(toolResult.toolName())
+                .output(TextBlock.builder().text(toolResult.output()).build())
+                .build();
+    }
+
+    private Flux<ChatStreamEvent> toErrorEvent(Throwable exception) {
+        ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
+        if (errorResponse.isServerError()) {
+            log.error("Agent stream failed", exception);
+        }
+        return Flux.just(
+                ChatStreamEvent.builder()
+                        .type(ChatStreamEventType.ERROR)
+                        .isLast(true)
+                        .content(errorResponse.message())
+                        .errorCode(errorResponse.errorCode().getCode())
+                        .build());
     }
 
     private ReActAgent createAgent(ToolCallContext toolCallContext) {

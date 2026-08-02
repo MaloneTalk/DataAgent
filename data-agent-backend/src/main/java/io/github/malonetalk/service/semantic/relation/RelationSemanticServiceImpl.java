@@ -19,6 +19,7 @@ package io.github.malonetalk.service.semantic.relation;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -34,12 +35,14 @@ import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
+import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -67,8 +70,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             RelationSemanticPageQuery query) {
         requireDatasource(query.datasourceId());
         String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(
-                        query.tableName(), "Missing tableName for logical relation page query.");
+                logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
@@ -210,9 +212,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public boolean updateRelationSemanticEnabled(
             String tableName, UpdateLogicalTableRelationEnabledRequest request) {
         requireDatasource(request.datasourceId());
-        if (request.enabled() == null) {
-            throw new IllegalArgumentException("enabled cannot be null.");
-        }
+        RequestAssert.requireNonNull(request.enabled(), "enabled cannot be null.");
         LogicalTableRelation relation =
                 requireRelation(request.datasourceId(), tableName, request.relationId());
         if (Boolean.TRUE.equals(request.enabled())) {
@@ -244,8 +244,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId, String tableName, List<Integer> relationIds) {
         requireDatasource(datasourceId);
         String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(
-                        tableName, "Missing tableName for batch logical relation delete.");
+                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
         if (relationIds == null || relationIds.isEmpty()) {
             return 0;
         }
@@ -258,7 +257,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .distinct()
                         .toList();
         if (matchedIds.size() != relationIds.size()) {
-            throw new IllegalArgumentException(
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     "Some logical relations do not exist or do not belong to source table "
                             + normalizedTableName
                             + ".");
@@ -268,9 +268,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private void requireDatasource(Integer datasourceId) {
-        SemanticUtils.requireDatasourceId(datasourceId);
+        RequestAssert.requireNonNull(datasourceId, "datasourceId cannot be null.");
         if (datasourceService.findById(datasourceId) == null) {
-            throw new IllegalArgumentException("Datasource does not exist: " + datasourceId);
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 
@@ -334,13 +335,15 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         TableInfo tableInfo =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
         if (tableInfo == null) {
-            throw new IllegalArgumentException(
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     fieldName + " " + tableName + " semantic metadata does not exist.");
         }
         if (SemanticAvailabilityHelper.isTableAvailable(tableInfo, UsageLevelEnum.USER_OPERATION)) {
             return;
         }
-        throw new IllegalArgumentException(
+        throw BusinessException.of(
+                ErrorCode.DATA_CONFLICT,
                 SemanticAvailabilityHelper.unavailableMessage(
                         fieldName,
                         tableName,
@@ -355,14 +358,16 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                     columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                             datasourceId, tableName, columnName);
             if (columnInfo == null) {
-                throw new IllegalArgumentException(
+                throw BusinessException.of(
+                        ErrorCode.RESOURCE_NOT_FOUND,
                         fieldName + " " + columnName + " semantic metadata does not exist.");
             }
             if (SemanticAvailabilityHelper.isColumnAvailable(
                     columnInfo, UsageLevelEnum.USER_OPERATION)) {
                 continue;
             }
-            throw new IllegalArgumentException(
+            throw BusinessException.of(
+                    ErrorCode.DATA_CONFLICT,
                     SemanticAvailabilityHelper.unavailableMessage(
                             fieldName,
                             columnName,
@@ -380,8 +385,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String description,
             Boolean enabled) {
         relation.setSourceTableName(
-                logicalTableRelationHelper.normalizeTableName(
-                        tableName, "Missing source tableName for logical relation save."));
+                logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
         List<String> normalizedSourceColumns =
                 logicalTableRelationHelper.normalizeColumnNames(
                         sourceColumnNames, "sourceColumnNames");
@@ -390,8 +394,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         relation.setSourceColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(normalizedSourceColumns));
         relation.setTargetTableName(
-                logicalTableRelationHelper.normalizeTableName(
-                        targetTableName, "Missing targetTableName for logical relation save."));
+                logicalTableRelationHelper.normalizeTableName(targetTableName, "targetTableName"));
         List<String> normalizedTargetColumns =
                 logicalTableRelationHelper.normalizeColumnNames(
                         targetColumnNames, "targetColumnNames");
@@ -418,24 +421,23 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         if (currentRelationId != null && currentRelationId.equals(existing.getId())) {
             return;
         }
-        throw new IllegalArgumentException(
+        throw BusinessException.of(
+                ErrorCode.DATA_CONFLICT,
                 "A logical relation already exists for the same source columns.");
     }
 
     private LogicalTableRelation requireRelation(
             Integer datasourceId, String tableName, Integer relationId) {
-        if (relationId == null) {
-            throw new IllegalArgumentException("relationId cannot be null.");
-        }
+        RequestAssert.requireNonNull(relationId, "relationId cannot be null.");
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
                 || !relation.getSourceTableName()
                         .equals(
-                                SemanticUtils.normalizeObjectName(
-                                        tableName,
-                                        "Missing tableName for logical relation lookup."))) {
-            throw new IllegalArgumentException("Logical relation does not exist.");
+                                logicalTableRelationHelper.normalizeTableName(
+                                        tableName, "tableName"))) {
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Logical relation does not exist.");
         }
         return relation;
     }

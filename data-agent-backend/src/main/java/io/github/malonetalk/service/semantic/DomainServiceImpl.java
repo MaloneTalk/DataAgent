@@ -19,14 +19,17 @@ package io.github.malonetalk.service.semantic;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.DomainCreateRequest;
 import io.github.malonetalk.dto.DomainPageQuery;
 import io.github.malonetalk.dto.DomainUpdateRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.DomainInfo;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.DomainInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -63,9 +66,7 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public DomainInfo findById(Integer id) {
-        if (id == null) {
-            throw new IllegalArgumentException("id 不能为空");
-        }
+        RequestAssert.requireNonNull(id, "id must not be null.");
         return domainInfoMapper.selectById(id);
     }
 
@@ -76,7 +77,8 @@ public class DomainServiceImpl implements DomainService {
                         request.name(), "Missing domain name for domain creation.");
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
-            throw new IllegalArgumentException("领域名称已存在: " + normalizedName);
+            throw BusinessException.of(
+                    ErrorCode.DATA_CONFLICT, "Domain name already exists: " + normalizedName);
         }
         DomainInfo domainInfo = new DomainInfo();
         domainInfo.setName(normalizedName);
@@ -89,19 +91,19 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public DomainInfo update(Integer id, DomainUpdateRequest request) {
-        if (id == null) {
-            throw new IllegalArgumentException("id 不能为空");
-        }
+        RequestAssert.requireNonNull(id, "id must not be null.");
         DomainInfo existing = findById(id);
         if (existing == null) {
-            throw new IllegalArgumentException("领域不存在: id=" + id);
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         String normalizedName =
                 SemanticUtils.normalizeObjectName(
                         request.name(), "Missing domain name for domain update.");
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
-            throw new IllegalArgumentException("领域名称已存在: " + normalizedName);
+            throw BusinessException.of(
+                    ErrorCode.DATA_CONFLICT, "Domain name already exists: " + normalizedName);
         }
         existing.setName(normalizedName);
         existing.setDescription(SemanticUtils.trimToNull(request.description()));
@@ -112,19 +114,21 @@ public class DomainServiceImpl implements DomainService {
 
     @Override
     public void delete(Integer id) {
-        if (id == null) {
-            throw new IllegalArgumentException("id 不能为空");
-        }
+        RequestAssert.requireNonNull(id, "id must not be null.");
         DomainInfo existing = findById(id);
         if (existing == null) {
-            throw new IllegalArgumentException("领域不存在: id=" + id);
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         if (SemanticConstants.DEFAULT_DOMAIN.equalsIgnoreCase(existing.getName())) {
-            throw new IllegalArgumentException("无法删除的领域" + existing.getName());
+            throw BusinessException.of(
+                    ErrorCode.DATA_CONFLICT,
+                    "The default domain cannot be deleted: " + existing.getName());
         }
         int referenceCount = tableInfoMapper.countByDomain(existing.getName());
         if (referenceCount > 0) {
-            throw new IllegalArgumentException("领域正在被占用" + existing.getName());
+            throw BusinessException.of(
+                    ErrorCode.DATA_CONFLICT, "Domain is currently in use: " + existing.getName());
         }
         domainInfoMapper.deleteByIds(List.of(id));
     }

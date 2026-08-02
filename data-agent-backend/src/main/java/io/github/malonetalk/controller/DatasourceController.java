@@ -17,13 +17,17 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.agent.datasource.DataSourceType;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
 import io.github.malonetalk.dto.DatasourceRequest;
 import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.Status;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.DatasourceService;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -52,31 +56,27 @@ public class DatasourceController {
 
     @GetMapping("/{id}")
     public Result<DatasourceResponse> findById(@PathVariable Integer id) {
-        Datasource dataSource = dataSourceService.findById(id);
-        if (dataSource != null) {
-            return Result.success(datasourceConverter.toResponse(dataSource));
-        } else {
-            return Result.error(404, "DataSource not found");
-        }
+        return Result.success(datasourceConverter.toResponse(requireDatasource(id)));
     }
 
     @PostMapping
-    public Result<Boolean> save(@RequestBody DatasourceRequest request) {
+    public Result<Boolean> save(@Valid @RequestBody DatasourceRequest request) {
+        DataSourceType type = requireDatasourceType(request.type());
         Datasource datasource = datasourceConverter.toEntity(request);
+        datasource.setType(type.getCode());
         datasource.setStatus(Status.INACTIVE.getCode());
-        boolean success = dataSourceService.save(datasource);
-        return success ? Result.success() : Result.error("Failed to save");
+        requireOperationSuccess(
+                dataSourceService.save(datasource), "Failed to save the datasource.");
+        return Result.success();
     }
 
     @PutMapping("/{id}")
     public Result<Boolean> update(
-            @PathVariable Integer id, @RequestBody DatasourceRequest request) {
-        Datasource datasource = dataSourceService.findById(id);
-        if (datasource == null) {
-            return Result.error(404, "DataSource not found");
-        }
+            @PathVariable Integer id, @Valid @RequestBody DatasourceRequest request) {
+        DataSourceType type = requireDatasourceType(request.type());
+        Datasource datasource = requireDatasource(id);
         datasource.setName(request.name());
-        datasource.setType(request.type());
+        datasource.setType(type.getCode());
         datasource.setHost(request.host());
         datasource.setPort(request.port());
         datasource.setDatabaseName(request.databaseName());
@@ -86,14 +86,17 @@ public class DatasourceController {
         }
         datasource.setConnectionUrl(request.connectionUrl());
         datasource.setDescription(request.description());
-        boolean success = dataSourceService.update(datasource);
-        return success ? Result.success(true) : Result.error("Failed to update");
+        requireOperationSuccess(
+                dataSourceService.update(datasource), "Failed to update the datasource.");
+        return Result.success(true);
     }
 
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteById(@PathVariable Integer id) {
-        boolean success = dataSourceService.deleteById(id);
-        return success ? Result.success(true) : Result.error("Failed to delete");
+        requireDatasource(id);
+        requireOperationSuccess(
+                dataSourceService.deleteById(id), "Failed to delete the datasource.");
+        return Result.success(true);
     }
 
     @GetMapping("/status/{status}")
@@ -116,21 +119,42 @@ public class DatasourceController {
 
     @PutMapping("/{id}/activate")
     public Result<Boolean> activate(@PathVariable Integer id) {
-        Datasource datasource = dataSourceService.findById(id);
-        if (datasource == null) {
-            return Result.error(404, "DataSource not found");
-        }
-        boolean success = dataSourceService.updateStatus(id, Status.ACTIVE.getCode());
-        return success ? Result.success(true) : Result.error("激活失败");
+        requireDatasource(id);
+        requireOperationSuccess(
+                dataSourceService.updateStatus(id, Status.ACTIVE.getCode()),
+                "Failed to activate the datasource.");
+        return Result.success(true);
     }
 
     @PutMapping("/{id}/deactivate")
     public Result<Boolean> deactivate(@PathVariable Integer id) {
+        requireDatasource(id);
+        requireOperationSuccess(
+                dataSourceService.updateStatus(id, Status.INACTIVE.getCode()),
+                "Failed to deactivate the datasource.");
+        return Result.success(true);
+    }
+
+    private Datasource requireDatasource(Integer id) {
         Datasource datasource = dataSourceService.findById(id);
         if (datasource == null) {
-            return Result.error(404, "DataSource not found");
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "Datasource not found.");
         }
-        boolean success = dataSourceService.updateStatus(id, Status.INACTIVE.getCode());
-        return success ? Result.success(true) : Result.error("禁用失败");
+        return datasource;
+    }
+
+    private DataSourceType requireDatasourceType(String type) {
+        return DataSourceType.fromCode(type)
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.UNSUPPORTED_DATASOURCE_TYPE,
+                                        "Unsupported datasource type: " + type));
+    }
+
+    private void requireOperationSuccess(boolean success, String message) {
+        if (!success) {
+            throw BusinessException.of(ErrorCode.OPERATION_FAILED, message);
+        }
     }
 }

@@ -28,6 +28,7 @@ import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.state.SessionKey;
 import io.agentscope.core.state.SimpleSessionKey;
+import io.github.malonetalk.convertor.handler.ToolResultHandler;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
@@ -159,14 +160,12 @@ public class SessionService {
 
     private void appendToolCall(List<ChatStreamEvent> traceSteps, ToolUseBlock tub) {
         traceSteps.add(
-                new ChatStreamEvent(
-                        ChatStreamEventType.TOOL_CALL,
-                        null,
-                        false,
-                        null,
-                        new ChatStreamEvent.ToolCallInfo(
-                                tub.getId(), tub.getName(), tub.getInput()),
-                        null));
+                ChatStreamEvent.builder()
+                        .type(ChatStreamEventType.TOOL_CALL)
+                        .toolCall(
+                                new ChatStreamEvent.ToolCallInfo(
+                                        tub.getId(), tub.getName(), tub.getInput()))
+                        .build());
     }
 
     private void appendToolResult(List<ChatStreamEvent> traceSteps, ToolResultBlock trb) {
@@ -176,19 +175,14 @@ public class SessionService {
                         .map(b -> ((TextBlock) b).getText())
                         .filter(t -> t != null && !t.isEmpty())
                         .collect(Collectors.joining("\n"));
-        traceSteps.add(
-                new ChatStreamEvent(
-                        ChatStreamEventType.TOOL_RESULT,
-                        null,
-                        false,
-                        null,
-                        null,
-                        new ChatStreamEvent.ToolResultInfo(
-                                trb.getId(), trb.getName(), outputText)));
+        traceSteps.add(ToolResultHandler.defaultHandle(trb, outputText, null, false));
     }
 
     private static ChatStreamEvent thinkingEvent(String thinking) {
-        return new ChatStreamEvent(ChatStreamEventType.THINKING, null, false, thinking, null, null);
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.THINKING)
+                .content(thinking)
+                .build();
     }
 
     public void clearSession(String sessionId) {

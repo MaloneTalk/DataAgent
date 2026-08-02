@@ -19,11 +19,14 @@ package io.github.malonetalk.common;
 
 import java.io.Serializable;
 import lombok.Data;
+import org.springframework.http.HttpStatus;
 
+/** 统一 API 响应体；错误响应通过 errorCode 暴露稳定业务码，message 暴露展示文案。 */
 @Data
 public class Result<T> implements Serializable {
 
     private Integer code;
+    private String errorCode;
     private String message;
     private T data;
 
@@ -40,23 +43,29 @@ public class Result<T> implements Serializable {
         this.data = data;
     }
 
+    public Result(Integer code, String errorCode, String message, T data) {
+        this.code = code;
+        this.errorCode = errorCode;
+        this.message = message;
+        this.data = data;
+    }
+
     public static <T> Result<T> success() {
-        return new Result<>(200, "success");
+        return new Result<>(HttpStatus.OK.value(), "success");
     }
 
     public static <T> Result<T> success(T data) {
-        return new Result<>(200, "success", data);
+        return new Result<>(HttpStatus.OK.value(), "success", data);
     }
 
     public static <T> Result<T> success(String message, T data) {
         return new Result<>(200, message, data);
     }
 
-    public static <T> Result<T> error(String message) {
-        return new Result<>(500, message);
-    }
-
-    public static <T> Result<T> error(Integer code, String message) {
-        return new Result<>(code, message);
+    /** 错误响应统一从 ErrorCode 派生 HTTP code 和业务 errorCode。 */
+    public static <T> Result<T> error(ErrorCode errorCode, String message, T data) {
+        Result<T> result =
+                new Result<>(errorCode.getHttpStatus().value(), errorCode.getCode(), message, data);
+        return result;
     }
 }

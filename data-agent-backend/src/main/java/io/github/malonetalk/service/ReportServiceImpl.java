@@ -19,12 +19,15 @@ package io.github.malonetalk.service;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.ReportConverter;
 import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.dto.ReportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.Report;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ReportMapper;
+import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -40,15 +43,9 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public int create(String sessionId, String title, String content) {
-        if (sessionId == null || sessionId.isBlank()) {
-            throw new IllegalArgumentException("sessionId 不能为空");
-        }
-        if (title == null || title.isBlank()) {
-            throw new IllegalArgumentException("报告标题不能为空");
-        }
-        if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("报告正文不能为空");
-        }
+        RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
+        RequestAssert.requireNotBlank(title, "report title cannot be blank.");
+        RequestAssert.requireNotBlank(content, "report content cannot be blank.");
         Report report = new Report();
         report.setSessionId(sessionId);
         report.setTitle(title);
@@ -57,7 +54,7 @@ public class ReportServiceImpl implements ReportService {
         report.setCreateTime(LocalDateTime.now());
         report.setUpdateTime(LocalDateTime.now());
         if (reportMapper.insert(report) <= 0) {
-            throw new RuntimeException("报告保存失败");
+            throw BusinessException.of(ErrorCode.OPERATION_FAILED, "Failed to save report.");
         }
         return report.getId();
     }
@@ -86,24 +83,25 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public ReportResponse findById(Integer id) {
-        if (id == null) {
-            throw new IllegalArgumentException("id 不能为空");
-        }
+        RequestAssert.requireNonNull(id, "id cannot be null.");
         Report report = reportMapper.selectById(id);
         if (report == null) {
-            throw new IllegalArgumentException("报告不存在或已删除: id=" + id);
+            throw reportNotFound(id);
         }
         return reportConverter.toResponse(report);
     }
 
     @Override
     public void deleteById(Integer id) {
-        if (id == null) {
-            throw new IllegalArgumentException("id 不能为空");
-        }
+        RequestAssert.requireNonNull(id, "id cannot be null.");
         int affected = reportMapper.deleteById(id);
         if (affected == 0) {
-            throw new IllegalArgumentException("报告不存在或已删除: id=" + id);
+            throw reportNotFound(id);
         }
+    }
+
+    private BusinessException reportNotFound(Integer id) {
+        return BusinessException.of(
+                ErrorCode.RESOURCE_NOT_FOUND, "Report does not exist: id=" + id);
     }
 }

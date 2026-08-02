@@ -29,9 +29,12 @@ public class AskUserTool implements MarkAgentTool {
 
     @Tool(
             name = ToolCallConstants.ASK_USER,
-            description = "当你不确定某个操作或需要用户确认时，调用此工具向用户提问。用户回答后你会收到回复并继续执行。")
+            description =
+                    "Ask the user a question when an operation is unclear or requires"
+                            + " confirmation. Execution resumes after the user responds.")
     public String askUser(
-            @ToolParam(name = "question", description = "要向用户询问的问题") String question) {
+            @ToolParam(name = "question", description = "The question to ask the user.")
+                    String question) {
         log.info("Agent asks user: {}", question);
         throw new ToolSuspendException(question);
     }

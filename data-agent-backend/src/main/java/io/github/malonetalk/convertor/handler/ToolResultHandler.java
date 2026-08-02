@@ -20,6 +20,7 @@ package io.github.malonetalk.convertor.handler;
 import io.agentscope.core.message.ToolResultBlock;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 
 public interface ToolResultHandler {
 
@@ -29,13 +30,24 @@ public interface ToolResultHandler {
 
     static ChatStreamEvent defaultHandle(
             ToolResultBlock block, String text, String messageId, boolean isLast) {
-        return new ChatStreamEvent(
-                ChatStreamEventType.TOOL_RESULT,
-                messageId,
-                isLast,
-                null,
-                null,
-                new ChatStreamEvent.ToolResultInfo(
-                        block.getId(), block.getName(), text, block.isSuspended()));
+        Object errorCode = block.getMetadata().get(ToolExceptionMapper.METADATA_ERROR_CODE);
+        Object message = block.getMetadata().get(ToolExceptionMapper.METADATA_ERROR_MESSAGE);
+        if (errorCode instanceof String code && message instanceof String msg) {
+            return ChatStreamEvent.builder()
+                    .type(ChatStreamEventType.ERROR)
+                    .messageId(messageId)
+                    .isLast(isLast)
+                    .content(msg)
+                    .errorCode(code)
+                    .build();
+        }
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.TOOL_RESULT)
+                .messageId(messageId)
+                .isLast(isLast)
+                .toolResult(
+                        new ChatStreamEvent.ToolResultInfo(
+                                block.getId(), block.getName(), text, block.isSuspended()))
+                .build();
     }
 }

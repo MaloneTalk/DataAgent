@@ -29,6 +29,7 @@
     nodes: TableNodeLayout[];
     sourceColumns: RelationColumnNode[];
     targetColumns: RelationColumnNode[];
+    fieldErrors: Record<string, string>;
   }>();
 
   const emit = defineEmits<{
@@ -113,7 +114,7 @@
 <template>
   <el-dialog :model-value="visible" :title="title" width="720px" @close="handleClose">
     <el-form ref="formRef" :model="localForm" :rules="rules" label-width="120px">
-      <el-form-item label="源表" prop="sourceTableName">
+      <el-form-item label="源表" prop="sourceTableName" :error="fieldErrors.sourceTableName">
         <el-select
           v-model="localForm.sourceTableName"
           filterable
@@ -130,13 +131,13 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="源列" prop="sourceColumnNames">
+      <el-form-item label="源列" prop="sourceColumnNames" :error="fieldErrors.sourceColumnNames">
         <el-select
           v-model="localForm.sourceColumnNames"
           multiple
           collapse-tags
           collapse-tags-tooltip
-          placeholder="选择一个或多个源列"
+          placeholder="选择源列"
         >
           <el-option
             v-for="column in sourceColumns"
@@ -148,7 +149,7 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="目标表" prop="targetTableName">
+      <el-form-item label="目标表" prop="targetTableName" :error="fieldErrors.targetTableName">
         <el-select
           v-model="localForm.targetTableName"
           filterable
@@ -165,13 +166,13 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="目标列" prop="targetColumnNames">
+      <el-form-item label="目标列" prop="targetColumnNames" :error="fieldErrors.targetColumnNames">
         <el-select
           v-model="localForm.targetColumnNames"
           multiple
           collapse-tags
           collapse-tags-tooltip
-          placeholder="选择与源列数量一致的目标列"
+          placeholder="选择目标列"
         >
           <el-option
             v-for="column in targetColumns"
@@ -183,16 +184,16 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="关系备注">
+      <el-form-item label="关系备注" prop="description" :error="fieldErrors.description">
         <el-input
           v-model="localForm.description"
           type="textarea"
           :rows="3"
-          placeholder="可填写这条逻辑外键的业务说明"
+          placeholder="可选填写这条逻辑外键的业务说明"
         />
       </el-form-item>
 
-      <el-form-item label="启用关系">
+      <el-form-item label="启用关系" prop="enabled" :error="fieldErrors.enabled">
         <el-switch v-model="localForm.enabled" />
       </el-form-item>
     </el-form>

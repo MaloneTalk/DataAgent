@@ -21,6 +21,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
   import type { DatasourceResponse } from '@/api/datasource';
+  import { useFieldErrors } from '@/composables/useFieldErrors';
 
   const {
     list: dataSourceList,
@@ -50,6 +51,7 @@
     connectionUrl: '',
     description: '',
   });
+  const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
 
   onMounted(() => {
     fetchList();
@@ -87,11 +89,13 @@
 
   const handleAdd = () => {
     resetForm();
+    clearFieldErrors();
     isEdit.value = false;
     dialogVisible.value = true;
   };
 
   const handleEdit = (row: DatasourceResponse) => {
+    clearFieldErrors();
     Object.assign(form, {
       id: row.id,
       name: row.name,
@@ -142,6 +146,7 @@
 
   const handleSubmit = async () => {
     if (!formRef.value) return;
+    clearFieldErrors();
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
 
@@ -155,8 +160,8 @@
         ElMessage.success('新增成功');
       }
       dialogVisible.value = false;
-    } catch {
-      // 错误已由 request 拦截器统一处理
+    } catch (error) {
+      applyFieldErrors(error);
     } finally {
       submitLoading.value = false;
     }
@@ -239,10 +244,10 @@
     :close-on-click-modal="false"
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-      <el-form-item label="数据源名称" prop="name">
+      <el-form-item label="数据源名称" prop="name" :error="fieldErrors.name">
         <el-input v-model="form.name" placeholder="请输入数据源名称" />
       </el-form-item>
-      <el-form-item label="数据源类型" prop="type">
+      <el-form-item label="数据源类型" prop="type" :error="fieldErrors.type">
         <el-select v-model="form.type" placeholder="请选择数据源类型">
           <el-option
             v-for="item in dataSourceTypes"
@@ -252,25 +257,25 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="主机地址" prop="host">
+      <el-form-item label="主机地址" prop="host" :error="fieldErrors.host">
         <el-input v-model="form.host" placeholder="请输入主机地址" />
       </el-form-item>
-      <el-form-item label="端口" prop="port">
+      <el-form-item label="端口" prop="port" :error="fieldErrors.port">
         <el-input-number v-model="form.port" :min="1" :max="65535" placeholder="请输入端口" />
       </el-form-item>
-      <el-form-item label="数据库名" prop="databaseName">
+      <el-form-item label="数据库名" prop="databaseName" :error="fieldErrors.databaseName">
         <el-input v-model="form.databaseName" placeholder="请输入数据库名" />
       </el-form-item>
-      <el-form-item label="用户名" prop="username">
+      <el-form-item label="用户名" prop="username" :error="fieldErrors.username">
         <el-input v-model="form.username" placeholder="请输入用户名" />
       </el-form-item>
-      <el-form-item label="密码" prop="password">
+      <el-form-item label="密码" prop="password" :error="fieldErrors.password">
         <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
       </el-form-item>
-      <el-form-item label="连接URL">
+      <el-form-item label="连接URL" prop="connectionUrl" :error="fieldErrors.connectionUrl">
         <el-input v-model="form.connectionUrl" placeholder="请输入连接URL（可选）" />
       </el-form-item>
-      <el-form-item label="描述">
+      <el-form-item label="描述" prop="description" :error="fieldErrors.description">
         <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
       </el-form-item>
     </el-form>

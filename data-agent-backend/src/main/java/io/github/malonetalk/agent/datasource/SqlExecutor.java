@@ -17,7 +17,9 @@
  */
 package io.github.malonetalk.agent.datasource;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.exception.BusinessException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -54,24 +56,29 @@ public class SqlExecutor {
             return doExecute(conn, validatedSql);
         } catch (SQLException e) {
             log.error("SQL execution failed: {}", e.getMessage(), e);
-            throw new SqlExecutionException("SQL execution failed: " + e.getMessage(), e);
+            throw BusinessException.of(
+                    ErrorCode.SQL_EXECUTION_FAILED,
+                    ErrorCode.SQL_EXECUTION_FAILED.getDefaultMessage(),
+                    e);
         }
     }
 
     String validateAndTransform(String sql) {
         if (sql == null || sql.isBlank()) {
-            throw new IllegalArgumentException("SQL must not be empty");
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "SQL must not be empty.");
         }
 
         Statement stmt;
         try {
             stmt = CCJSqlParserUtil.parse(sql);
         } catch (JSQLParserException e) {
-            throw new SqlSecurityException("Invalid SQL syntax: " + e.getMessage());
+            throw BusinessException.of(
+                    ErrorCode.SQL_NOT_ALLOWED, "Invalid SQL syntax: " + e.getMessage(), e);
         }
 
         if (!(stmt instanceof Select select)) {
-            throw new SqlSecurityException(
+            throw BusinessException.of(
+                    ErrorCode.SQL_NOT_ALLOWED,
                     "Only SELECT queries are allowed. Got: "
                             + stmt.getClass().getSimpleName()
                             + ". SQL: "
@@ -81,7 +88,7 @@ public class SqlExecutor {
         // Block SELECT ... INTO (MySQL OUTFILE / DUMPFILE / table)
         PlainSelect ps = select.getPlainSelect();
         if (ps != null && ps.getIntoTables() != null) {
-            throw new SqlSecurityException("SELECT INTO is not allowed.");
+            throw BusinessException.of(ErrorCode.SQL_NOT_ALLOWED, "SELECT INTO is not allowed.");
         }
 
         //  inject LIMIT if absent, to prevent full table scans
@@ -137,17 +144,5 @@ public class SqlExecutor {
 
         builder.totalRows(rowCount).truncated(truncated);
         return builder.build();
-    }
-
-    public static class SqlExecutionException extends RuntimeException {
-        public SqlExecutionException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
-    public static class SqlSecurityException extends RuntimeException {
-        public SqlSecurityException(String message) {
-            super(message);
-        }
     }
 }

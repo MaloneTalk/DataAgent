@@ -17,25 +17,26 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecutionException;
-import io.github.malonetalk.agent.datasource.SqlExecutor.SqlSecurityException;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @AllArgsConstructor
 public class ExecuteSqlTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
     private final SqlExecutor sqlExecutor;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "execute_sql",
@@ -43,22 +44,24 @@ public class ExecuteSqlTool implements MarkAgentTool {
                     "Execute SELECT SQL query on the target datasource and return the query result."
                         + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
                         + " other modification operations.")
-    public String executeSql(
+    public ToolResultBlock executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
-        Datasource datasource = dataSourceService.getActiveDatasource().orElse(null);
-        if (datasource == null) {
-            return "No active datasource available, cannot execute SQL.";
-        }
-
-        try {
-            QueryResult result = sqlExecutor.execute(datasource, sql);
-            return formatResult(result);
-        } catch (SqlSecurityException e) {
-            return "SQL execution denied: " + e.getMessage();
-        } catch (SqlExecutionException e) {
-            return "SQL execution failed: " + e.getMessage();
-        }
+        return toolExceptionMapper.run(
+                "execute SQL",
+                () -> {
+                    Datasource datasource =
+                            dataSourceService
+                                    .getActiveDatasource()
+                                    .orElseThrow(
+                                            () ->
+                                                    BusinessException.of(
+                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
+                                                            "No active datasource is available."
+                                                                    + " Unable to execute SQL."));
+                    QueryResult result = sqlExecutor.execute(datasource, sql);
+                    return ToolResultBlock.text(formatResult(result));
+                });
     }
 
     private String formatResult(QueryResult result) {

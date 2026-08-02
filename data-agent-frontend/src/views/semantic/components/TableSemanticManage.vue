@@ -19,6 +19,7 @@
   import { onMounted, reactive, ref, nextTick } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     getActiveDatasourceId,
     getTableSemanticPage,
@@ -64,6 +65,7 @@
     tableDescription: '',
     isVisible: true,
   });
+  const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
   const rules: FormRules<TableEditForm> = {
     tableName: [{ required: true, message: '表名不能为空', trigger: 'blur' }],
   };
@@ -141,6 +143,7 @@
   };
 
   const handleOpenEdit = (row: TableSemanticInfo) => {
+    clearFieldErrors();
     Object.assign(form, {
       tableName: row.tableName,
       domain: row.domain,
@@ -154,6 +157,7 @@
 
   const handleSubmit = async () => {
     if (!formRef.value) return;
+    clearFieldErrors();
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
     const activeDatasourceId = await ensureDatasourceId();
@@ -171,7 +175,7 @@
       dialogVisible.value = false;
       await loadPage();
     } catch (err) {
-      ElMessage.error((err as Error).message);
+      applyFieldErrors(err);
     } finally {
       submitLoading.value = false;
     }
@@ -344,10 +348,10 @@
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="表名" prop="tableName">
+        <el-form-item label="表名" prop="tableName" :error="fieldErrors.tableName">
           <el-input v-model="form.tableName" disabled placeholder="请输入表名" />
         </el-form-item>
-        <el-form-item label="领域" prop="domain">
+        <el-form-item label="领域" prop="domain" :error="fieldErrors.domain">
           <el-select
             v-model="form.domain"
             placeholder="请选择领域"
@@ -364,7 +368,11 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="语义描述" prop="tableDescription">
+        <el-form-item
+          label="语义描述"
+          prop="tableDescription"
+          :error="fieldErrors.tableDescription"
+        >
           <el-input
             v-model="form.tableDescription"
             type="textarea"
@@ -372,7 +380,7 @@
             placeholder="请输入表的语义描述信息（为空时将使用物理描述）"
           />
         </el-form-item>
-        <el-form-item label="可见性" prop="isVisible">
+        <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">
           <el-switch v-model="form.isVisible" active-text="可见" inactive-text="隐藏" />
         </el-form-item>
       </el-form>

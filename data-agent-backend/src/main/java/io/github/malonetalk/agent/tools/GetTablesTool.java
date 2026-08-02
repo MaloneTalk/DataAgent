@@ -17,25 +17,27 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.dto.prompt.TablePromptResponse;
+import io.agentscope.core.util.JsonUtils;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
-import java.util.Collections;
 import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @AllArgsConstructor
 public class GetTablesTool implements MarkAgentTool {
 
     private final DatasourceService dataSourceService;
     private final TableSemanticService tableSemanticService;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "get_tables",
@@ -46,7 +48,7 @@ public class GetTablesTool implements MarkAgentTool {
                     information (uses semantic layer if available, falls back to physical \
                     layer otherwise).\
                     """)
-    public List<TablePromptResponse> getTables(
+    public ToolResultBlock getTables(
             @ToolParam(
                             name = "domains",
                             description =
@@ -57,10 +59,24 @@ public class GetTablesTool implements MarkAgentTool {
                                     """,
                             required = false)
                     List<String> domains) {
-        Datasource dataSource = dataSourceService.getActiveDatasource().orElse(null);
-        if (dataSource == null) {
-            return Collections.emptyList();
-        }
-        return tableSemanticService.listMergedTablesByDomains(dataSource.getId(), domains);
+        return toolExceptionMapper.run(
+                "get tables",
+                () -> {
+                    Datasource dataSource =
+                            dataSourceService
+                                    .getActiveDatasource()
+                                    .orElseThrow(
+                                            () ->
+                                                    BusinessException.of(
+                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
+                                                            "No active datasource is available."
+                                                                    + " Unable to retrieve"
+                                                                    + " tables."));
+                    return ToolResultBlock.text(
+                            JsonUtils.getJsonCodec()
+                                    .toJson(
+                                            tableSemanticService.listMergedTablesByDomains(
+                                                    dataSource.getId(), domains)));
+                });
     }
 }
