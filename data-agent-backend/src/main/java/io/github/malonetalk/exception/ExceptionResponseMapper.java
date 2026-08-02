@@ -47,6 +47,11 @@ public class ExceptionResponseMapper {
         if (current instanceof BusinessException businessException) {
             return fromBusinessException(businessException);
         }
+        if (current instanceof IllegalArgumentException) {
+            // 未迁移的裸参数断言统一视为请求参数错误，
+            // 避免这些调用点落成 500。
+            return of(ErrorCode.BAD_REQUEST, current.getMessage());
+        }
         if (current instanceof DataIntegrityViolationException) {
             return of(ErrorCode.DATA_CONFLICT);
         }
