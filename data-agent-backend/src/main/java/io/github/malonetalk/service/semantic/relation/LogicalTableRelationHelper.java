@@ -102,7 +102,8 @@ public class LogicalTableRelationHelper {
             return objectMapper.writeValueAsString(
                     normalizeColumnNames(columnNames, "columnNames"));
         } catch (JsonProcessingException e) {
-            throw BusinessException.operationFailed("Failed to serialize relation columns.", e);
+            throw BusinessException.of(
+                    ErrorCode.OPERATION_FAILED, "Failed to serialize relation columns.", e);
         }
     }
 

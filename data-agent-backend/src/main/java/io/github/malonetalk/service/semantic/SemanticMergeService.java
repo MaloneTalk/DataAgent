@@ -95,7 +95,7 @@ public class SemanticMergeService {
                 schemaReader.getTableSchema(datasource, normalizedTableName);
         if (physicalColumns.isEmpty()) {
             throw BusinessException.of(
-                    ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     "The physical table does not exist or is unavailable. Synchronize the table"
                             + " schema and try again.");
         }
@@ -105,7 +105,7 @@ public class SemanticMergeService {
                         datasource.getId(), normalizedTableName);
         if (semanticTable != null && !SemanticAvailabilityHelper.hasPhysicalTable(semanticTable)) {
             throw BusinessException.of(
-                    ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     "Table " + normalizedTableName + " does not exist physically.");
         }
         if (semanticTable != null && !Boolean.TRUE.equals(semanticTable.getIsVisible())) {

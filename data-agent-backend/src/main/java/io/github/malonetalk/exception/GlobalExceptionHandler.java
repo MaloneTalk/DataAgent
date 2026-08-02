@@ -45,7 +45,6 @@ public class GlobalExceptionHandler {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
 
-    /** Spring 请求解析类错误默认是 BAD_REQUEST，但先允许 mapper 识别其中包装的业务异常。 */
     @ExceptionHandler({
         MethodArgumentTypeMismatchException.class,
         MissingServletRequestParameterException.class,
@@ -53,10 +52,6 @@ public class GlobalExceptionHandler {
         HttpMessageNotReadableException.class
     })
     public ResponseEntity<Result<Object>> handleBadRequest(Exception exception) {
-        ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
-        if (errorResponse.errorCode() != ErrorCode.INTERNAL_ERROR) {
-            return response(errorResponse);
-        }
         return response(ErrorCode.BAD_REQUEST, resolveBadRequestMessage(exception));
     }
 
@@ -96,19 +91,7 @@ public class GlobalExceptionHandler {
         return response(errorResponse);
     }
 
-    /** 为 Spring 请求解析异常提供稳定、不过度泄露内部细节的 BAD_REQUEST 文案。 */
     private String resolveBadRequestMessage(Exception exception) {
-        if (exception instanceof MethodArgumentTypeMismatchException mismatchException) {
-            return "Invalid value for request parameter '" + mismatchException.getName() + "'.";
-        }
-        if (exception instanceof MissingServletRequestParameterException missingException) {
-            return "Required request parameter '"
-                    + missingException.getParameterName()
-                    + "' is missing.";
-        }
-        if (exception instanceof ServletRequestBindingException) {
-            return "Invalid request binding.";
-        }
         if (exception instanceof HttpMessageNotReadableException) {
             return "Malformed request body.";
         }

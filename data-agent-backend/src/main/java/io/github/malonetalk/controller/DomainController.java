@@ -55,7 +55,7 @@ public class DomainController {
         requireNonNegativeId(id);
         DomainInfo domain = domainService.findById(id);
         if (domain == null) {
-            throw BusinessException.of(ErrorCode.DOMAIN_NOT_FOUND);
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "Domain not found.");
         }
         return Result.success(domain);
     }

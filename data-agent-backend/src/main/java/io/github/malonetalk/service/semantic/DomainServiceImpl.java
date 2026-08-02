@@ -78,8 +78,7 @@ public class DomainServiceImpl implements DomainService {
         DomainInfo existing = domainInfoMapper.selectByName(normalizedName);
         if (existing != null) {
             throw BusinessException.of(
-                    ErrorCode.DOMAIN_NAME_CONFLICT,
-                    "Domain name already exists: " + normalizedName);
+                    ErrorCode.DATA_CONFLICT, "Domain name already exists: " + normalizedName);
         }
         DomainInfo domainInfo = new DomainInfo();
         domainInfo.setName(normalizedName);
@@ -96,7 +95,7 @@ public class DomainServiceImpl implements DomainService {
         DomainInfo existing = findById(id);
         if (existing == null) {
             throw BusinessException.of(
-                    ErrorCode.DOMAIN_NOT_FOUND, "Domain does not exist: id=" + id);
+                    ErrorCode.RESOURCE_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         String normalizedName =
                 SemanticUtils.normalizeObjectName(
@@ -104,8 +103,7 @@ public class DomainServiceImpl implements DomainService {
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
             throw BusinessException.of(
-                    ErrorCode.DOMAIN_NAME_CONFLICT,
-                    "Domain name already exists: " + normalizedName);
+                    ErrorCode.DATA_CONFLICT, "Domain name already exists: " + normalizedName);
         }
         existing.setName(normalizedName);
         existing.setDescription(SemanticUtils.trimToNull(request.description()));
@@ -120,17 +118,17 @@ public class DomainServiceImpl implements DomainService {
         DomainInfo existing = findById(id);
         if (existing == null) {
             throw BusinessException.of(
-                    ErrorCode.DOMAIN_NOT_FOUND, "Domain does not exist: id=" + id);
+                    ErrorCode.RESOURCE_NOT_FOUND, "Domain does not exist: id=" + id);
         }
         if (SemanticConstants.DEFAULT_DOMAIN.equalsIgnoreCase(existing.getName())) {
             throw BusinessException.of(
-                    ErrorCode.RESOURCE_IN_USE,
+                    ErrorCode.DATA_CONFLICT,
                     "The default domain cannot be deleted: " + existing.getName());
         }
         int referenceCount = tableInfoMapper.countByDomain(existing.getName());
         if (referenceCount > 0) {
             throw BusinessException.of(
-                    ErrorCode.RESOURCE_IN_USE, "Domain is currently in use: " + existing.getName());
+                    ErrorCode.DATA_CONFLICT, "Domain is currently in use: " + existing.getName());
         }
         domainInfoMapper.deleteByIds(List.of(id));
     }

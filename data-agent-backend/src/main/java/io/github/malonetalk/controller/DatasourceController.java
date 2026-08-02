@@ -138,7 +138,7 @@ public class DatasourceController {
     private Datasource requireDatasource(Integer id) {
         Datasource datasource = dataSourceService.findById(id);
         if (datasource == null) {
-            throw BusinessException.of(ErrorCode.DATASOURCE_NOT_FOUND);
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "Datasource not found.");
         }
         return datasource;
     }
@@ -154,7 +154,7 @@ public class DatasourceController {
 
     private void requireOperationSuccess(boolean success, String message) {
         if (!success) {
-            throw BusinessException.operationFailed(message);
+            throw BusinessException.of(ErrorCode.OPERATION_FAILED, message);
         }
     }
 }

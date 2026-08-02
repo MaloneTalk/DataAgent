@@ -142,14 +142,12 @@ public class AgentService {
             log.error("Agent stream failed", exception);
         }
         return Flux.just(
-                new ChatStreamEvent(
-                        ChatStreamEventType.ERROR,
-                        null,
-                        true,
-                        errorResponse.message(),
-                        null,
-                        null,
-                        errorResponse.errorCode().getCode()));
+                ChatStreamEvent.builder()
+                        .type(ChatStreamEventType.ERROR)
+                        .isLast(true)
+                        .content(errorResponse.message())
+                        .errorCode(errorResponse.errorCode().getCode())
+                        .build());
     }
 
     private ReActAgent createAgent(ToolCallContext toolCallContext) {

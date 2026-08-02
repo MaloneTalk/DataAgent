@@ -65,7 +65,7 @@ public class SqlExecutor {
 
     String validateAndTransform(String sql) {
         if (sql == null || sql.isBlank()) {
-            throw BusinessException.badRequest("SQL must not be empty.");
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "SQL must not be empty.");
         }
 
         Statement stmt;

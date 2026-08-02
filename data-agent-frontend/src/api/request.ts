@@ -118,6 +118,7 @@ export function getFieldErrorMap(error: unknown): FieldErrorMap {
 export function isFieldValidationErrors(value: unknown): value is FieldValidationError[] {
   return (
     Array.isArray(value) &&
+    value.length > 0 &&
     value.every(
       item =>
         item !== null &&

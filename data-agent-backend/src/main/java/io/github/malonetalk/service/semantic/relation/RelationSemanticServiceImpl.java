@@ -258,7 +258,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .toList();
         if (matchedIds.size() != relationIds.size()) {
             throw BusinessException.of(
-                    ErrorCode.LOGICAL_RELATION_NOT_FOUND,
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     "Some logical relations do not exist or do not belong to source table "
                             + normalizedTableName
                             + ".");
@@ -271,7 +271,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         RequestAssert.requireNonNull(datasourceId, "datasourceId cannot be null.");
         if (datasourceService.findById(datasourceId) == null) {
             throw BusinessException.of(
-                    ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
+                    ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 
@@ -336,7 +336,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
         if (tableInfo == null) {
             throw BusinessException.of(
-                    ErrorCode.TABLE_SEMANTIC_NOT_FOUND,
+                    ErrorCode.RESOURCE_NOT_FOUND,
                     fieldName + " " + tableName + " semantic metadata does not exist.");
         }
         if (SemanticAvailabilityHelper.isTableAvailable(tableInfo, UsageLevelEnum.USER_OPERATION)) {
@@ -359,7 +359,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                             datasourceId, tableName, columnName);
             if (columnInfo == null) {
                 throw BusinessException.of(
-                        ErrorCode.COLUMN_SEMANTIC_NOT_FOUND,
+                        ErrorCode.RESOURCE_NOT_FOUND,
                         fieldName + " " + columnName + " semantic metadata does not exist.");
             }
             if (SemanticAvailabilityHelper.isColumnAvailable(
@@ -422,7 +422,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             return;
         }
         throw BusinessException.of(
-                ErrorCode.LOGICAL_RELATION_CONFLICT,
+                ErrorCode.DATA_CONFLICT,
                 "A logical relation already exists for the same source columns.");
     }
 
@@ -436,7 +436,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .equals(
                                 logicalTableRelationHelper.normalizeTableName(
                                         tableName, "tableName"))) {
-            throw BusinessException.of(ErrorCode.LOGICAL_RELATION_NOT_FOUND);
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Logical relation does not exist.");
         }
         return relation;
     }

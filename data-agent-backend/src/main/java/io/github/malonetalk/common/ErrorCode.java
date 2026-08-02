@@ -52,9 +52,6 @@ public enum ErrorCode {
     TABLE_HIDDEN(
             "TABLE_HIDDEN", HttpStatus.FORBIDDEN, "The table is hidden and cannot be queried."),
 
-    /** 数据源不存在。 */
-    DATASOURCE_NOT_FOUND("DATASOURCE_NOT_FOUND", HttpStatus.NOT_FOUND, "Datasource not found."),
-
     /** 当前没有可用的激活数据源。 */
     NO_ACTIVE_DATASOURCE(
             "NO_ACTIVE_DATASOURCE", HttpStatus.NOT_FOUND, "No active datasource is available."),
@@ -65,51 +62,9 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "Datasource type is not supported."),
 
-    /** 领域不存在。 */
-    DOMAIN_NOT_FOUND("DOMAIN_NOT_FOUND", HttpStatus.NOT_FOUND, "Domain not found."),
-
-    /** MCP server 不存在。 */
-    MCP_SERVER_NOT_FOUND("MCP_SERVER_NOT_FOUND", HttpStatus.NOT_FOUND, "MCP server not found."),
-
-    /** 报告不存在。 */
-    REPORT_NOT_FOUND("REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "Report not found."),
-
-    /** 表语义元数据不存在。 */
-    TABLE_SEMANTIC_NOT_FOUND(
-            "TABLE_SEMANTIC_NOT_FOUND",
-            HttpStatus.NOT_FOUND,
-            "Table semantic metadata does not exist."),
-
-    /** 列语义元数据不存在。 */
-    COLUMN_SEMANTIC_NOT_FOUND(
-            "COLUMN_SEMANTIC_NOT_FOUND",
-            HttpStatus.NOT_FOUND,
-            "Column semantic metadata does not exist."),
-
-    /** 逻辑关系不存在。 */
-    LOGICAL_RELATION_NOT_FOUND(
-            "LOGICAL_RELATION_NOT_FOUND", HttpStatus.NOT_FOUND, "Logical relation does not exist."),
-
     /** 逻辑关系类型非法或不受支持。 */
     INVALID_RELATION_TYPE(
             "INVALID_RELATION_TYPE", HttpStatus.BAD_REQUEST, "Relation type is invalid."),
-
-    /** 领域名称已存在。 */
-    DOMAIN_NAME_CONFLICT(
-            "DOMAIN_NAME_CONFLICT", HttpStatus.CONFLICT, "Domain name already exists."),
-
-    /** MCP server 名称已存在。 */
-    MCP_SERVER_NAME_CONFLICT(
-            "MCP_SERVER_NAME_CONFLICT", HttpStatus.CONFLICT, "MCP server name already exists."),
-
-    /** 相同源表、源列和目标表、目标列的逻辑关系已存在。 */
-    LOGICAL_RELATION_CONFLICT(
-            "LOGICAL_RELATION_CONFLICT",
-            HttpStatus.CONFLICT,
-            "A logical relation already exists for the same source columns."),
-
-    /** 资源仍被其他数据引用，不能删除或变更到目标状态。 */
-    RESOURCE_IN_USE("RESOURCE_IN_USE", HttpStatus.CONFLICT, "Resource is currently in use."),
 
     /** 当前数据状态与请求操作冲突。 */
     DATA_CONFLICT(

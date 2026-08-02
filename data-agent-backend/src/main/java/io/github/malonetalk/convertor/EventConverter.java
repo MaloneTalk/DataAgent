@@ -85,8 +85,12 @@ public class EventConverter {
             return List.of();
         }
         return List.of(
-                new ChatStreamEvent(
-                        ChatStreamEventType.SUMMARY, messageId, isLast, text, null, null));
+                ChatStreamEvent.builder()
+                        .type(ChatStreamEventType.SUMMARY)
+                        .messageId(messageId)
+                        .isLast(isLast)
+                        .content(text)
+                        .build());
     }
 
     private List<ChatStreamEvent> handleReasoningLast(Msg msg, String messageId, boolean isLast) {
@@ -94,19 +98,23 @@ public class EventConverter {
         for (ContentBlock block : msg.getContent()) {
             if (block instanceof ToolUseBlock tub) {
                 results.add(
-                        new ChatStreamEvent(
-                                ChatStreamEventType.TOOL_CALL,
-                                messageId,
-                                isLast,
-                                null,
-                                new ToolCallInfo(tub.getId(), tub.getName(), tub.getInput()),
-                                null));
+                        ChatStreamEvent.builder()
+                                .type(ChatStreamEventType.TOOL_CALL)
+                                .messageId(messageId)
+                                .isLast(isLast)
+                                .toolCall(
+                                        new ToolCallInfo(
+                                                tub.getId(), tub.getName(), tub.getInput()))
+                                .build());
             }
         }
         if (results.isEmpty()) {
             results.add(
-                    new ChatStreamEvent(
-                            ChatStreamEventType.TEXT, messageId, isLast, null, null, null));
+                    ChatStreamEvent.builder()
+                            .type(ChatStreamEventType.TEXT)
+                            .messageId(messageId)
+                            .isLast(isLast)
+                            .build());
         }
         return Collections.unmodifiableList(results);
     }
@@ -138,21 +146,24 @@ public class EventConverter {
         if (!StringUtils.hasText(thinking)) {
             return null;
         }
-        return new ChatStreamEvent(
-                ChatStreamEventType.THINKING, messageId, isLast, thinking, null, null);
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.THINKING)
+                .messageId(messageId)
+                .isLast(isLast)
+                .content(thinking)
+                .build();
     }
 
     private ChatStreamEvent convertToolUse(ToolUseBlock tub, String messageId, boolean isLast) {
         // REASONING events already emit tool calls in the isLast branch above with
         // complete input. Skip incremental duplicates here to avoid emitting partial
         // (empty) tool arguments that the model hasn't finished generating yet.
-        return new ChatStreamEvent(
-                ChatStreamEventType.TOOL_CALL,
-                messageId,
-                isLast,
-                null,
-                new ToolCallInfo(tub.getId(), tub.getName(), tub.getInput()),
-                null);
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.TOOL_CALL)
+                .messageId(messageId)
+                .isLast(isLast)
+                .toolCall(new ToolCallInfo(tub.getId(), tub.getName(), tub.getInput()))
+                .build();
     }
 
     private ChatStreamEvent convertToolResult(
@@ -170,7 +181,12 @@ public class EventConverter {
         if (!StringUtils.hasText(text)) {
             return null;
         }
-        return new ChatStreamEvent(ChatStreamEventType.TEXT, messageId, isLast, text, null, null);
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.TEXT)
+                .messageId(messageId)
+                .isLast(isLast)
+                .content(text)
+                .build();
     }
 
     private String extractAllText(Msg msg) {

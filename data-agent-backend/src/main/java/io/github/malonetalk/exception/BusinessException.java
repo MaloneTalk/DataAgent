@@ -51,16 +51,4 @@ public class BusinessException extends RuntimeException {
     public static BusinessException of(ErrorCode errorCode, String message, Throwable cause) {
         return new BusinessException(errorCode, message, cause);
     }
-
-    public static BusinessException badRequest(String message) {
-        return of(ErrorCode.BAD_REQUEST, message);
-    }
-
-    public static BusinessException operationFailed(String message) {
-        return of(ErrorCode.OPERATION_FAILED, message);
-    }
-
-    public static BusinessException operationFailed(String message, Throwable cause) {
-        return of(ErrorCode.OPERATION_FAILED, message, cause);
-    }
 }

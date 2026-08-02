@@ -62,7 +62,7 @@ public class McpServerController {
     @PostMapping
     public Result<McpServerResponse> save(@Valid @RequestBody McpServerRequest request) {
         if (mcpServerService.findByName(request.name()) != null) {
-            throw BusinessException.of(ErrorCode.MCP_SERVER_NAME_CONFLICT);
+            throw BusinessException.of(ErrorCode.DATA_CONFLICT, "MCP server name already exists.");
         }
 
         McpServer mcpServer = mcpServerConverter.toEntity(request);
@@ -78,7 +78,7 @@ public class McpServerController {
         McpServer existing = requireMcpServer(id);
         McpServer nameConflict = mcpServerService.findByName(request.name());
         if (nameConflict != null && !id.equals(nameConflict.getId())) {
-            throw BusinessException.of(ErrorCode.MCP_SERVER_NAME_CONFLICT);
+            throw BusinessException.of(ErrorCode.DATA_CONFLICT, "MCP server name already exists.");
         }
 
         McpServer mcpServer = mcpServerConverter.toEntity(request);
@@ -127,14 +127,14 @@ public class McpServerController {
     private McpServer requireMcpServer(Integer id) {
         McpServer mcpServer = mcpServerService.findById(id);
         if (mcpServer == null) {
-            throw BusinessException.of(ErrorCode.MCP_SERVER_NOT_FOUND);
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "MCP server not found.");
         }
         return mcpServer;
     }
 
     private void requireOperationSuccess(boolean success, String message) {
         if (!success) {
-            throw BusinessException.operationFailed(message);
+            throw BusinessException.of(ErrorCode.OPERATION_FAILED, message);
         }
     }
 }

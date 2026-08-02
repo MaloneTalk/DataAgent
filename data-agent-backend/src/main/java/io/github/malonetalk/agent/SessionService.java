@@ -160,14 +160,12 @@ public class SessionService {
 
     private void appendToolCall(List<ChatStreamEvent> traceSteps, ToolUseBlock tub) {
         traceSteps.add(
-                new ChatStreamEvent(
-                        ChatStreamEventType.TOOL_CALL,
-                        null,
-                        false,
-                        null,
-                        new ChatStreamEvent.ToolCallInfo(
-                                tub.getId(), tub.getName(), tub.getInput()),
-                        null));
+                ChatStreamEvent.builder()
+                        .type(ChatStreamEventType.TOOL_CALL)
+                        .toolCall(
+                                new ChatStreamEvent.ToolCallInfo(
+                                        tub.getId(), tub.getName(), tub.getInput()))
+                        .build());
     }
 
     private void appendToolResult(List<ChatStreamEvent> traceSteps, ToolResultBlock trb) {
@@ -181,7 +179,10 @@ public class SessionService {
     }
 
     private static ChatStreamEvent thinkingEvent(String thinking) {
-        return new ChatStreamEvent(ChatStreamEventType.THINKING, null, false, thinking, null, null);
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.THINKING)
+                .content(thinking)
+                .build();
     }
 
     public void clearSession(String sessionId) {

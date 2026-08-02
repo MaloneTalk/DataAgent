@@ -36,12 +36,12 @@ public class AskUserToolResultHandler implements ToolResultHandler {
     @Override
     public ChatStreamEvent handle(
             ToolResultBlock block, String text, String messageId, boolean isLast) {
-        return new ChatStreamEvent(
-                ChatStreamEventType.QUESTION,
-                messageId,
-                isLast,
-                text,
-                new ToolCallInfo(block.getId(), block.getName(), Map.of()),
-                null);
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.QUESTION)
+                .messageId(messageId)
+                .isLast(isLast)
+                .content(text)
+                .toolCall(new ToolCallInfo(block.getId(), block.getName(), Map.of()))
+                .build();
     }
 }

@@ -51,17 +51,18 @@ public class GenerateReportToolResultHandler implements ToolResultHandler {
                             text.replace("\"", "")
                                     .substring(ToolCallConstants.SUCCESS_PREFIX.length()));
             ReportResponse reportResponse = reportService.findById(reportId);
-            return new ChatStreamEvent(
-                    ChatStreamEventType.REPORT,
-                    messageId,
-                    isLast,
-                    text,
-                    null,
-                    new ToolResultInfo(
-                            block.getId(),
-                            block.getName(),
-                            reportResponse.content(),
-                            block.isSuspended()));
+            return ChatStreamEvent.builder()
+                    .type(ChatStreamEventType.REPORT)
+                    .messageId(messageId)
+                    .isLast(isLast)
+                    .content(text)
+                    .toolResult(
+                            new ToolResultInfo(
+                                    block.getId(),
+                                    block.getName(),
+                                    reportResponse.content(),
+                                    block.isSuspended()))
+                    .build();
         } catch (Exception e) {
             log.warn("解析报表结果失败", e);
             return ToolResultHandler.defaultHandle(block, text, messageId, isLast);

@@ -215,7 +215,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         Datasource datasource = datasourceService.findById(datasourceId);
         if (datasource == null) {
             throw BusinessException.of(
-                    ErrorCode.DATASOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
+                    ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
         return datasource;
     }

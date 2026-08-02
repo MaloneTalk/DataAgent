@@ -33,16 +33,21 @@ public interface ToolResultHandler {
         Object errorCode = block.getMetadata().get(ToolExceptionMapper.METADATA_ERROR_CODE);
         Object message = block.getMetadata().get(ToolExceptionMapper.METADATA_ERROR_MESSAGE);
         if (errorCode instanceof String code && message instanceof String msg) {
-            return new ChatStreamEvent(
-                    ChatStreamEventType.ERROR, messageId, isLast, msg, null, null, code);
+            return ChatStreamEvent.builder()
+                    .type(ChatStreamEventType.ERROR)
+                    .messageId(messageId)
+                    .isLast(isLast)
+                    .content(msg)
+                    .errorCode(code)
+                    .build();
         }
-        return new ChatStreamEvent(
-                ChatStreamEventType.TOOL_RESULT,
-                messageId,
-                isLast,
-                null,
-                null,
-                new ChatStreamEvent.ToolResultInfo(
-                        block.getId(), block.getName(), text, block.isSuspended()));
+        return ChatStreamEvent.builder()
+                .type(ChatStreamEventType.TOOL_RESULT)
+                .messageId(messageId)
+                .isLast(isLast)
+                .toolResult(
+                        new ChatStreamEvent.ToolResultInfo(
+                                block.getId(), block.getName(), text, block.isSuspended()))
+                .build();
     }
 }
