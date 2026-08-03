@@ -55,7 +55,6 @@ public class GetTableSchemaTool implements MarkAgentTool {
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName) {
         return toolExceptionMapper.run(
-                "get table schema",
                 () -> {
                     Datasource datasource =
                             dataSourceService

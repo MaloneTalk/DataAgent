@@ -18,6 +18,8 @@
 package io.github.malonetalk.exception;
 
 import io.github.malonetalk.common.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
@@ -29,6 +31,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** 将已知异常统一映射为 ErrorCode 和对外提示，供 HTTP、SSE、agent tool 共用。 */
 @Component
+@Slf4j
 public class ExceptionResponseMapper {
 
     /** 统一异常映射入口；沿 cause 链逐层识别，被框架包装过的异常仍能保留原 ErrorCode。 */
@@ -48,9 +51,10 @@ public class ExceptionResponseMapper {
             return fromBusinessException(businessException);
         }
         if (current instanceof IllegalArgumentException) {
-            // 未迁移的裸参数断言统一视为请求参数错误，
-            // 避免这些调用点落成 500。
-            return of(ErrorCode.BAD_REQUEST, current.getMessage());
+            // 未迁移的裸参数断言统一视为请求参数错误，避免落成 500；
+            // 原始 message 可能含连接串等内部细节，只进日志不进响应体。
+            log.debug("IllegalArgumentException mapped to BAD_REQUEST: {}", current.getMessage());
+            return of(ErrorCode.BAD_REQUEST);
         }
         if (current instanceof DataIntegrityViolationException) {
             return of(ErrorCode.DATA_CONFLICT);
@@ -89,6 +93,18 @@ public class ExceptionResponseMapper {
     /** 保留业务异常携带的错误码，同时统一处理空 message 的回退。 */
     private ErrorResponse fromBusinessException(BusinessException exception) {
         return of(exception.getErrorCode(), exception.getMessage());
+    }
+
+    /** 统一日志策略：5xx 记完整堆栈，4xx 记一行摘要；HTTP、SSE、tool 三出口共用。 */
+    public void logMapped(Logger logger, Throwable exception, ErrorResponse errorResponse) {
+        if (errorResponse.isServerError()) {
+            logger.error("Mapped server exception", exception);
+        } else {
+            logger.warn(
+                    "Mapped client error: {} - {}",
+                    errorResponse.errorCode(),
+                    errorResponse.message());
+        }
     }
 
     /** 对外错误文案不能是空值，避免前端拿到不可展示的 message。 */

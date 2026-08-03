@@ -88,7 +88,6 @@ public class GenerateReportTool implements MarkAgentTool {
         }
         String reportSessionId = sessionId;
         return toolExceptionMapper.run(
-                "generate report",
                 () ->
                         ToolResultBlock.text(
                                 ToolCallConstants.SUCCESS_PREFIX

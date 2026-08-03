@@ -138,9 +138,7 @@ public class AgentService {
 
     private Flux<ChatStreamEvent> toErrorEvent(Throwable exception) {
         ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
-        if (errorResponse.isServerError()) {
-            log.error("Agent stream failed", exception);
-        }
+        exceptionResponseMapper.logMapped(log, exception, errorResponse);
         return Flux.just(
                 ChatStreamEvent.builder()
                         .type(ChatStreamEventType.ERROR)

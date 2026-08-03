@@ -60,7 +60,6 @@ public class GetTablesTool implements MarkAgentTool {
                             required = false)
                     List<String> domains) {
         return toolExceptionMapper.run(
-                "get tables",
                 () -> {
                     Datasource dataSource =
                             dataSourceService
