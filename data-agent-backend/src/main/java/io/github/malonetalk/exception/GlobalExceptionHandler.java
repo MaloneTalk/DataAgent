@@ -87,13 +87,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Result<Object>> handleException(Exception exception) {
         ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
-        logMappedException(exception, errorResponse);
+        exceptionResponseMapper.logMapped(log, exception, errorResponse);
         return response(errorResponse);
     }
 
     private String resolveBadRequestMessage(Exception exception) {
         if (exception instanceof HttpMessageNotReadableException) {
             return "Malformed request body.";
+        }
+        if (exception instanceof MethodArgumentTypeMismatchException typeMismatch) {
+            // 转换异常消息含内部类型名（如 java.lang.Long），对外只暴露参数名。
+            return "Invalid value for parameter '" + typeMismatch.getName() + "'.";
         }
         return exception.getMessage() == null
                 ? "Invalid request parameters."
@@ -129,19 +133,14 @@ public class GlobalExceptionHandler {
         return new FieldValidationError(field, message);
     }
 
-    /** ConstraintViolation 的路径可能带方法名或对象名前缀，这里只保留最后一级字段。 */
+    /** ConstraintViolation 的路径形如 "tableName"（参数直接约束）或 "arg0.address.city"（嵌套 DTO），
+     *  去掉第一段参数/方法前缀，保留嵌套字段路径供前端定位。 */
     private String resolveConstraintField(String propertyPath) {
-        int separatorIndex = propertyPath.lastIndexOf('.');
+        int separatorIndex = propertyPath.indexOf('.');
         if (separatorIndex < 0 || separatorIndex == propertyPath.length() - 1) {
             return propertyPath;
         }
         return propertyPath.substring(separatorIndex + 1);
-    }
-
-    private void logMappedException(Exception exception, ErrorResponse errorResponse) {
-        if (errorResponse.isServerError()) {
-            log.error("Mapped server exception", exception);
-        }
     }
 
     /** 按错误码和指定文案组装 HTTP 响应。 */

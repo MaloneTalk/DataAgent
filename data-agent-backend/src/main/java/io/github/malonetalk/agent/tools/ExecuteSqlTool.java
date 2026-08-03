@@ -48,7 +48,6 @@ public class ExecuteSqlTool implements MarkAgentTool {
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql) {
         return toolExceptionMapper.run(
-                "execute SQL",
                 () -> {
                     Datasource datasource =
                             dataSourceService
