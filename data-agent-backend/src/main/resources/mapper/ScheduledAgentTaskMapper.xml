@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.ScheduledAgentTaskMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.ScheduledAgentTask">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="prompt" property="prompt"/>
+        <result column="schedule_type" property="scheduleType"/>
+        <result column="schedule_expr" property="scheduleExpr"/>
+        <result column="timezone" property="timezone"/>
+        <result column="enabled" property="enabled"/>
+        <result column="running" property="running"/>
+        <result column="lock_until" property="lockUntil"/>
+        <result column="session_mode" property="sessionMode"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="next_run_at" property="nextRunAt"/>
+        <result column="last_run_at" property="lastRunAt"/>
+        <result column="last_status" property="lastStatus"/>
+        <result column="last_error" property="lastError"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.ScheduledAgentTask"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO scheduled_agent_task (
+            name, prompt, schedule_type, schedule_expr, timezone,
+            enabled, running, session_mode, session_id, next_run_at,
+            create_time, update_time
+        ) VALUES (
+            #{name}, #{prompt}, #{scheduleType}, #{scheduleExpr}, #{timezone},
+            #{enabled}, #{running}, #{sessionMode}, #{sessionId}, #{nextRunAt},
+            #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update" parameterType="io.github.malonetalk.entity.ScheduledAgentTask">
+        UPDATE scheduled_agent_task
+        SET name = #{name},
+            prompt = #{prompt},
+            schedule_type = #{scheduleType},
+            schedule_expr = #{scheduleExpr},
+            timezone = #{timezone},
+            enabled = #{enabled},
+            session_mode = #{sessionMode},
+            session_id = #{sessionId},
+            next_run_at = #{nextRunAt},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateEnabled">
+        UPDATE scheduled_agent_task
+        SET enabled = #{enabled}, update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM scheduled_agent_task
+        WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM scheduled_agent_task
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM scheduled_agent_task
+        ORDER BY id DESC
+    </select>
+
+    <select id="findDueTasks" resultMap="BaseResultMap">
+        SELECT * FROM scheduled_agent_task
+        WHERE enabled = 1
+          AND next_run_at &lt;= #{now}
+          AND (running = 0 OR lock_until &lt; #{now})
+        ORDER BY next_run_at ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="lockForRun">
+        UPDATE scheduled_agent_task
+        SET running = 1,
+            lock_until = #{lockUntil},
+            update_time = #{now}
+        WHERE id = #{id}
+          AND (running = 0 OR lock_until &lt; #{now})
+          <if test="!force">
+              AND enabled = 1
+              AND next_run_at &lt;= #{now}
+          </if>
+    </update>
+
+    <update id="finishRun">
+        UPDATE scheduled_agent_task
+        SET running = 0,
+            lock_until = NULL,
+            next_run_at = #{nextRunAt},
+            last_run_at = #{lastRunAt},
+            last_status = #{lastStatus},
+            last_error = #{lastError},
+            update_time = #{lastRunAt}
+        WHERE id = #{id}
+    </update>
+</mapper>

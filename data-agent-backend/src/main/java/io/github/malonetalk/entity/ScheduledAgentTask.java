@@ -15,17 +15,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk;
+package io.github.malonetalk.entity;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-@EnableScheduling
-@SpringBootApplication
-public class DataAgentApplication {
+@Data
+public class ScheduledAgentTask {
 
-    public static void main(String[] args) {
-        SpringApplication.run(DataAgentApplication.class, args);
-    }
+    private Integer id;
+    private String name;
+    private String prompt;
+    private String scheduleType;
+    private String scheduleExpr;
+    private String timezone;
+    private Boolean enabled;
+    private Boolean running;
+    private LocalDateTime lockUntil;
+    private String sessionMode;
+    private String sessionId;
+    private LocalDateTime nextRunAt;
+    private LocalDateTime lastRunAt;
+    private String lastStatus;
+    private String lastError;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }
