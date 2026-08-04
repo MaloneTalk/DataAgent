@@ -55,6 +55,8 @@ export function useAgentChat(initialSessionId?: string) {
   const messages = shallowRef<ChatMessage[]>([]);
   const isStreaming = ref(false);
   const sessionId = ref(initialSessionId || generateSessionId());
+  // 待绑定/已绑定的数据源 id；新会话选源后设置，首条消息随请求落库。
+  const datasourceId = ref<number | null>(null);
   const abortController = shallowRef<AbortController | null>(null);
   const pendingQuestion = ref<PendingQuestion | null>(null);
   const lastReportContent = ref<string | null>(null);
@@ -130,7 +132,11 @@ export function useAgentChat(initialSessionId?: string) {
             sessionId: sessionId.value,
             toolResults: [{ toolCallId: pq.toolCallId, toolName: pq.toolName, output: text }],
           }
-        : { sessionId: sessionId.value, message: text };
+        : {
+            sessionId: sessionId.value,
+            message: text,
+            datasourceId: datasourceId.value ?? undefined,
+          };
 
     try {
       for await (const event of streamChat(request, controller.signal)) {
@@ -233,12 +239,14 @@ export function useAgentChat(initialSessionId?: string) {
     stopStreaming();
     clearMessages();
     sessionId.value = generateSessionId();
+    datasourceId.value = null;
   }
 
   return {
     messages,
     isStreaming,
     sessionId,
+    datasourceId,
     pendingQuestion,
     lastReportContent,
     loadHistory,

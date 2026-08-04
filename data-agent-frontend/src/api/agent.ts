@@ -60,12 +60,15 @@ export interface SessionInfo {
   title: string;
   createdAt: string;
   lastActiveAt: string;
+  datasourceId: number | null;
+  datasourceName: string | null;
 }
 
 export interface ChatRequest {
   sessionId: string;
   message?: string;
   toolResults?: ToolResultInput[];
+  datasourceId?: number;
 }
 
 export interface TurnItem {

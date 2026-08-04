@@ -37,6 +37,12 @@ public interface DatasourceService {
 
     Optional<Datasource> getActiveDatasource();
 
+    /** 会话维度解析数据源：有绑定用绑定（无视 status），无绑定回退激活源。 */
+    Datasource getDatasourceForSession(String sessionId);
+
+    /** 绑定会话到数据源；数据源不存在抛 400，已绑定则保留首次绑定。 */
+    void bindSessionDatasource(String sessionId, Integer datasourceId);
+
     List<Datasource> findByType(String type);
 
     boolean updateStatus(Integer id, String status);

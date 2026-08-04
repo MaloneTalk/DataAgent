@@ -40,6 +40,7 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.web.TraceIdFilter;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -62,6 +63,7 @@ public class AgentService {
     private final SkillLoaderService skillLoaderService;
     private final ExceptionResponseMapper exceptionResponseMapper;
     private final EventConverter eventConverter;
+    private final DatasourceService datasourceService;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -73,13 +75,23 @@ public class AgentService {
     }
 
     public Flux<ChatStreamEvent> chatStream(
-            String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
-        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults))
+            String sessionId,
+            String userInput,
+            List<ChatRequest.ToolResultInput> toolResults,
+            Integer datasourceId) {
+        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, datasourceId))
                 .onErrorResume(this::toErrorEvent);
     }
 
     private Flux<ChatStreamEvent> streamAgent(
-            String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
+            String sessionId,
+            String userInput,
+            List<ChatRequest.ToolResultInput> toolResults,
+            Integer datasourceId) {
+        if (datasourceId != null) {
+            // 首次绑定；已绑定会被 INSERT IGNORE 忽略，锁定语义在 mapper 层保证。
+            datasourceService.bindSessionDatasource(sessionId, datasourceId);
+        }
         ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
 
         Session session = sessionService.getOrCreateSession(sessionId);

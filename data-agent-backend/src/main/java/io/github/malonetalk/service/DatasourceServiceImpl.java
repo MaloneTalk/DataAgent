@@ -17,9 +17,13 @@
  */
 package io.github.malonetalk.service;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.SessionDatasource;
 import io.github.malonetalk.enums.Status;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.DatasourceMapper;
+import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +37,7 @@ import org.springframework.stereotype.Service;
 public class DatasourceServiceImpl implements DatasourceService {
 
     private final DatasourceMapper dataSourceMapper;
+    private final SessionDatasourceMapper sessionDatasourceMapper;
 
     @Override
     public List<Datasource> findAll() {
@@ -74,6 +79,36 @@ public class DatasourceServiceImpl implements DatasourceService {
             log.warn("Found {} active data sources, using the first one.", active.size());
         }
         return active.isEmpty() ? Optional.empty() : Optional.of(active.get(0));
+    }
+
+    @Override
+    public Datasource getDatasourceForSession(String sessionId) {
+        SessionDatasource binding = sessionDatasourceMapper.selectBySessionId(sessionId);
+        if (binding != null) {
+            Datasource datasource = findExistingDatasource(binding.getDatasourceId());
+            if (datasource == null) {
+                throw BusinessException.of(ErrorCode.BOUND_DATASOURCE_UNAVAILABLE);
+            }
+            return datasource;
+        }
+        return getActiveDatasource()
+                .orElseThrow(() -> BusinessException.of(ErrorCode.NO_ACTIVE_DATASOURCE));
+    }
+
+    @Override
+    public void bindSessionDatasource(String sessionId, Integer datasourceId) {
+        if (findExistingDatasource(datasourceId) == null) {
+            throw BusinessException.of(
+                    ErrorCode.BAD_REQUEST, "Datasource does not exist: " + datasourceId);
+        }
+        SessionDatasource binding = new SessionDatasource();
+        binding.setSessionId(sessionId);
+        binding.setDatasourceId(datasourceId);
+        sessionDatasourceMapper.insertIfAbsent(binding);
+    }
+
+    private Datasource findExistingDatasource(Integer id) {
+        return dataSourceMapper.selectById(id);
     }
 
     @Override

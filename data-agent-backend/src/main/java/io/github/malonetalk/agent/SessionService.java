@@ -190,6 +190,16 @@ public class SessionService {
         if (session != null) {
             session.delete(SimpleSessionKey.of(sessionId));
         }
+        // 一并清理会话的数据源绑定，避免孤儿绑定。
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps =
+                        conn.prepareStatement(
+                                "DELETE FROM session_datasource WHERE session_id = ?")) {
+            ps.setString(1, sessionId);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.error("Error deleting session datasource binding", e);
+        }
     }
 
     public void clearAllSessions() {
@@ -219,6 +229,21 @@ public class SessionService {
             log.error("Error listing session timestamps", e);
         }
 
+        Map<String, String[]> bindings = new HashMap<>();
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps =
+                        conn.prepareStatement(
+                                "SELECT sd.session_id, sd.datasource_id, d.name"
+                                        + " FROM session_datasource sd"
+                                        + " LEFT JOIN datasource d ON sd.datasource_id = d.id");
+                ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                bindings.put(rs.getString(1), new String[] {rs.getString(2), rs.getString(3)});
+            }
+        } catch (Exception e) {
+            log.error("Error listing session datasource bindings", e);
+        }
+
         List<SessionInfo> result = new ArrayList<>();
         for (SessionKey key : keys) {
             String sid = key.toIdentifier();
@@ -241,7 +266,12 @@ public class SessionService {
             }
 
             String[] times = timestamps.getOrDefault(sid, new String[] {"", ""});
-            result.add(new SessionInfo(sid, title, times[0], times[1]));
+            String[] binding = bindings.get(sid);
+            Integer datasourceId =
+                    binding == null || binding[0] == null ? null : Integer.valueOf(binding[0]);
+            String datasourceName = binding == null ? null : binding[1];
+            result.add(
+                    new SessionInfo(sid, title, times[0], times[1], datasourceId, datasourceName));
         }
 
         result.sort((a, b) -> b.lastActiveAt().compareTo(a.lastActiveAt()));

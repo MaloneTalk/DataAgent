@@ -72,6 +72,12 @@ public enum ErrorCode {
             HttpStatus.CONFLICT,
             "The operation conflicts with the current data state."),
 
+    /** 会话绑定的数据源已被删除，会话无法继续使用。 */
+    BOUND_DATASOURCE_UNAVAILABLE(
+            "BOUND_DATASOURCE_UNAVAILABLE",
+            HttpStatus.CONFLICT,
+            "The datasource bound to this session no longer exists. Please start a new session."),
+
     /** HTTP 方法不支持。 */
     METHOD_NOT_ALLOWED(
             "METHOD_NOT_ALLOWED",

@@ -15,13 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.mapper;
 
-/** 会话摘要；datasourceId/datasourceName 为绑定的数据源信息，未绑定为 null。 */
-public record SessionInfo(
-        String sessionId,
-        String title,
-        String createdAt,
-        String lastActiveAt,
-        Integer datasourceId,
-        String datasourceName) {}
+import io.github.malonetalk.entity.SessionDatasource;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+@Mapper
+public interface SessionDatasourceMapper {
+
+    /** 首次绑定；主键冲突时保留已有绑定（锁定语义）。 */
+    int insertIfAbsent(SessionDatasource sessionDatasource);
+
+    SessionDatasource selectBySessionId(@Param("sessionId") String sessionId);
+}
