@@ -20,11 +20,10 @@ package io.github.malonetalk.agent.tools;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import lombok.AllArgsConstructor;
@@ -46,18 +45,12 @@ public class ExecuteSqlTool implements MarkAgentTool {
                         + " other modification operations.")
     public ToolResultBlock executeSql(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
-                    String sql) {
+                    String sql,
+            ToolCallContext ctx) {
         return toolExceptionMapper.run(
                 () -> {
                     Datasource datasource =
-                            dataSourceService
-                                    .getActiveDatasource()
-                                    .orElseThrow(
-                                            () ->
-                                                    BusinessException.of(
-                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
-                                                            "No active datasource is available."
-                                                                    + " Unable to execute SQL."));
+                            dataSourceService.getDatasourceForSession(ctx.sessionId());
                     QueryResult result = sqlExecutor.execute(datasource, sql);
                     return ToolResultBlock.text(formatResult(result));
                 });

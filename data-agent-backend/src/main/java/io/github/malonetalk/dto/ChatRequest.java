@@ -23,7 +23,8 @@ import java.util.List;
 public record ChatRequest(
         @NotBlank(message = "sessionId 不能为空") String sessionId,
         String message,
-        List<ToolResultInput> toolResults) {
+        List<ToolResultInput> toolResults,
+        Integer datasourceId) {
 
     public record ToolResultInput(String toolCallId, String toolName, String output) {}
 }

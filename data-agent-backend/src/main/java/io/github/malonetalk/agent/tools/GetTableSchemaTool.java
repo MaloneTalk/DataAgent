@@ -20,10 +20,9 @@ package io.github.malonetalk.agent.tools;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
@@ -53,19 +52,12 @@ public class GetTableSchemaTool implements MarkAgentTool {
                     """)
     public ToolResultBlock getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
-                    String tableName) {
+                    String tableName,
+            ToolCallContext ctx) {
         return toolExceptionMapper.run(
                 () -> {
                     Datasource datasource =
-                            dataSourceService
-                                    .getActiveDatasource()
-                                    .orElseThrow(
-                                            () ->
-                                                    BusinessException.of(
-                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
-                                                            "No active datasource is available."
-                                                                    + " Unable to retrieve the"
-                                                                    + " table schema."));
+                            dataSourceService.getDatasourceForSession(ctx.sessionId());
                     List<ColumnPromptResponse> columns =
                             columnSemanticService.getMergedTableSchema(
                                     datasource.getId(), tableName);

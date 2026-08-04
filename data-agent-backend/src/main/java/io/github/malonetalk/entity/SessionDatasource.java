@@ -15,13 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.entity;
 
-/** 会话摘要；datasourceId/datasourceName 为绑定的数据源信息，未绑定为 null。 */
-public record SessionInfo(
-        String sessionId,
-        String title,
-        String createdAt,
-        String lastActiveAt,
-        Integer datasourceId,
-        String datasourceName) {}
+import java.time.LocalDateTime;
+import lombok.Data;
+
+/** 会话与数据源绑定关系（session_id → datasource_id，一会话一源）。 */
+@Data
+public class SessionDatasource {
+
+    private String sessionId;
+    private Integer datasourceId;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
+}

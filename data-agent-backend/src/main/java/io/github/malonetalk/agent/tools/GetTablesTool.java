@@ -21,9 +21,8 @@ import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.util.JsonUtils;
-import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
@@ -58,19 +57,12 @@ public class GetTablesTool implements MarkAgentTool {
                                     returns all tables.\
                                     """,
                             required = false)
-                    List<String> domains) {
+                    List<String> domains,
+            ToolCallContext ctx) {
         return toolExceptionMapper.run(
                 () -> {
                     Datasource dataSource =
-                            dataSourceService
-                                    .getActiveDatasource()
-                                    .orElseThrow(
-                                            () ->
-                                                    BusinessException.of(
-                                                            ErrorCode.NO_ACTIVE_DATASOURCE,
-                                                            "No active datasource is available."
-                                                                    + " Unable to retrieve"
-                                                                    + " tables."));
+                            dataSourceService.getDatasourceForSession(ctx.sessionId());
                     return ToolResultBlock.text(
                             JsonUtils.getJsonCodec()
                                     .toJson(

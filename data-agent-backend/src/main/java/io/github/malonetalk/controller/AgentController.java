@@ -54,7 +54,11 @@ public class AgentController {
             @Valid @RequestBody ChatRequest request) {
         log.info("SSE chat stream started: sessionId={}", request.sessionId());
         return agentService
-                .chatStream(request.sessionId(), request.message(), request.toolResults())
+                .chatStream(
+                        request.sessionId(),
+                        request.message(),
+                        request.toolResults(),
+                        request.datasourceId())
                 .map(
                         event ->
                                 ServerSentEvent.<ChatStreamEvent>builder()
