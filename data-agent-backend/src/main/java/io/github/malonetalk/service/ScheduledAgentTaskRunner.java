@@ -52,13 +52,26 @@ public class ScheduledAgentTaskRunner {
 
     public void run(Integer taskId, boolean force) {
         LocalDateTime startedAt = LocalDateTime.now();
-        if (taskMapper.lockForRun(taskId, startedAt, startedAt.plus(LOCK_DURATION), force) == 0) {
+        String lockOwner = UUID.randomUUID().toString();
+        if (taskMapper.lockForRun(
+                        taskId, startedAt, startedAt.plus(LOCK_DURATION), lockOwner, force)
+                == 0) {
             return;
         }
 
         ScheduledAgentTask task = taskMapper.selectById(taskId);
         String sessionId = resolveSessionId(task);
         ScheduledAgentTaskRun run = startRun(taskId, sessionId, startedAt);
+        if (taskMapper.markRunStarted(taskId, lockOwner, run.getId()) == 0) {
+            runMapper.finish(
+                    run.getId(),
+                    FAILED,
+                    null,
+                    null,
+                    "Scheduled task lock was lost before the run started.",
+                    LocalDateTime.now());
+            return;
+        }
 
         String status = SUCCESS;
         Integer reportId = null;
@@ -79,7 +92,7 @@ public class ScheduledAgentTaskRunner {
             errorMessage = limitText(e.getMessage());
             log.error("Scheduled agent task failed: taskId={}", taskId, e);
         } finally {
-            finish(task, run, force, status, reportId, outputSummary, errorMessage);
+            finish(task, run, lockOwner, force, status, reportId, outputSummary, errorMessage);
         }
     }
 
@@ -97,6 +110,7 @@ public class ScheduledAgentTaskRunner {
     private void finish(
             ScheduledAgentTask task,
             ScheduledAgentTaskRun run,
+            String lockOwner,
             boolean force,
             String status,
             Integer reportId,
@@ -105,11 +119,28 @@ public class ScheduledAgentTaskRunner {
         LocalDateTime finishedAt = LocalDateTime.now();
         runMapper.finish(run.getId(), status, reportId, outputSummary, errorMessage, finishedAt);
         LocalDateTime nextRunAt =
-                force
+                force && task.getNextRunAt().isAfter(finishedAt)
                         ? task.getNextRunAt()
                         : scheduleCalculator.nextRunAfter(
-                                task.getScheduleType(), task.getScheduleExpr(), finishedAt);
-        taskMapper.finishRun(task.getId(), nextRunAt, finishedAt, status, errorMessage);
+                                task.getScheduleType(),
+                                task.getScheduleExpr(),
+                                finishedAt,
+                                task.getTimezone());
+        int updated =
+                taskMapper.finishRun(
+                        task.getId(),
+                        lockOwner,
+                        run.getId(),
+                        nextRunAt,
+                        finishedAt,
+                        status,
+                        errorMessage);
+        if (updated == 0) {
+            log.warn(
+                    "Scheduled agent task lock changed before finish: taskId={}, runId={}",
+                    task.getId(),
+                    run.getId());
+        }
     }
 
     private String resolveSessionId(ScheduledAgentTask task) {

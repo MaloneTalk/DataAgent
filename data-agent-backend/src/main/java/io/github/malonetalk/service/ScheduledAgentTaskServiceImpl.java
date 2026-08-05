@@ -28,7 +28,6 @@ import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
 import io.github.malonetalk.mapper.ScheduledAgentTaskRunMapper;
 import io.github.malonetalk.utils.RequestAssert;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,7 +51,7 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         task.setRunning(false);
         task.setNextRunAt(
                 scheduleCalculator.nextRunAfter(
-                        task.getScheduleType(), task.getScheduleExpr(), now));
+                        task.getScheduleType(), task.getScheduleExpr(), now, task.getTimezone()));
         task.setCreateTime(now);
         task.setUpdateTime(now);
         taskMapper.insert(task);
@@ -65,7 +64,10 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         ScheduledAgentTask task = buildTask(existing, request);
         task.setNextRunAt(
                 scheduleCalculator.nextRunAfter(
-                        task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now()));
+                        task.getScheduleType(),
+                        task.getScheduleExpr(),
+                        LocalDateTime.now(),
+                        task.getTimezone()));
         task.setUpdateTime(LocalDateTime.now());
         taskMapper.update(task);
         return toResponse(taskMapper.selectById(id));
@@ -110,7 +112,7 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                 request.timezone() == null || request.timezone().isBlank()
                         ? DEFAULT_TIMEZONE
                         : request.timezone().trim();
-        ZoneId.of(timezone);
+        timezone = scheduleCalculator.normalizeTimezone(timezone);
 
         String sessionMode = normalizeSessionMode(request.sessionMode());
         String sessionId = normalizeSessionId(sessionMode, request.sessionId());

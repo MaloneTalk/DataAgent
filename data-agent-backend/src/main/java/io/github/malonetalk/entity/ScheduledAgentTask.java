@@ -32,6 +32,8 @@ public class ScheduledAgentTask {
     private Boolean enabled;
     private Boolean running;
     private LocalDateTime lockUntil;
+    private String lockOwner;
+    private Integer currentRunId;
     private String sessionMode;
     private String sessionId;
     private LocalDateTime nextRunAt;

@@ -12,6 +12,8 @@
         <result column="enabled" property="enabled"/>
         <result column="running" property="running"/>
         <result column="lock_until" property="lockUntil"/>
+        <result column="lock_owner" property="lockOwner"/>
+        <result column="current_run_id" property="currentRunId"/>
         <result column="session_mode" property="sessionMode"/>
         <result column="session_id" property="sessionId"/>
         <result column="next_run_at" property="nextRunAt"/>
@@ -85,6 +87,8 @@
         UPDATE scheduled_agent_task
         SET running = 1,
             lock_until = #{lockUntil},
+            lock_owner = #{lockOwner},
+            current_run_id = NULL,
             update_time = #{now}
         WHERE id = #{id}
           AND (running = 0 OR lock_until &lt; #{now})
@@ -94,15 +98,26 @@
           </if>
     </update>
 
+    <update id="markRunStarted">
+        UPDATE scheduled_agent_task
+        SET current_run_id = #{currentRunId}
+        WHERE id = #{id}
+          AND lock_owner = #{lockOwner}
+    </update>
+
     <update id="finishRun">
         UPDATE scheduled_agent_task
         SET running = 0,
             lock_until = NULL,
+            lock_owner = NULL,
+            current_run_id = NULL,
             next_run_at = #{nextRunAt},
             last_run_at = #{lastRunAt},
             last_status = #{lastStatus},
             last_error = #{lastError},
             update_time = #{lastRunAt}
         WHERE id = #{id}
+          AND lock_owner = #{lockOwner}
+          AND current_run_id = #{currentRunId}
     </update>
 </mapper>

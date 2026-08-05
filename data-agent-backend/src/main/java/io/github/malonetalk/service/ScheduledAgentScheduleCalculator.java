@@ -19,9 +19,12 @@ package io.github.malonetalk.service;
 
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
 
@@ -33,12 +36,33 @@ public class ScheduledAgentScheduleCalculator {
     public static final String CRON = "CRON";
 
     public LocalDateTime nextRunAfter(String type, String expr, LocalDateTime after) {
-        return switch (normalizeType(type)) {
-            case DAILY -> nextDaily(expr, after);
-            case INTERVAL -> after.plus(Duration.parse(expr.trim()));
-            case CRON -> nextCron(expr, after);
-            default -> throw invalidSchedule("Unsupported schedule type: " + type);
-        };
+        return nextRunAfter(type, expr, after, ZoneId.systemDefault().getId());
+    }
+
+    public LocalDateTime nextRunAfter(
+            String type, String expr, LocalDateTime after, String timezone) {
+        ZoneId taskZone = ZoneId.of(normalizeTimezone(timezone));
+        ZoneId storageZone = ZoneId.systemDefault();
+        ZonedDateTime afterInTaskZone = after.atZone(storageZone).withZoneSameInstant(taskZone);
+        ZonedDateTime nextInTaskZone =
+                switch (normalizeType(type)) {
+                    case DAILY -> nextDaily(expr, afterInTaskZone);
+                    case INTERVAL -> afterInTaskZone.plus(parsePositiveDuration(expr));
+                    case CRON -> nextCron(expr, afterInTaskZone);
+                    default -> throw invalidSchedule("Unsupported schedule type: " + type);
+                };
+        return nextInTaskZone.withZoneSameInstant(storageZone).toLocalDateTime();
+    }
+
+    public String normalizeTimezone(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            throw invalidSchedule("timezone cannot be blank.");
+        }
+        try {
+            return ZoneId.of(timezone.trim()).getId();
+        } catch (DateTimeException e) {
+            throw invalidSchedule("Unsupported timezone: " + timezone);
+        }
     }
 
     public String normalizeType(String type) {
@@ -48,18 +72,51 @@ public class ScheduledAgentScheduleCalculator {
         return type.trim().toUpperCase();
     }
 
-    private LocalDateTime nextDaily(String expr, LocalDateTime after) {
-        LocalTime time = LocalTime.parse(expr.trim());
-        LocalDateTime next = after.toLocalDate().atTime(time);
+    private ZonedDateTime nextDaily(String expr, ZonedDateTime after) {
+        LocalTime time = parseDailyTime(expr);
+        ZonedDateTime next = after.toLocalDate().atTime(time).atZone(after.getZone());
         return next.isAfter(after) ? next : next.plusDays(1);
     }
 
-    private LocalDateTime nextCron(String expr, LocalDateTime after) {
-        LocalDateTime next = CronExpression.parse(expr.trim()).next(after);
+    private ZonedDateTime nextCron(String expr, ZonedDateTime after) {
+        ZonedDateTime next;
+        try {
+            next = CronExpression.parse(requireScheduleExpr(expr)).next(after);
+        } catch (IllegalArgumentException e) {
+            throw invalidSchedule("Invalid cron expression: " + expr);
+        }
         if (next == null) {
             throw invalidSchedule("Cron expression has no next run time.");
         }
         return next;
+    }
+
+    private LocalTime parseDailyTime(String expr) {
+        try {
+            return LocalTime.parse(requireScheduleExpr(expr));
+        } catch (DateTimeException e) {
+            throw invalidSchedule("Invalid daily schedule time: " + expr);
+        }
+    }
+
+    private Duration parsePositiveDuration(String expr) {
+        Duration duration;
+        try {
+            duration = Duration.parse(requireScheduleExpr(expr));
+        } catch (DateTimeException e) {
+            throw invalidSchedule("Invalid interval duration: " + expr);
+        }
+        if (duration.isZero() || duration.isNegative()) {
+            throw invalidSchedule("Interval duration must be positive.");
+        }
+        return duration;
+    }
+
+    private String requireScheduleExpr(String expr) {
+        if (expr == null || expr.isBlank()) {
+            throw invalidSchedule("scheduleExpr cannot be blank.");
+        }
+        return expr.trim();
     }
 
     private BusinessException invalidSchedule(String message) {

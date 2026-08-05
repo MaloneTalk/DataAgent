@@ -59,6 +59,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/metric/MetricManage.vue'),
     meta: { title: '指标口径管理' },
   },
+  {
+    path: '/scheduled-task',
+    name: 'ScheduledTaskManage',
+    component: () => import('@/views/scheduled-task/ScheduledTaskManage.vue'),
+    meta: { title: '定时任务' },
+  },
 ];
 
 const router = createRouter({
