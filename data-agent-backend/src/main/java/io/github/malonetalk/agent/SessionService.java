@@ -62,7 +62,7 @@ public class SessionService {
     public Session getOrCreateSession(String sessionId) {
         return sessionCache.computeIfAbsent(
                 sessionId,
-                k -> new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false));
+                k -> new MysqlSession(dataSource, "data_agent", "agentscope_sessions", true));
     }
 
     public List<Msg> getSessionDebug(String sessionId) {
@@ -208,7 +208,7 @@ public class SessionService {
 
     public List<SessionInfo> listSessions() {
         MysqlSession session =
-                new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
+                new MysqlSession(dataSource, "data_agent", "agentscope_sessions", true);
         Set<SessionKey> keys = session.listSessionKeys();
 
         if (keys == null || keys.isEmpty()) {
