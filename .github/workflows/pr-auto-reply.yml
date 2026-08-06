@@ -1,0 +1,25 @@
+name: Auto Reply PR
+
+on:
+  pull_request:
+    types: [opened] # 仅在 PR 被打开时触发
+
+permissions:
+  pull-requests: write # 赋予机器人评论权限
+
+jobs:
+  auto-reply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send PR comment
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const issueNumber = context.payload.pull_request.number;
+            const comment = 'Thank you for your contribution! We will review your request as soon as possible. Please review the code yourself using ponytail https://github.com/DietrichGebert/ponytail.';
+            await github.rest.issues.createComment({
+              issue_number: issueNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment,
+            });
