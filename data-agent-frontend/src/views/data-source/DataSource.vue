@@ -74,18 +74,12 @@
   const rules = computed<FormRules>(() => ({
     name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
     type: [{ required: true, message: '请选择数据源类型', trigger: 'change' }],
-    host: isSqlite.value
-      ? []
-      : [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
-    port: isSqlite.value
-      ? []
-      : [{ required: true, message: '请输入端口', trigger: 'blur' }],
+    host: isSqlite.value ? [] : [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
+    port: isSqlite.value ? [] : [{ required: true, message: '请输入端口', trigger: 'blur' }],
     databaseName: isSqlite.value
       ? []
       : [{ required: true, message: '请输入数据库名', trigger: 'blur' }],
-    username: isSqlite.value
-      ? []
-      : [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+    username: isSqlite.value ? [] : [{ required: true, message: '请输入用户名', trigger: 'blur' }],
     connectionUrl: isSqlite.value
       ? [
           {
