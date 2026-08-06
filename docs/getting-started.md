@@ -50,7 +50,7 @@ export IO_GITHUB_MALONETALK_MODEL_BASE_URL="https://api.openai.com/v1"
 export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
 ```
 
-> ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。注意：此前曾有一处硬编码密钥被提交进 git 历史，即使已从文件删除，泄露的密钥仍需**轮换**，否则仍可被他人使用。详见 [configuration.md](configuration.md#安全提示) 。
+> ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。详见 [configuration.md](configuration.md#安全提示) 。
 
 ### 3.3 启动
 
