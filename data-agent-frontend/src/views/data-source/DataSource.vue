@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { ref, reactive, onMounted } from 'vue';
+  import { ref, reactive, onMounted, computed } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
@@ -57,20 +57,45 @@
     fetchList();
   });
 
-  const rules: FormRules = {
+  // value 与后端 DataSourceType.code 一致
+  const dataSourceTypes = [
+    { value: 'mysql', label: 'MySQL' },
+    { value: 'postgresql', label: 'PostgreSQL' },
+    { value: 'oracle', label: 'Oracle' },
+    { value: 'clickhouse', label: 'ClickHouse' },
+    { value: 'sqlserver', label: 'SQL Server' },
+    { value: 'dameng', label: '达梦 DM' },
+    { value: 'oceanbase', label: 'OceanBase' },
+    { value: 'sqlite', label: 'SQLite' },
+  ];
+
+  const isSqlite = computed(() => form.type === 'sqlite');
+
+  const rules = computed<FormRules>(() => ({
     name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
     type: [{ required: true, message: '请选择数据源类型', trigger: 'change' }],
-    host: [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
-    port: [{ required: true, message: '请输入端口', trigger: 'blur' }],
-    databaseName: [{ required: true, message: '请输入数据库名', trigger: 'blur' }],
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  };
-
-  const dataSourceTypes = [
-    { value: 'MySQL', label: 'MySQL' },
-    { value: 'PostgreSQL', label: 'PostgreSQL' },
-    { value: 'Oracle', label: 'Oracle' },
-  ];
+    host: isSqlite.value
+      ? []
+      : [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
+    port: isSqlite.value
+      ? []
+      : [{ required: true, message: '请输入端口', trigger: 'blur' }],
+    databaseName: isSqlite.value
+      ? []
+      : [{ required: true, message: '请输入数据库名', trigger: 'blur' }],
+    username: isSqlite.value
+      ? []
+      : [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+    connectionUrl: isSqlite.value
+      ? [
+          {
+            required: true,
+            message: '请输入连接URL（如 jdbc:sqlite:/path/to/db）',
+            trigger: 'blur',
+          },
+        ]
+      : [],
+  }));
 
   const resetForm = () => {
     Object.assign(form, {
@@ -257,6 +282,15 @@
           />
         </el-select>
       </el-form-item>
+      <el-alert
+        v-if="!isEdit"
+        type="info"
+        :closable="false"
+        show-icon
+        title="后端默认仅内置 MySQL 驱动"
+        description="使用 PostgreSQL / Oracle 等其他数据库前，请先在 data-agent-backend/pom.xml 中添加对应 JDBC 驱动依赖并重新构建后端，否则连接时会提示「未找到数据库驱动」。"
+        class="driver-tip"
+      />
       <el-form-item label="主机地址" prop="host" :error="fieldErrors.host">
         <el-input v-model="form.host" placeholder="请输入主机地址" />
       </el-form-item>
@@ -272,6 +306,15 @@
       <el-form-item label="密码" prop="password" :error="fieldErrors.password">
         <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
       </el-form-item>
+      <el-alert
+        v-if="isSqlite"
+        type="info"
+        :closable="false"
+        show-icon
+        title="SQLite 为本地文件数据库"
+        description="无需填写主机 / 端口 / 数据库名，请在「连接URL」中直接填写形如 jdbc:sqlite:/path/to/db 的文件路径。"
+        class="driver-tip"
+      />
       <el-form-item label="连接URL" prop="connectionUrl" :error="fieldErrors.connectionUrl">
         <el-input v-model="form.connectionUrl" placeholder="请输入连接URL（可选）" />
       </el-form-item>
@@ -312,6 +355,10 @@
     padding: 16px 0;
     color: var(--app-accent);
     font-size: 14px;
+  }
+
+  .driver-tip {
+    margin-bottom: 18px;
   }
 
   .expand-content {

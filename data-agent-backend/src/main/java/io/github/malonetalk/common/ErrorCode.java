@@ -62,6 +62,13 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "Datasource type is not supported."),
 
+    /** 后端未打包对应数据库的 JDBC 驱动，需在 data-agent-backend/pom.xml 引入后重新构建。 */
+    JDBC_DRIVER_NOT_FOUND(
+            "JDBC_DRIVER_NOT_FOUND",
+            HttpStatus.BAD_REQUEST,
+            "The JDBC driver for this database is not bundled in the backend. "
+                    + "Please add it to data-agent-backend/pom.xml and rebuild."),
+
     /** 逻辑关系类型非法或不受支持。 */
     INVALID_RELATION_TYPE(
             "INVALID_RELATION_TYPE", HttpStatus.BAD_REQUEST, "Relation type is invalid."),

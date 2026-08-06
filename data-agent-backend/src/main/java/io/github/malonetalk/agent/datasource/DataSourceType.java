@@ -25,13 +25,39 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum DataSourceType {
-    MYSQL("mysql", "com.mysql.cj.jdbc.Driver", "jdbc:mysql://"),
-    POSTGRESQL("postgresql", "org.postgresql.Driver", "jdbc:postgresql://"),
-    ORACLE("oracle", "oracle.jdbc.OracleDriver", "jdbc:oracle:thin:@");
+    MYSQL("mysql", "com.mysql.cj.jdbc.Driver", "jdbc:mysql://", "com.mysql:mysql-connector-j"),
+    POSTGRESQL(
+            "postgresql",
+            "org.postgresql.Driver",
+            "jdbc:postgresql://",
+            "org.postgresql:postgresql"),
+    ORACLE(
+            "oracle",
+            "oracle.jdbc.OracleDriver",
+            "jdbc:oracle:thin:@",
+            "com.oracle.database.jdbc:ojdbc11"),
+    CLICKHOUSE(
+            "clickhouse",
+            "com.clickhouse.jdbc.ClickHouseDriver",
+            "jdbc:clickhouse://",
+            "com.clickhouse:clickhouse-jdbc"),
+    SQLSERVER(
+            "sqlserver",
+            "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            "jdbc:sqlserver://",
+            "com.microsoft.sqlserver:mssql-jdbc"),
+    DAMENG("dameng", "dm.jdbc.driver.DmDriver", "jdbc:dm://", "com.dameng:DmJdbcDriver18"),
+    OCEANBASE(
+            "oceanbase",
+            "com.oceanbase.jdbc.Driver",
+            "jdbc:oceanbase://",
+            "com.oceanbase:oceanbase-client"),
+    SQLITE("sqlite", "org.sqlite.JDBC", "jdbc:sqlite:", "org.xerial:sqlite-jdbc");
 
     private final String code;
     private final String driverClassName;
     private final String urlPrefix;
+    private final String mavenCoordinates;
 
     public static Optional<DataSourceType> fromCode(String code) {
         if (code == null) {
@@ -44,9 +70,15 @@ public enum DataSourceType {
 
     public String buildJdbcUrl(String host, int port, String databaseName) {
         return switch (this) {
-            case MYSQL -> String.format("%s%s:%d/%s", urlPrefix, host, port, databaseName);
-            case POSTGRESQL -> String.format("%s%s:%d/%s", urlPrefix, host, port, databaseName);
+            case MYSQL, POSTGRESQL, CLICKHOUSE, DAMENG, OCEANBASE ->
+                    String.format("%s%s:%d/%s", urlPrefix, host, port, databaseName);
             case ORACLE -> String.format("%s%s:%d:%s", urlPrefix, host, port, databaseName);
+            case SQLSERVER ->
+                    String.format("%s%s:%d;databaseName=%s", urlPrefix, host, port, databaseName);
+            case SQLITE ->
+                    throw new IllegalArgumentException(
+                            "SQLite datasource does not support host/port-based URLs; please"
+                                    + " provide a connectionUrl like jdbc:sqlite:/path/to/db");
         };
     }
 }
