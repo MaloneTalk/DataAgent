@@ -58,15 +58,51 @@ public class DynamicDataSourceManager {
 
         String jdbcUrl = resolveJdbcUrl(datasource, type);
 
-        HikariConfig config = getHikariConfig(datasource, jdbcUrl, type);
+        // 注意：HikariConfig.setDriverClassName() 会同步加载驱动类，缺驱动时在此即抛异常，
+        // 因此 config 构建与池创建必须同在一个 try 内，才能被转译为可操作的缺驱动提示。
+        try {
+            HikariConfig config = getHikariConfig(datasource, jdbcUrl, type);
 
-        log.info(
-                "Creating datasource pool for [{}] type={} url={}",
-                datasource.getName(),
-                type.getCode(),
-                jdbcUrl);
+            log.info(
+                    "Creating datasource pool for [{}] type={} url={}",
+                    datasource.getName(),
+                    type.getCode(),
+                    jdbcUrl);
 
-        return new HikariDataSource(config);
+            return new HikariDataSource(config);
+        } catch (RuntimeException e) {
+            throw translateInitializationFailure(type, e);
+        } catch (Error e) {
+            // 驱动依赖缺失时 JVM 抛的是 NoClassDefFoundError（Error 而非 Exception），
+            // 且 Error 会绕过 ToolExceptionMapper 的 catch(Exception)，必须在此一并转译。
+            throw translateInitializationFailure(type, e);
+        }
+    }
+
+    /**
+     * 区分池初始化失败的两类原因：驱动未打包（给出 pom.xml 修复指引）与连接失败（原样抛出，
+     * 交由全局异常映射处理）。
+     */
+    private RuntimeException translateInitializationFailure(
+            DataSourceType type, Throwable exception) {
+        for (Throwable current = exception; current != null; current = current.getCause()) {
+            if (current instanceof ClassNotFoundException
+                    || current instanceof NoClassDefFoundError) {
+                return BusinessException.of(
+                        ErrorCode.JDBC_DRIVER_NOT_FOUND,
+                        String.format(
+                                "未找到数据库驱动 %s（%s 类型）。后端默认仅内置 MySQL 驱动，"
+                                        + "请在 data-agent-backend/pom.xml 中添加依赖 %s 后重新构建并启动后端。",
+                                type.getDriverClassName(),
+                                type.getCode(),
+                                type.getMavenCoordinates()),
+                        exception);
+            }
+        }
+        if (exception instanceof RuntimeException runtimeException) {
+            throw runtimeException;
+        }
+        throw new RuntimeException("Unexpected datasource initialization failure", exception);
     }
 
     private static HikariConfig getHikariConfig(
