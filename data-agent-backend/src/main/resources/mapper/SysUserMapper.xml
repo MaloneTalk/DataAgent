@@ -20,6 +20,7 @@
             <idArg column="id" javaType="java.lang.Integer"/>
             <arg column="username" javaType="java.lang.String"/>
             <arg column="display_name" javaType="java.lang.String"/>
+            <arg column="role_id" javaType="java.lang.Integer"/>
         </constructor>
     </resultMap>
 
@@ -33,7 +34,7 @@
     </select>
 
     <select id="selectAuthProjection" resultMap="AuthProjectionMap">
-        SELECT id, username, display_name FROM sys_user
+        SELECT id, username, display_name, role_id FROM sys_user
         WHERE id = #{id} AND status = 1
     </select>
 
@@ -56,5 +57,23 @@
     <select id="countAll" resultType="int">
         SELECT COUNT(*) FROM sys_user
     </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM sys_user ORDER BY id DESC
+    </select>
+
+    <update id="update" parameterType="io.github.malonetalk.entity.SysUser">
+        UPDATE sys_user
+        <set>
+            <if test="displayName != null">display_name = #{displayName},</if>
+            <if test="roleId != null">role_id = #{roleId},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE sys_user SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    </update>
 
 </mapper>

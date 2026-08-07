@@ -19,6 +19,7 @@ package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.entity.SysUser;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -41,4 +42,10 @@ public interface SysUserMapper {
             @Param("updateTime") java.time.LocalDateTime updateTime);
 
     int countAll();
+
+    List<SysUser> selectAll();
+
+    int update(SysUser user);
+
+    int updateStatus(@Param("id") Integer id, @Param("status") Integer status);
 }

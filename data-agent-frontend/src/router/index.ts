@@ -67,6 +67,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/metric/MetricManage.vue'),
     meta: { title: '指标口径管理' },
   },
+  {
+    path: '/sys-user',
+    name: 'UserManage',
+    component: () => import('@/views/sys-user/UserManage.vue'),
+    meta: { title: '用户管理' },
+  },
 ];
 
 const router = createRouter({
