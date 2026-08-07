@@ -38,7 +38,7 @@ public class ScheduledAgentScheduleCalculator {
         ZoneId storageZone = ZoneId.systemDefault();
         ZonedDateTime afterInTaskZone = after.atZone(storageZone).withZoneSameInstant(taskZone);
         ZonedDateTime nextInTaskZone =
-                switch (normalizeType(type)) {
+                switch (ScheduledAgentScheduleType.valueOf(type)) {
                     case DAILY -> nextDaily(expr, afterInTaskZone);
                     case INTERVAL -> afterInTaskZone.plus(parsePositiveDuration(expr));
                     case CRON -> nextCron(expr, afterInTaskZone);
@@ -54,14 +54,6 @@ public class ScheduledAgentScheduleCalculator {
             return ZoneId.of(timezone.trim()).getId();
         } catch (DateTimeException e) {
             throw invalidSchedule("Unsupported timezone: " + timezone);
-        }
-    }
-
-    public ScheduledAgentScheduleType normalizeType(String type) {
-        try {
-            return ScheduledAgentScheduleType.from(type);
-        } catch (IllegalArgumentException e) {
-            throw invalidSchedule(e.getMessage());
         }
     }
 

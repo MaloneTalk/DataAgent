@@ -51,23 +51,10 @@ public interface ScheduledAgentTaskMapper {
             @Param("lockOwner") String lockOwner,
             @Param("force") boolean force);
 
-    int markRunStarted(
-            @Param("id") Integer id,
-            @Param("lockOwner") String lockOwner,
-            @Param("currentRunId") Integer currentRunId);
-
     int finishRun(
             @Param("id") Integer id,
             @Param("lockOwner") String lockOwner,
-            @Param("currentRunId") Integer currentRunId,
             @Param("nextRunAt") LocalDateTime nextRunAt,
-            @Param("lastRunAt") LocalDateTime lastRunAt,
-            @Param("lastStatus") String lastStatus,
-            @Param("lastError") String lastError);
-
-    int releaseClaim(
-            @Param("id") Integer id,
-            @Param("lockOwner") String lockOwner,
-            @Param("currentRunId") Integer currentRunId,
-            @Param("updateTime") LocalDateTime updateTime);
+            @Param("finishedAt") LocalDateTime finishedAt,
+            @Param("lastStatus") String lastStatus);
 }

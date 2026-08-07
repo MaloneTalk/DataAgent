@@ -18,7 +18,6 @@
 package io.github.malonetalk.dto;
 
 import io.github.malonetalk.enums.ScheduledAgentScheduleType;
-import io.github.malonetalk.enums.ScheduledAgentSessionMode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -28,6 +27,4 @@ public record ScheduledAgentTaskRequest(
         @NotNull(message = "scheduleType cannot be null.") ScheduledAgentScheduleType scheduleType,
         @NotBlank(message = "scheduleExpr cannot be blank.") String scheduleExpr,
         String timezone,
-        Boolean enabled,
-        ScheduledAgentSessionMode sessionMode,
-        String sessionId) {}
+        Boolean enabled) {}

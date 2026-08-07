@@ -22,17 +22,13 @@
   import {
     createScheduledTask,
     deleteScheduledTask,
-    disableScheduledTask,
-    enableScheduledTask,
-    listScheduledTaskRuns,
     listScheduledTasks,
     runScheduledTask,
+    updateScheduledTaskEnabled,
     updateScheduledTask,
     type ScheduleType,
     type ScheduledTaskRequest,
     type ScheduledTaskResponse,
-    type ScheduledTaskRunResponse,
-    type SessionMode,
   } from '@/api/scheduledTask';
 
   interface TaskForm {
@@ -42,18 +38,14 @@
     scheduleExpr: string;
     timezone: string;
     enabled: boolean;
-    sessionMode: SessionMode;
-    sessionId: string;
   }
 
   const rows = ref<ScheduledTaskResponse[]>([]);
-  const runs = ref<ScheduledTaskRunResponse[]>([]);
   const keyword = ref('');
   const loading = ref(false);
   const runningTaskId = ref<number | null>(null);
   const submitLoading = ref(false);
   const dialogVisible = ref(false);
-  const runsDrawerVisible = ref(false);
   const selectedTask = ref<ScheduledTaskResponse | null>(null);
   const formRef = ref<FormInstance>();
 
@@ -64,8 +56,6 @@
     scheduleExpr: '09:00',
     timezone: 'Asia/Shanghai',
     enabled: true,
-    sessionMode: 'NEW_EACH_RUN',
-    sessionId: '',
   });
 
   const rules: FormRules<TaskForm> = {
@@ -74,18 +64,6 @@
     scheduleType: [{ required: true, message: '请选择调度类型', trigger: 'change' }],
     scheduleExpr: [{ required: true, message: '调度表达式不能为空', trigger: 'blur' }],
     timezone: [{ required: true, message: '时区不能为空', trigger: 'blur' }],
-    sessionId: [
-      {
-        validator: (_rule, value, callback) => {
-          if (form.sessionMode === 'FIXED_SESSION' && !String(value || '').trim()) {
-            callback(new Error('固定会话模式需要填写 Session ID'));
-            return;
-          }
-          callback();
-        },
-        trigger: 'blur',
-      },
-    ],
   };
 
   const filteredRows = computed(() => {
@@ -95,9 +73,7 @@
     }
     return rows.value.filter(
       item =>
-        item.name.toLowerCase().includes(value) ||
-        item.prompt.toLowerCase().includes(value) ||
-        (item.sessionId || '').toLowerCase().includes(value),
+        item.name.toLowerCase().includes(value) || item.prompt.toLowerCase().includes(value),
     );
   });
 
@@ -129,8 +105,6 @@
       scheduleExpr: '09:00',
       timezone: 'Asia/Shanghai',
       enabled: true,
-      sessionMode: 'NEW_EACH_RUN',
-      sessionId: '',
     });
   }
 
@@ -149,8 +123,6 @@
       scheduleExpr: row.scheduleExpr,
       timezone: row.timezone,
       enabled: row.enabled,
-      sessionMode: row.sessionMode,
-      sessionId: row.sessionId ?? '',
     });
     dialogVisible.value = true;
   }
@@ -171,8 +143,6 @@
       scheduleExpr: form.scheduleExpr.trim(),
       timezone: form.timezone.trim(),
       enabled: form.enabled,
-      sessionMode: form.sessionMode,
-      sessionId: form.sessionMode === 'FIXED_SESSION' ? form.sessionId.trim() : undefined,
     };
 
     submitLoading.value = true;
@@ -193,10 +163,10 @@
 
   async function toggleEnabled(row: ScheduledTaskResponse) {
     if (row.enabled) {
-      await disableScheduledTask(row.id);
+      await updateScheduledTaskEnabled(row.id, false);
       ElMessage.success('任务已停用');
     } else {
-      await enableScheduledTask(row.id);
+      await updateScheduledTaskEnabled(row.id, true);
       ElMessage.success('任务已启用');
     }
     await loadTasks();
@@ -232,13 +202,6 @@
     }
   }
 
-  async function openRuns(row: ScheduledTaskResponse) {
-    selectedTask.value = row;
-    runsDrawerVisible.value = true;
-    const response = await listScheduledTaskRuns(row.id);
-    runs.value = response.data.data ?? [];
-  }
-
   function formatTime(value: string | null) {
     return value ? value.replace('T', ' ') : '-';
   }
@@ -265,7 +228,7 @@
             v-model="keyword"
             class="keyword-field"
             clearable
-            placeholder="搜索任务 / 提示词 / Session"
+            placeholder="搜索任务 / 提示词"
           />
           <el-button :loading="loading" @click="loadTasks">刷新</el-button>
           <el-button type="primary" @click="openCreate">新建任务</el-button>
@@ -284,7 +247,6 @@
               <el-tag :type="row.enabled ? 'success' : 'info'" effect="plain">
                 {{ row.enabled ? '启用' : '停用' }}
               </el-tag>
-              <el-tag v-if="row.running" type="warning" effect="plain">运行中</el-tag>
             </el-space>
           </template>
         </el-table-column>
@@ -306,7 +268,6 @@
             <el-button link type="primary" :loading="runningTaskId === row.id" @click="runNow(row)">
               运行
             </el-button>
-            <el-button link type="primary" @click="openRuns(row)">记录</el-button>
             <el-button link type="danger" @click="removeTask(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -343,19 +304,6 @@
         <el-form-item label="时区" prop="timezone">
           <el-input v-model="form.timezone" placeholder="Asia/Shanghai" />
         </el-form-item>
-        <el-form-item label="会话模式" prop="sessionMode">
-          <el-radio-group v-model="form.sessionMode">
-            <el-radio-button label="NEW_EACH_RUN">每次新会话</el-radio-button>
-            <el-radio-button label="FIXED_SESSION">固定会话</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item
-          v-if="form.sessionMode === 'FIXED_SESSION'"
-          label="Session ID"
-          prop="sessionId"
-        >
-          <el-input v-model="form.sessionId" placeholder="固定复用的 Session ID" />
-        </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.enabled" />
         </el-form-item>
@@ -365,25 +313,6 @@
         <el-button type="primary" :loading="submitLoading" @click="submitTask">保存</el-button>
       </template>
     </el-dialog>
-
-    <el-drawer
-      v-model="runsDrawerVisible"
-      :title="selectedTask ? `${selectedTask.name} 的运行记录` : '运行记录'"
-      size="680px"
-    >
-      <el-table :data="runs" class="task-table">
-        <el-table-column prop="status" label="状态" width="110" />
-        <el-table-column prop="sessionId" label="Session" min-width="220" show-overflow-tooltip />
-        <el-table-column label="开始时间" width="180">
-          <template #default="{ row }">{{ formatTime(row.startedAt) }}</template>
-        </el-table-column>
-        <el-table-column label="结束时间" width="180">
-          <template #default="{ row }">{{ formatTime(row.finishedAt) }}</template>
-        </el-table-column>
-        <el-table-column prop="errorMessage" label="错误" min-width="220" show-overflow-tooltip />
-      </el-table>
-      <div v-if="runs.length === 0" class="empty-tip">暂无运行记录</div>
-    </el-drawer>
   </div>
 </template>
 
@@ -433,11 +362,5 @@
 
   .task-table {
     width: 100%;
-  }
-
-  .empty-tip {
-    padding: 32px 0;
-    text-align: center;
-    color: var(--app-text-muted);
   }
 </style>

@@ -18,7 +18,6 @@
 package io.github.malonetalk.enums;
 
 public enum ScheduledAgentTaskStatus {
-    RUNNING,
     SUCCESS,
     FAILED,
     NEEDS_USER

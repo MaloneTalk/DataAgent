@@ -20,9 +20,7 @@ package io.github.malonetalk.controller;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
 import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
-import io.github.malonetalk.dto.ScheduledAgentTaskRunResponse;
-import io.github.malonetalk.service.DatabasePollingScheduledAgentTaskScheduler;
-import io.github.malonetalk.service.ScheduledAgentTaskService;
+import io.github.malonetalk.service.ScheduledAgentTaskServiceImpl;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
@@ -35,7 +33,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Validated
@@ -44,8 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/scheduled-agent-tasks")
 public class ScheduledAgentTaskController {
 
-    private final ScheduledAgentTaskService taskService;
-    private final DatabasePollingScheduledAgentTaskScheduler taskScheduler;
+    private final ScheduledAgentTaskServiceImpl taskService;
 
     @PostMapping
     public Result<ScheduledAgentTaskResponse> create(
@@ -78,31 +74,17 @@ public class ScheduledAgentTaskController {
         return Result.success(taskService.listAll());
     }
 
-    @PostMapping("/{id}/enable")
-    public Result<Boolean> enable(
-            @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        taskService.updateEnabled(id, true);
-        return Result.success(true);
-    }
-
-    @PostMapping("/{id}/disable")
-    public Result<Boolean> disable(
-            @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        taskService.updateEnabled(id, false);
+    @PutMapping("/{id}/enabled/{enabled}")
+    public Result<Boolean> updateEnabled(
+            @PathVariable @Positive(message = "id must be positive.") Integer id,
+            @PathVariable boolean enabled) {
+        taskService.updateEnabled(id, enabled);
         return Result.success(true);
     }
 
     @PostMapping("/{id}/run")
     public Result<Boolean> runNow(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        taskService.getById(id);
-        return Result.success(taskScheduler.runNow(id));
-    }
-
-    @GetMapping("/{id}/runs")
-    public Result<List<ScheduledAgentTaskRunResponse>> listRuns(
-            @PathVariable @Positive(message = "id must be positive.") Integer id,
-            @RequestParam(defaultValue = "20") int limit) {
-        return Result.success(taskService.listRuns(id, limit));
+        return Result.success(taskService.runNow(id));
     }
 }

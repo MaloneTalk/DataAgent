@@ -20,15 +20,11 @@ package io.github.malonetalk.service;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
 import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
-import io.github.malonetalk.dto.ScheduledAgentTaskRunResponse;
 import io.github.malonetalk.entity.ScheduledAgentTask;
-import io.github.malonetalk.entity.ScheduledAgentTaskRun;
 import io.github.malonetalk.enums.ScheduledAgentScheduleType;
-import io.github.malonetalk.enums.ScheduledAgentSessionMode;
 import io.github.malonetalk.enums.ScheduledAgentTaskStatus;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
-import io.github.malonetalk.mapper.ScheduledAgentTaskRunMapper;
 import io.github.malonetalk.utils.RequestAssert;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,19 +33,17 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService {
+public class ScheduledAgentTaskServiceImpl {
 
-    public static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
+    private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
 
     private final ScheduledAgentTaskMapper taskMapper;
-    private final ScheduledAgentTaskRunMapper runMapper;
     private final ScheduledAgentScheduleCalculator scheduleCalculator;
+    private final DatabasePollingScheduledAgentTaskScheduler taskScheduler;
 
-    @Override
     public ScheduledAgentTaskResponse create(ScheduledAgentTaskRequest request) {
         ScheduledAgentTask task = buildTask(new ScheduledAgentTask(), request);
         LocalDateTime now = LocalDateTime.now();
-        task.setRunning(false);
         task.setNextRunAt(
                 scheduleCalculator.nextRunAfter(
                         task.getScheduleType(), task.getScheduleExpr(), now, task.getTimezone()));
@@ -59,7 +53,6 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         return toResponse(task);
     }
 
-    @Override
     public ScheduledAgentTaskResponse update(Integer id, ScheduledAgentTaskRequest request) {
         ScheduledAgentTask existing = getTask(id);
         ScheduledAgentTask task = buildTask(existing, request);
@@ -75,7 +68,6 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         return toResponse(saved);
     }
 
-    @Override
     public void delete(Integer id) {
         RequestAssert.requireNonNegative(id, "id must be non-negative.");
         if (taskMapper.deleteById(id) == 0) {
@@ -83,29 +75,23 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         }
     }
 
-    @Override
     public ScheduledAgentTaskResponse getById(Integer id) {
         return toResponse(getTask(id));
     }
 
-    @Override
     public List<ScheduledAgentTaskResponse> listAll() {
         return taskMapper.selectAll().stream().map(this::toResponse).toList();
     }
 
-    @Override
     public void updateEnabled(Integer id, boolean enabled) {
-        getTask(id);
-        taskMapper.updateEnabled(id, enabled, LocalDateTime.now());
+        RequestAssert.requireNonNegative(id, "id must be non-negative.");
+        if (taskMapper.updateEnabled(id, enabled, LocalDateTime.now()) == 0) {
+            throw notFound(id);
+        }
     }
 
-    @Override
-    public List<ScheduledAgentTaskRunResponse> listRuns(Integer taskId, int limit) {
-        getTask(taskId);
-        int resolvedLimit = Math.min(Math.max(limit, 1), 100);
-        return runMapper.selectByTaskId(taskId, resolvedLimit).stream()
-                .map(this::toRunResponse)
-                .toList();
+    public boolean runNow(Integer id) {
+        return taskScheduler.runNow(id);
     }
 
     private ScheduledAgentTask buildTask(
@@ -116,8 +102,6 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                         : request.timezone().trim();
         timezone = scheduleCalculator.normalizeTimezone(timezone);
 
-        ScheduledAgentSessionMode sessionMode = normalizeSessionMode(request.sessionMode());
-        String sessionId = normalizeSessionId(sessionMode, request.sessionId());
         ScheduledAgentScheduleType scheduleType = request.scheduleType();
 
         task.setName(RequestAssert.requireNotBlank(request.name(), "name cannot be blank."));
@@ -128,21 +112,7 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                         request.scheduleExpr(), "scheduleExpr cannot be blank."));
         task.setTimezone(timezone);
         task.setEnabled(request.enabled() == null || request.enabled());
-        task.setSessionMode(sessionMode.name());
-        task.setSessionId(sessionId);
         return task;
-    }
-
-    private ScheduledAgentSessionMode normalizeSessionMode(ScheduledAgentSessionMode sessionMode) {
-        return sessionMode == null ? ScheduledAgentSessionMode.NEW_EACH_RUN : sessionMode;
-    }
-
-    private String normalizeSessionId(ScheduledAgentSessionMode sessionMode, String sessionId) {
-        if (sessionMode != ScheduledAgentSessionMode.FIXED_SESSION) {
-            return null;
-        }
-        return RequestAssert.requireNotBlank(
-                sessionId, "sessionId is required when sessionMode is FIXED_SESSION.");
     }
 
     private ScheduledAgentTask getTask(Integer id) {
@@ -164,32 +134,14 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                 task.getId(),
                 task.getName(),
                 task.getPrompt(),
-                ScheduledAgentScheduleType.from(task.getScheduleType()),
+                ScheduledAgentScheduleType.valueOf(task.getScheduleType()),
                 task.getScheduleExpr(),
                 task.getTimezone(),
                 task.getEnabled(),
-                task.getRunning(),
-                ScheduledAgentSessionMode.fromOrDefault(task.getSessionMode()),
-                task.getSessionId(),
                 task.getNextRunAt(),
-                task.getLastRunAt(),
                 toStatus(task.getLastStatus()),
-                task.getLastError(),
                 task.getCreateTime(),
                 task.getUpdateTime());
-    }
-
-    private ScheduledAgentTaskRunResponse toRunResponse(ScheduledAgentTaskRun run) {
-        return new ScheduledAgentTaskRunResponse(
-                run.getId(),
-                run.getTaskId(),
-                run.getSessionId(),
-                toStatus(run.getStatus()),
-                run.getReportId(),
-                run.getOutputSummary(),
-                run.getErrorMessage(),
-                run.getStartedAt(),
-                run.getFinishedAt());
     }
 
     private ScheduledAgentTaskStatus toStatus(String status) {

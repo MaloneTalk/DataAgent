@@ -19,7 +19,6 @@ import request from './request';
 import type { ApiResponse } from './request';
 
 export type ScheduleType = 'DAILY' | 'INTERVAL' | 'CRON';
-export type SessionMode = 'NEW_EACH_RUN' | 'FIXED_SESSION';
 
 export interface ScheduledTaskRequest {
   name: string;
@@ -28,8 +27,6 @@ export interface ScheduledTaskRequest {
   scheduleExpr: string;
   timezone?: string;
   enabled?: boolean;
-  sessionMode?: SessionMode;
-  sessionId?: string;
 }
 
 export interface ScheduledTaskResponse {
@@ -40,27 +37,10 @@ export interface ScheduledTaskResponse {
   scheduleExpr: string;
   timezone: string;
   enabled: boolean;
-  running: boolean;
-  sessionMode: SessionMode;
-  sessionId: string | null;
   nextRunAt: string;
-  lastRunAt: string | null;
   lastStatus: string | null;
-  lastError: string | null;
   createTime: string;
   updateTime: string;
-}
-
-export interface ScheduledTaskRunResponse {
-  id: number;
-  taskId: number;
-  sessionId: string;
-  status: string;
-  reportId: number | null;
-  outputSummary: string | null;
-  errorMessage: string | null;
-  startedAt: string;
-  finishedAt: string | null;
 }
 
 export function listScheduledTasks() {
@@ -79,21 +59,10 @@ export function deleteScheduledTask(id: number) {
   return request.delete<ApiResponse<boolean>>(`/scheduled-agent-tasks/${id}`);
 }
 
-export function enableScheduledTask(id: number) {
-  return request.post<ApiResponse<boolean>>(`/scheduled-agent-tasks/${id}/enable`);
-}
-
-export function disableScheduledTask(id: number) {
-  return request.post<ApiResponse<boolean>>(`/scheduled-agent-tasks/${id}/disable`);
+export function updateScheduledTaskEnabled(id: number, enabled: boolean) {
+  return request.put<ApiResponse<boolean>>(`/scheduled-agent-tasks/${id}/enabled/${enabled}`);
 }
 
 export function runScheduledTask(id: number) {
   return request.post<ApiResponse<boolean>>(`/scheduled-agent-tasks/${id}/run`);
-}
-
-export function listScheduledTaskRuns(id: number, limit = 20) {
-  return request.get<ApiResponse<ScheduledTaskRunResponse[]>>(
-    `/scheduled-agent-tasks/${id}/runs`,
-    { params: { limit } },
-  );
 }

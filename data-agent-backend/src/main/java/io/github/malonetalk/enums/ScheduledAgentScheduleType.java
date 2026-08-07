@@ -17,21 +17,8 @@
  */
 package io.github.malonetalk.enums;
 
-import java.util.Locale;
-
 public enum ScheduledAgentScheduleType {
     DAILY,
     INTERVAL,
-    CRON;
-
-    public static ScheduledAgentScheduleType from(String value) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("scheduleType cannot be blank.");
-        }
-        try {
-            return valueOf(value.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unsupported schedule type: " + value, e);
-        }
-    }
+    CRON
 }

@@ -63,9 +63,6 @@ public class DatabasePollingScheduledAgentTaskScheduler {
     @Scheduled(fixedDelayString = "${data-agent.schedule.dispatch-delay-ms:10000}")
     public void dispatchDueTasks() {
         for (var task : taskMapper.findDueTasks(LocalDateTime.now(), BATCH_SIZE)) {
-            if (!hasCapacity()) {
-                return;
-            }
             ScheduledAgentTaskRunner.ClaimedRun claimedRun = taskRunner.claim(task.getId(), false);
             if (claimedRun != null && !execute(claimedRun)) {
                 return;
@@ -74,9 +71,6 @@ public class DatabasePollingScheduledAgentTaskScheduler {
     }
 
     public boolean runNow(Integer taskId) {
-        if (!hasCapacity()) {
-            return false;
-        }
         ScheduledAgentTaskRunner.ClaimedRun claimedRun = taskRunner.claim(taskId, true);
         if (claimedRun == null) {
             return false;
@@ -89,16 +83,10 @@ public class DatabasePollingScheduledAgentTaskScheduler {
             executor.execute(() -> taskRunner.run(claimedRun));
             return true;
         } catch (TaskRejectedException e) {
-            taskRunner.reject(claimedRun, "Scheduled task executor rejected the run.");
+            taskRunner.reject(claimedRun);
             log.warn("Scheduled agent task executor rejected taskId={}", claimedRun.task().getId());
             return false;
         }
-    }
-
-    private boolean hasCapacity() {
-        ThreadPoolExecutor pool = executor.getThreadPoolExecutor();
-        return pool.getActiveCount() < pool.getMaximumPoolSize()
-                || pool.getQueue().remainingCapacity() > 0;
     }
 
     @PreDestroy

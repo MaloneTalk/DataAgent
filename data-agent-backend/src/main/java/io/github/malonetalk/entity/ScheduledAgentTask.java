@@ -30,16 +30,8 @@ public class ScheduledAgentTask {
     private String scheduleExpr;
     private String timezone;
     private Boolean enabled;
-    private Boolean running;
-    private LocalDateTime lockUntil;
-    private String lockOwner;
-    private Integer currentRunId;
-    private String sessionMode;
-    private String sessionId;
     private LocalDateTime nextRunAt;
-    private LocalDateTime lastRunAt;
     private String lastStatus;
-    private String lastError;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
