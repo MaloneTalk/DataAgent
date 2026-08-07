@@ -18,6 +18,7 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.agent.datasource.DataSourceType;
+import io.github.malonetalk.annotation.AdminOnly;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
@@ -59,6 +60,7 @@ public class DatasourceController {
         return Result.success(datasourceConverter.toResponse(requireDatasource(id)));
     }
 
+    @AdminOnly
     @PostMapping
     public Result<Boolean> save(@Valid @RequestBody DatasourceRequest request) {
         DataSourceType type = requireDatasourceType(request.type());
@@ -70,6 +72,7 @@ public class DatasourceController {
         return Result.success();
     }
 
+    @AdminOnly
     @PutMapping("/{id}")
     public Result<Boolean> update(
             @PathVariable Integer id, @Valid @RequestBody DatasourceRequest request) {
@@ -91,6 +94,7 @@ public class DatasourceController {
         return Result.success(true);
     }
 
+    @AdminOnly
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteById(@PathVariable Integer id) {
         requireDatasource(id);
@@ -117,6 +121,7 @@ public class DatasourceController {
         return Result.success(list);
     }
 
+    @AdminOnly
     @PutMapping("/{id}/activate")
     public Result<Boolean> activate(@PathVariable Integer id) {
         requireDatasource(id);
@@ -126,6 +131,7 @@ public class DatasourceController {
         return Result.success(true);
     }
 
+    @AdminOnly
     @PutMapping("/{id}/deactivate")
     public Result<Boolean> deactivate(@PathVariable Integer id) {
         requireDatasource(id);

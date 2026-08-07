@@ -20,11 +20,11 @@
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useFieldErrors } from '@/composables/useFieldErrors';
+  import { getDomainNames } from '@/api/domain';
   import {
     getActiveDatasourceId,
     getTableSemanticPage,
     refreshPhysicalStatus,
-    getTableDomains,
     resetTableSemantic,
     updateTableSemantic,
     type TableSemanticInfo,
@@ -91,13 +91,8 @@
   };
 
   const loadDomainOptions = async () => {
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) {
-      domainOptions.value = [];
-      return;
-    }
     try {
-      const response = await getTableDomains(activeDatasourceId);
+      const response = await getDomainNames();
       domainOptions.value = response.data.data;
     } catch {
       domainOptions.value = [];

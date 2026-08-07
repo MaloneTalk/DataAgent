@@ -57,6 +57,10 @@ export function getDomainPage(query: DomainPageQuery) {
   return request.get<ApiResponse<PageResponse<DomainInfo>>>('/domains', { params: query });
 }
 
+export function getDomainNames() {
+  return request.get<ApiResponse<string[]>>('/domains/names');
+}
+
 export function getDomainById(id: number) {
   return request.get<ApiResponse<DomainInfo>>(`/domains/${id}`);
 }

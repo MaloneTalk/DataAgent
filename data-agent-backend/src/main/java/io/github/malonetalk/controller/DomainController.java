@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.annotation.AdminOnly;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.DomainCreateRequest;
@@ -28,6 +29,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.service.semantic.DomainService;
 import io.github.malonetalk.utils.RequestAssert;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@AdminOnly
 @RestController
 @RequestMapping("/api/domains")
 @RequiredArgsConstructor
@@ -48,6 +51,11 @@ public class DomainController {
     @GetMapping
     public Result<PageResponse<DomainInfo>> findDomains(@Valid DomainPageQuery query) {
         return Result.success(domainService.getDomainPage(query));
+    }
+
+    @GetMapping("/names")
+    public Result<List<String>> listDomainNames() {
+        return Result.success(domainService.listDomainNames());
     }
 
     @GetMapping("/{id}")

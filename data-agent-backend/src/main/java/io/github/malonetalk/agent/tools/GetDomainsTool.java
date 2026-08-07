@@ -39,7 +39,6 @@ public class GetDomainsTool implements MarkAgentTool {
                             + " what domains are available before querying tables.")
     public ToolResultBlock getDomains() {
         return toolExceptionMapper.run(
-                "get domains",
                 () ->
                         ToolResultBlock.text(
                                 JsonUtils.getJsonCodec().toJson(domainService.listDomainNames())));

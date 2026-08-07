@@ -20,11 +20,11 @@ Data Agent 需要一张 MySQL 元数据库来存放语义层、数据源、会�
 # 创建数据库（字符集务必为 utf8mb4）
 mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
 
-# 导入表结构
-mysql -u root -p data_agent < sql/data_source.sql
+# 导入表结构（sql/ 目录下所有 .sql 文件均需执行）
+for f in sql/*.sql; do mysql -u root -p data_agent < "$f"; done
 ```
 
-> 脚本位于仓库 `sql/data_source.sql`，包含 `datasource`、`table_info`、`column` 语义层等表。
+> `sql/` 目录共三个脚本：`data_source.sql`（数据源与语义层表）、`metric.sql`（指标口径表）、`sys_user.sql`（用户表，登录功能依赖）。三者均需导入。
 
 ## 3. 配置并启动后端
 
@@ -50,7 +50,7 @@ export IO_GITHUB_MALONETALK_MODEL_BASE_URL="https://api.openai.com/v1"
 export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
 ```
 
-> ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。注意：此前曾有一处硬编码密钥被提交进 git 历史，即使已从文件删除，泄露的密钥仍需**轮换**，否则仍可被他人使用。详见 [configuration.md](configuration.md#安全提示) 。
+> ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。详见 [configuration.md](configuration.md#安全提示) 。
 
 ### 3.3 启动
 
@@ -73,8 +73,10 @@ pnpm dev
 
 ## 5. 第一次提问
 
+> **先分清两类数据库**：「数据源管理」里配置的是 **Agent 要连接、执行 SQL 数据分析的目标数据库**（你的业务库），不是第 2 步准备的元数据库 `data_agent`（后端存放语义层/数据源配置/会话的库）。元数据库在后端启动时通过环境变量 `DB_URL` 指定，不在页面上配置。
+
 1. 打开 http://localhost:3000 。
-2. 先在「数据源管理」中新增一个你要查的业务库（MySQL / PostgreSQL / Oracle）。
+2. 先在「数据源管理」中新增一个你要查的业务库（支持 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，类型以下拉列表为准）。若该库不是 MySQL，请先确认后端已内置其驱动（见 [常见问题](#6-常见问题) 第一条）。
 3. 在「语义层」中把相关表/列映射成业务语言（可选，但能显著提升准确率）。
 4. 进入聊天界面，输入类似：*"上个月各区域销售额是多少？"*，观察流式回答与生成的 SQL。
 
@@ -82,6 +84,7 @@ pnpm dev
 
 ## 6. 常见问题
 
+- **新增数据源连接失败，提示「未找到数据库驱动」**：后端默认仅内置 MySQL 驱动。请在 `data-agent-backend/pom.xml` 中添加你所用数据库的 JDBC 驱动依赖（坐标见 [configuration.md](configuration.md#4-查询数据源)），重新构建并启动后端后再试。
 - **启动后端报数据源连接失败**：检查 `DB_URL` 中的库名、账号密码，以及 MySQL 是否允许该连接方式。
 - **前端白屏 / 接口 404**：确认后端已起在 8080，且前端的 `/api` 代理指向正确。
 - **LLM 调用报错 401**：检查 `io.github.malonetalk.model.api-key` / `base-url` 是否与所选 `provider` 匹配。

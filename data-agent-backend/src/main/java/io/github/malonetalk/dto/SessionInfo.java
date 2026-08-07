@@ -17,4 +17,11 @@
  */
 package io.github.malonetalk.dto;
 
-public record SessionInfo(String sessionId, String title, String createdAt, String lastActiveAt) {}
+/** 会话摘要；datasourceId/datasourceName 为绑定的数据源信息，未绑定为 null。 */
+public record SessionInfo(
+        String sessionId,
+        String title,
+        String createdAt,
+        String lastActiveAt,
+        Integer datasourceId,
+        String datasourceName) {}

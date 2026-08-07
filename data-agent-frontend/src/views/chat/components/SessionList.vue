@@ -88,6 +88,7 @@
         @click="selectSession(s.sessionId)"
       >
         <div class="session-item__title">{{ s.title || s.sessionId }}</div>
+        <div class="session-item__ds">{{ s.datasourceName ?? '未绑定数据源' }}</div>
         <div class="session-item__time">{{ formatTime(s.lastActiveAt) }}</div>
       </div>
     </div>
@@ -174,6 +175,15 @@
     font-size: 11px;
     color: var(--app-text-muted);
     margin-top: 4px;
+  }
+
+  .session-item__ds {
+    font-size: 11px;
+    color: var(--app-text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .session-list__footer {

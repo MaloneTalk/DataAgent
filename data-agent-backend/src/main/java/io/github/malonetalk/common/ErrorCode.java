@@ -33,6 +33,9 @@ public enum ErrorCode {
     /** 请求参数格式或取值非法，但没有更细分的业务错误码。 */
     BAD_REQUEST("BAD_REQUEST", HttpStatus.BAD_REQUEST, "Invalid request parameters."),
 
+    /** 未认证：缺少或无效的凭证（token 缺失/过期/非法/用户已禁用）。 */
+    UNAUTHORIZED("UNAUTHORIZED", HttpStatus.UNAUTHORIZED, "Authentication is required."),
+
     /** Bean Validation、绑定校验等字段级参数校验失败。 */
     VALIDATION_FAILED("VALIDATION_FAILED", HttpStatus.BAD_REQUEST, "Invalid request parameters."),
 
@@ -62,6 +65,13 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "Datasource type is not supported."),
 
+    /** 后端未打包对应数据库的 JDBC 驱动，需在 data-agent-backend/pom.xml 引入后重新构建。 */
+    JDBC_DRIVER_NOT_FOUND(
+            "JDBC_DRIVER_NOT_FOUND",
+            HttpStatus.BAD_REQUEST,
+            "The JDBC driver for this database is not bundled in the backend. "
+                    + "Please add it to data-agent-backend/pom.xml and rebuild."),
+
     /** 逻辑关系类型非法或不受支持。 */
     INVALID_RELATION_TYPE(
             "INVALID_RELATION_TYPE", HttpStatus.BAD_REQUEST, "Relation type is invalid."),
@@ -71,6 +81,12 @@ public enum ErrorCode {
             "DATA_CONFLICT",
             HttpStatus.CONFLICT,
             "The operation conflicts with the current data state."),
+
+    /** 会话绑定的数据源已被删除，会话无法继续使用。 */
+    BOUND_DATASOURCE_UNAVAILABLE(
+            "BOUND_DATASOURCE_UNAVAILABLE",
+            HttpStatus.CONFLICT,
+            "The datasource bound to this session no longer exists. Please start a new session."),
 
     /** HTTP 方法不支持。 */
     METHOD_NOT_ALLOWED(

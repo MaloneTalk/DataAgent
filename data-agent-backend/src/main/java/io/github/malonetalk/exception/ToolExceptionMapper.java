@@ -36,7 +36,7 @@ public class ToolExceptionMapper {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
 
-    public ToolResultBlock run(String actionName, ToolAction action) {
+    public ToolResultBlock run(ToolAction action) {
         try {
             return action.run();
         } catch (ToolSuspendException exception) {
@@ -44,9 +44,7 @@ public class ToolExceptionMapper {
             throw exception;
         } catch (Exception exception) {
             ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
-            if (errorResponse.isServerError()) {
-                log.error("Tool action failed: {}", actionName, exception);
-            }
+            exceptionResponseMapper.logMapped(log, exception, errorResponse);
             return toToolError(errorResponse);
         }
     }

@@ -40,6 +40,7 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.web.TraceIdFilter;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -62,6 +63,7 @@ public class AgentService {
     private final SkillLoaderService skillLoaderService;
     private final ExceptionResponseMapper exceptionResponseMapper;
     private final EventConverter eventConverter;
+    private final DatasourceService datasourceService;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -73,8 +75,11 @@ public class AgentService {
     }
 
     public Flux<ChatStreamEvent> chatStream(
-            String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
-        return chatStream(sessionId, userInput, toolResults, true);
+            String sessionId,
+            String userInput,
+            List<ChatRequest.ToolResultInput> toolResults,
+            Integer datasourceId) {
+        return chatStream(sessionId, userInput, toolResults, datasourceId, true);
     }
 
     public Flux<ChatStreamEvent> chatStream(
@@ -82,7 +87,23 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             boolean allowUserPrompt) {
-        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, allowUserPrompt))
+        return chatStream(sessionId, userInput, toolResults, null, allowUserPrompt);
+    }
+
+    private Flux<ChatStreamEvent> chatStream(
+            String sessionId,
+            String userInput,
+            List<ChatRequest.ToolResultInput> toolResults,
+            Integer datasourceId,
+            boolean allowUserPrompt) {
+        return Flux.defer(
+                        () ->
+                                streamAgent(
+                                        sessionId,
+                                        userInput,
+                                        toolResults,
+                                        datasourceId,
+                                        allowUserPrompt))
                 .onErrorResume(this::toErrorEvent);
     }
 
@@ -90,7 +111,13 @@ public class AgentService {
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
+            Integer datasourceId,
             boolean allowUserPrompt) {
+        if (datasourceId != null) {
+            datasourceService.bindSessionDatasource(sessionId, datasourceId);
+            // 首次绑定；已绑定会被 INSERT IGNORE 忽略，锁定语义在 mapper 层保证。
+            datasourceService.bindSessionDatasource(sessionId, datasourceId);
+        }
         ReActAgent agent = createAgent(new ToolCallContext(sessionId, allowUserPrompt));
 
         Session session = sessionService.getOrCreateSession(sessionId);
@@ -149,9 +176,7 @@ public class AgentService {
 
     private Flux<ChatStreamEvent> toErrorEvent(Throwable exception) {
         ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
-        if (errorResponse.isServerError()) {
-            log.error("Agent stream failed", exception);
-        }
+        exceptionResponseMapper.logMapped(log, exception, errorResponse);
         return Flux.just(
                 ChatStreamEvent.builder()
                         .type(ChatStreamEventType.ERROR)

@@ -6,19 +6,27 @@
  * published by the Free Software Foundation, either version 3 of the
  * License, or any later version.
  *
- * This program is distributed in the hope that it will be useful
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * limitations under the License.
  */
 
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
+import { useUserStore } from '@/stores/user';
 
 const routes: RouteRecordRaw[] = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/login/LoginView.vue'),
+    meta: { title: '登录' },
+  },
   {
     path: '/',
     redirect: '/chat',
@@ -65,6 +73,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/scheduled-task/ScheduledTaskManage.vue'),
     meta: { title: '定时任务' },
   },
+  {
+    path: '/sys-user',
+    name: 'UserManage',
+    component: () => import('@/views/sys-user/UserManage.vue'),
+    meta: { title: '用户管理' },
+  },
 ];
 
 const router = createRouter({
@@ -74,6 +88,15 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
   document.title = `${to.meta.title || 'Data Agent'}`;
+  const userStore = useUserStore();
+  if (!userStore.isLoggedIn && to.path !== '/login') {
+    next('/login');
+    return;
+  }
+  if (userStore.isLoggedIn && to.path === '/login') {
+    next('/chat');
+    return;
+  }
   next();
 });
 
