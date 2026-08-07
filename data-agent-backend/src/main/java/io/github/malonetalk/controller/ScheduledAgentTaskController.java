@@ -20,13 +20,11 @@ package io.github.malonetalk.controller;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
-import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
 import io.github.malonetalk.entity.ScheduledAgentTask;
-import io.github.malonetalk.enums.ScheduledAgentScheduleType;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
-import io.github.malonetalk.service.DatabasePollingScheduledAgentTaskScheduler;
 import io.github.malonetalk.service.ScheduledAgentScheduleCalculator;
+import io.github.malonetalk.service.ScheduledAgentTaskScheduler;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import java.time.LocalDateTime;
@@ -49,14 +47,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScheduledAgentTaskController {
 
     private final ScheduledAgentTaskMapper taskMapper;
-    private final ScheduledAgentScheduleCalculator scheduleCalculator;
-    private final DatabasePollingScheduledAgentTaskScheduler taskScheduler;
+    private final ScheduledAgentTaskScheduler taskScheduler;
 
     @PostMapping
     public Result<Boolean> create(@Valid @RequestBody ScheduledAgentTaskRequest request) {
         ScheduledAgentTask task = buildTask(new ScheduledAgentTask(), request);
         task.setNextRunAt(
-                scheduleCalculator.nextRunAfter(
+                ScheduledAgentScheduleCalculator.nextRunAfter(
                         task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now()));
         taskMapper.insert(task);
         return Result.success(true);
@@ -69,7 +66,7 @@ public class ScheduledAgentTaskController {
         ScheduledAgentTask task = buildTask(new ScheduledAgentTask(), request);
         task.setId(id);
         task.setNextRunAt(
-                scheduleCalculator.nextRunAfter(
+                ScheduledAgentScheduleCalculator.nextRunAfter(
                         task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now()));
         if (taskMapper.update(task) == 0) {
             throw notFound(id);
@@ -87,8 +84,8 @@ public class ScheduledAgentTaskController {
     }
 
     @GetMapping
-    public Result<List<ScheduledAgentTaskResponse>> listAll() {
-        return Result.success(taskMapper.selectAll().stream().map(this::toResponse).toList());
+    public Result<List<ScheduledAgentTask>> listAll() {
+        return Result.success(taskMapper.selectAll());
     }
 
     @PostMapping("/{id}/run")
@@ -110,16 +107,5 @@ public class ScheduledAgentTaskController {
     private BusinessException notFound(Integer id) {
         return BusinessException.of(
                 ErrorCode.RESOURCE_NOT_FOUND, "Scheduled task does not exist: id=" + id);
-    }
-
-    private ScheduledAgentTaskResponse toResponse(ScheduledAgentTask task) {
-        return new ScheduledAgentTaskResponse(
-                task.getId(),
-                task.getName(),
-                task.getPrompt(),
-                ScheduledAgentScheduleType.valueOf(task.getScheduleType()),
-                task.getScheduleExpr(),
-                task.getEnabled(),
-                task.getNextRunAt());
     }
 }

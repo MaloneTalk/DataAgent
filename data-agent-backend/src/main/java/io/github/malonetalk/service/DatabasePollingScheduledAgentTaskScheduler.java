@@ -35,7 +35,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DatabasePollingScheduledAgentTaskScheduler {
+class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskScheduler {
 
     private static final int BATCH_SIZE = 20;
     private static final int POOL_SIZE = 3;
@@ -44,7 +44,6 @@ public class DatabasePollingScheduledAgentTaskScheduler {
 
     private final ScheduledAgentTaskMapper taskMapper;
     private final AgentService agentService;
-    private final ScheduledAgentScheduleCalculator scheduleCalculator;
     private final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
     @PostConstruct
@@ -66,6 +65,7 @@ public class DatabasePollingScheduledAgentTaskScheduler {
         }
     }
 
+    @Override
     public boolean runNow(Integer taskId) {
         ClaimedRun claimedRun = claim(taskId, true);
         if (claimedRun == null) {
@@ -95,14 +95,21 @@ public class DatabasePollingScheduledAgentTaskScheduler {
         }
 
         ScheduledAgentTask task = taskMapper.selectById(taskId);
-        String sessionId = "scheduled-task-" + task.getId() + "-" + UUID.randomUUID();
-        return new ClaimedRun(task, sessionId, lockOwner, force);
+        return new ClaimedRun(task, lockOwner, force);
     }
 
     private void run(ClaimedRun claimedRun) {
         try {
             agentService
-                    .chatStream(claimedRun.sessionId(), buildPrompt(claimedRun.task()), null, false)
+                    .chatStream(
+                            "scheduled-task-" + claimedRun.task().getId() + "-" + UUID.randomUUID(),
+                            claimedRun.task().getPrompt()
+                                    + "\n\n"
+                                    + "Scheduled task requirement: if information is insufficient"
+                                    + " or user confirmation is needed, state that the task cannot"
+                                    + " be completed; do not call ask_user.",
+                            null,
+                            false)
                     .then()
                     .block();
         } catch (Exception e) {
@@ -117,7 +124,7 @@ public class DatabasePollingScheduledAgentTaskScheduler {
         LocalDateTime nextRunAt =
                 force && task.getNextRunAt().isAfter(finishedAt)
                         ? task.getNextRunAt()
-                        : scheduleCalculator.nextRunAfter(
+                        : ScheduledAgentScheduleCalculator.nextRunAfter(
                                 task.getScheduleType(), task.getScheduleExpr(), finishedAt);
         int updated = taskMapper.finishRun(task.getId(), lockOwner, nextRunAt, finishedAt);
         if (updated == 0) {
@@ -125,18 +132,10 @@ public class DatabasePollingScheduledAgentTaskScheduler {
         }
     }
 
-    private String buildPrompt(ScheduledAgentTask task) {
-        return task.getPrompt()
-                + "\n\n"
-                + "Scheduled task requirement: if information is insufficient or user confirmation"
-                + " is needed, state that the task cannot be completed; do not call ask_user.";
-    }
-
     @PreDestroy
     public void shutdown() {
         executor.shutdown();
     }
 
-    private record ClaimedRun(
-            ScheduledAgentTask task, String sessionId, String lockOwner, boolean force) {}
+    private record ClaimedRun(ScheduledAgentTask task, String lockOwner, boolean force) {}
 }

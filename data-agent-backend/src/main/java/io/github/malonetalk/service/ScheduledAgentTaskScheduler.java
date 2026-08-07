@@ -15,16 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.service;
 
-import io.github.malonetalk.enums.ScheduledAgentScheduleType;
-import java.time.LocalDateTime;
+public interface ScheduledAgentTaskScheduler {
 
-public record ScheduledAgentTaskResponse(
-        Integer id,
-        String name,
-        String prompt,
-        ScheduledAgentScheduleType scheduleType,
-        String scheduleExpr,
-        Boolean enabled,
-        LocalDateTime nextRunAt) {}
+    boolean runNow(Integer taskId);
+}

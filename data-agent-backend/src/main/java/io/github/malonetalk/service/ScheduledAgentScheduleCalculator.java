@@ -27,14 +27,14 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import org.springframework.scheduling.support.CronExpression;
-import org.springframework.stereotype.Component;
 
-@Component
-public class ScheduledAgentScheduleCalculator {
+public final class ScheduledAgentScheduleCalculator {
 
     private static final ZoneId TASK_ZONE = ZoneId.of("Asia/Shanghai");
 
-    public LocalDateTime nextRunAfter(String type, String expr, LocalDateTime after) {
+    private ScheduledAgentScheduleCalculator() {}
+
+    public static LocalDateTime nextRunAfter(String type, String expr, LocalDateTime after) {
         ZoneId storageZone = ZoneId.systemDefault();
         ZonedDateTime afterInTaskZone = after.atZone(storageZone).withZoneSameInstant(TASK_ZONE);
         ZonedDateTime nextInTaskZone =
@@ -46,13 +46,13 @@ public class ScheduledAgentScheduleCalculator {
         return nextInTaskZone.withZoneSameInstant(storageZone).toLocalDateTime();
     }
 
-    private ZonedDateTime nextDaily(String expr, ZonedDateTime after) {
+    private static ZonedDateTime nextDaily(String expr, ZonedDateTime after) {
         LocalTime time = parseDailyTime(expr);
         ZonedDateTime next = after.toLocalDate().atTime(time).atZone(after.getZone());
         return next.isAfter(after) ? next : next.plusDays(1);
     }
 
-    private ZonedDateTime nextCron(String expr, ZonedDateTime after) {
+    private static ZonedDateTime nextCron(String expr, ZonedDateTime after) {
         ZonedDateTime next;
         try {
             next = CronExpression.parse(requireScheduleExpr(expr)).next(after);
@@ -65,7 +65,7 @@ public class ScheduledAgentScheduleCalculator {
         return next;
     }
 
-    private LocalTime parseDailyTime(String expr) {
+    private static LocalTime parseDailyTime(String expr) {
         try {
             return LocalTime.parse(requireScheduleExpr(expr));
         } catch (DateTimeException e) {
@@ -73,7 +73,7 @@ public class ScheduledAgentScheduleCalculator {
         }
     }
 
-    private Duration parsePositiveDuration(String expr) {
+    private static Duration parsePositiveDuration(String expr) {
         Duration duration;
         try {
             duration = Duration.parse(requireScheduleExpr(expr));
@@ -86,14 +86,14 @@ public class ScheduledAgentScheduleCalculator {
         return duration;
     }
 
-    private String requireScheduleExpr(String expr) {
+    private static String requireScheduleExpr(String expr) {
         if (expr == null || expr.isBlank()) {
             throw invalidSchedule("scheduleExpr cannot be blank.");
         }
         return expr.trim();
     }
 
-    private BusinessException invalidSchedule(String message) {
+    private static BusinessException invalidSchedule(String message) {
         return BusinessException.of(ErrorCode.BAD_REQUEST, message);
     }
 }

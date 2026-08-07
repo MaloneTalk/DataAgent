@@ -25,21 +25,11 @@
     listScheduledTasks,
     runScheduledTask,
     updateScheduledTask,
-    type ScheduleType,
     type ScheduledTaskRequest,
     type ScheduledTaskResponse,
   } from '@/api/scheduledTask';
 
-  interface TaskForm {
-    name: string;
-    prompt: string;
-    scheduleType: ScheduleType;
-    scheduleExpr: string;
-    enabled: boolean;
-  }
-
   const rows = ref<ScheduledTaskResponse[]>([]);
-  const keyword = ref('');
   const loading = ref(false);
   const runningTaskId = ref<number | null>(null);
   const submitLoading = ref(false);
@@ -47,7 +37,7 @@
   const selectedTask = ref<ScheduledTaskResponse | null>(null);
   const formRef = ref<FormInstance>();
 
-  const form = reactive<TaskForm>({
+  const form = reactive<ScheduledTaskRequest>({
     name: '',
     prompt: '',
     scheduleType: 'DAILY',
@@ -55,23 +45,12 @@
     enabled: true,
   });
 
-  const rules: FormRules<TaskForm> = {
+  const rules: FormRules<ScheduledTaskRequest> = {
     name: [{ required: true, message: '任务名称不能为空', trigger: 'blur' }],
     prompt: [{ required: true, message: '提示词不能为空', trigger: 'blur' }],
     scheduleType: [{ required: true, message: '请选择调度类型', trigger: 'change' }],
     scheduleExpr: [{ required: true, message: '调度表达式不能为空', trigger: 'blur' }],
   };
-
-  const filteredRows = computed(() => {
-    const value = keyword.value.trim().toLowerCase();
-    if (!value) {
-      return rows.value;
-    }
-    return rows.value.filter(
-      item =>
-        item.name.toLowerCase().includes(value) || item.prompt.toLowerCase().includes(value),
-    );
-  });
 
   const schedulePlaceholder = computed(() => {
     if (form.scheduleType === 'DAILY') {
@@ -202,10 +181,6 @@
     }
   }
 
-  function formatTime(value: string | null) {
-    return value ? value.replace('T', ' ') : '-';
-  }
-
   function scheduleLabel(row: ScheduledTaskResponse) {
     return `${row.scheduleType} / ${row.scheduleExpr}`;
   }
@@ -224,18 +199,12 @@
           <p>让 Agent 按固定时间、间隔或 cron 自动执行提示词。</p>
         </div>
         <div class="section-actions">
-          <el-input
-            v-model="keyword"
-            class="keyword-field"
-            clearable
-            placeholder="搜索任务 / 提示词"
-          />
           <el-button :loading="loading" @click="loadTasks">刷新</el-button>
           <el-button type="primary" @click="openCreate">新建任务</el-button>
         </div>
       </div>
 
-      <el-table v-loading="loading" :data="filteredRows" class="task-table">
+      <el-table v-loading="loading" :data="rows" class="task-table">
         <el-table-column prop="name" label="任务" min-width="160" show-overflow-tooltip />
         <el-table-column label="调度" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">{{ scheduleLabel(row) }}</template>
@@ -250,7 +219,7 @@
           </template>
         </el-table-column>
         <el-table-column label="下次运行" width="180">
-          <template #default="{ row }">{{ formatTime(row.nextRunAt) }}</template>
+          <template #default="{ row }">{{ row.nextRunAt.replace('T', ' ') }}</template>
         </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
@@ -344,10 +313,6 @@
     display: flex;
     align-items: center;
     gap: 12px;
-  }
-
-  .keyword-field {
-    width: 260px;
   }
 
   .task-table {
