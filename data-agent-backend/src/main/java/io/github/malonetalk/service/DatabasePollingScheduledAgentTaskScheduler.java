@@ -25,27 +25,52 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ScheduledAgentTaskDispatcher {
+public class DatabasePollingScheduledAgentTaskScheduler
+        implements ScheduledAgentTaskSchedulerStrategy {
 
+    private static final String TYPE = "db-polling";
     private static final int BATCH_SIZE = 20;
 
     private final ScheduledAgentTaskMapper taskMapper;
     private final ScheduledAgentTaskRunner taskRunner;
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
 
+    @Value("${data-agent.schedule.scheduler-type:" + TYPE + "}")
+    private String schedulerType;
+
+    @Override
+    public String type() {
+        return TYPE;
+    }
+
+    @Override
+    public void sync(ScheduledAgentTask task) {
+        // DB polling reads the task table on each tick, so persistence is the schedule.
+    }
+
+    @Override
+    public void unschedule(Integer taskId) {
+        // DB polling has no external job to remove.
+    }
+
     @Scheduled(fixedDelayString = "${data-agent.schedule.dispatch-delay-ms:10000}")
     public void dispatchDueTasks() {
+        if (!TYPE.equalsIgnoreCase(schedulerType.trim())) {
+            return;
+        }
         for (ScheduledAgentTask task : taskMapper.findDueTasks(LocalDateTime.now(), BATCH_SIZE)) {
             executor.execute(() -> taskRunner.run(task.getId(), false));
         }
     }
 
+    @Override
     public void runNow(Integer taskId) {
         executor.execute(() -> taskRunner.run(taskId, true));
     }

@@ -21,7 +21,7 @@ import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
 import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
 import io.github.malonetalk.dto.ScheduledAgentTaskRunResponse;
-import io.github.malonetalk.service.ScheduledAgentTaskDispatcher;
+import io.github.malonetalk.service.ScheduledAgentTaskScheduler;
 import io.github.malonetalk.service.ScheduledAgentTaskService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -45,7 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScheduledAgentTaskController {
 
     private final ScheduledAgentTaskService taskService;
-    private final ScheduledAgentTaskDispatcher taskDispatcher;
+    private final ScheduledAgentTaskScheduler taskScheduler;
 
     @PostMapping
     public Result<ScheduledAgentTaskResponse> create(
@@ -96,7 +96,7 @@ public class ScheduledAgentTaskController {
     public Result<Boolean> runNow(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
         taskService.getById(id);
-        taskDispatcher.runNow(id);
+        taskScheduler.runNow(id);
         return Result.success(true);
     }
 

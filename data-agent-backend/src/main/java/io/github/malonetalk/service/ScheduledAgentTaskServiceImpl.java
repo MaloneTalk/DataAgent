@@ -43,6 +43,7 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
     private final ScheduledAgentTaskMapper taskMapper;
     private final ScheduledAgentTaskRunMapper runMapper;
     private final ScheduledAgentScheduleCalculator scheduleCalculator;
+    private final ScheduledAgentTaskScheduler taskScheduler;
 
     @Override
     public ScheduledAgentTaskResponse create(ScheduledAgentTaskRequest request) {
@@ -55,6 +56,7 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         task.setCreateTime(now);
         task.setUpdateTime(now);
         taskMapper.insert(task);
+        taskScheduler.sync(task);
         return toResponse(task);
     }
 
@@ -70,7 +72,9 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                         task.getTimezone()));
         task.setUpdateTime(LocalDateTime.now());
         taskMapper.update(task);
-        return toResponse(taskMapper.selectById(id));
+        ScheduledAgentTask saved = taskMapper.selectById(id);
+        taskScheduler.sync(saved);
+        return toResponse(saved);
     }
 
     @Override
@@ -79,6 +83,7 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         if (taskMapper.deleteById(id) == 0) {
             throw notFound(id);
         }
+        taskScheduler.unschedule(id);
     }
 
     @Override
@@ -93,8 +98,10 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
 
     @Override
     public void updateEnabled(Integer id, boolean enabled) {
-        getTask(id);
+        ScheduledAgentTask task = getTask(id);
         taskMapper.updateEnabled(id, enabled, LocalDateTime.now());
+        task.setEnabled(enabled);
+        taskScheduler.sync(task);
     }
 
     @Override
