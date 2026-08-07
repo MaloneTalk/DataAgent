@@ -18,7 +18,6 @@
 package io.github.malonetalk.dto;
 
 import io.github.malonetalk.enums.ScheduledAgentScheduleType;
-import io.github.malonetalk.enums.ScheduledAgentTaskStatus;
 import java.time.LocalDateTime;
 
 public record ScheduledAgentTaskResponse(
@@ -27,9 +26,5 @@ public record ScheduledAgentTaskResponse(
         String prompt,
         ScheduledAgentScheduleType scheduleType,
         String scheduleExpr,
-        String timezone,
         Boolean enabled,
-        LocalDateTime nextRunAt,
-        ScheduledAgentTaskStatus lastStatus,
-        LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+        LocalDateTime nextRunAt) {}

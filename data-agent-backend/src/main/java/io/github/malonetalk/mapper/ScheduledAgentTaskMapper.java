@@ -30,19 +30,13 @@ public interface ScheduledAgentTaskMapper {
 
     int update(ScheduledAgentTask task);
 
-    int updateEnabled(
-            @Param("id") Integer id,
-            @Param("enabled") boolean enabled,
-            @Param("updateTime") LocalDateTime updateTime);
-
     int deleteById(@Param("id") Integer id);
 
     ScheduledAgentTask selectById(@Param("id") Integer id);
 
     List<ScheduledAgentTask> selectAll();
 
-    List<ScheduledAgentTask> findDueTasks(
-            @Param("now") LocalDateTime now, @Param("limit") int limit);
+    List<Integer> findDueTaskIds(@Param("now") LocalDateTime now, @Param("limit") int limit);
 
     int lockForRun(
             @Param("id") Integer id,
@@ -55,6 +49,5 @@ public interface ScheduledAgentTaskMapper {
             @Param("id") Integer id,
             @Param("lockOwner") String lockOwner,
             @Param("nextRunAt") LocalDateTime nextRunAt,
-            @Param("finishedAt") LocalDateTime finishedAt,
-            @Param("lastStatus") String lastStatus);
+            @Param("finishedAt") LocalDateTime finishedAt);
 }

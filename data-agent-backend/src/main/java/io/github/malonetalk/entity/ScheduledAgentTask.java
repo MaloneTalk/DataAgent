@@ -28,10 +28,6 @@ public class ScheduledAgentTask {
     private String prompt;
     private String scheduleType;
     private String scheduleExpr;
-    private String timezone;
     private Boolean enabled;
     private LocalDateTime nextRunAt;
-    private String lastStatus;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
 }

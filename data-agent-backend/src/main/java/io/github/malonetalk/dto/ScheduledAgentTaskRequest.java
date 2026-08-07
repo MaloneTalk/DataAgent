@@ -26,5 +26,4 @@ public record ScheduledAgentTaskRequest(
         @NotBlank(message = "prompt cannot be blank.") String prompt,
         @NotNull(message = "scheduleType cannot be null.") ScheduledAgentScheduleType scheduleType,
         @NotBlank(message = "scheduleExpr cannot be blank.") String scheduleExpr,
-        String timezone,
         Boolean enabled) {}

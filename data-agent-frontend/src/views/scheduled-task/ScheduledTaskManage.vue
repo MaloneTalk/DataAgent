@@ -24,7 +24,6 @@
     deleteScheduledTask,
     listScheduledTasks,
     runScheduledTask,
-    updateScheduledTaskEnabled,
     updateScheduledTask,
     type ScheduleType,
     type ScheduledTaskRequest,
@@ -36,7 +35,6 @@
     prompt: string;
     scheduleType: ScheduleType;
     scheduleExpr: string;
-    timezone: string;
     enabled: boolean;
   }
 
@@ -54,7 +52,6 @@
     prompt: '',
     scheduleType: 'DAILY',
     scheduleExpr: '09:00',
-    timezone: 'Asia/Shanghai',
     enabled: true,
   });
 
@@ -63,7 +60,6 @@
     prompt: [{ required: true, message: '提示词不能为空', trigger: 'blur' }],
     scheduleType: [{ required: true, message: '请选择调度类型', trigger: 'change' }],
     scheduleExpr: [{ required: true, message: '调度表达式不能为空', trigger: 'blur' }],
-    timezone: [{ required: true, message: '时区不能为空', trigger: 'blur' }],
   };
 
   const filteredRows = computed(() => {
@@ -103,7 +99,6 @@
       prompt: '',
       scheduleType: 'DAILY',
       scheduleExpr: '09:00',
-      timezone: 'Asia/Shanghai',
       enabled: true,
     });
   }
@@ -121,7 +116,6 @@
       prompt: row.prompt,
       scheduleType: row.scheduleType,
       scheduleExpr: row.scheduleExpr,
-      timezone: row.timezone,
       enabled: row.enabled,
     });
     dialogVisible.value = true;
@@ -141,7 +135,6 @@
       prompt: form.prompt.trim(),
       scheduleType: form.scheduleType,
       scheduleExpr: form.scheduleExpr.trim(),
-      timezone: form.timezone.trim(),
       enabled: form.enabled,
     };
 
@@ -162,11 +155,18 @@
   }
 
   async function toggleEnabled(row: ScheduledTaskResponse) {
+    const payload: ScheduledTaskRequest = {
+      name: row.name,
+      prompt: row.prompt,
+      scheduleType: row.scheduleType,
+      scheduleExpr: row.scheduleExpr,
+      enabled: !row.enabled,
+    };
     if (row.enabled) {
-      await updateScheduledTaskEnabled(row.id, false);
+      await updateScheduledTask(row.id, payload);
       ElMessage.success('任务已停用');
     } else {
-      await updateScheduledTaskEnabled(row.id, true);
+      await updateScheduledTask(row.id, payload);
       ElMessage.success('任务已启用');
     }
     await loadTasks();
@@ -240,7 +240,6 @@
         <el-table-column label="调度" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">{{ scheduleLabel(row) }}</template>
         </el-table-column>
-        <el-table-column prop="timezone" label="时区" width="140" />
         <el-table-column label="状态" width="150">
           <template #default="{ row }">
             <el-space>
@@ -252,12 +251,6 @@
         </el-table-column>
         <el-table-column label="下次运行" width="180">
           <template #default="{ row }">{{ formatTime(row.nextRunAt) }}</template>
-        </el-table-column>
-        <el-table-column label="上次结果" width="140">
-          <template #default="{ row }">
-            <el-tag v-if="row.lastStatus" effect="plain">{{ row.lastStatus }}</el-tag>
-            <span v-else>-</span>
-          </template>
         </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
@@ -300,9 +293,6 @@
         </el-form-item>
         <el-form-item label="表达式" prop="scheduleExpr">
           <el-input v-model="form.scheduleExpr" :placeholder="schedulePlaceholder" />
-        </el-form-item>
-        <el-form-item label="时区" prop="timezone">
-          <el-input v-model="form.timezone" placeholder="Asia/Shanghai" />
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.enabled" />

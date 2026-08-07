@@ -32,11 +32,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class ScheduledAgentScheduleCalculator {
 
-    public LocalDateTime nextRunAfter(
-            String type, String expr, LocalDateTime after, String timezone) {
-        ZoneId taskZone = ZoneId.of(normalizeTimezone(timezone));
+    private static final ZoneId TASK_ZONE = ZoneId.of("Asia/Shanghai");
+
+    public LocalDateTime nextRunAfter(String type, String expr, LocalDateTime after) {
         ZoneId storageZone = ZoneId.systemDefault();
-        ZonedDateTime afterInTaskZone = after.atZone(storageZone).withZoneSameInstant(taskZone);
+        ZonedDateTime afterInTaskZone = after.atZone(storageZone).withZoneSameInstant(TASK_ZONE);
         ZonedDateTime nextInTaskZone =
                 switch (ScheduledAgentScheduleType.valueOf(type)) {
                     case DAILY -> nextDaily(expr, afterInTaskZone);
@@ -44,17 +44,6 @@ public class ScheduledAgentScheduleCalculator {
                     case CRON -> nextCron(expr, afterInTaskZone);
                 };
         return nextInTaskZone.withZoneSameInstant(storageZone).toLocalDateTime();
-    }
-
-    public String normalizeTimezone(String timezone) {
-        if (timezone == null || timezone.isBlank()) {
-            throw invalidSchedule("timezone cannot be blank.");
-        }
-        try {
-            return ZoneId.of(timezone.trim()).getId();
-        } catch (DateTimeException e) {
-            throw invalidSchedule("Unsupported timezone: " + timezone);
-        }
     }
 
     private ZonedDateTime nextDaily(String expr, ZonedDateTime after) {

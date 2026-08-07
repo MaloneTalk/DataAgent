@@ -2,30 +2,14 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="io.github.malonetalk.mapper.ScheduledAgentTaskMapper">
 
-    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.ScheduledAgentTask">
-        <id column="id" property="id"/>
-        <result column="name" property="name"/>
-        <result column="prompt" property="prompt"/>
-        <result column="schedule_type" property="scheduleType"/>
-        <result column="schedule_expr" property="scheduleExpr"/>
-        <result column="timezone" property="timezone"/>
-        <result column="enabled" property="enabled"/>
-        <result column="next_run_at" property="nextRunAt"/>
-        <result column="last_status" property="lastStatus"/>
-        <result column="create_time" property="createTime"/>
-        <result column="update_time" property="updateTime"/>
-    </resultMap>
-
     <insert id="insert" parameterType="io.github.malonetalk.entity.ScheduledAgentTask"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO scheduled_agent_task (
-            name, prompt, schedule_type, schedule_expr, timezone,
-            enabled, next_run_at,
-            create_time, update_time
+            name, prompt, schedule_type, schedule_expr,
+            enabled, next_run_at
         ) VALUES (
-            #{name}, #{prompt}, #{scheduleType}, #{scheduleExpr}, #{timezone},
-            #{enabled}, #{nextRunAt},
-            #{createTime}, #{updateTime}
+            #{name}, #{prompt}, #{scheduleType}, #{scheduleExpr},
+            #{enabled}, #{nextRunAt}
         )
     </insert>
 
@@ -35,16 +19,9 @@
             prompt = #{prompt},
             schedule_type = #{scheduleType},
             schedule_expr = #{scheduleExpr},
-            timezone = #{timezone},
             enabled = #{enabled},
             next_run_at = #{nextRunAt},
-            update_time = #{updateTime}
-        WHERE id = #{id}
-    </update>
-
-    <update id="updateEnabled">
-        UPDATE scheduled_agent_task
-        SET enabled = #{enabled}, update_time = #{updateTime}
+            update_time = NOW()
         WHERE id = #{id}
     </update>
 
@@ -53,19 +30,19 @@
         WHERE id = #{id}
     </delete>
 
-    <select id="selectById" resultMap="BaseResultMap">
+    <select id="selectById" resultType="io.github.malonetalk.entity.ScheduledAgentTask">
         SELECT * FROM scheduled_agent_task
         WHERE id = #{id}
         LIMIT 1
     </select>
 
-    <select id="selectAll" resultMap="BaseResultMap">
+    <select id="selectAll" resultType="io.github.malonetalk.entity.ScheduledAgentTask">
         SELECT * FROM scheduled_agent_task
         ORDER BY id DESC
     </select>
 
-    <select id="findDueTasks" resultMap="BaseResultMap">
-        SELECT * FROM scheduled_agent_task
+    <select id="findDueTaskIds" resultType="java.lang.Integer">
+        SELECT id FROM scheduled_agent_task
         WHERE enabled = 1
           AND next_run_at &lt;= #{now}
           AND (lock_until IS NULL OR lock_until &lt; #{now})
@@ -91,7 +68,6 @@
         SET lock_until = NULL,
             lock_owner = NULL,
             next_run_at = #{nextRunAt},
-            last_status = #{lastStatus},
             update_time = #{finishedAt}
         WHERE id = #{id}
           AND lock_owner = #{lockOwner}
