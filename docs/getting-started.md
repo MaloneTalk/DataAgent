@@ -20,11 +20,11 @@ Data Agent 需要一张 MySQL 元数据库来存放语义层、数据源、会�
 # 创建数据库（字符集务必为 utf8mb4）
 mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
 
-# 导入表结构
-mysql -u root -p data_agent < sql/data_source.sql
+# 导入表结构（sql/ 目录下所有 .sql 文件均需执行）
+for f in sql/*.sql; do mysql -u root -p data_agent < "$f"; done
 ```
 
-> 脚本位于仓库 `sql/data_source.sql`，包含 `datasource`、`table_info`、`column` 语义层等表。
+> `sql/` 目录共三个脚本：`data_source.sql`（数据源与语义层表）、`metric.sql`（指标口径表）、`sys_user.sql`（用户表，登录功能依赖）。三者均需导入。
 
 ## 3. 配置并启动后端
 

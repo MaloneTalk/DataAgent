@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApiError } from './request';
+import { ApiError, handleUnauthorized } from './request';
 
 export type ChatStreamEventType =
   | 'summary'
@@ -99,8 +99,21 @@ async function resolveApiError(response: Response, fallback: string): Promise<Ap
   }
 }
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function fetchJson<T>(url: string, fallback: string): Promise<T> {
-  const response = await fetch(url);
+  const response = await fetch(url, { headers: authHeaders() });
+  if (response.status === 401) {
+    handleUnauthorized();
+    throw new ApiError('登录已过期，请重新登录', { code: 401 });
+  }
   if (!response.ok) {
     throw await resolveApiError(response, `${fallback}: ${response.status} ${response.statusText}`);
   }
@@ -132,10 +145,15 @@ export async function* streamChat(
 ): AsyncGenerator<ChatStreamEvent> {
   const response = await fetch('/api/agent/chat/stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(request),
     signal: abortSignal,
   });
+
+  if (response.status === 401) {
+    handleUnauthorized();
+    throw new ApiError('登录已过期，请重新登录', { code: 401 });
+  }
 
   if (!response.ok) {
     throw await resolveApiError(

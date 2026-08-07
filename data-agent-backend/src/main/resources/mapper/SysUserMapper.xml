@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.SysUserMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.SysUser">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password_hash" property="passwordHash"/>
+        <result column="display_name" property="displayName"/>
+        <result column="role_id" property="roleId"/>
+        <result column="idp_type" property="idpType"/>
+        <result column="idp_user_id" property="idpUserId"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="AuthProjectionMap" type="io.github.malonetalk.common.UserContext">
+        <constructor>
+            <idArg column="id" javaType="java.lang.Integer"/>
+            <arg column="username" javaType="java.lang.String"/>
+            <arg column="display_name" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <select id="selectByUsername" resultMap="BaseResultMap">
+        SELECT * FROM sys_user
+        WHERE username = #{username} AND idp_type = 'LOCAL'
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM sys_user WHERE id = #{id}
+    </select>
+
+    <select id="selectAuthProjection" resultMap="AuthProjectionMap">
+        SELECT id, username, display_name FROM sys_user
+        WHERE id = #{id} AND status = 1
+    </select>
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.SysUser" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (
+            username, password_hash, display_name, role_id, idp_type, idp_user_id, status,
+            create_time, update_time
+        ) VALUES (
+            #{username}, #{passwordHash}, #{displayName}, #{roleId}, #{idpType}, #{idpUserId}, #{status},
+            #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="updatePassword">
+        UPDATE sys_user
+        SET password_hash = #{passwordHash}, update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM sys_user
+    </select>
+
+</mapper>

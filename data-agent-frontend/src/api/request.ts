@@ -58,12 +58,30 @@ const service: AxiosInstance = axios.create({
 
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 直接读 localStorage 避免与 user store 循环依赖；store 写入时同步写 localStorage。
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   error => {
     return Promise.reject(error);
   },
 );
+
+function clearAuthAndRedirectLogin() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('userInfo');
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
+/** SSE/原生 fetch 链路复用：401 时清凭证并跳登录。 */
+export function handleUnauthorized() {
+  clearAuthAndRedirectLogin();
+}
 
 service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
@@ -76,6 +94,18 @@ service.interceptors.response.use(
     return response;
   },
   error => {
+    const status = error.response?.status;
+    // 401：token 缺失/过期/用户禁用。在登录页之外 → 清凭证跳登录；在登录页 → 显示后端文案（如"用户名或密码错误"）。
+    if (status === 401) {
+      const responseBody = error.response?.data as ApiResponse | undefined;
+      const apiError = toApiError(responseBody, '登录已过期，请重新登录');
+      if (window.location.pathname !== '/login') {
+        clearAuthAndRedirectLogin();
+      } else {
+        showApiError(apiError);
+      }
+      return Promise.reject(apiError);
+    }
     const responseBody = error.response?.data as ApiResponse | undefined;
     const apiError = toApiError(responseBody, error.message || '网络错误');
     showApiError(apiError);

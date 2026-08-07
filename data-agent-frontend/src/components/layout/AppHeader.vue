@@ -16,9 +16,18 @@
  -->
 
 <script setup lang="ts">
+  import { useRouter } from 'vue-router';
   import { useThemeStore } from '@/stores/theme';
+  import { useUserStore } from '@/stores/user';
 
   const themeStore = useThemeStore();
+  const userStore = useUserStore();
+  const router = useRouter();
+
+  function onLogout() {
+    userStore.logout();
+    router.push('/login');
+  }
 </script>
 
 <template>
@@ -37,6 +46,10 @@
         <span v-if="themeStore.mode === 'light'">🌙</span>
         <span v-else>☀️</span>
       </button>
+      <span v-if="userStore.userInfo" class="user-name">
+        {{ userStore.userInfo.displayName }}
+      </span>
+      <button class="logout-btn" title="登出" @click="onLogout">登出</button>
     </div>
   </header>
 </template>
@@ -97,6 +110,30 @@
   }
 
   .theme-toggle:hover {
+    background: var(--app-bg-hover);
+  }
+
+  .user-name {
+    font-size: 13px;
+    color: var(--app-text-secondary);
+    white-space: nowrap;
+  }
+
+  .logout-btn {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+    background: var(--app-bg-card);
+    color: var(--app-text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
+  }
+
+  .logout-btn:hover {
     background: var(--app-bg-hover);
   }
 </style>
