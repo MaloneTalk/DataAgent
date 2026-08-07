@@ -115,8 +115,6 @@ public class AgentService {
             boolean allowUserPrompt) {
         if (datasourceId != null) {
             datasourceService.bindSessionDatasource(sessionId, datasourceId);
-            // 首次绑定；已绑定会被 INSERT IGNORE 忽略，锁定语义在 mapper 层保证。
-            datasourceService.bindSessionDatasource(sessionId, datasourceId);
         }
         ReActAgent agent = createAgent(new ToolCallContext(sessionId, allowUserPrompt));
 
