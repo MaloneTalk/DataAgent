@@ -68,9 +68,9 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 **前置依赖**：JDK 17+、Maven 3.9+、Node 18+、pnpm 8+、MySQL 8+、Python 3+（需安装 pandas、numpy、scipy）。
 
 ```bash
-# 1. 建元数据库并初始化表结构
+# 1. 建元数据库并初始化表结构（sql/ 目录下所有 .sql 文件均需执行）
 mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
-mysql -u root -p data_agent < sql/data_source.sql
+for f in sql/*.sql; do mysql -u root -p data_agent < "$f"; done
 
 # 2. 启动后端（默认端口 8080）
 cd data-agent-backend

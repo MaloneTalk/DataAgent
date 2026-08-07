@@ -23,6 +23,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import router from './router';
 import App from './App.vue';
+import { useUserStore } from './stores/user';
 import './styles/theme.css';
 import './styles/main.css';
 
@@ -32,7 +33,10 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component);
 }
 
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
+// 启动时从 localStorage 恢复登录态（路由守卫据此决定是否放行）。
+useUserStore(pinia).restore();
 app.use(router);
 app.use(ElementPlus, { locale: zhCn });
 

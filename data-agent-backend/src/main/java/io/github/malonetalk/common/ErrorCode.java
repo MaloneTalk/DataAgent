@@ -33,6 +33,9 @@ public enum ErrorCode {
     /** 请求参数格式或取值非法，但没有更细分的业务错误码。 */
     BAD_REQUEST("BAD_REQUEST", HttpStatus.BAD_REQUEST, "Invalid request parameters."),
 
+    /** 未认证：缺少或无效的凭证（token 缺失/过期/非法/用户已禁用）。 */
+    UNAUTHORIZED("UNAUTHORIZED", HttpStatus.UNAUTHORIZED, "Authentication is required."),
+
     /** Bean Validation、绑定校验等字段级参数校验失败。 */
     VALIDATION_FAILED("VALIDATION_FAILED", HttpStatus.BAD_REQUEST, "Invalid request parameters."),
 

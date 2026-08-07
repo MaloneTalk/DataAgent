@@ -16,13 +16,19 @@
  -->
 
 <script setup lang="ts">
-  import { RouterView } from 'vue-router';
+  import { computed } from 'vue';
+  import { useRoute, RouterView } from 'vue-router';
   import AppHeader from './components/layout/AppHeader.vue';
   import AppSidebar from './components/layout/AppSidebar.vue';
+
+  const route = useRoute();
+  // 登录页全屏独立渲染，不挂顶栏/侧栏。
+  const isLoginPage = computed(() => route.path === '/login');
 </script>
 
 <template>
-  <div class="app-container">
+  <RouterView v-if="isLoginPage" />
+  <div v-else class="app-container">
     <AppHeader />
     <div class="app-main">
       <AppSidebar />
