@@ -18,6 +18,7 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.enums.ScheduledAgentScheduleType;
 import io.github.malonetalk.exception.BusinessException;
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -31,14 +32,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ScheduledAgentScheduleCalculator {
 
-    public static final String DAILY = "DAILY";
-    public static final String INTERVAL = "INTERVAL";
-    public static final String CRON = "CRON";
-
-    public LocalDateTime nextRunAfter(String type, String expr, LocalDateTime after) {
-        return nextRunAfter(type, expr, after, ZoneId.systemDefault().getId());
-    }
-
     public LocalDateTime nextRunAfter(
             String type, String expr, LocalDateTime after, String timezone) {
         ZoneId taskZone = ZoneId.of(normalizeTimezone(timezone));
@@ -49,7 +42,6 @@ public class ScheduledAgentScheduleCalculator {
                     case DAILY -> nextDaily(expr, afterInTaskZone);
                     case INTERVAL -> afterInTaskZone.plus(parsePositiveDuration(expr));
                     case CRON -> nextCron(expr, afterInTaskZone);
-                    default -> throw invalidSchedule("Unsupported schedule type: " + type);
                 };
         return nextInTaskZone.withZoneSameInstant(storageZone).toLocalDateTime();
     }
@@ -65,11 +57,12 @@ public class ScheduledAgentScheduleCalculator {
         }
     }
 
-    public String normalizeType(String type) {
-        if (type == null || type.isBlank()) {
-            throw invalidSchedule("scheduleType cannot be blank.");
+    public ScheduledAgentScheduleType normalizeType(String type) {
+        try {
+            return ScheduledAgentScheduleType.from(type);
+        } catch (IllegalArgumentException e) {
+            throw invalidSchedule(e.getMessage());
         }
-        return type.trim().toUpperCase();
     }
 
     private ZonedDateTime nextDaily(String expr, ZonedDateTime after) {

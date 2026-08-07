@@ -64,4 +64,10 @@ public interface ScheduledAgentTaskMapper {
             @Param("lastRunAt") LocalDateTime lastRunAt,
             @Param("lastStatus") String lastStatus,
             @Param("lastError") String lastError);
+
+    int releaseClaim(
+            @Param("id") Integer id,
+            @Param("lockOwner") String lockOwner,
+            @Param("currentRunId") Integer currentRunId,
+            @Param("updateTime") LocalDateTime updateTime);
 }

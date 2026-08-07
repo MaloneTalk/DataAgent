@@ -120,4 +120,16 @@
           AND lock_owner = #{lockOwner}
           AND current_run_id = #{currentRunId}
     </update>
+
+    <update id="releaseClaim">
+        UPDATE scheduled_agent_task
+        SET running = 0,
+            lock_until = NULL,
+            lock_owner = NULL,
+            current_run_id = NULL,
+            update_time = #{updateTime}
+        WHERE id = #{id}
+          AND lock_owner = #{lockOwner}
+          AND current_run_id = #{currentRunId}
+    </update>
 </mapper>

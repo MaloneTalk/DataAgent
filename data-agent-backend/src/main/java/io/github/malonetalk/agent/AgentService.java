@@ -74,13 +74,24 @@ public class AgentService {
 
     public Flux<ChatStreamEvent> chatStream(
             String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
-        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults))
+        return chatStream(sessionId, userInput, toolResults, true);
+    }
+
+    public Flux<ChatStreamEvent> chatStream(
+            String sessionId,
+            String userInput,
+            List<ChatRequest.ToolResultInput> toolResults,
+            boolean allowUserPrompt) {
+        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, allowUserPrompt))
                 .onErrorResume(this::toErrorEvent);
     }
 
     private Flux<ChatStreamEvent> streamAgent(
-            String sessionId, String userInput, List<ChatRequest.ToolResultInput> toolResults) {
-        ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
+            String sessionId,
+            String userInput,
+            List<ChatRequest.ToolResultInput> toolResults,
+            boolean allowUserPrompt) {
+        ReActAgent agent = createAgent(new ToolCallContext(sessionId, allowUserPrompt));
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);

@@ -15,17 +15,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.enums;
 
-import io.github.malonetalk.entity.ScheduledAgentTask;
+import java.util.Locale;
 
-public interface ScheduledAgentTaskSchedulerStrategy {
+public enum ScheduledAgentScheduleType {
+    DAILY,
+    INTERVAL,
+    CRON;
 
-    String type();
-
-    void sync(ScheduledAgentTask task);
-
-    void unschedule(Integer taskId);
-
-    void runNow(Integer taskId);
+    public static ScheduledAgentScheduleType from(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("scheduleType cannot be blank.");
+        }
+        try {
+            return valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unsupported schedule type: " + value, e);
+        }
+    }
 }

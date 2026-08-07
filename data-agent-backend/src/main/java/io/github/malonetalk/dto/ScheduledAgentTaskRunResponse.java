@@ -17,13 +17,14 @@
  */
 package io.github.malonetalk.dto;
 
+import io.github.malonetalk.enums.ScheduledAgentTaskStatus;
 import java.time.LocalDateTime;
 
 public record ScheduledAgentTaskRunResponse(
         Integer id,
         Integer taskId,
         String sessionId,
-        String status,
+        ScheduledAgentTaskStatus status,
         Integer reportId,
         String outputSummary,
         String errorMessage,

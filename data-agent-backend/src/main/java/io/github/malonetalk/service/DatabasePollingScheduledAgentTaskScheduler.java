@@ -17,62 +17,88 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.entity.ScheduledAgentTask;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.time.LocalDateTime;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DatabasePollingScheduledAgentTaskScheduler
-        implements ScheduledAgentTaskSchedulerStrategy {
+public class DatabasePollingScheduledAgentTaskScheduler {
 
-    private static final String TYPE = "db-polling";
     private static final int BATCH_SIZE = 20;
 
     private final ScheduledAgentTaskMapper taskMapper;
     private final ScheduledAgentTaskRunner taskRunner;
-    private final ExecutorService executor = Executors.newFixedThreadPool(3);
+    private final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
-    @Value("${data-agent.schedule.scheduler-type:" + TYPE + "}")
-    private String schedulerType;
+    @Value("${data-agent.schedule.executor.core-size:3}")
+    private int corePoolSize;
 
-    @Override
-    public String type() {
-        return TYPE;
-    }
+    @Value("${data-agent.schedule.executor.max-size:3}")
+    private int maxPoolSize;
 
-    @Override
-    public void sync(ScheduledAgentTask task) {
-        // DB polling reads the task table on each tick, so persistence is the schedule.
-    }
+    @Value("${data-agent.schedule.executor.queue-capacity:20}")
+    private int queueCapacity;
 
-    @Override
-    public void unschedule(Integer taskId) {
-        // DB polling has no external job to remove.
+    @PostConstruct
+    public void initExecutor() {
+        executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix("scheduled-agent-task-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        executor.initialize();
     }
 
     @Scheduled(fixedDelayString = "${data-agent.schedule.dispatch-delay-ms:10000}")
     public void dispatchDueTasks() {
-        if (!TYPE.equalsIgnoreCase(schedulerType.trim())) {
-            return;
-        }
-        for (ScheduledAgentTask task : taskMapper.findDueTasks(LocalDateTime.now(), BATCH_SIZE)) {
-            executor.execute(() -> taskRunner.run(task.getId(), false));
+        for (var task : taskMapper.findDueTasks(LocalDateTime.now(), BATCH_SIZE)) {
+            if (!hasCapacity()) {
+                return;
+            }
+            ScheduledAgentTaskRunner.ClaimedRun claimedRun = taskRunner.claim(task.getId(), false);
+            if (claimedRun != null && !execute(claimedRun)) {
+                return;
+            }
         }
     }
 
-    @Override
-    public void runNow(Integer taskId) {
-        executor.execute(() -> taskRunner.run(taskId, true));
+    public boolean runNow(Integer taskId) {
+        if (!hasCapacity()) {
+            return false;
+        }
+        ScheduledAgentTaskRunner.ClaimedRun claimedRun = taskRunner.claim(taskId, true);
+        if (claimedRun == null) {
+            return false;
+        }
+        return execute(claimedRun);
+    }
+
+    private boolean execute(ScheduledAgentTaskRunner.ClaimedRun claimedRun) {
+        try {
+            executor.execute(() -> taskRunner.run(claimedRun));
+            return true;
+        } catch (TaskRejectedException e) {
+            taskRunner.reject(claimedRun, "Scheduled task executor rejected the run.");
+            log.warn("Scheduled agent task executor rejected taskId={}", claimedRun.task().getId());
+            return false;
+        }
+    }
+
+    private boolean hasCapacity() {
+        ThreadPoolExecutor pool = executor.getThreadPoolExecutor();
+        return pool.getActiveCount() < pool.getMaximumPoolSize()
+                || pool.getQueue().remainingCapacity() > 0;
     }
 
     @PreDestroy

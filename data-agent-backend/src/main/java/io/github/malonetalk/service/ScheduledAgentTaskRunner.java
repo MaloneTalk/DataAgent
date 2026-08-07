@@ -23,6 +23,8 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.entity.ScheduledAgentTask;
 import io.github.malonetalk.entity.ScheduledAgentTaskRun;
 import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.enums.ScheduledAgentSessionMode;
+import io.github.malonetalk.enums.ScheduledAgentTaskStatus;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
 import io.github.malonetalk.mapper.ScheduledAgentTaskRunMapper;
 import java.time.Duration;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -38,11 +41,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ScheduledAgentTaskRunner {
 
-    private static final Duration LOCK_DURATION = Duration.ofMinutes(30);
-    private static final String RUNNING = "RUNNING";
-    private static final String SUCCESS = "SUCCESS";
-    private static final String FAILED = "FAILED";
-    private static final String NEEDS_USER = "NEEDS_USER";
     private static final int SUMMARY_LIMIT = 2000;
 
     private final AgentService agentService;
@@ -50,13 +48,20 @@ public class ScheduledAgentTaskRunner {
     private final ScheduledAgentTaskRunMapper runMapper;
     private final ScheduledAgentScheduleCalculator scheduleCalculator;
 
-    public void run(Integer taskId, boolean force) {
+    @Value("${data-agent.schedule.lock-duration:PT30M}")
+    private Duration lockDuration = Duration.ofMinutes(30);
+
+    public ClaimedRun claim(Integer taskId, boolean force) {
         LocalDateTime startedAt = LocalDateTime.now();
         String lockOwner = UUID.randomUUID().toString();
         if (taskMapper.lockForRun(
-                        taskId, startedAt, startedAt.plus(LOCK_DURATION), lockOwner, force)
+                        taskId,
+                        startedAt,
+                        startedAt.plus(effectiveLockDuration()),
+                        lockOwner,
+                        force)
                 == 0) {
-            return;
+            return null;
         }
 
         ScheduledAgentTask task = taskMapper.selectById(taskId);
@@ -65,22 +70,29 @@ public class ScheduledAgentTaskRunner {
         if (taskMapper.markRunStarted(taskId, lockOwner, run.getId()) == 0) {
             runMapper.finish(
                     run.getId(),
-                    FAILED,
+                    ScheduledAgentTaskStatus.FAILED.name(),
                     null,
                     null,
                     "Scheduled task lock was lost before the run started.",
                     LocalDateTime.now());
-            return;
+            return null;
         }
+        return new ClaimedRun(task, run, lockOwner, force);
+    }
 
-        String status = SUCCESS;
+    public void run(ClaimedRun claimedRun) {
+        ScheduledAgentTaskStatus status = ScheduledAgentTaskStatus.SUCCESS;
         Integer reportId = null;
         String outputSummary = null;
         String errorMessage = null;
         try {
             List<ChatStreamEvent> events =
                     agentService
-                            .chatStream(sessionId, buildPrompt(task), null)
+                            .chatStream(
+                                    claimedRun.run().getSessionId(),
+                                    buildPrompt(claimedRun.task()),
+                                    null,
+                                    false)
                             .collectList()
                             .block();
             status = resolveStatus(events);
@@ -88,12 +100,36 @@ public class ScheduledAgentTaskRunner {
             outputSummary = limitText(extractOutput(events));
             errorMessage = limitText(extractError(events));
         } catch (Exception e) {
-            status = FAILED;
+            status = ScheduledAgentTaskStatus.FAILED;
             errorMessage = limitText(e.getMessage());
-            log.error("Scheduled agent task failed: taskId={}", taskId, e);
+            log.error("Scheduled agent task failed: taskId={}", claimedRun.task().getId(), e);
         } finally {
-            finish(task, run, lockOwner, force, status, reportId, outputSummary, errorMessage);
+            finish(
+                    claimedRun.task(),
+                    claimedRun.run(),
+                    claimedRun.lockOwner(),
+                    claimedRun.force(),
+                    status,
+                    reportId,
+                    outputSummary,
+                    errorMessage);
         }
+    }
+
+    public void reject(ClaimedRun claimedRun, String reason) {
+        LocalDateTime finishedAt = LocalDateTime.now();
+        runMapper.finish(
+                claimedRun.run().getId(),
+                ScheduledAgentTaskStatus.FAILED.name(),
+                null,
+                null,
+                reason,
+                finishedAt);
+        taskMapper.releaseClaim(
+                claimedRun.task().getId(),
+                claimedRun.lockOwner(),
+                claimedRun.run().getId(),
+                finishedAt);
     }
 
     private ScheduledAgentTaskRun startRun(
@@ -101,7 +137,7 @@ public class ScheduledAgentTaskRunner {
         ScheduledAgentTaskRun run = new ScheduledAgentTaskRun();
         run.setTaskId(taskId);
         run.setSessionId(sessionId);
-        run.setStatus(RUNNING);
+        run.setStatus(ScheduledAgentTaskStatus.RUNNING.name());
         run.setStartedAt(startedAt);
         runMapper.insert(run);
         return run;
@@ -112,12 +148,13 @@ public class ScheduledAgentTaskRunner {
             ScheduledAgentTaskRun run,
             String lockOwner,
             boolean force,
-            String status,
+            ScheduledAgentTaskStatus status,
             Integer reportId,
             String outputSummary,
             String errorMessage) {
         LocalDateTime finishedAt = LocalDateTime.now();
-        runMapper.finish(run.getId(), status, reportId, outputSummary, errorMessage, finishedAt);
+        runMapper.finish(
+                run.getId(), status.name(), reportId, outputSummary, errorMessage, finishedAt);
         LocalDateTime nextRunAt =
                 force && task.getNextRunAt().isAfter(finishedAt)
                         ? task.getNextRunAt()
@@ -133,7 +170,7 @@ public class ScheduledAgentTaskRunner {
                         run.getId(),
                         nextRunAt,
                         finishedAt,
-                        status,
+                        status.name(),
                         errorMessage);
         if (updated == 0) {
             log.warn(
@@ -144,7 +181,7 @@ public class ScheduledAgentTaskRunner {
     }
 
     private String resolveSessionId(ScheduledAgentTask task) {
-        if (ScheduledAgentTaskServiceImpl.FIXED_SESSION.equals(task.getSessionMode())) {
+        if (ScheduledAgentSessionMode.FIXED_SESSION.name().equals(task.getSessionMode())) {
             return task.getSessionId();
         }
         return "scheduled-task-" + task.getId() + "-" + UUID.randomUUID();
@@ -154,17 +191,17 @@ public class ScheduledAgentTaskRunner {
         return task.getPrompt() + "\n\n定时任务执行要求：如果信息不足或需要用户确认，请直接说明无法完成，不要调用 ask_user 反问用户。";
     }
 
-    private String resolveStatus(List<ChatStreamEvent> events) {
+    private ScheduledAgentTaskStatus resolveStatus(List<ChatStreamEvent> events) {
         if (events == null) {
-            return FAILED;
+            return ScheduledAgentTaskStatus.FAILED;
         }
         if (events.stream().anyMatch(event -> event.type() == ChatStreamEventType.ERROR)) {
-            return FAILED;
+            return ScheduledAgentTaskStatus.FAILED;
         }
         if (events.stream().anyMatch(event -> event.type() == ChatStreamEventType.QUESTION)) {
-            return NEEDS_USER;
+            return ScheduledAgentTaskStatus.NEEDS_USER;
         }
-        return SUCCESS;
+        return ScheduledAgentTaskStatus.SUCCESS;
     }
 
     private Integer extractReportId(List<ChatStreamEvent> events) {
@@ -218,4 +255,14 @@ public class ScheduledAgentTaskRunner {
         }
         return text.substring(0, SUMMARY_LIMIT);
     }
+
+    private Duration effectiveLockDuration() {
+        if (lockDuration.isZero() || lockDuration.isNegative()) {
+            throw new IllegalStateException("data-agent.schedule.lock-duration must be positive.");
+        }
+        return lockDuration;
+    }
+
+    public record ClaimedRun(
+            ScheduledAgentTask task, ScheduledAgentTaskRun run, String lockOwner, boolean force) {}
 }

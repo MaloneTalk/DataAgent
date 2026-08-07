@@ -17,22 +17,25 @@
  */
 package io.github.malonetalk.dto;
 
+import io.github.malonetalk.enums.ScheduledAgentScheduleType;
+import io.github.malonetalk.enums.ScheduledAgentSessionMode;
+import io.github.malonetalk.enums.ScheduledAgentTaskStatus;
 import java.time.LocalDateTime;
 
 public record ScheduledAgentTaskResponse(
         Integer id,
         String name,
         String prompt,
-        String scheduleType,
+        ScheduledAgentScheduleType scheduleType,
         String scheduleExpr,
         String timezone,
         Boolean enabled,
         Boolean running,
-        String sessionMode,
+        ScheduledAgentSessionMode sessionMode,
         String sessionId,
         LocalDateTime nextRunAt,
         LocalDateTime lastRunAt,
-        String lastStatus,
+        ScheduledAgentTaskStatus lastStatus,
         String lastError,
         LocalDateTime createTime,
         LocalDateTime updateTime) {}

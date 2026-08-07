@@ -15,19 +15,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.enums;
 
-import io.github.malonetalk.enums.ScheduledAgentScheduleType;
-import io.github.malonetalk.enums.ScheduledAgentSessionMode;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import java.util.Locale;
 
-public record ScheduledAgentTaskRequest(
-        @NotBlank(message = "name cannot be blank.") String name,
-        @NotBlank(message = "prompt cannot be blank.") String prompt,
-        @NotNull(message = "scheduleType cannot be null.") ScheduledAgentScheduleType scheduleType,
-        @NotBlank(message = "scheduleExpr cannot be blank.") String scheduleExpr,
-        String timezone,
-        Boolean enabled,
-        ScheduledAgentSessionMode sessionMode,
-        String sessionId) {}
+public enum ScheduledAgentSessionMode {
+    NEW_EACH_RUN,
+    FIXED_SESSION;
+
+    public static ScheduledAgentSessionMode fromOrDefault(String value) {
+        if (value == null || value.isBlank()) {
+            return NEW_EACH_RUN;
+        }
+        try {
+            return valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unsupported sessionMode: " + value, e);
+        }
+    }
+}

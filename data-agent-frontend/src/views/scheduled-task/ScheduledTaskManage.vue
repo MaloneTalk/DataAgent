@@ -205,8 +205,12 @@
   async function runNow(row: ScheduledTaskResponse) {
     runningTaskId.value = row.id;
     try {
-      await runScheduledTask(row.id);
-      ElMessage.success('已提交运行');
+      const response = await runScheduledTask(row.id);
+      if (response.data.data) {
+        ElMessage.success('已提交运行');
+      } else {
+        ElMessage.warning('任务正在运行，未重复提交');
+      }
       await loadTasks();
     } finally {
       runningTaskId.value = null;

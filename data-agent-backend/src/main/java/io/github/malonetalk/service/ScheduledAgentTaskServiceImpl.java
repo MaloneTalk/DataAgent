@@ -23,6 +23,9 @@ import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
 import io.github.malonetalk.dto.ScheduledAgentTaskRunResponse;
 import io.github.malonetalk.entity.ScheduledAgentTask;
 import io.github.malonetalk.entity.ScheduledAgentTaskRun;
+import io.github.malonetalk.enums.ScheduledAgentScheduleType;
+import io.github.malonetalk.enums.ScheduledAgentSessionMode;
+import io.github.malonetalk.enums.ScheduledAgentTaskStatus;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
 import io.github.malonetalk.mapper.ScheduledAgentTaskRunMapper;
@@ -37,13 +40,10 @@ import org.springframework.stereotype.Service;
 public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService {
 
     public static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
-    public static final String NEW_EACH_RUN = "NEW_EACH_RUN";
-    public static final String FIXED_SESSION = "FIXED_SESSION";
 
     private final ScheduledAgentTaskMapper taskMapper;
     private final ScheduledAgentTaskRunMapper runMapper;
     private final ScheduledAgentScheduleCalculator scheduleCalculator;
-    private final ScheduledAgentTaskScheduler taskScheduler;
 
     @Override
     public ScheduledAgentTaskResponse create(ScheduledAgentTaskRequest request) {
@@ -56,7 +56,6 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         task.setCreateTime(now);
         task.setUpdateTime(now);
         taskMapper.insert(task);
-        taskScheduler.sync(task);
         return toResponse(task);
     }
 
@@ -73,7 +72,6 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         task.setUpdateTime(LocalDateTime.now());
         taskMapper.update(task);
         ScheduledAgentTask saved = taskMapper.selectById(id);
-        taskScheduler.sync(saved);
         return toResponse(saved);
     }
 
@@ -83,7 +81,6 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
         if (taskMapper.deleteById(id) == 0) {
             throw notFound(id);
         }
-        taskScheduler.unschedule(id);
     }
 
     @Override
@@ -98,10 +95,8 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
 
     @Override
     public void updateEnabled(Integer id, boolean enabled) {
-        ScheduledAgentTask task = getTask(id);
+        getTask(id);
         taskMapper.updateEnabled(id, enabled, LocalDateTime.now());
-        task.setEnabled(enabled);
-        taskScheduler.sync(task);
     }
 
     @Override
@@ -121,36 +116,29 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                         : request.timezone().trim();
         timezone = scheduleCalculator.normalizeTimezone(timezone);
 
-        String sessionMode = normalizeSessionMode(request.sessionMode());
+        ScheduledAgentSessionMode sessionMode = normalizeSessionMode(request.sessionMode());
         String sessionId = normalizeSessionId(sessionMode, request.sessionId());
+        ScheduledAgentScheduleType scheduleType = request.scheduleType();
 
         task.setName(RequestAssert.requireNotBlank(request.name(), "name cannot be blank."));
         task.setPrompt(RequestAssert.requireNotBlank(request.prompt(), "prompt cannot be blank."));
-        task.setScheduleType(scheduleCalculator.normalizeType(request.scheduleType()));
+        task.setScheduleType(scheduleType.name());
         task.setScheduleExpr(
                 RequestAssert.requireNotBlank(
                         request.scheduleExpr(), "scheduleExpr cannot be blank."));
         task.setTimezone(timezone);
         task.setEnabled(request.enabled() == null || request.enabled());
-        task.setSessionMode(sessionMode);
+        task.setSessionMode(sessionMode.name());
         task.setSessionId(sessionId);
         return task;
     }
 
-    private String normalizeSessionMode(String sessionMode) {
-        if (sessionMode == null || sessionMode.isBlank()) {
-            return NEW_EACH_RUN;
-        }
-        String normalized = sessionMode.trim().toUpperCase();
-        if (!NEW_EACH_RUN.equals(normalized) && !FIXED_SESSION.equals(normalized)) {
-            throw BusinessException.of(
-                    ErrorCode.BAD_REQUEST, "Unsupported sessionMode: " + sessionMode);
-        }
-        return normalized;
+    private ScheduledAgentSessionMode normalizeSessionMode(ScheduledAgentSessionMode sessionMode) {
+        return sessionMode == null ? ScheduledAgentSessionMode.NEW_EACH_RUN : sessionMode;
     }
 
-    private String normalizeSessionId(String sessionMode, String sessionId) {
-        if (!FIXED_SESSION.equals(sessionMode)) {
+    private String normalizeSessionId(ScheduledAgentSessionMode sessionMode, String sessionId) {
+        if (sessionMode != ScheduledAgentSessionMode.FIXED_SESSION) {
             return null;
         }
         return RequestAssert.requireNotBlank(
@@ -176,16 +164,16 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                 task.getId(),
                 task.getName(),
                 task.getPrompt(),
-                task.getScheduleType(),
+                ScheduledAgentScheduleType.from(task.getScheduleType()),
                 task.getScheduleExpr(),
                 task.getTimezone(),
                 task.getEnabled(),
                 task.getRunning(),
-                task.getSessionMode(),
+                ScheduledAgentSessionMode.fromOrDefault(task.getSessionMode()),
                 task.getSessionId(),
                 task.getNextRunAt(),
                 task.getLastRunAt(),
-                task.getLastStatus(),
+                toStatus(task.getLastStatus()),
                 task.getLastError(),
                 task.getCreateTime(),
                 task.getUpdateTime());
@@ -196,11 +184,15 @@ public class ScheduledAgentTaskServiceImpl implements ScheduledAgentTaskService 
                 run.getId(),
                 run.getTaskId(),
                 run.getSessionId(),
-                run.getStatus(),
+                toStatus(run.getStatus()),
                 run.getReportId(),
                 run.getOutputSummary(),
                 run.getErrorMessage(),
                 run.getStartedAt(),
                 run.getFinishedAt());
+    }
+
+    private ScheduledAgentTaskStatus toStatus(String status) {
+        return status == null ? null : ScheduledAgentTaskStatus.valueOf(status);
     }
 }
