@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.annotation.AdminOnly;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.MetricConverter;
 import io.github.malonetalk.dto.MetricRequest;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@AdminOnly
 @Slf4j
 @RestController
 @AllArgsConstructor

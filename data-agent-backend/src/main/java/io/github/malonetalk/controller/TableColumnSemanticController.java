@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.annotation.AdminOnly;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BatchResetColumnSemanticRequest;
@@ -39,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@AdminOnly
 @RestController
 @Validated
 @RequestMapping("/api/semantic/tables/columns/{tableName}")

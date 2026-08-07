@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.interceptor;
 
+import io.github.malonetalk.annotation.AdminOnly;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.exception.BusinessException;
@@ -26,6 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
@@ -35,11 +37,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * → 放入 UserContext。token 缺失/过期/非法 或 用户被禁用 一律抛 {@link ErrorCode#UNAUTHORIZED}，
  * 由 GlobalExceptionHandler 统一输出 401。每次查库保证禁用即时生效。
  *
- * <p>权限轮次再加 @AdminOnly 与表/列拦截；本轮登录后所有接口行为与现状一致。
+ * <p>方法/类上有 {@link AdminOnly} 且当前用户 role_id != 1 时返回
+ * {@link ErrorCode#FORBIDDEN} (403)。表/列拦截、会话隔离 = 后续轮次。
  */
 @Component
 @AllArgsConstructor
 public class AuthInterceptor implements HandlerInterceptor {
+
+    private static final int ADMIN_ROLE_ID = 1;
 
     private final JwtUtil jwtUtil;
     private final SysUserMapper sysUserMapper;
@@ -58,6 +63,12 @@ public class AuthInterceptor implements HandlerInterceptor {
                     ErrorCode.UNAUTHORIZED, "Account is disabled or does not exist.");
         }
         UserContext.set(context);
+
+        if (handler instanceof HandlerMethod handlerMethod && isAdminRequired(handlerMethod)) {
+            if (context.roleId() == null || context.roleId() != ADMIN_ROLE_ID) {
+                throw BusinessException.of(ErrorCode.FORBIDDEN, "需要管理员权限");
+            }
+        }
         return true;
     }
 
@@ -68,6 +79,15 @@ public class AuthInterceptor implements HandlerInterceptor {
             Object handler,
             Exception ex) {
         UserContext.clear();
+    }
+
+    /** 方法或所在类上有 @AdminOnly 注解时要求管理员权限；方法级注解覆盖类级。 */
+    private boolean isAdminRequired(HandlerMethod handlerMethod) {
+        AdminOnly methodAnnotation = handlerMethod.getMethodAnnotation(AdminOnly.class);
+        if (methodAnnotation != null) {
+            return true;
+        }
+        return handlerMethod.getBeanType().isAnnotationPresent(AdminOnly.class);
     }
 
     private String extractBearer(HttpServletRequest request) {

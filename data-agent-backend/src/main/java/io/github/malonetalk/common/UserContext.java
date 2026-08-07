@@ -22,8 +22,10 @@ package io.github.malonetalk.common;
  *
  * <p>仅承载鉴权必要字段（不含 password_hash），供管理/会话等同步 API 取用。Agent 异步链路
  * （Reactor 弹性线程）拿不到此 ThreadLocal——权限轮次会改为通过 ToolCallContext 显式传 userId。
+ *
+ * <p>{@code roleId} 用于 @AdminOnly 权限判定：1=管理员，其他值=普通用户。
  */
-public record UserContext(Integer userId, String username, String displayName) {
+public record UserContext(Integer userId, String username, String displayName, Integer roleId) {
 
     private static final ThreadLocal<UserContext> HOLDER = new ThreadLocal<>();
 
