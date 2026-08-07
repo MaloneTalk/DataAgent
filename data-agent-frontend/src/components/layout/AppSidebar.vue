@@ -30,6 +30,7 @@
     { path: '/semantic', title: '语义管理', icon: 'Collection' },
     { path: '/report', title: '报告管理', icon: 'Document' },
     { path: '/metric', title: '指标口径管理', icon: 'DataLine' },
+    { path: '/sys-user', title: '用户管理', icon: 'User' },
   ];
 
   const activeMenu = computed(() => route.path);

@@ -62,7 +62,7 @@ public class AdminBootstrapRunner implements CommandLineRunner {
         admin.setUsername("admin");
         admin.setPasswordHash(PasswordUtil.hash(adminInitPassword));
         admin.setDisplayName("管理员");
-        admin.setRoleId(0);
+        admin.setRoleId(1); // 管理员角色，对应 @AdminOnly 权限判定
         admin.setIdpType("LOCAL");
         admin.setIdpUserId(null);
         admin.setStatus(1);
