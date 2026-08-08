@@ -20,7 +20,6 @@ package io.github.malonetalk.agent.models;
 import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 @Component
 public class DashscopeModelProvider implements ModelProvider {

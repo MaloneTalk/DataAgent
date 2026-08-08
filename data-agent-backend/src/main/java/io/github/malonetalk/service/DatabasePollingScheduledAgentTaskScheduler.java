@@ -169,9 +169,10 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
             String lastStatus,
             String lastError) {
         LocalDateTime finishedAt = LocalDateTime.now();
+        LocalDateTime currentNextRunAt = task.getNextRunAt();
         LocalDateTime nextRunAt =
-                force && task.getNextRunAt().isAfter(finishedAt)
-                        ? task.getNextRunAt()
+                force && currentNextRunAt != null && currentNextRunAt.isAfter(finishedAt)
+                        ? currentNextRunAt
                         : ScheduledAgentScheduleCalculator.nextRunAfter(
                                 task.getScheduleType(), task.getScheduleExpr(), finishedAt);
         int updated =

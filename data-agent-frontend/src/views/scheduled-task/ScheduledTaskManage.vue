@@ -212,7 +212,10 @@
         <el-table-column label="状态" width="150">
           <template #default="{ row }">
             <el-space>
-              <el-tag :type="row.running ? 'warning' : row.enabled ? 'success' : 'info'" effect="plain">
+              <el-tag
+                :type="row.running ? 'warning' : row.enabled ? 'success' : 'info'"
+                effect="plain"
+              >
                 {{ row.running ? '运行中' : row.enabled ? '启用' : '停用' }}
               </el-tag>
             </el-space>
