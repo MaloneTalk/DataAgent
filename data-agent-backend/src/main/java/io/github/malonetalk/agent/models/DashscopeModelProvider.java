@@ -31,11 +31,14 @@ public class DashscopeModelProvider implements ModelProvider {
 
     @Override
     public Model createModel(ModelConfig config) {
-        return DashScopeChatModel.builder()
-                .apiKey(config.getApiKey())
-                .modelName(config.getName())
-                .stream(true)
-                .enableThinking(true)
-                .build();
+        DashScopeChatModel.Builder builder =
+                DashScopeChatModel.builder()
+                        .apiKey(config.getApiKey())
+                        .modelName(config.getName())
+                        .stream(true);
+        if (Boolean.TRUE.equals(config.getThinkingEnabled())) {
+            builder.enableThinking(true);
+        }
+        return builder.build();
     }
 }
