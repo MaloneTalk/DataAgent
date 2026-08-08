@@ -20,6 +20,7 @@ package io.github.malonetalk.controller;
 import io.agentscope.core.message.Msg;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
+import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
@@ -53,12 +54,14 @@ public class AgentController {
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
             @Valid @RequestBody ChatRequest request) {
         log.info("SSE chat stream started: sessionId={}", request.sessionId());
+        ToolCallContext context =
+                ToolCallContext.builder()
+                        .sessionId(request.sessionId())
+                        .userInput(request.message())
+                        .datasourceId(request.datasourceId())
+                        .build();
         return agentService
-                .chatStream(
-                        request.sessionId(),
-                        request.message(),
-                        request.toolResults(),
-                        request.datasourceId())
+                .chatStream(context, request.toolResults())
                 .map(
                         event ->
                                 ServerSentEvent.<ChatStreamEvent>builder()

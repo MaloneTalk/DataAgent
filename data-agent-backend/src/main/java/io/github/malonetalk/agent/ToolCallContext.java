@@ -17,14 +17,23 @@
  */
 package io.github.malonetalk.agent;
 
-public record ToolCallContext(String sessionId, TaskType taskType) {
+import lombok.Builder;
+
+@Builder
+public record ToolCallContext(
+        String sessionId, String userInput, Integer datasourceId, TaskType taskType) {
+
+    public ToolCallContext {
+        if (taskType == null) {
+            taskType = TaskType.NORMAL;
+        }
+    }
 
     public boolean allowUserPrompt() {
         return taskType == TaskType.NORMAL;
     }
 
-    public enum TaskType {
-        NORMAL,
-        SCHEDULED
+    public boolean mapErrorsToStream() {
+        return taskType == TaskType.NORMAL;
     }
 }

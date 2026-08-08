@@ -32,6 +32,11 @@ public interface ScheduledAgentTaskMapper {
 
     int deleteById(@Param("id") Integer id);
 
+    int updateEnabled(
+            @Param("id") Integer id,
+            @Param("enabled") boolean enabled,
+            @Param("nextRunAt") LocalDateTime nextRunAt);
+
     ScheduledAgentTask selectById(@Param("id") Integer id);
 
     List<ScheduledAgentTask> selectAll();

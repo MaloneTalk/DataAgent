@@ -18,7 +18,8 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.agent.AgentService;
-import io.github.malonetalk.agent.ToolCallContext.TaskType;
+import io.github.malonetalk.agent.TaskType;
+import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.entity.ScheduledAgentTask;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
 import jakarta.annotation.PostConstruct;
@@ -37,7 +38,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskScheduler {
+class ScheduledAgentTaskExecutor {
 
     private static final int BATCH_SIZE = 20;
     private static final int POOL_SIZE = 3;
@@ -71,7 +72,6 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
         }
     }
 
-    @Override
     public boolean runNow(Integer taskId) {
         ClaimedRun claimedRun = claimManual(taskId);
         if (claimedRun == null) {
@@ -141,15 +141,20 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
 
     private void runAgent(ScheduledAgentTask task) {
         agentService
-                .chatStreamStrict(
-                        "scheduled-task-" + task.getId() + "-" + UUID.randomUUID(),
-                        task.getPrompt()
-                                + "\n\n"
-                                + "Scheduled task requirement: if information is insufficient"
-                                + " or user confirmation is needed, state that the task cannot"
-                                + " be completed; do not call ask_user.",
-                        null,
-                        TaskType.SCHEDULED)
+                .chatStream(
+                        ToolCallContext.builder()
+                                .sessionId(
+                                        "scheduled-task-" + task.getId() + "-" + UUID.randomUUID())
+                                .userInput(
+                                        task.getPrompt()
+                                                + "\n\n"
+                                                + "Scheduled task requirement: if information is"
+                                                + " insufficient or user confirmation is needed,"
+                                                + " state that the task cannot be completed; do not"
+                                                + " call ask_user.")
+                                .taskType(TaskType.SCHEDULED)
+                                .build(),
+                        null)
                 .blockLast();
     }
 

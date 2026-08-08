@@ -30,6 +30,14 @@
         WHERE id = #{id}
     </delete>
 
+    <update id="updateEnabled">
+        UPDATE scheduled_agent_task
+        SET enabled = #{enabled},
+            <if test="nextRunAt != null">next_run_at = #{nextRunAt},</if>
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
     <select id="selectById" resultType="io.github.malonetalk.entity.ScheduledAgentTask">
         SELECT * FROM scheduled_agent_task
         WHERE id = #{id}

@@ -30,7 +30,6 @@ import io.agentscope.core.session.Session;
 import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.tool.ToolExecutionContext;
 import io.agentscope.core.tool.Toolkit;
-import io.github.malonetalk.agent.ToolCallContext.TaskType;
 import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
 import io.github.malonetalk.agent.skill.SkillLoaderService;
@@ -76,48 +75,24 @@ public class AgentService {
     }
 
     public Flux<ChatStreamEvent> chatStream(
-            String sessionId,
-            String userInput,
-            List<ChatRequest.ToolResultInput> toolResults,
-            Integer datasourceId) {
-        return chatStream(sessionId, userInput, toolResults, datasourceId, TaskType.NORMAL);
-    }
-
-    public Flux<ChatStreamEvent> chatStreamStrict(
-            String sessionId,
-            String userInput,
-            List<ChatRequest.ToolResultInput> toolResults,
-            TaskType taskType) {
-        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, null, taskType));
-    }
-
-    private Flux<ChatStreamEvent> chatStream(
-            String sessionId,
-            String userInput,
-            List<ChatRequest.ToolResultInput> toolResults,
-            Integer datasourceId,
-            TaskType taskType) {
-        return Flux.defer(
-                        () ->
-                                streamAgent(
-                                        sessionId, userInput, toolResults, datasourceId, taskType))
-                .onErrorResume(this::toErrorEvent);
+            ToolCallContext context, List<ChatRequest.ToolResultInput> toolResults) {
+        Flux<ChatStreamEvent> stream = Flux.defer(() -> streamAgent(context, toolResults));
+        if (context.mapErrorsToStream()) {
+            return stream.onErrorResume(this::toErrorEvent);
+        }
+        return stream;
     }
 
     private Flux<ChatStreamEvent> streamAgent(
-            String sessionId,
-            String userInput,
-            List<ChatRequest.ToolResultInput> toolResults,
-            Integer datasourceId,
-            TaskType taskType) {
-        if (datasourceId != null) {
-            datasourceService.bindSessionDatasource(sessionId, datasourceId);
+            ToolCallContext context, List<ChatRequest.ToolResultInput> toolResults) {
+        if (context.datasourceId() != null) {
+            datasourceService.bindSessionDatasource(context.sessionId(), context.datasourceId());
         }
-        ReActAgent agent = createAgent(new ToolCallContext(sessionId, taskType));
+        ReActAgent agent = createAgent(context);
 
-        Session session = sessionService.getOrCreateSession(sessionId);
-        agent.loadIfExists(session, sessionId);
-        Msg userMsg = buildUserMessage(userInput, toolResults);
+        Session session = sessionService.getOrCreateSession(context.sessionId());
+        agent.loadIfExists(session, context.sessionId());
+        Msg userMsg = buildUserMessage(context.userInput(), toolResults);
 
         StreamOptions streamOptions =
                 StreamOptions.builder()
@@ -140,13 +115,13 @@ public class AgentService {
                         signalType ->
                                 log.info(
                                         "SSE chat stream finished: sessionId={}, signal={}",
-                                        sessionId,
+                                        context.sessionId(),
                                         signalType))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapIterable(eventConverter::map)
                 .doFinally(
                         signalType -> {
-                            agent.saveTo(session, sessionId);
+                            agent.saveTo(session, context.sessionId());
                             MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
                         });
     }

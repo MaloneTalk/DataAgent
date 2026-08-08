@@ -17,17 +17,12 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
-import io.github.malonetalk.entity.ScheduledAgentTask;
-import io.github.malonetalk.exception.BusinessException;
-import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
-import io.github.malonetalk.service.ScheduledAgentScheduleCalculator;
+import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
 import io.github.malonetalk.service.ScheduledAgentTaskScheduler;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -46,66 +41,52 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/scheduled-agent-tasks")
 public class ScheduledAgentTaskController {
 
-    private final ScheduledAgentTaskMapper taskMapper;
     private final ScheduledAgentTaskScheduler taskScheduler;
 
     @PostMapping
     public Result<Boolean> create(@Valid @RequestBody ScheduledAgentTaskRequest request) {
-        ScheduledAgentTask task = buildTask(new ScheduledAgentTask(), request);
-        task.setNextRunAt(
-                ScheduledAgentScheduleCalculator.nextRunAfter(
-                        task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now()));
-        taskMapper.insert(task);
-        return Result.success(true);
+        return Result.success(taskScheduler.create(request));
     }
 
     @PutMapping("/{id}")
     public Result<Boolean> update(
             @PathVariable @Positive(message = "id must be positive.") Integer id,
             @Valid @RequestBody ScheduledAgentTaskRequest request) {
-        ScheduledAgentTask task = buildTask(new ScheduledAgentTask(), request);
-        task.setId(id);
-        task.setNextRunAt(
-                ScheduledAgentScheduleCalculator.nextRunAfter(
-                        task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now()));
-        if (taskMapper.update(task) == 0) {
-            throw notFound(id);
-        }
-        return Result.success(true);
+        return Result.success(taskScheduler.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        if (taskMapper.deleteById(id) == 0) {
-            throw notFound(id);
-        }
-        return Result.success(true);
+        return Result.success(taskScheduler.delete(id));
     }
 
     @GetMapping
-    public Result<List<ScheduledAgentTask>> listAll() {
-        return Result.success(taskMapper.selectAll());
+    public Result<List<ScheduledAgentTaskResponse>> listAll() {
+        return Result.success(taskScheduler.listAll());
+    }
+
+    @GetMapping("/{id}/status")
+    public Result<ScheduledAgentTaskResponse> getStatus(
+            @PathVariable @Positive(message = "id must be positive.") Integer id) {
+        return Result.success(taskScheduler.getStatus(id));
+    }
+
+    @PostMapping("/{id}/activate")
+    public Result<Boolean> activate(
+            @PathVariable @Positive(message = "id must be positive.") Integer id) {
+        return Result.success(taskScheduler.activate(id));
+    }
+
+    @PostMapping("/{id}/deactivate")
+    public Result<Boolean> deactivate(
+            @PathVariable @Positive(message = "id must be positive.") Integer id) {
+        return Result.success(taskScheduler.deactivate(id));
     }
 
     @PostMapping("/{id}/run")
     public Result<Boolean> runNow(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
         return Result.success(taskScheduler.runNow(id));
-    }
-
-    private ScheduledAgentTask buildTask(
-            ScheduledAgentTask task, ScheduledAgentTaskRequest request) {
-        task.setName(request.name().trim());
-        task.setPrompt(request.prompt().trim());
-        task.setScheduleType(request.scheduleType().name());
-        task.setScheduleExpr(request.scheduleExpr().trim());
-        task.setEnabled(request.enabled() == null || request.enabled());
-        return task;
-    }
-
-    private BusinessException notFound(Integer id) {
-        return BusinessException.of(
-                ErrorCode.RESOURCE_NOT_FOUND, "Scheduled task does not exist: id=" + id);
     }
 }

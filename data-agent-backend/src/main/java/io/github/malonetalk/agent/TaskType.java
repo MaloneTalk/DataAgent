@@ -15,27 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.agent;
 
-import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
-import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
-import java.util.List;
-
-public interface ScheduledAgentTaskScheduler {
-
-    boolean create(ScheduledAgentTaskRequest request);
-
-    boolean update(Integer id, ScheduledAgentTaskRequest request);
-
-    boolean delete(Integer id);
-
-    boolean activate(Integer id);
-
-    boolean deactivate(Integer id);
-
-    ScheduledAgentTaskResponse getStatus(Integer id);
-
-    List<ScheduledAgentTaskResponse> listAll();
-
-    boolean runNow(Integer taskId);
+public enum TaskType {
+    NORMAL,
+    SCHEDULED
 }
