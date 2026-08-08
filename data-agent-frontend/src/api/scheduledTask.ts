@@ -35,7 +35,11 @@ export interface ScheduledTaskResponse {
   scheduleType: ScheduleType;
   scheduleExpr: string;
   enabled: boolean;
+  running?: boolean;
   nextRunAt: string;
+  lastRunAt?: string | null;
+  lastStatus?: string | null;
+  lastError?: string | null;
 }
 
 export function listScheduledTasks() {

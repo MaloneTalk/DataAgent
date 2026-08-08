@@ -123,7 +123,6 @@
             <groupId>io.agentscope</groupId>
             <artifactId>agentscope-extensions-nacos-skill</artifactId>
             <version>${agentscope.version}</version>
-            <optional>true</optional>
         </dependency>
 
         <dependency>

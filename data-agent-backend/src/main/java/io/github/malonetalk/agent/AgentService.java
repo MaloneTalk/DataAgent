@@ -90,6 +90,14 @@ public class AgentService {
         return chatStream(sessionId, userInput, toolResults, null, allowUserPrompt);
     }
 
+    public Flux<ChatStreamEvent> chatStreamStrict(
+            String sessionId,
+            String userInput,
+            List<ChatRequest.ToolResultInput> toolResults,
+            boolean allowUserPrompt) {
+        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, null, allowUserPrompt));
+    }
+
     private Flux<ChatStreamEvent> chatStream(
             String sessionId,
             String userInput,

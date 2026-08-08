@@ -54,20 +54,33 @@
         UPDATE scheduled_agent_task
         SET lock_until = #{lockUntil},
             lock_owner = #{lockOwner},
+            running = 1,
             update_time = #{now}
         WHERE id = #{id}
           AND (lock_until IS NULL OR lock_until &lt; #{now})
-          <if test="!force">
-              AND enabled = 1
-              AND next_run_at &lt;= #{now}
-          </if>
+          AND enabled = 1
+          AND next_run_at &lt;= #{now}
+    </update>
+
+    <update id="lockForManualRun">
+        UPDATE scheduled_agent_task
+        SET lock_until = #{lockUntil},
+            lock_owner = #{lockOwner},
+            running = 1,
+            update_time = #{now}
+        WHERE id = #{id}
+          AND (running = 0 OR lock_until IS NULL OR lock_until &lt; #{now})
     </update>
 
     <update id="finishRun">
         UPDATE scheduled_agent_task
         SET lock_until = NULL,
             lock_owner = NULL,
+            running = 0,
             next_run_at = #{nextRunAt},
+            last_run_at = #{finishedAt},
+            last_status = #{lastStatus},
+            last_error = #{lastError},
             update_time = #{finishedAt}
         WHERE id = #{id}
           AND lock_owner = #{lockOwner}

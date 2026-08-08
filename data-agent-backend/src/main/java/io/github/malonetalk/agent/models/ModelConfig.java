@@ -29,4 +29,6 @@ public class ModelConfig {
     private String baseUrl;
 
     private String apiKey;
+
+    private Boolean thinkingEnabled;
 }

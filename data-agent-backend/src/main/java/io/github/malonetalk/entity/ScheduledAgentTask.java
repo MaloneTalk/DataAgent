@@ -29,5 +29,9 @@ public class ScheduledAgentTask {
     private String scheduleType;
     private String scheduleExpr;
     private Boolean enabled;
+    private Boolean running;
     private LocalDateTime nextRunAt;
+    private LocalDateTime lastRunAt;
+    private String lastStatus;
+    private String lastError;
 }

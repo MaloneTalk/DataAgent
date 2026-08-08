@@ -20,6 +20,7 @@ package io.github.malonetalk.agent.models;
 import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 public class DashscopeModelProvider implements ModelProvider {
@@ -31,11 +32,14 @@ public class DashscopeModelProvider implements ModelProvider {
 
     @Override
     public Model createModel(ModelConfig config) {
-        return DashScopeChatModel.builder()
-                .apiKey(config.getApiKey())
-                .modelName(config.getName())
-                .stream(true)
-                .enableThinking(true)
-                .build();
+        DashScopeChatModel.Builder builder =
+                DashScopeChatModel.builder()
+                        .apiKey(config.getApiKey())
+                        .modelName(config.getName())
+                        .stream(true);
+        if (Boolean.TRUE.equals(config.getThinkingEnabled())) {
+            builder.enableThinking(true);
+        }
+        return builder.build();
     }
 }

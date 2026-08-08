@@ -212,10 +212,27 @@
         <el-table-column label="状态" width="150">
           <template #default="{ row }">
             <el-space>
-              <el-tag :type="row.enabled ? 'success' : 'info'" effect="plain">
-                {{ row.enabled ? '启用' : '停用' }}
+              <el-tag :type="row.running ? 'warning' : row.enabled ? 'success' : 'info'" effect="plain">
+                {{ row.running ? '运行中' : row.enabled ? '启用' : '停用' }}
               </el-tag>
             </el-space>
+          </template>
+        </el-table-column>
+        <el-table-column label="上次结果" width="150">
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="row.lastError"
+              :content="row.lastError"
+              placement="top"
+              :show-after="300"
+            >
+              <el-tag :type="row.lastStatus === 'SUCCESS' ? 'success' : 'danger'" effect="plain">
+                {{ row.lastStatus || '-' }}
+              </el-tag>
+            </el-tooltip>
+            <el-tag v-else :type="row.lastStatus === 'SUCCESS' ? 'success' : 'info'" effect="plain">
+              {{ row.lastStatus || '-' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="下次运行" width="180">

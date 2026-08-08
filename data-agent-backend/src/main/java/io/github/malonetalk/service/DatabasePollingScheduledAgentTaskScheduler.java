@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -40,11 +41,15 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
     private static final int BATCH_SIZE = 20;
     private static final int POOL_SIZE = 3;
     private static final int QUEUE_CAPACITY = 20;
-    private static final Duration LOCK_DURATION = Duration.ofMinutes(30);
+    private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String STATUS_FAILED = "FAILED";
 
     private final ScheduledAgentTaskMapper taskMapper;
     private final AgentService agentService;
     private final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+
+    @Value("${data-agent.schedule.lock-duration:PT30M}")
+    private Duration lockDuration;
 
     @PostConstruct
     public void initExecutor() {
@@ -67,7 +72,7 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
 
     @Override
     public boolean runNow(Integer taskId) {
-        ClaimedRun claimedRun = claim(taskId, true);
+        ClaimedRun claimedRun = claimManual(taskId);
         if (claimedRun == null) {
             return false;
         }
@@ -79,7 +84,12 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
             executor.execute(() -> run(claimedRun));
             return true;
         } catch (TaskRejectedException e) {
-            finish(claimedRun.task(), claimedRun.lockOwner(), claimedRun.force());
+            finish(
+                    claimedRun.task(),
+                    claimedRun.lockOwner(),
+                    claimedRun.force(),
+                    STATUS_FAILED,
+                    "Task executor rejected the run.");
             log.warn("Scheduled agent task executor rejected taskId={}", claimedRun.task().getId());
             return false;
         }
@@ -88,8 +98,7 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
     private ClaimedRun claim(Integer taskId, boolean force) {
         LocalDateTime startedAt = LocalDateTime.now();
         String lockOwner = UUID.randomUUID().toString();
-        if (taskMapper.lockForRun(
-                        taskId, startedAt, startedAt.plus(LOCK_DURATION), lockOwner, force)
+        if (taskMapper.lockForRun(taskId, startedAt, startedAt.plus(lockDuration), lockOwner, force)
                 == 0) {
             return null;
         }
@@ -98,35 +107,76 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
         return new ClaimedRun(task, lockOwner, force);
     }
 
+    private ClaimedRun claimManual(Integer taskId) {
+        LocalDateTime startedAt = LocalDateTime.now();
+        String lockOwner = UUID.randomUUID().toString();
+        if (taskMapper.lockForManualRun(taskId, startedAt, startedAt.plus(lockDuration), lockOwner)
+                == 0) {
+            return null;
+        }
+
+        ScheduledAgentTask task = taskMapper.selectById(taskId);
+        return new ClaimedRun(task, lockOwner, true);
+    }
+
     private void run(ClaimedRun claimedRun) {
+        String lastStatus = STATUS_SUCCESS;
+        String lastError = null;
         try {
-            agentService
-                    .chatStream(
-                            "scheduled-task-" + claimedRun.task().getId() + "-" + UUID.randomUUID(),
-                            claimedRun.task().getPrompt()
-                                    + "\n\n"
-                                    + "Scheduled task requirement: if information is insufficient"
-                                    + " or user confirmation is needed, state that the task cannot"
-                                    + " be completed; do not call ask_user.",
-                            null,
-                            false)
-                    .then()
-                    .block();
+            runAgent(claimedRun.task());
         } catch (Exception e) {
+            lastStatus = STATUS_FAILED;
+            lastError = rootCauseMessage(e);
             log.error("Scheduled agent task failed: taskId={}", claimedRun.task().getId(), e);
         } finally {
-            finish(claimedRun.task(), claimedRun.lockOwner(), claimedRun.force());
+            finish(
+                    claimedRun.task(),
+                    claimedRun.lockOwner(),
+                    claimedRun.force(),
+                    lastStatus,
+                    lastError);
         }
     }
 
-    private void finish(ScheduledAgentTask task, String lockOwner, boolean force) {
+    private void runAgent(ScheduledAgentTask task) {
+        agentService
+                .chatStreamStrict(
+                        "scheduled-task-" + task.getId() + "-" + UUID.randomUUID(),
+                        task.getPrompt()
+                                + "\n\n"
+                                + "Scheduled task requirement: if information is insufficient"
+                                + " or user confirmation is needed, state that the task cannot"
+                                + " be completed; do not call ask_user.",
+                        null,
+                        false)
+                .blockLast();
+    }
+
+    private String rootCauseMessage(Throwable throwable) {
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null) {
+            rootCause = rootCause.getCause();
+        }
+        String message = rootCause.getMessage();
+        return rootCause.getClass().getSimpleName()
+                + (message == null || message.isBlank() ? "" : ": " + message);
+    }
+
+    private void finish(
+            ScheduledAgentTask task,
+            String lockOwner,
+            boolean force,
+            String lastStatus,
+            String lastError) {
         LocalDateTime finishedAt = LocalDateTime.now();
         LocalDateTime nextRunAt =
                 force && task.getNextRunAt().isAfter(finishedAt)
                         ? task.getNextRunAt()
                         : ScheduledAgentScheduleCalculator.nextRunAfter(
                                 task.getScheduleType(), task.getScheduleExpr(), finishedAt);
-        int updated = taskMapper.finishRun(task.getId(), lockOwner, nextRunAt, finishedAt);
+        int updated =
+                taskMapper.finishRun(
+                        task.getId(), lockOwner, nextRunAt, finishedAt, lastStatus, lastError);
         if (updated == 0) {
             log.warn("Scheduled agent task lock changed before finish: taskId={}", task.getId());
         }
