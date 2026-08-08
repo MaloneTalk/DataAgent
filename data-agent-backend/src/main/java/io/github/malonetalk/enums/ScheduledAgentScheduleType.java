@@ -15,17 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk;
+package io.github.malonetalk.enums;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
-
-@EnableScheduling
-@SpringBootApplication
-public class DataAgentApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(DataAgentApplication.class, args);
-    }
+public enum ScheduledAgentScheduleType {
+    DAILY,
+    INTERVAL,
+    CRON
 }

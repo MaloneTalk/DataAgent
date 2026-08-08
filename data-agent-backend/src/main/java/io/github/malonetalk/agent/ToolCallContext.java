@@ -20,4 +20,20 @@ package io.github.malonetalk.agent;
 import lombok.Builder;
 
 @Builder
-public record ToolCallContext(String sessionId) {}
+public record ToolCallContext(
+        String sessionId, String userInput, Integer datasourceId, TaskType taskType) {
+
+    public ToolCallContext {
+        if (taskType == null) {
+            taskType = TaskType.NORMAL;
+        }
+    }
+
+    public boolean allowUserPrompt() {
+        return taskType == TaskType.NORMAL;
+    }
+
+    public boolean mapErrorsToStream() {
+        return taskType == TaskType.NORMAL;
+    }
+}

@@ -79,28 +79,24 @@ public class AgentService {
     }
 
     public Flux<ChatStreamEvent> chatStream(
-            String sessionId,
-            String userInput,
-            List<ChatRequest.ToolResultInput> toolResults,
-            Integer datasourceId) {
-        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, datasourceId))
-                .onErrorResume(this::toErrorEvent);
+            ToolCallContext context, List<ChatRequest.ToolResultInput> toolResults) {
+        Flux<ChatStreamEvent> stream = Flux.defer(() -> streamAgent(context, toolResults));
+        if (context.mapErrorsToStream()) {
+            return stream.onErrorResume(this::toErrorEvent);
+        }
+        return stream;
     }
 
     private Flux<ChatStreamEvent> streamAgent(
-            String sessionId,
-            String userInput,
-            List<ChatRequest.ToolResultInput> toolResults,
-            Integer datasourceId) {
-        if (datasourceId != null) {
-            // 首次绑定；已绑定会被 INSERT IGNORE 忽略，锁定语义在 mapper 层保证。
-            datasourceService.bindSessionDatasource(sessionId, datasourceId);
+            ToolCallContext context, List<ChatRequest.ToolResultInput> toolResults) {
+        if (context.datasourceId() != null) {
+            datasourceService.bindSessionDatasource(context.sessionId(), context.datasourceId());
         }
-        ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
+        ReActAgent agent = createAgent(context);
 
-        Session session = sessionService.getOrCreateSession(sessionId);
-        agent.loadIfExists(session, sessionId);
-        Msg userMsg = buildUserMessage(userInput, toolResults);
+        Session session = sessionService.getOrCreateSession(context.sessionId());
+        agent.loadIfExists(session, context.sessionId());
+        Msg userMsg = buildUserMessage(context.userInput(), toolResults);
 
         StreamOptions streamOptions =
                 StreamOptions.builder()
@@ -123,13 +119,13 @@ public class AgentService {
                         signalType ->
                                 log.info(
                                         "SSE chat stream finished: sessionId={}, signal={}",
-                                        sessionId,
+                                        context.sessionId(),
                                         signalType))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapIterable(eventConverter::map)
                 .doFinally(
                         signalType -> {
-                            agent.saveTo(session, sessionId);
+                            agent.saveTo(session, context.sessionId());
                             MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
                         });
     }

@@ -15,17 +15,27 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk;
+package io.github.malonetalk.service;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
+import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
+import java.util.List;
 
-@EnableScheduling
-@SpringBootApplication
-public class DataAgentApplication {
+public interface ScheduledAgentTaskScheduler {
 
-    public static void main(String[] args) {
-        SpringApplication.run(DataAgentApplication.class, args);
-    }
+    boolean create(ScheduledAgentTaskRequest request);
+
+    boolean update(Integer id, ScheduledAgentTaskRequest request);
+
+    boolean delete(Integer id);
+
+    boolean activate(Integer id);
+
+    boolean deactivate(Integer id);
+
+    ScheduledAgentTaskResponse getStatus(Integer id);
+
+    List<ScheduledAgentTaskResponse> listAll();
+
+    boolean runNow(Integer taskId);
 }

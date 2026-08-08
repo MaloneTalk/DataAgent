@@ -15,17 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk;
+package io.github.malonetalk.dto;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import io.github.malonetalk.enums.ScheduledAgentScheduleType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-@EnableScheduling
-@SpringBootApplication
-public class DataAgentApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(DataAgentApplication.class, args);
-    }
-}
+public record ScheduledAgentTaskRequest(
+        @NotBlank(message = "name cannot be blank.") String name,
+        @NotBlank(message = "prompt cannot be blank.") String prompt,
+        @NotNull(message = "scheduleType cannot be null.") ScheduledAgentScheduleType scheduleType,
+        @NotBlank(message = "scheduleExpr cannot be blank.") String scheduleExpr,
+        Boolean enabled) {}

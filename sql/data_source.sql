@@ -1,3 +1,32 @@
+-- Data Agent metadata database initialization script.
+-- Default metadata database used by application.properties:
+-- jdbc:mysql://localhost:3306/data_agent
+
+CREATE DATABASE IF NOT EXISTS `data_agent`
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_unicode_ci;
+
+USE `data_agent`;
+
+SET NAMES utf8mb4;
+
+-- 用户表（带身份源抽象：兼容本系统账号 / 钉钉 / 飞书 / 企业微信）
+CREATE TABLE IF NOT EXISTS `sys_user` (
+    `id`            INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `username`      VARCHAR(64)  NOT NULL COMMENT '登录名；外部身份源用户=身份源昵称（可重名，靠 uk_idp 区分）',
+    `password_hash` VARCHAR(255) NULL COMMENT 'PBKDF2 哈希，仅 LOCAL 身份源使用；外部身份源用户为空',
+    `display_name`  VARCHAR(64)  NOT NULL COMMENT '显示名',
+    `role_id`       INT NOT NULL DEFAULT 0 COMMENT '角色ID；0=未分配角色（无任何表权限）',
+    `idp_type`      VARCHAR(16)  NOT NULL DEFAULT 'LOCAL' COMMENT '身份源：LOCAL=本系统账号 / DINGTALK / FEISHU / WECOM',
+    `idp_user_id`   VARCHAR(64)  NULL COMMENT '身份源里的用户ID（LOCAL为空）',
+    `status`        TINYINT NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_username` (`username`),
+    UNIQUE KEY `uk_idp` (`idp_type`, `idp_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户';
+
 CREATE TABLE IF NOT EXISTS `datasource` (
     `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `name` VARCHAR(255) DEFAULT NULL COMMENT '数据源名称',
@@ -15,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `datasource` (
     `create_time` DATETIME DEFAULT NULL COMMENT '创建时间',
     `update_time` DATETIME DEFAULT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据源表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='数据源表';
 
 CREATE TABLE IF NOT EXISTS `table_info` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -106,14 +135,38 @@ CREATE TABLE IF NOT EXISTS `report` (
     KEY `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告表';
 
-CREATE TABLE IF NOT EXISTS  `agentscope_sessions` (
-  `session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `state_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `item_index` int(11) NOT NULL DEFAULT '0',
-  `state_data` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`session_id`,`state_key`,`item_index`)
+CREATE TABLE IF NOT EXISTS `scheduled_agent_task` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+    `name` VARCHAR(255) NOT NULL COMMENT 'Task name',
+    `prompt` TEXT NOT NULL COMMENT 'Prompt sent to the agent on each run',
+    `schedule_type` VARCHAR(32) NOT NULL COMMENT 'DAILY, INTERVAL, or CRON',
+    `schedule_expr` VARCHAR(128) NOT NULL COMMENT 'HH:mm[:ss], ISO-8601 duration, or cron',
+    `timezone` VARCHAR(64) NOT NULL DEFAULT 'Asia/Shanghai' COMMENT 'Schedule timezone',
+    `enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Whether dispatch can pick up the task',
+    `running` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Whether the task is currently running',
+    `lock_until` DATETIME DEFAULT NULL COMMENT 'Run lock expiration',
+    `lock_owner` VARCHAR(64) DEFAULT NULL COMMENT 'Run lock owner token',
+    `current_run_id` VARCHAR(64) DEFAULT NULL COMMENT 'Current run id',
+    `session_mode` VARCHAR(32) NOT NULL DEFAULT 'NEW_EACH_RUN' COMMENT 'Session reuse mode',
+    `session_id` VARCHAR(255) DEFAULT NULL COMMENT 'Reusable session id',
+    `next_run_at` DATETIME NOT NULL COMMENT 'Next due time',
+    `last_run_at` DATETIME DEFAULT NULL COMMENT 'Last run finish time',
+    `last_status` VARCHAR(32) DEFAULT NULL COMMENT 'Last run status',
+    `last_error` TEXT DEFAULT NULL COMMENT 'Last run error',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
+    PRIMARY KEY (`id`),
+    KEY `idx_due_task` (`enabled`, `next_run_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduled agent task';
+
+CREATE TABLE IF NOT EXISTS `agentscope_sessions` (
+    `session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `state_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `item_index` int(11) NOT NULL DEFAULT '0',
+    `state_data` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`session_id`, `state_key`, `item_index`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `session_datasource` (
@@ -124,3 +177,58 @@ CREATE TABLE IF NOT EXISTS `session_datasource` (
     PRIMARY KEY (`session_id`),
     KEY `idx_datasource_id` (`datasource_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话与数据源绑定表';
+
+CREATE TABLE IF NOT EXISTS `mcp_server` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `name` VARCHAR(255) NOT NULL COMMENT 'MCP Server 名称',
+    `transport_type` VARCHAR(32) DEFAULT NULL COMMENT '传输类型',
+    `client_type` VARCHAR(32) DEFAULT NULL COMMENT '客户端类型',
+    `command` VARCHAR(500) DEFAULT NULL COMMENT 'STDIO 命令',
+    `args` TEXT DEFAULT NULL COMMENT 'STDIO 参数 JSON',
+    `env` TEXT DEFAULT NULL COMMENT '环境变量 JSON',
+    `url` VARCHAR(1000) DEFAULT NULL COMMENT 'HTTP/SSE 地址',
+    `headers` TEXT DEFAULT NULL COMMENT '请求头 JSON',
+    `query_params` TEXT DEFAULT NULL COMMENT '查询参数 JSON',
+    `timeout` BIGINT DEFAULT NULL COMMENT '请求超时时间',
+    `initialization_timeout` BIGINT DEFAULT NULL COMMENT '初始化超时时间',
+    `enable_elicitation` TINYINT(1) DEFAULT NULL COMMENT '是否启用 elicitation',
+    `http_version` VARCHAR(32) DEFAULT NULL COMMENT 'HTTP 版本',
+    `connect_timeout` BIGINT DEFAULT NULL COMMENT '连接超时时间',
+    `redirect_policy` VARCHAR(32) DEFAULT NULL COMMENT '重定向策略',
+    `status` VARCHAR(20) DEFAULT NULL COMMENT '状态',
+    `description` TEXT DEFAULT NULL COMMENT '描述',
+    `creator_id` BIGINT DEFAULT NULL COMMENT '创建者ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_mcp_server_name` (`name`),
+    KEY `idx_mcp_server_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP Server 配置表';
+
+CREATE TABLE IF NOT EXISTS `metric_info` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
+    `metric_key` VARCHAR(255) NOT NULL COMMENT '指标稳定标识(程序化引用用),如 sales',
+    `name` VARCHAR(255) NOT NULL COMMENT '指标显示名,如 销售额',
+    `aliases` TEXT DEFAULT NULL COMMENT '同义词,逗号分隔,如 GMV,营收,流水',
+    `measure_expr` VARCHAR(500) DEFAULT NULL COMMENT '度量表达式,如 SUM(paid_amount)',
+    `filters` TEXT DEFAULT NULL COMMENT '过滤条件,如 status=''paid'' AND is_test=0',
+    `time_field` VARCHAR(255) DEFAULT NULL COMMENT '时间维度字段,如 settle_time',
+    `description` TEXT DEFAULT NULL COMMENT '业务口径说明/规则',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_datasource_metric_key` (`datasource_id`, `metric_key`),
+    KEY `idx_datasource_name` (`datasource_id`, `name`),
+    KEY `idx_datasource_aliases` (`datasource_id`, `aliases`(255))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='指标口径表';
+
+-- 示例: 销售额口径。请按你实际的 datasource_id 调整后再执行（取消注释）。
+-- INSERT INTO `metric_info`
+--   (`datasource_id`, `metric_key`, `name`, `aliases`,
+--    `measure_expr`, `filters`, `time_field`, `description`)
+-- VALUES
+--   (1, 'sales', '销售额', 'GMV,营收,流水,成交额',
+--    'SUM(paid_amount)', 'status=''paid'' AND is_test=0', 'settle_time',
+--    '已支付净额,使用结算时间,排除测试账号');
