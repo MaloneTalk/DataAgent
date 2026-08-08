@@ -18,6 +18,7 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.agent.AgentService;
+import io.github.malonetalk.agent.ToolCallContext.TaskType;
 import io.github.malonetalk.entity.ScheduledAgentTask;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
 import jakarta.annotation.PostConstruct;
@@ -148,7 +149,7 @@ class DatabasePollingScheduledAgentTaskScheduler implements ScheduledAgentTaskSc
                                 + " or user confirmation is needed, state that the task cannot"
                                 + " be completed; do not call ask_user.",
                         null,
-                        false)
+                        TaskType.SCHEDULED)
                 .blockLast();
     }
 

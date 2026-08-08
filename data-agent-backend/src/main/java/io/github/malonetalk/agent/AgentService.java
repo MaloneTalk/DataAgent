@@ -30,6 +30,7 @@ import io.agentscope.core.session.Session;
 import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.tool.ToolExecutionContext;
 import io.agentscope.core.tool.Toolkit;
+import io.github.malonetalk.agent.ToolCallContext.TaskType;
 import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
 import io.github.malonetalk.agent.skill.SkillLoaderService;
@@ -79,24 +80,15 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId) {
-        return chatStream(sessionId, userInput, toolResults, datasourceId, true);
-    }
-
-    public Flux<ChatStreamEvent> chatStream(
-            String sessionId,
-            String userInput,
-            List<ChatRequest.ToolResultInput> toolResults,
-            boolean allowUserPrompt) {
-        return chatStream(sessionId, userInput, toolResults, null, allowUserPrompt);
+        return chatStream(sessionId, userInput, toolResults, datasourceId, TaskType.NORMAL);
     }
 
     public Flux<ChatStreamEvent> chatStreamStrict(
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
-            boolean allowUserPrompt) {
-        return Flux.defer(
-                () -> streamAgent(sessionId, userInput, toolResults, null, allowUserPrompt));
+            TaskType taskType) {
+        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, null, taskType));
     }
 
     private Flux<ChatStreamEvent> chatStream(
@@ -104,15 +96,11 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId,
-            boolean allowUserPrompt) {
+            TaskType taskType) {
         return Flux.defer(
                         () ->
                                 streamAgent(
-                                        sessionId,
-                                        userInput,
-                                        toolResults,
-                                        datasourceId,
-                                        allowUserPrompt))
+                                        sessionId, userInput, toolResults, datasourceId, taskType))
                 .onErrorResume(this::toErrorEvent);
     }
 
@@ -121,11 +109,11 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId,
-            boolean allowUserPrompt) {
+            TaskType taskType) {
         if (datasourceId != null) {
             datasourceService.bindSessionDatasource(sessionId, datasourceId);
         }
-        ReActAgent agent = createAgent(new ToolCallContext(sessionId, allowUserPrompt));
+        ReActAgent agent = createAgent(new ToolCallContext(sessionId, taskType));
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);

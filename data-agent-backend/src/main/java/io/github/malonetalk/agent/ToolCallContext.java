@@ -17,4 +17,14 @@
  */
 package io.github.malonetalk.agent;
 
-public record ToolCallContext(String sessionId, boolean allowUserPrompt) {}
+public record ToolCallContext(String sessionId, TaskType taskType) {
+
+    public boolean allowUserPrompt() {
+        return taskType == TaskType.NORMAL;
+    }
+
+    public enum TaskType {
+        NORMAL,
+        SCHEDULED
+    }
+}
