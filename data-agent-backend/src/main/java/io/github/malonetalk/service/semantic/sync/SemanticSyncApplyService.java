@@ -61,8 +61,7 @@ public class SemanticSyncApplyService {
         Map<String, List<ColumnInfo>> columnsByTableName =
                 loadSemanticColumnsByTable(datasourceId, selectedTableNames);
 
-        batchSavePresentSchema(
-                datasourceId, presentTables, existingTableIndex, columnsByTableName);
+        batchSavePresentSchema(datasourceId, presentTables, existingTableIndex, columnsByTableName);
 
         // 基于写入前快照生成统计结果，同时收集需要批量标记缺失的列 ID。
         List<String> missingTableNames = new ArrayList<>();
