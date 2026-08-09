@@ -17,21 +17,49 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <sql id="DeduplicatedColumns">
+        SELECT *
+        FROM (
+            SELECT
+                column_info.*,
+                ROW_NUMBER() OVER (
+                    PARTITION BY datasource_id, LOWER(table_name), LOWER(column_name)
+                    ORDER BY
+                        CASE
+                            WHEN column_description IS NOT NULL AND column_description &lt;&gt; '' THEN 0
+                            WHEN is_visible = 0 THEN 0
+                            ELSE 1
+                        END ASC,
+                        update_time DESC,
+                        create_time DESC,
+                        id DESC
+                ) AS row_num
+            FROM column_info
+        ) deduplicated_columns
+        WHERE row_num = 1
+    </sql>
+
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM column_info
+        SELECT * FROM (
+            <include refid="DeduplicatedColumns"/>
+        ) column_info
         WHERE datasource_id = #{datasourceId}
         ORDER BY table_name ASC, column_name ASC, id ASC
     </select>
 
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
-        SELECT * FROM column_info
+        SELECT * FROM (
+            <include refid="DeduplicatedColumns"/>
+        ) column_info
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) = LOWER(#{tableName})
         ORDER BY column_name ASC, id ASC
     </select>
 
     <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
-        SELECT * FROM column_info
+        SELECT * FROM (
+            <include refid="DeduplicatedColumns"/>
+        ) column_info
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) IN
         <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
@@ -41,7 +69,9 @@
     </select>
 
     <select id="selectPageByDatasourceIdAndTableName" resultMap="BaseResultMap">
-        SELECT * FROM column_info
+        SELECT * FROM (
+            <include refid="DeduplicatedColumns"/>
+        ) column_info
         WHERE datasource_id = #{query.datasourceId}
           AND LOWER(table_name) = LOWER(#{query.tableName})
         <if test="query.keyword != null and query.keyword != ''">
@@ -58,11 +88,12 @@
     </select>
 
     <select id="selectByDatasourceIdAndTableNameAndColumnName" resultMap="BaseResultMap">
-        SELECT * FROM column_info
+        SELECT * FROM (
+            <include refid="DeduplicatedColumns"/>
+        ) column_info
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) = LOWER(#{tableName})
           AND LOWER(column_name) = LOWER(#{columnName})
-        ORDER BY update_time DESC, create_time DESC, id DESC
         LIMIT 1
     </select>
 
