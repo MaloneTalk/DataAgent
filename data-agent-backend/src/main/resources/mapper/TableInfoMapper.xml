@@ -16,25 +16,24 @@
     </resultMap>
 
     <sql id="DeduplicatedTables">
-        SELECT *
-        FROM (
-            SELECT
-                table_info.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY datasource_id, LOWER(table_name)
-                    ORDER BY
-                        CASE
-                            WHEN table_description IS NOT NULL AND table_description &lt;&gt; '' THEN 0
-                            WHEN is_visible = 0 THEN 0
-                            ELSE 1
-                        END ASC,
-                        update_time DESC,
-                        create_time DESC,
-                        id DESC
-                ) AS row_num
-            FROM table_info
-        ) deduplicated_tables
-        WHERE row_num = 1
+        SELECT t.*
+        FROM table_info t
+        WHERE t.id = (
+            SELECT t2.id
+            FROM table_info t2
+            WHERE t2.datasource_id = t.datasource_id
+                AND LOWER(t2.table_name) = LOWER(t.table_name)
+            ORDER BY
+                CASE
+                    WHEN t2.table_description IS NOT NULL AND t2.table_description &lt;&gt; '' THEN 0
+                    WHEN t2.is_visible = 0 THEN 0
+                    ELSE 1
+                END ASC,
+                t2.update_time DESC,
+                t2.create_time DESC,
+                t2.id DESC
+            LIMIT 1
+        )
     </sql>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
