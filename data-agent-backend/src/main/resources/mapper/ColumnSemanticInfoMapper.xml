@@ -18,25 +18,25 @@
     </resultMap>
 
     <sql id="DeduplicatedColumns">
-        SELECT *
-        FROM (
-            SELECT
-                column_info.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY datasource_id, LOWER(table_name), LOWER(column_name)
-                    ORDER BY
-                        CASE
-                            WHEN column_description IS NOT NULL AND column_description &lt;&gt; '' THEN 0
-                            WHEN is_visible = 0 THEN 0
-                            ELSE 1
-                        END ASC,
-                        update_time DESC,
-                        create_time DESC,
-                        id DESC
-                ) AS row_num
-            FROM column_info
-        ) deduplicated_columns
-        WHERE row_num = 1
+        SELECT t.*
+        FROM column_info t
+        WHERE t.id = (
+            SELECT t2.id
+            FROM column_info t2
+            WHERE t2.datasource_id = t.datasource_id
+                AND LOWER(t2.table_name) = LOWER(t.table_name)
+                AND LOWER(t2.column_name) = LOWER(t.column_name)
+            ORDER BY
+                CASE
+                    WHEN t2.column_description IS NOT NULL AND t2.column_description &lt;&gt; '' THEN 0
+                    WHEN t2.is_visible = 0 THEN 0
+                    ELSE 1
+                END ASC,
+                t2.update_time DESC,
+                t2.create_time DESC,
+                t2.id DESC
+            LIMIT 1
+        )
     </sql>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
