@@ -19,28 +19,25 @@
     </resultMap>
 
     <sql id="DeduplicatedRelations">
-        SELECT *
-        FROM (
-            SELECT
-                logical_table_relation.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY
-                        datasource_id,
-                        LOWER(source_table_name),
-                        source_column_signature
-                    ORDER BY
-                        CASE
-                            WHEN description IS NOT NULL AND description &lt;&gt; '' THEN 0
-                            WHEN is_enabled = 0 THEN 0
-                            ELSE 1
-                        END ASC,
-                        update_time DESC,
-                        create_time DESC,
-                        id DESC
-                ) AS row_num
-            FROM logical_table_relation
-        ) deduplicated_relations
-        WHERE row_num = 1
+        SELECT t.*
+        FROM logical_table_relation t
+        WHERE t.id = (
+            SELECT t2.id
+            FROM logical_table_relation t2
+            WHERE t2.datasource_id = t.datasource_id
+                AND LOWER(t2.source_table_name) = LOWER(t.source_table_name)
+                AND t2.source_column_signature = t.source_column_signature
+            ORDER BY
+                CASE
+                    WHEN t2.description IS NOT NULL AND t2.description &lt;&gt; '' THEN 0
+                    WHEN t2.is_enabled = 0 THEN 0
+                    ELSE 1
+                END ASC,
+                t2.update_time DESC,
+                t2.create_time DESC,
+                t2.id DESC
+            LIMIT 1
+        )
     </sql>
 
     <select id="selectById" resultMap="BaseResultMap">
