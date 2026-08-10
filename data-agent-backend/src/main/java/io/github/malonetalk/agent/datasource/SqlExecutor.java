@@ -93,7 +93,7 @@ public class SqlExecutor {
 
         //  inject LIMIT if absent, to prevent full table scans
         if (!hasLimit(select)) {
-            return "SELECT * FROM (" + sql + ") AS _sandbox LIMIT " + MAX_ROWS;
+            return "SELECT * FROM (" + select + ") AS _sandbox LIMIT " + MAX_ROWS;
         }
         return sql;
     }
