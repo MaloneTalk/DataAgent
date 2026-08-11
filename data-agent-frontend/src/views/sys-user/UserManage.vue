@@ -27,6 +27,7 @@
   const users = ref<UserResponse[]>([]);
   const roleOptions = ref<RoleResponse[]>([]);
   function roleName(roleId: number) {
+    if (roleId === 0) return '未分配';
     return roleOptions.value.find(r => r.id === roleId)?.name || String(roleId);
   }
 
@@ -223,7 +224,8 @@
           <el-input v-model="form.displayName" placeholder="请输入显示名" />
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="form.roleId" style="width: 100%">
+          <el-select v-model="form.roleId" placeholder="请选择角色" style="width: 100%">
+            <el-option :value="0" label="未分配" />
             <el-option v-for="r in roleOptions" :key="r.id" :value="r.id" :label="r.name" />
           </el-select>
         </el-form-item>
