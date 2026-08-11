@@ -17,11 +17,10 @@
  */
 package io.github.malonetalk.dto;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 /** 更新用户。roleId 为 null 表示不修改角色。 */
 public record UserUpdateRequest(
         @NotBlank(message = "displayName 不能为空") String displayName,
-        @Min(0) @Max(1) Integer roleId) {}
+        @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}

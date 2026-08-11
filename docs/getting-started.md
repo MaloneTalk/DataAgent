@@ -24,7 +24,7 @@ mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
 for f in sql/*.sql; do mysql -u root -p data_agent < "$f"; done
 ```
 
-> `sql/` 目录共三个脚本：`data_source.sql`（数据源与语义层表）、`metric.sql`（指标口径表）、`sys_user.sql`（用户表，登录功能依赖）。三者均需导入。
+> `sql/` 目录包含四个脚本：`data_source.sql`（数据源与语义层表）、`metric.sql`（指标口径表）、`sys_user.sql`（用户表）、`sys_role.sql`（角色与表/列权限表）。均需导入。
 
 ## 3. 配置并启动后端
 
@@ -98,6 +98,8 @@ pnpm dev
 2. 先在「数据源管理」中新增一个你要查的业务库（支持 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，类型以下拉列表为准）。若该库不是 MySQL，请先确认后端已内置其驱动（见 [常见问题](#6-常见问题) 第一条）。
 3. 在「语义层」中把相关表/列映射成业务语言（可选，但能显著提升准确率）。
 4. 进入聊天界面，输入类似：*"上个月各区域销售额是多少？"*，观察流式回答与生成的 SQL。
+
+> 初始的 `admin` 用户拥有所有权限。如需多人使用，可在「用户管理」中创建用户、在「角色管理」中为角色配置表/列级权限、再将用户绑定到角色。当前权限仅在页面管理层面生效，尚未接入 Agent 推理链路。
 
 > 如果回答不准，多半是语义层/指标口径没配好，或数据源尚未接入。参见 [semantic-layer.md](semantic-layer.md) 与 [configuration.md](configuration.md)。
 
