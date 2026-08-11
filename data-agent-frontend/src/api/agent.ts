@@ -109,7 +109,10 @@ function authHeaders(): Record<string, string> {
 }
 
 async function fetchJson<T>(url: string, fallback: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...init, headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) } });
+  const response = await fetch(url, {
+    ...init,
+    headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) },
+  });
   if (response.status === 401) {
     handleUnauthorized();
     throw new ApiError('登录已过期，请重新登录', { code: 401 });
