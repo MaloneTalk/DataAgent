@@ -187,7 +187,7 @@ public class AgentService {
         当前时区是 Asia/Shanghai。
         今天是 %s，昨天是 %s，明天是 %s。
         当用户提到今天、昨天、明天、上周、本周等相对日期时，必须先按以上当前日期换算成具体日期。
-        查询日期、星期、节假日、节气或重要日子时，优先使用 get_date_info 工具。
+        查询日期、星期、节假日、调休或日期差时，优先使用 get_date_info 工具。
         """
                 .formatted(today, today.minusDays(1), today.plusDays(1));
     }

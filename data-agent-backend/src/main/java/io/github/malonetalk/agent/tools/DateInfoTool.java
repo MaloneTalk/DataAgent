@@ -33,7 +33,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,7 +70,7 @@ public class DateInfoTool implements MarkAgentTool {
                     day is a holiday, Chinese holiday schedule, or date difference. For relative \
                     dates, convert them using the system prompt's current date before passing \
                     date; omit date for today. Pass end_date only when a calendar-day difference \
-                    is needed.\
+                    is needed. Date difference counts start date inclusive and end date exclusive.\
                     """)
     public String getDateInfo(
             @ToolParam(
@@ -118,37 +117,22 @@ public class DateInfoTool implements MarkAgentTool {
         boolean legalHoliday = holiday != null && Boolean.TRUE.equals(holiday.holiday());
         boolean adjustedWorkday = holiday != null && Boolean.FALSE.equals(holiday.holiday());
         boolean weekend = date.getDayOfWeek().getValue() >= 6;
-        boolean dayOff = legalHoliday || (weekend && !adjustedWorkday);
 
         return new DateInfo(
                 date.toString(),
-                zoneId.getId(),
                 date.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.CHINA),
-                date.getDayOfWeek().getValue(),
-                weekend,
-                dayOff,
-                legalHoliday,
-                adjustedWorkday,
                 holiday != null ? holiday.name() : null,
                 dayType(legalHoliday, adjustedWorkday, weekend),
-                List.of(),
                 holidayApiResponse.isPresent(),
                 StringUtils.hasText(endDateText)
-                        ? resolveDateDiff(date, LocalDate.parse(endDateText), zoneId)
+                        ? resolveDateDiff(date, LocalDate.parse(endDateText))
                         : null);
     }
 
-    DateDiff resolveDateDiff(LocalDate startDate, LocalDate endDate, ZoneId zoneId) {
+    DateDiff resolveDateDiff(LocalDate startDate, LocalDate endDate) {
         long calendarDays = ChronoUnit.DAYS.between(startDate, endDate);
 
-        return new DateDiff(
-                startDate.toString(),
-                endDate.toString(),
-                zoneId.getId(),
-                calendarDays,
-                Math.abs(calendarDays),
-                true,
-                false);
+        return new DateDiff(calendarDays, Math.abs(calendarDays));
     }
 
     private Optional<HolidayApiResponse> queryHolidayApi(LocalDate date) {
@@ -192,29 +176,13 @@ public class DateInfoTool implements MarkAgentTool {
 
     record DateInfo(
             String date,
-            String timezone,
             String weekday,
-            int weekdayIso,
-            boolean isWeekend,
-            boolean isDayOff,
-            boolean isLegalHoliday,
-            boolean isAdjustedWorkday,
             String holidayName,
             String dayType,
-            List<ImportantDay> importantDays,
             boolean holidayDataAvailable,
             DateDiff dateDiff) {}
 
-    record DateDiff(
-            String startDate,
-            String endDate,
-            String timezone,
-            long calendarDays,
-            long absoluteCalendarDays,
-            boolean startDateInclusive,
-            boolean endDateInclusive) {}
-
-    record ImportantDay(String type, String name, String time, String note) {}
+    record DateDiff(long calendarDays, long absoluteCalendarDays) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record HolidayApiResponse(int code, HolidayType type, HolidayDetail holiday) {}
