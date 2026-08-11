@@ -20,10 +20,15 @@
   import { ref, reactive, onMounted } from 'vue';
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
   import * as sysUserApi from '@/api/sysUser';
+  import { listRoles, type RoleResponse } from '@/api/sysRole';
   import type { UserResponse } from '@/api/sysUser';
 
   const loading = ref(false);
   const users = ref<UserResponse[]>([]);
+  const roleOptions = ref<RoleResponse[]>([]);
+  function roleName(roleId: number) {
+    return roleOptions.value.find(r => r.id === roleId)?.name || String(roleId);
+  }
 
   async function reload() {
     loading.value = true;
@@ -148,7 +153,14 @@
     }
   }
 
-  onMounted(reload);
+  onMounted(() => {
+    reload();
+    listRoles()
+      .then(list => {
+        roleOptions.value = list;
+      })
+      .catch(() => {});
+  });
 </script>
 
 <template>
@@ -165,7 +177,7 @@
       <el-table-column label="角色" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.roleId === 1 ? '' : 'info'" size="small">
-            {{ row.roleId === 1 ? '管理员' : '普通用户' }}
+            {{ roleName(row.roleId) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -212,8 +224,7 @@
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="form.roleId" style="width: 100%">
-            <el-option :value="1" label="管理员" />
-            <el-option :value="0" label="普通用户" />
+            <el-option v-for="r in roleOptions" :key="r.id" :value="r.id" :label="r.name" />
           </el-select>
         </el-form-item>
       </el-form>
