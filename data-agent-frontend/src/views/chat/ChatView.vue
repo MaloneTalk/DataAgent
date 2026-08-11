@@ -180,6 +180,7 @@
         ref="sessionListRef"
         :active-session-id="activeSessionId"
         @new-session="handleNewSession"
+        @session-deleted="sessionListRef?.loadList()"
       />
     </div>
 

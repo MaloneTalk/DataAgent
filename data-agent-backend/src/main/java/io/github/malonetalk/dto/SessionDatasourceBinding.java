@@ -15,24 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.mapper;
+package io.github.malonetalk.dto;
 
-import io.github.malonetalk.dto.SessionDatasourceBinding;
-import io.github.malonetalk.entity.SessionDatasource;
-import java.util.List;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
+import lombok.Data;
 
-@Mapper
-public interface SessionDatasourceMapper {
+/** {@link io.github.malonetalk.mapper.SessionDatasourceMapper#listBindingsWithDatasourceName()} 的结果行。 */
+@Data
+public class SessionDatasourceBinding {
 
-    /** 首次绑定；主键冲突时保留已有绑定（锁定语义）。 */
-    int insertIfAbsent(SessionDatasource sessionDatasource);
-
-    SessionDatasource selectBySessionId(@Param("sessionId") String sessionId);
-
-    int deleteBySessionId(@Param("sessionId") String sessionId);
-
-    /** 列出所有绑定并关联数据源名称。 */
-    List<SessionDatasourceBinding> listBindingsWithDatasourceName();
+    private String sessionId;
+    private Integer datasourceId;
+    private String datasourceName;
 }
