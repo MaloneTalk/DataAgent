@@ -108,8 +108,8 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
-async function fetchJson<T>(url: string, fallback: string): Promise<T> {
-  const response = await fetch(url, { headers: authHeaders() });
+async function fetchJson<T>(url: string, fallback: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, { ...init, headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) } });
   if (response.status === 401) {
     handleUnauthorized();
     throw new ApiError('登录已过期，请重新登录', { code: 401 });
@@ -136,6 +136,14 @@ export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]
   return fetchJson<TurnItem[]>(
     `/api/agent/session/${encodeURIComponent(sessionId)}/history`,
     'Failed to fetch session history',
+  );
+}
+
+export async function clearSession(sessionId: string): Promise<void> {
+  await fetchJson<boolean>(
+    `/api/agent/session/${encodeURIComponent(sessionId)}`,
+    'Failed to delete session',
+    { method: 'DELETE' },
   );
 }
 

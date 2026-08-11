@@ -18,14 +18,16 @@
 <script setup lang="ts">
   import { ref, onMounted } from 'vue';
   import { useRouter } from 'vue-router';
-  import { fetchSessionList, type SessionInfo } from '@/api/agent';
+  import { ElMessage, ElMessageBox } from 'element-plus';
+  import { fetchSessionList, clearSession, type SessionInfo } from '@/api/agent';
 
-  defineProps<{
+  const props = defineProps<{
     activeSessionId: string | null;
   }>();
 
   const emit = defineEmits<{
     newSession: [];
+    sessionDeleted: [sessionId: string];
   }>();
 
   const router = useRouter();
@@ -64,6 +66,23 @@
     emit('newSession');
   }
 
+  async function handleDelete(e: MouseEvent, s: SessionInfo) {
+    e.stopPropagation();
+    try {
+      await ElMessageBox.confirm(`确定要删除会话「${s.title || s.sessionId}」吗？`, '提示', {
+        type: 'warning',
+      });
+    } catch {
+      return;
+    }
+    await clearSession(s.sessionId);
+    ElMessage.success('删除成功');
+    emit('sessionDeleted', s.sessionId);
+    if (s.sessionId === props.activeSessionId) {
+      router.push('/chat');
+    }
+  }
+
   defineExpose({ loadList });
 
   onMounted(() => loadList());
@@ -87,9 +106,14 @@
         :class="{ active: s.sessionId === activeSessionId }"
         @click="selectSession(s.sessionId)"
       >
-        <div class="session-item__title">{{ s.title || s.sessionId }}</div>
-        <div class="session-item__ds">{{ s.datasourceName ?? '未绑定数据源' }}</div>
-        <div class="session-item__time">{{ formatTime(s.lastActiveAt) }}</div>
+        <div class="session-item__row">
+          <div class="session-item__main">
+            <div class="session-item__title">{{ s.title || s.sessionId }}</div>
+            <div class="session-item__ds">{{ s.datasourceName ?? '未绑定数据源' }}</div>
+            <div class="session-item__time">{{ formatTime(s.lastActiveAt) }}</div>
+          </div>
+          <button class="session-item__delete" @click="e => handleDelete(e, s)" title="删除会话">×</button>
+        </div>
       </div>
     </div>
 
@@ -146,6 +170,43 @@
     cursor: pointer;
     transition: background-color 0.1s;
     margin-bottom: 2px;
+  }
+
+  .session-item__row {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .session-item__main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .session-item__delete {
+    display: none;
+    flex-shrink: 0;
+    margin-left: 8px;
+    margin-top: 2px;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    font-size: 14px;
+    color: var(--app-text-muted);
+    background: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    padding: 0;
+  }
+
+  .session-item__delete:hover {
+    color: #f56c6c;
+    background: rgba(245, 108, 108, 0.1);
+  }
+
+  .session-item:hover .session-item__delete {
+    display: block;
   }
 
   .session-item:hover {

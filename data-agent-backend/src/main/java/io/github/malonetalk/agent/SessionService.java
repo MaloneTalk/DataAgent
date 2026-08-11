@@ -33,6 +33,8 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.dto.SessionDatasourceBinding;
+import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -47,22 +49,27 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 public class SessionService {
 
     private final DataSource dataSource;
+    private final SessionDatasourceMapper sessionDatasourceMapper;
     private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
 
-    public SessionService(DataSource dataSource) {
+    public SessionService(DataSource dataSource, SessionDatasourceMapper sessionDatasourceMapper) {
         this.dataSource = dataSource;
+        this.sessionDatasourceMapper = sessionDatasourceMapper;
     }
 
     public Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(
-                sessionId,
-                k -> new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false));
+        return sessionCache.computeIfAbsent(sessionId, k -> createMysqlSession());
+    }
+
+    private MysqlSession createMysqlSession() {
+        return new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
     }
 
     public List<Msg> getSessionDebug(String sessionId) {
@@ -185,30 +192,28 @@ public class SessionService {
                 .build();
     }
 
+    // TODO 2026/08/11 这里保留agentscope 的 MysqlSession.delete() ，虽然大概率不走 Spring 事务，
+    //  但注解至少明确了这是跨表操作的语义边界，后续如果有人接手知道这里需要考虑事务一致性。后期有时间回来完善这里的双表操作的事务
+    @Transactional
     public void clearSession(String sessionId) {
         Session session = sessionCache.remove(sessionId);
-        if (session != null) {
-            session.delete(SimpleSessionKey.of(sessionId));
+        if (session == null) {
+            session = createMysqlSession();
         }
-        // 一并清理会话的数据源绑定，避免孤儿绑定。
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement ps =
-                        conn.prepareStatement(
-                                "DELETE FROM session_datasource WHERE session_id = ?")) {
-            ps.setString(1, sessionId);
-            ps.executeUpdate();
-        } catch (Exception e) {
-            log.error("Error deleting session datasource binding", e);
-        }
+        session.delete(SimpleSessionKey.of(sessionId));
+        sessionDatasourceMapper.deleteBySessionId(sessionId);
     }
 
+    @Transactional
     public void clearAllSessions() {
-        sessionCache.clear();
+        Set<String> sessionIds = Set.copyOf(sessionCache.keySet());
+        for (String sessionId : sessionIds) {
+            clearSession(sessionId);
+        }
     }
 
     public List<SessionInfo> listSessions() {
-        MysqlSession session =
-                new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
+        MysqlSession session = createMysqlSession();
         Set<SessionKey> keys = session.listSessionKeys();
 
         if (keys == null || keys.isEmpty()) {
@@ -230,18 +235,16 @@ public class SessionService {
         }
 
         Map<String, String[]> bindings = new HashMap<>();
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement ps =
-                        conn.prepareStatement(
-                                "SELECT sd.session_id, sd.datasource_id, d.name"
-                                        + " FROM session_datasource sd"
-                                        + " LEFT JOIN datasource d ON sd.datasource_id = d.id");
-                ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                bindings.put(rs.getString(1), new String[] {rs.getString(2), rs.getString(3)});
-            }
-        } catch (Exception e) {
-            log.error("Error listing session datasource bindings", e);
+        for (SessionDatasourceBinding row :
+                sessionDatasourceMapper.listBindingsWithDatasourceName()) {
+            bindings.put(
+                    row.getSessionId(),
+                    new String[] {
+                        row.getDatasourceId() != null
+                                ? String.valueOf(row.getDatasourceId())
+                                : null,
+                        row.getDatasourceName()
+                    });
         }
 
         List<SessionInfo> result = new ArrayList<>();
