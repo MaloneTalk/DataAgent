@@ -120,3 +120,30 @@ io.github.malonetalk.skill.classpath[0].source=data-query
 - **HTTP/SSE**：填 `url`、`headers`、`queryParams`。
 
 注册后调用 `PUT /api/mcp-server/{id}/enable` 启用。详见 [architecture.md](architecture.md#5-mcp-集成)。
+
+## 7. 认证配置（JWT + 管理员）
+
+前缀：`jwt`、`admin`。所有值均从环境变量注入，`application.properties` 中不存任何密钥明文。
+
+| 配置键 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `jwt.secret` | `JWT_SECRET` | 空 | JWT 签名密钥。**生产环境必须设置且长度 ≥ 32 字节**；留空则使用内存随机密钥（仅开发环境可用，每次重启 token 全部失效）。 |
+| `jwt.expiration-hours` | `JWT_EXPIRATION_HOURS` | `24` | Token 过期时间（小时）。 |
+| `admin.init-password` | `ADMIN_INIT_PASSWORD` | 空 | 管理员初始密码。**不设则启动失败（fail-closed）**。仅在 `sys_user` 表为空时首次自动创建 `admin` 用户，表已有数据后不再生效。 |
+
+对应环境变量写法：
+
+```bash
+export JWT_SECRET="至少32字节的随机字符串建议用openssl生成"
+export JWT_EXPIRATION_HOURS="24"
+export ADMIN_INIT_PASSWORD="你的管理员密码"
+```
+
+> ⚠️ **不要把这几个值写进 `application.properties` 并提交到仓库**——尤其是 `admin.init-password` 和 `jwt.secret`，它们与 LLM 的 `api-key` 一样属于敏感信息。`application.properties` 中仅声明占位符 `${ADMIN_INIT_PASSWORD:}`、`${JWT_SECRET:}`，实际取值由环境变量注入。
+
+### 工作原理
+
+- 后端启动时，`AdminBootstrapRunner` 检查 `sys_user` 表是否为空；若为空，用 `admin.init-password` 创建 `admin` 用户（用户名固定为 `admin`，`displayName` 为 "Administrator"）。
+- 登录接口 `POST /api/auth/login` 接受 `{ username, password }`，返回 `{ token, user }`。前端将 token 存入 `localStorage`，后续请求通过 `Authorization: Bearer <token>` 携带。
+- `AuthInterceptor` 拦截除 `/api/auth/login` 外的所有接口（含 SSE 流式端点），校验 token 签名与时效。
+- 当前阶段仅做登录闭环，无角色/权限限制——登录后所有接口行为与未登录时一致。后续轮次将接入表/列级权限。
