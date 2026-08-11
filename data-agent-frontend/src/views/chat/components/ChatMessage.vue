@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, ref } from 'vue';
+  import { computed, ref, onUnmounted } from 'vue';
   import { marked } from 'marked';
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
   import TracePanel from './TracePanel.vue';
@@ -49,7 +49,6 @@
 
   const copied = ref(false);
   let resetTimer: ReturnType<typeof setTimeout> | null = null;
-
   async function copyMessage() {
     try {
       await navigator.clipboard.writeText(props.message.content);
@@ -62,6 +61,10 @@
       // Clipboard API may fail in insecure contexts; ignore.
     }
   }
+
+  onUnmounted(() => {
+    if (resetTimer) clearTimeout(resetTimer);
+  });
 </script>
 
 <template>
