@@ -1,8 +1,8 @@
 name: Auto Reply PR
 
 on:
-  pull_request:
-    types: [opened] # 仅在 PR 被打开时触发
+  pull_request_target:
+    types: [opened]
 
 permissions:
   pull-requests: write
