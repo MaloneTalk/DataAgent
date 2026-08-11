@@ -67,12 +67,7 @@
 <template>
   <div class="chat-message" :class="`chat-message--${message.role}`">
     <div v-if="message.role === 'user'" class="chat-message__actions">
-      <button
-        type="button"
-        class="chat-message__copy-btn"
-        title="复制"
-        @click.stop="copyMessage"
-      >
+      <button type="button" class="chat-message__copy-btn" title="复制" @click.stop="copyMessage">
         <el-icon :size="16">
           <Check v-if="copied" />
           <CopyDocument v-else />
