@@ -16,13 +16,16 @@
  -->
 
 <script setup lang="ts">
-  import { ref, nextTick } from 'vue';
+  import { ref, computed, nextTick, watch } from 'vue';
 
   import type { PendingQuestion } from '@/composables/useAgentChat';
 
   const props = defineProps<{
     isStreaming: boolean;
     pendingQuestion: PendingQuestion | null;
+    // Previous user messages from the chat, used as input history for Up/Down navigation.
+    // Ordered oldest → newest.
+    userMessages: string[];
   }>();
 
   const emit = defineEmits<{
@@ -31,21 +34,57 @@
   }>();
 
   const inputText = ref('');
-  const textareaRef = ref<{ style: { height: string }; scrollHeight: number }>();
+  const textareaRef = ref<{
+    value: string;
+    style: { height: string };
+    scrollHeight: number;
+    selectionStart: number;
+    selectionEnd: number;
+  }>();
+
+  // -1 = not browsing; 0 = newest user message, increasing = older
+  const historyIndex = ref(-1);
+
+  // Full original message at the current history position (used by Tab confirmation)
+  const historyFull = computed(() => {
+    if (historyIndex.value < 0) return '';
+    const msgs = props.userMessages;
+    const idx = msgs.length - 1 - historyIndex.value;
+    return idx >= 0 && idx < msgs.length ? msgs[idx] : '';
+  });
+
+  // Truncated version shown as placeholder: max 20 chars or cut at first newline,
+  // whichever comes first. Appends "…" whenever anything was dropped.
+  const historyPreview = computed(() => {
+    const raw = historyFull.value;
+    if (!raw) return null;
+    const nl = raw.indexOf('\n');
+    const cut = nl === -1 ? raw.length : nl;
+    const limit = Math.min(50, cut);
+    const truncated = raw.slice(0, limit);
+    return truncated.length < raw.length ? truncated + '…' : truncated;
+  });
+
+  watch(inputText, () => {
+    nextTick(autoResize);
+  });
 
   function handleSend() {
     const text = inputText.value.trim();
     if (!text || props.isStreaming) return;
+    historyIndex.value = -1;
     emit('send', text);
     inputText.value = '';
-    nextTick(() => {
-      if (textareaRef.value) {
-        textareaRef.value.style.height = 'auto';
-      }
-    });
   }
 
-  function handleKeydown(e: { key: string; shiftKey: boolean; preventDefault: () => void }) {
+  function handleKeydown(e: {
+    key: string;
+    shiftKey: boolean;
+    ctrlKey: boolean;
+    altKey: boolean;
+    metaKey: boolean;
+    preventDefault: () => void;
+  }) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (props.isStreaming) {
@@ -53,6 +92,55 @@
       } else {
         handleSend();
       }
+      return;
+    }
+
+    const hasModifier = e.shiftKey || e.ctrlKey || e.altKey || e.metaKey;
+    if (hasModifier) return;
+
+    const el = textareaRef.value;
+    if (!el) return;
+
+    // History preview via Up/Down:
+    // - When input is empty → always works
+    // - When input has text → only when cursor is at the boundary
+    //   (Up at start of text, Down at end of text)
+    // The history item shows as placeholder (not real value); Tab to confirm.
+
+    if (e.key === 'ArrowUp') {
+      if (props.userMessages.length === 0) return;
+      const len = el.value.length;
+      const cursorAtStart = el.selectionStart === 0 && el.selectionEnd === 0;
+      if (len > 0 && !cursorAtStart) return;
+      e.preventDefault();
+      const next = historyIndex.value === -1 ? 0 : historyIndex.value + 1;
+      historyIndex.value = Math.min(next, props.userMessages.length - 1);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      if (historyIndex.value === -1) return;
+      const len = el.value.length;
+      const cursorAtEnd = el.selectionStart === len && el.selectionEnd === len;
+      if (len > 0 && !cursorAtEnd) return;
+      e.preventDefault();
+      historyIndex.value = Math.max(historyIndex.value - 1, -1);
+      return;
+    }
+
+    // Tab: confirm the current history preview, filling the full original text into the input
+    if (e.key === 'Tab' && historyPreview.value !== null) {
+      e.preventDefault();
+      inputText.value = historyFull.value;
+      historyIndex.value = -1;
+      nextTick(autoResize);
+      return;
+    }
+
+    // Escape: dismiss the history preview
+    if (e.key === 'Escape' && historyPreview.value !== null) {
+      e.preventDefault();
+      historyIndex.value = -1;
     }
   }
 
@@ -75,15 +163,16 @@
       v-model="inputText"
       class="chat-input__textarea"
       :placeholder="
-        props.pendingQuestion && !isStreaming
-          ? '输入你的回答，Enter 发送...'
-          : isStreaming
-            ? '正在回复中...'
-            : '输入消息，Enter 发送，Shift+Enter 换行'
+        historyPreview !== null
+          ? historyPreview + '  (Tab 确认)'
+          : props.pendingQuestion && !isStreaming
+            ? '输入你的回答，Enter 发送...'
+            : isStreaming
+              ? '正在回复中...'
+              : '输入消息，Enter 发送，Shift+Enter 换行'
       "
       :disabled="isStreaming"
       rows="1"
-      @input="autoResize"
       @keydown="handleKeydown"
     />
     <el-button

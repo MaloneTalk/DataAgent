@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed } from 'vue';
+  import { computed, ref } from 'vue';
   import { marked } from 'marked';
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
   import TracePanel from './TracePanel.vue';
@@ -46,10 +46,39 @@
 
   const renderedText = computed(() => marked.parse(contentParts.value.text) as string);
   const renderedSummary = computed(() => marked.parse(contentParts.value.summary) as string);
+
+  const copied = ref(false);
+  let resetTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function copyMessage() {
+    try {
+      await navigator.clipboard.writeText(props.message.content);
+      copied.value = true;
+      if (resetTimer) clearTimeout(resetTimer);
+      resetTimer = setTimeout(() => {
+        copied.value = false;
+      }, 2000);
+    } catch {
+      // Clipboard API may fail in insecure contexts; ignore.
+    }
+  }
 </script>
 
 <template>
   <div class="chat-message" :class="`chat-message--${message.role}`">
+    <div v-if="message.role === 'user'" class="chat-message__actions">
+      <button
+        type="button"
+        class="chat-message__copy-btn"
+        title="复制"
+        @click.stop="copyMessage"
+      >
+        <el-icon :size="16">
+          <Check v-if="copied" />
+          <CopyDocument v-else />
+        </el-icon>
+      </button>
+    </div>
     <div class="chat-message__bubble">
       <TracePanel
         v-if="message.role === 'agent'"
@@ -88,6 +117,7 @@
 
   .chat-message--user {
     justify-content: flex-end;
+    align-items: center;
   }
 
   .chat-message--agent {
@@ -255,6 +285,42 @@
   .chat-message--user .chat-message__cursor {
     color: var(--app-accent-text);
     opacity: 0.7;
+  }
+
+  .chat-message__actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding-right: 8px;
+  }
+
+  .chat-message__copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--app-text-secondary);
+    opacity: 0;
+    cursor: pointer;
+    transition:
+      opacity 0.15s,
+      background-color 0.15s,
+      color 0.15s;
+  }
+
+  .chat-message--user:hover .chat-message__copy-btn {
+    opacity: 0.6;
+  }
+
+  .chat-message__copy-btn:hover {
+    opacity: 1 !important;
+    color: var(--app-text-primary);
+    background: var(--app-bg-hover);
   }
 
   @keyframes blink {
