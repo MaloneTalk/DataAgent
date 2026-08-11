@@ -24,12 +24,18 @@ import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
 import io.github.malonetalk.dto.DatasourceRequest;
 import io.github.malonetalk.dto.DatasourceResponse;
+import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,6 +54,18 @@ public class DatasourceController {
     private final DatasourceService dataSourceService;
     private final DatasourceConverter datasourceConverter;
 
+    /**
+     * TableInfoMapper 和 ColumnSemanticInfoMapper 直接注入 Controller 而非通过 Service：
+     *
+     * <p>{@code GET /{id}/tables} 和 {@code GET /{id}/columns} 仅做"查 mapper → 返回"的纯透传，
+     * 零业务逻辑（无 join、无事务、无缓存、无校验）。引入中间 Service 只会产生一层无意义的委托代码。
+     *
+     * <p>如果后续需要按角色过滤返回结果（权限控制），届时再将两个查询收拢到 TableMetadataService。
+     */
+    private final TableInfoMapper tableInfoMapper;
+
+    private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
+
     @GetMapping
     public Result<List<DatasourceResponse>> findAll() {
         List<DatasourceResponse> list =
@@ -58,6 +76,33 @@ public class DatasourceController {
     @GetMapping("/{id}")
     public Result<DatasourceResponse> findById(@PathVariable Integer id) {
         return Result.success(datasourceConverter.toResponse(requireDatasource(id)));
+    }
+
+    /** 返回某数据源下的所有物理表名，供权限配置页使用。 */
+    @AdminOnly
+    @GetMapping("/{id}/tables")
+    public Result<List<String>> listTableNames(@PathVariable Integer id) {
+        requireDatasource(id);
+        List<String> tables =
+                tableInfoMapper.selectByDatasourceId(id).stream()
+                        .map(TableInfo::getTableName)
+                        .toList();
+        return Result.success(tables);
+    }
+
+    /** 返回某数据源下所有表的列名，一次查询，供列级权限配置使用。 */
+    @AdminOnly
+    @GetMapping("/{id}/columns")
+    public Result<Map<String, List<String>>> listAllColumns(@PathVariable Integer id) {
+        requireDatasource(id);
+        Map<String, List<String>> map =
+                columnSemanticInfoMapper.selectByDatasourceId(id).stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        ColumnInfo::getTableName,
+                                        Collectors.mapping(
+                                                ColumnInfo::getColumnName, Collectors.toList())));
+        return Result.success(map);
     }
 
     @AdminOnly

@@ -52,7 +52,26 @@ export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
 
 > ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。详见 [configuration.md](configuration.md#安全提示) 。
 
-### 3.3 启动
+### 3.3 认证配置（JWT + 管理员）
+
+后端集成了 JWT 登录机制，首次启动前需要设置以下环境变量：
+
+```bash
+# JWT 密钥，生产环境必须设置且长度 ≥ 32 字节；留空则使用内存随机密钥（仅开发可用，重启后所有 token 失效）
+export JWT_SECRET="至少32字节的随机字符串"
+
+# JWT 过期时间（小时），默认 24
+export JWT_EXPIRATION_HOURS="24"
+
+# 管理员初始密码，sys_user 表为空时自动创建 admin 账号；不设则启动失败
+export ADMIN_INIT_PASSWORD="你的管理员密码"
+```
+
+> ⚠️ **`ADMIN_INIT_PASSWORD` 不设会启动失败**（fail-closed）。它仅在看 `sys_user` 表为空时首次生效，已有用户后不再使用。`JWT_SECRET` 留空的后果是每次重启所有已登录用户被迫重新登录——开发环境可接受，生产环境必须设。
+
+> 各配置键的完整说明见 [configuration.md](configuration.md#7-认证配置)。
+
+### 3.4 启动
 
 ```bash
 cd data-agent-backend
