@@ -17,21 +17,25 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import java.io.IOException;
-import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.TextStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -40,23 +44,21 @@ import org.springframework.util.StringUtils;
 public class DateInfoTool implements MarkAgentTool {
 
     private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
-    private static final String PUBLIC_HOLIDAY = "PUBLIC_HOLIDAY";
-    private static final String ADJUSTED_WORKDAY = "ADJUSTED_WORKDAY";
-    private static final TypeReference<HolidayCalendar> HOLIDAY_CALENDAR_TYPE =
-            new TypeReference<>() {};
+    private static final String HOLIDAY_API_BASE_URL = "https://timor.tech/api/holiday/info";
 
     private final ObjectMapper objectMapper;
     private final Clock clock;
-    private final Map<Integer, Optional<HolidayCalendar>> calendars = new ConcurrentHashMap<>();
+    private final HttpClient httpClient;
 
     @Autowired
     public DateInfoTool(ObjectMapper objectMapper) {
-        this(objectMapper, Clock.systemDefaultZone());
+        this(objectMapper, Clock.systemDefaultZone(), HttpClient.newHttpClient());
     }
 
-    DateInfoTool(ObjectMapper objectMapper, Clock clock) {
+    DateInfoTool(ObjectMapper objectMapper, Clock clock, HttpClient httpClient) {
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.httpClient = httpClient;
     }
 
     @Tool(
@@ -64,17 +66,28 @@ public class DateInfoTool implements MarkAgentTool {
             description =
                     """
                     Get accurate date information, including weekday, weekend, Chinese public \
-                    holidays, adjusted workdays, festivals, solar terms and important days. Use \
-                    this whenever the user asks about today, a date, weekday, whether a day is a \
-                    holiday, or Chinese holiday schedule. For relative dates, convert them using \
-                    the system prompt's current date before passing date; omit date for today.\
+                    holidays, holiday schedule adjustments, and optional difference to another \
+                    date. Use this whenever the user asks about today, a date, weekday, whether a \
+                    day is a holiday, Chinese holiday schedule, or date difference. For relative \
+                    dates, convert them using the system prompt's current date before passing \
+                    date; omit date for today. Pass end_date only when a calendar-day difference \
+                    is needed.\
                     """)
     public String getDateInfo(
             @ToolParam(
                             name = "date",
-                            description = "Date in yyyy-MM-dd format. Defaults to today.",
+                            description =
+                                    "Date in yyyy-MM-dd format. Defaults to today. Also acts as"
+                                            + " start date when end_date is provided.",
                             required = false)
                     String date,
+            @ToolParam(
+                            name = "end_date",
+                            description =
+                                    "Optional end date in yyyy-MM-dd format for date difference"
+                                            + " calculation.",
+                            required = false)
+                    String endDate,
             @ToolParam(
                             name = "timezone",
                             description =
@@ -82,28 +95,28 @@ public class DateInfoTool implements MarkAgentTool {
                             required = false)
                     String timezone) {
         try {
-            return objectMapper.writeValueAsString(resolve(date, timezone));
+            return objectMapper.writeValueAsString(resolve(date, endDate, timezone));
         } catch (Exception e) {
             return "Error: failed to get date info: " + e.getMessage();
         }
     }
 
     DateInfo resolve(String dateText, String timezoneText) {
+        return resolve(dateText, null, timezoneText);
+    }
+
+    DateInfo resolve(String dateText, String endDateText, String timezoneText) {
         ZoneId zoneId =
                 ZoneId.of(StringUtils.hasText(timezoneText) ? timezoneText : DEFAULT_TIMEZONE);
         LocalDate date =
                 StringUtils.hasText(dateText)
                         ? LocalDate.parse(dateText)
                         : LocalDate.now(clock.withZone(zoneId));
-        Optional<HolidayCalendar> calendar = calendar(date.getYear());
-        HolidayInfo holidayInfo = calendar.map(c -> c.days().get(date.toString())).orElse(null);
-        List<ImportantDay> importantDays =
-                calendar.map(c -> events(c).getOrDefault(date.toString(), List.of()))
-                        .orElse(List.of());
+        Optional<HolidayApiResponse> holidayApiResponse = queryHolidayApi(date);
+        HolidayDetail holiday = holidayApiResponse.map(HolidayApiResponse::holiday).orElse(null);
 
-        boolean legalHoliday = holidayInfo != null && PUBLIC_HOLIDAY.equals(holidayInfo.type());
-        boolean adjustedWorkday =
-                holidayInfo != null && ADJUSTED_WORKDAY.equals(holidayInfo.type());
+        boolean legalHoliday = holiday != null && Boolean.TRUE.equals(holiday.holiday());
+        boolean adjustedWorkday = holiday != null && Boolean.FALSE.equals(holiday.holiday());
         boolean weekend = date.getDayOfWeek().getValue() >= 6;
         boolean dayOff = legalHoliday || (weekend && !adjustedWorkday);
 
@@ -116,27 +129,55 @@ public class DateInfoTool implements MarkAgentTool {
                 dayOff,
                 legalHoliday,
                 adjustedWorkday,
-                holidayInfo != null ? holidayInfo.name() : null,
+                holiday != null ? holiday.name() : null,
                 dayType(legalHoliday, adjustedWorkday, weekend),
-                importantDays,
-                calendar.isPresent());
+                List.of(),
+                holidayApiResponse.isPresent(),
+                StringUtils.hasText(endDateText)
+                        ? resolveDateDiff(date, LocalDate.parse(endDateText), zoneId)
+                        : null);
     }
 
-    private Optional<HolidayCalendar> calendar(int year) {
-        return calendars.computeIfAbsent(year, this::loadCalendar);
+    DateDiff resolveDateDiff(LocalDate startDate, LocalDate endDate, ZoneId zoneId) {
+        long calendarDays = ChronoUnit.DAYS.between(startDate, endDate);
+
+        return new DateDiff(
+                startDate.toString(),
+                endDate.toString(),
+                zoneId.getId(),
+                calendarDays,
+                Math.abs(calendarDays),
+                true,
+                false);
     }
 
-    private Optional<HolidayCalendar> loadCalendar(int year) {
-        String path = "holidays/cn/" + year + ".json";
-        try (InputStream input =
-                Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
-            if (input == null) {
+    private Optional<HolidayApiResponse> queryHolidayApi(LocalDate date) {
+        HttpRequest request =
+                HttpRequest.newBuilder(holidayInfoUri(date))
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
+        try {
+            HttpResponse<String> response =
+                    httpClient.send(
+                            request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() != 200) {
                 return Optional.empty();
             }
-            return Optional.of(objectMapper.readValue(input, HOLIDAY_CALENDAR_TYPE));
+
+            HolidayApiResponse body =
+                    objectMapper.readValue(response.body(), HolidayApiResponse.class);
+            return body.code() == 0 ? Optional.of(body) : Optional.empty();
         } catch (IOException e) {
-            throw new IllegalStateException("failed to load holiday data: " + path, e);
+            return Optional.empty();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
         }
+    }
+
+    private URI holidayInfoUri(LocalDate date) {
+        return URI.create(HOLIDAY_API_BASE_URL + "/" + date);
     }
 
     private String dayType(boolean legalHoliday, boolean adjustedWorkday, boolean weekend) {
@@ -147,10 +188,6 @@ public class DateInfoTool implements MarkAgentTool {
             return "ADJUSTED_WORKDAY";
         }
         return weekend ? "WEEKEND" : "WORKDAY";
-    }
-
-    private Map<String, List<ImportantDay>> events(HolidayCalendar calendar) {
-        return calendar.events() != null ? calendar.events() : Map.of();
     }
 
     record DateInfo(
@@ -165,16 +202,26 @@ public class DateInfoTool implements MarkAgentTool {
             String holidayName,
             String dayType,
             List<ImportantDay> importantDays,
-            boolean holidayDataAvailable) {}
+            boolean holidayDataAvailable,
+            DateDiff dateDiff) {}
 
-    record HolidayCalendar(
-            int year,
-            String source,
-            String sourceUrl,
-            Map<String, HolidayInfo> days,
-            Map<String, List<ImportantDay>> events) {}
-
-    record HolidayInfo(String type, String name) {}
+    record DateDiff(
+            String startDate,
+            String endDate,
+            String timezone,
+            long calendarDays,
+            long absoluteCalendarDays,
+            boolean startDateInclusive,
+            boolean endDateInclusive) {}
 
     record ImportantDay(String type, String name, String time, String note) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record HolidayApiResponse(int code, HolidayType type, HolidayDetail holiday) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record HolidayType(Integer type, String name, Integer week) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record HolidayDetail(Boolean holiday, String name, String target, String date) {}
 }
