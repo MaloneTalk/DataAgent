@@ -138,7 +138,8 @@
   watch(
     () => route.params.sessionId,
     async newSid => {
-      if (newSid && typeof newSid === 'string') {
+      // Avoid triggering loadHistory when router.replace updates URL on first message
+      if (newSid && typeof newSid === 'string' && newSid !== sessionId.value) {
         await loadHistory(newSid);
         await resolveBoundDatasource(newSid);
       }
