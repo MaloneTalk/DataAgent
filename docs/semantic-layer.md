@@ -2,8 +2,6 @@
 
 语义层是 Data Agent 把"业务语言"翻译成"数据表示"的核心桥梁。没有它，LLM 只能凭字段名瞎猜；有了它，LLM 才知道"销售额"对应哪张表、哪个字段、"上个月"用 `settle_time` 还是 `create_time`。
 
-本文说明语义层的概念、为什么需要、以及如何在管理界面中维护。
-
 ## 1. 为什么需要语义层
 
 业务人员说的词（"流水""GMV""复购率"）和数据库里的字段（`paid_amount`、`status`）往往对不上。直接让 LLM 猜，会出现：
@@ -16,32 +14,25 @@
 
 ## 2. 语义层的组成
 
-| 概念 | 说明 | 对应界面 |
+所有操作均需 `@AdminOnly` 权限。前端管理界面在 `src/views/semantic`。
+
+| 概念 | 说明 | Controller |
 | --- | --- | --- |
-| **域（Domain）** | 业务主题分组，如"交易""用户"，用于缩小表检索范围 | 语义层 → 域管理 |
-| **逻辑表** | 业务名 ↔ 物理表，含表描述、是否可见、物理表是否存在 | 语义层 → 表语义 |
-| **逻辑列** | 业务含义 ↔ 物理列，含枚举值含义、单位、币种 | 语义层 → 列语义 |
-| **表关系** | 表与表之间的 join 路径（一对一/一对多等） | 语义层 → 关系语义 |
-| **指标口径** | 一个指标"怎么算才算对"的精确规定（公式、时间维度、过滤、币种、冲正） | 在语义层中定义指标的精确计算规则 |
+| **域（Domain）** | 业务主题分组，如"交易""用户"，用于缩小表检索范围 | `TableSemanticController` |
+| **逻辑表** | 给物理表起一个业务名，含表描述、可见性、物理表是否存在 | `TableSemanticController` |
+| **逻辑列** | 给物理列补充业务含义、枚举值、单位、币种 | `TableColumnSemanticController` |
+| **表关系** | 表间 join 路径（一对一/一对多）、启禁状态，供 Agent 多表查询时自动拼 SQL | `TableRelationSemanticController` |
+| **关系工作区** | 全局视角查看所有数据源的表关系，支持分页、关键词过滤、按 enabled 筛选 | `TableRelationWorkspaceController` |
+| **指标口径** | 一个指标"怎么算才对"的精确规定——`metric_key` 唯一标识、公式、时间维度、过滤、币种。支持逻辑删除（`is_deleted`） | `MetricController` |
+| **同步** | 拉取物理表结构变更到语义层、刷新物理表存在状态 | `TableSemanticSyncController` |
 
-## 3. 在管理界面中维护
+## 3. 同步机制
 
-前端提供对应的管理视图（`src/views/semantic`、`src/views/data-source`）：
+- `service/semantic/sync/*` 拉取物理表结构变更为"待审核"的语义变更，不直接覆盖人工口径。
+- `SemanticAvailabilityHelper` + `ColumnInvalidReasonEnum` / `TableInvalidReasonEnum` 标注不完整的语义信息，提示管理员补齐。
+- `SemanticMergeService` 处理物理信息、AI 建议与人工编辑的合并策略。
 
-1. **数据源管理**：先接入要查的业务库（MySQL / PostgreSQL / Oracle）。
-2. **域管理**：建立业务主题分组。
-3. **表语义**：把物理表绑定到业务名，填写表描述，标记可见性。
-4. **列语义**：为关键列补充业务含义、枚举值、单位、币种。
-5. **关系语义**：维护表间 join 路径，供 Agent 多表查询时使用。
-6. **同步**：系统提供语义同步能力（`SemanticSyncService`），可把物理表结构变化同步到语义层草稿，再经审核落库。
-
-## 4. 同步与可用性
-
-- **同步机制**：`service/semantic/sync/*` 负责把物理表结构的变更拉取为"待审核"的语义变更，避免直接覆盖人工维护的口径。
-- **可用性校验**：`SemanticAvailabilityHelper`、列/表失效原因枚举（`ColumnInvalidReasonEnum` / `TableInvalidReasonEnum`）用于标注哪些语义信息不完整，提示管理员补齐。
-- **合并**：`SemanticMergeService` 处理物理信息、AI 建议与人工编辑之间的合并策略。
-
-## 5. 最佳实践
+## 4. 最佳实践
 
 - **先接数据源，再配语义**：语义依附于物理表，顺序不要反。
 - **优先配置高频指标口径**：把最常问、最容易错的指标（销售额、退款、复购等）口径显式化，收益最高。
