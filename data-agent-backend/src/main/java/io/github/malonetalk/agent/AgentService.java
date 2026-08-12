@@ -79,24 +79,29 @@ public class AgentService {
     }
 
     public Flux<ChatStreamEvent> chatStream(
+            int userId,
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId) {
-        return Flux.defer(() -> streamAgent(sessionId, userInput, toolResults, datasourceId))
+        return Flux.defer(
+                        () -> streamAgent(userId, sessionId, userInput, toolResults, datasourceId))
                 .onErrorResume(this::toErrorEvent);
     }
 
     private Flux<ChatStreamEvent> streamAgent(
+            int userId,
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId) {
+        // 首次访问声明归属；已绑定会被 INSERT IGNORE 忽略
+        sessionService.bindUserSession(userId, sessionId);
         if (datasourceId != null) {
-            // 首次绑定；已绑定会被 INSERT IGNORE 忽略，锁定语义在 mapper 层保证。
             datasourceService.bindSessionDatasource(sessionId, datasourceId);
         }
-        ReActAgent agent = createAgent(ToolCallContext.builder().sessionId(sessionId).build());
+        ReActAgent agent =
+                createAgent(ToolCallContext.builder().sessionId(sessionId).userId(userId).build());
 
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);

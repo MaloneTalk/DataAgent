@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service;
 
+import static io.github.malonetalk.common.Constants.ADMIN_ROLE_ID;
+
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.RoleConverter;
 import io.github.malonetalk.dto.ColumnPermissionResponse;
@@ -47,9 +49,6 @@ public class SysRoleServiceImpl implements SysRoleService {
     private final RoleTablePermissionMapper roleTablePermissionMapper;
     private final RoleHiddenColumnMapper roleHiddenColumnMapper;
     private final RoleConverter roleConverter;
-
-    /** 管理员角色 id：AuthInterceptor 靠 role_id==1 判 @AdminOnly，删掉即永久锁死管理员。 */
-    private static final int ADMIN_ROLE_ID = 1;
 
     @Override
     public List<RoleResponse> listAll() {
