@@ -22,9 +22,12 @@ public final class Constants {
     public static final String SORT_ORDER_ASC = "asc";
     public static final String SORT_ORDER_DESC = "desc";
 
+    /** 管理员角色 id：AuthInterceptor 靠 role_id==1 判 @AdminOnly，删掉即永久锁死管理员。 */
+    public static final int ADMIN_ROLE_ID = 1;
+
+    public static final String PROPERTIES_PREFIX = "io.github.malonetalk";
+
     private Constants() {
         throw new IllegalCallerException("No Constants Instance for You!");
     }
-
-    public static final String PROPERTIES_PREFIX = "io.github.malonetalk";
 }

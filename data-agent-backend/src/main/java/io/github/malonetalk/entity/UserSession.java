@@ -15,9 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent;
+package io.github.malonetalk.entity;
 
-import lombok.Builder;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-@Builder
-public record ToolCallContext(String sessionId, Integer userId) {}
+/** 用户-会话归属映射。 */
+@Data
+public class UserSession {
+
+    private Integer userId;
+    private String sessionId;
+    private LocalDateTime createTime;
+}
