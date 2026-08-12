@@ -24,7 +24,7 @@ mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
 for f in sql/*.sql; do mysql -u root -p data_agent < "$f"; done
 ```
 
-> `sql/` 目录共三个脚本：`data_source.sql`（数据源与语义层表）、`metric.sql`（指标口径表）、`sys_user.sql`（用户表，登录功能依赖）。三者均需导入。
+> `sql/` 目录包含四个脚本：`data_source.sql`（数据源与语义层表）、`metric.sql`（指标口径表）、`sys_user.sql`（用户表）、`sys_role.sql`（角色与表/列权限表）。均需导入。
 
 ## 3. 配置并启动后端
 
@@ -52,7 +52,26 @@ export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
 
 > ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。详见 [configuration.md](configuration.md#安全提示) 。
 
-### 3.3 启动
+### 3.3 认证配置（JWT + 管理员）
+
+后端集成了 JWT 登录机制，首次启动前需要设置以下环境变量：
+
+```bash
+# JWT 密钥，生产环境必须设置且长度 ≥ 32 字节；留空则使用内存随机密钥（仅开发可用，重启后所有 token 失效）
+export JWT_SECRET="至少32字节的随机字符串"
+
+# JWT 过期时间（小时），默认 24
+export JWT_EXPIRATION_HOURS="24"
+
+# 管理员初始密码，sys_user 表为空时自动创建 admin 账号；不设则启动失败
+export ADMIN_INIT_PASSWORD="你的管理员密码"
+```
+
+> ⚠️ **`ADMIN_INIT_PASSWORD` 不设会启动失败**（fail-closed）。它仅在看 `sys_user` 表为空时首次生效，已有用户后不再使用。`JWT_SECRET` 留空的后果是每次重启所有已登录用户被迫重新登录——开发环境可接受，生产环境必须设。
+
+> 各配置键的完整说明见 [configuration.md](configuration.md#7-认证配置)。
+
+### 3.4 启动
 
 ```bash
 cd data-agent-backend
@@ -79,6 +98,8 @@ pnpm dev
 2. 先在「数据源管理」中新增一个你要查的业务库（支持 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，类型以下拉列表为准）。若该库不是 MySQL，请先确认后端已内置其驱动（见 [常见问题](#6-常见问题) 第一条）。
 3. 在「语义层」中把相关表/列映射成业务语言（可选，但能显著提升准确率）。
 4. 进入聊天界面，输入类似：*"上个月各区域销售额是多少？"*，观察流式回答与生成的 SQL。
+
+> 初始的 `admin` 用户拥有所有权限。如需多人使用，可在「用户管理」中创建用户、在「角色管理」中为角色配置表/列级权限、再将用户绑定到角色。当前权限仅在页面管理层面生效，尚未接入 Agent 推理链路。
 
 > 如果回答不准，多半是语义层/指标口径没配好，或数据源尚未接入。参见 [semantic-layer.md](semantic-layer.md) 与 [configuration.md](configuration.md)。
 

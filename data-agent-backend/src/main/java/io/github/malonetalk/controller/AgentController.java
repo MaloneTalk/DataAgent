@@ -17,15 +17,20 @@
  */
 package io.github.malonetalk.controller;
 
+import static io.github.malonetalk.common.Constants.ADMIN_ROLE_ID;
+
 import io.agentscope.core.message.Msg;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
+import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
+import io.github.malonetalk.exception.BusinessException;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -53,12 +58,14 @@ public class AgentController {
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
             @Valid @RequestBody ChatRequest request) {
-        log.info("SSE chat stream started: sessionId={}", request.sessionId());
+        int userId = UserContext.require().userId();
+        log.info("SSE chat stream started: sessionId={}, userId={}", request.sessionId(), userId);
         ToolCallContext context =
                 ToolCallContext.builder()
                         .sessionId(request.sessionId())
                         .userInput(request.message())
                         .datasourceId(request.datasourceId())
+                        .userId(userId)
                         .build();
         return agentService
                 .chatStream(context, request.toolResults())
@@ -72,31 +79,52 @@ public class AgentController {
 
     @GetMapping("/session/{sessionId}/debug")
     public Result<List<Msg>> getSessionDebug(@PathVariable String sessionId) {
-        List<Msg> messages = sessionService.getSessionDebug(sessionId);
+        Integer userId = resolveUserId();
+        List<Msg> messages = sessionService.getSessionDebug(sessionId, userId);
         return Result.success(messages);
     }
 
     @GetMapping("/session/{sessionId}/history")
     public Result<List<TurnItem>> getSessionHistory(@PathVariable String sessionId) {
-        List<TurnItem> history = sessionService.getSessionHistory(sessionId);
+        Integer userId = resolveUserId();
+        List<TurnItem> history = sessionService.getSessionHistory(sessionId, userId);
         return Result.success(history);
     }
 
     @DeleteMapping("/session/{sessionId}")
     public Result<Boolean> clearSession(@PathVariable String sessionId) {
-        sessionService.clearSession(sessionId);
+        Integer userId = resolveUserId();
+        sessionService.clearSession(sessionId, userId);
         return Result.success(true);
     }
 
     @GetMapping("/sessions")
     public Result<List<SessionInfo>> listSessions() {
-        List<SessionInfo> sessions = sessionService.listSessions();
+        Integer userId = resolveUserId();
+        List<SessionInfo> sessions = sessionService.listSessions(userId);
         return Result.success(sessions);
     }
 
     @DeleteMapping("/session")
     public Result<Boolean> clearAllSessions() {
-        sessionService.clearAllSessions();
+        UserContext user = UserContext.require();
+        if (user.roleId() == null || user.roleId() != ADMIN_ROLE_ID) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
+        sessionService.clearAllSessions(null);
         return Result.success(true);
+    }
+
+    /**
+     * 解析当前用户的 userId：admin 返回 null（不过滤），普通用户返回 userId。
+     *
+     * <p>admin (role_id=1) 能看到所有 session 且跳过所有权检查。
+     */
+    private static Integer resolveUserId() {
+        UserContext user = UserContext.require();
+        if (user.roleId() != null && user.roleId() == ADMIN_ROLE_ID) {
+            return null;
+        }
+        return user.userId();
     }
 }

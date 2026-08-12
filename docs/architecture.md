@@ -6,10 +6,10 @@
 
 | 组件 | 技术 | 职责 |
 | --- | --- | --- |
-| 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源/语义层/报表管理后台 |
+| 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源/语义层/报表管理后台、用户与角色管理 |
 | 后端 | Spring Boot 4（Java 17+） | Agent 推理、工具执行、语义层、数据源、会话、MCP 管理 |
 | Skill 系统 | 多源加载（文件系统 / Git / Nacos / classpath） | 加载"已验证查询模式"作为可复用流程 |
-| 元数据库 | MySQL | 存语义层、数据源、会话、MCP 配置、报表等 |
+| 元数据库 | MySQL | 存语义层、数据源、会话、MCP 配置、报表、用户、角色与权限等 |
 | 查询数据源 | MySQL / PostgreSQL / Oracle | 用户真正要查的业务库，由 Agent 动态连接 |
 
 > 后端包名为 `io.github.malonetalk.agent`，应用名 `data-agent-management`，默认端口 `8080`。
@@ -53,8 +53,9 @@
 | `agent.models` | LLM 提供商抽象：OpenAI / Ollama / DashScope / Anthropic |
 | `agent.tools` | 工具集：执行 SQL、取 schema、取域/表、反问用户、生成报表、标记 |
 | `agent.skill` | Skill 多源加载（文件/Git/Nacos/classpath） |
-| `controller` | HTTP 接口：Agent、数据源、域、语义层、报表、MCP Server |
+| `controller` | HTTP 接口：Agent、数据源、域、语义层、报表、MCP Server、用户管理、角色权限 |
 | `service.semantic` | 语义层 CRUD、同步、关系、合并等 |
+| `interceptor` | 认证拦截器（JWT）、UserContext |
 | `mapper` / `entity` | MyBatis 持久层与实体 |
 
 ## 4. MCP 集成
@@ -72,10 +73,13 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
+| POST | `/api/auth/login` | 登录，返回 JWT token |
 | POST | `/api/agent/chat/stream` | 发起一次流式对话（SSE） |
 | GET | `/api/agent/sessions` | 列出会话 |
 | GET | `/api/agent/session/{id}/history` | 会话历史 |
 | DELETE | `/api/agent/session/{id}` | 清除会话 |
+| GET/POST/PUT/DELETE | `/api/sys/user[/...]` | 用户增删改查、重置密码 |
+| GET/POST/PUT/DELETE | `/api/sys/role[/...]` | 角色增删改查、表级白名单、列级黑名单 |
 | GET/POST/PUT/DELETE | `/api/mcp-server[/...]` | MCP Server 增删改查与启用/停用 |
 | REST | `/api/datasource`、`/api/domain`、`/api/semantic/*`、`/api/report` | 数据源、域、语义层、报表管理 |
 

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.UserSessionMapper">
+
+    <insert id="insertIgnore">
+        INSERT IGNORE INTO user_session (user_id, session_id)
+        VALUES (#{userId}, #{sessionId})
+    </insert>
+
+    <select id="exists" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM user_session
+        WHERE user_id = #{userId} AND session_id = #{sessionId}
+    </select>
+
+    <select id="selectSessionIdsByUserId" resultType="string">
+        SELECT session_id FROM user_session WHERE user_id = #{userId}
+    </select>
+
+    <delete id="deleteBySessionId">
+        DELETE FROM user_session WHERE session_id = #{sessionId}
+    </delete>
+
+    <delete id="deleteByUserId">
+        DELETE FROM user_session WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

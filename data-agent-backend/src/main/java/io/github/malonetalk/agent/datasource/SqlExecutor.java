@@ -93,7 +93,12 @@ public class SqlExecutor {
 
         //  inject LIMIT if absent, to prevent full table scans
         if (!hasLimit(select)) {
-            return "SELECT * FROM (" + sql + ") AS _sandbox LIMIT " + MAX_ROWS;
+            // strip trailing semicolon to avoid syntax error in subquery
+            String safeSql = sql.trim();
+            if (safeSql.endsWith(";")) {
+                safeSql = safeSql.substring(0, safeSql.length() - 1).trim();
+            }
+            return "SELECT * FROM (" + safeSql + ") AS _sandbox LIMIT " + MAX_ROWS;
         }
         return sql;
     }

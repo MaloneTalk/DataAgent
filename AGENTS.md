@@ -19,3 +19,5 @@
 **Prefer imports over fully-qualified names for JDK and framework classes.** Import the class at the top and use its short name in code — `Objects::nonNull`, not `java.util.Objects::nonNull`. The exception is when a project class shares the same simple name as a JDK or framework class you need to use. In that case, qualify the JDK/framework class with its full package path everywhere — even if the conflicting project class isn't imported in the current file. For example, use `javax.sql.DataSource` fully-qualified because `io.github.malonetalk.entity.Datasource` exists in the project and the two names are easily confused.
 
 **Write code for the next reader, not for the compiler.** The compiler can parse anything. A human shouldn't have to. Choose names that reveal intent, structure code in small logical steps, and prefer clarity over cleverness. If a line makes you pause — it will make someone else pause too.
+
+**Write MySQL 5.7 compatible SQL — no window functions (`ROW_NUMBER()`, `RANK()`, etc.), no CTE (`WITH ... AS`), no other MySQL 8.0+ syntax.**

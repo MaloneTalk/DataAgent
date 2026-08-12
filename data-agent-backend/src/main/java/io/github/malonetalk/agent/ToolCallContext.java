@@ -21,7 +21,11 @@ import lombok.Builder;
 
 @Builder
 public record ToolCallContext(
-        String sessionId, String userInput, Integer datasourceId, TaskType taskType) {
+        String sessionId,
+        String userInput,
+        Integer datasourceId,
+        Integer userId,
+        TaskType taskType) {
 
     public ToolCallContext {
         if (taskType == null) {

@@ -17,10 +17,9 @@
  */
 package io.github.malonetalk.dto;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record UserCreateRequest(
@@ -29,4 +28,4 @@ public record UserCreateRequest(
                 @Size(min = 6, max = 64, message = "password 长度需在 6-64 之间")
                 String password,
         @NotBlank(message = "displayName 不能为空") String displayName,
-        @NotNull @Min(0) @Max(1) Integer roleId) {}
+        @NotNull @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}

@@ -18,25 +18,53 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <sql id="DeduplicatedRelations">
+        SELECT t.*
+        FROM logical_table_relation t
+        WHERE t.id = (
+            SELECT t2.id
+            FROM logical_table_relation t2
+            WHERE t2.datasource_id = t.datasource_id
+                AND LOWER(t2.source_table_name) = LOWER(t.source_table_name)
+                AND t2.source_column_signature = t.source_column_signature
+            ORDER BY
+                CASE
+                    WHEN t2.description IS NOT NULL AND t2.description &lt;&gt; '' THEN 0
+                    WHEN t2.is_enabled = 0 THEN 0
+                    ELSE 1
+                END ASC,
+                t2.update_time DESC,
+                t2.create_time DESC,
+                t2.id DESC
+            LIMIT 1
+        )
+    </sql>
+
     <select id="selectById" resultMap="BaseResultMap">
         SELECT * FROM logical_table_relation WHERE id = #{id}
     </select>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
+        SELECT * FROM (
+            <include refid="DeduplicatedRelations"/>
+        ) logical_table_relation
         WHERE datasource_id = #{datasourceId}
         ORDER BY create_time DESC, id DESC
     </select>
 
     <select id="selectByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
+        SELECT * FROM (
+            <include refid="DeduplicatedRelations"/>
+        ) logical_table_relation
         WHERE datasource_id = #{datasourceId}
           AND LOWER(source_table_name) = LOWER(#{sourceTableName})
         ORDER BY id DESC
     </select>
 
     <select id="selectByDatasourceIdAndSourceTables" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
+        SELECT * FROM (
+            <include refid="DeduplicatedRelations"/>
+        ) logical_table_relation
         WHERE datasource_id = #{datasourceId}
           AND LOWER(source_table_name) IN
         <foreach collection="sourceTableNames" item="sourceTableName" open="(" separator="," close=")">
@@ -46,7 +74,9 @@
     </select>
 
     <select id="selectPageByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
+        SELECT * FROM (
+            <include refid="DeduplicatedRelations"/>
+        ) logical_table_relation
         WHERE datasource_id = #{query.datasourceId}
           AND LOWER(source_table_name) = LOWER(#{query.tableName})
         <if test="query.keyword != null and query.keyword != ''">
@@ -66,11 +96,12 @@
     </select>
 
     <select id="selectByUniqueSourceKey" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
+        SELECT * FROM (
+            <include refid="DeduplicatedRelations"/>
+        ) logical_table_relation
         WHERE datasource_id = #{datasourceId}
           AND LOWER(source_table_name) = LOWER(#{sourceTableName})
           AND source_column_signature = #{sourceColumnSignature}
-        ORDER BY update_time DESC, create_time DESC, id DESC
         LIMIT 1
     </select>
 

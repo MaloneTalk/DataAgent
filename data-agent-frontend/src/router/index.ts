@@ -79,6 +79,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/sys-user/UserManage.vue'),
     meta: { title: '用户管理' },
   },
+  {
+    path: '/sys-role',
+    name: 'RoleManage',
+    component: () => import('@/views/sys-role/RoleManage.vue'),
+    meta: { title: '角色管理' },
+  },
 ];
 
 const router = createRouter({

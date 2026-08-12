@@ -32,6 +32,7 @@
     { path: '/metric', title: '指标口径管理', icon: 'DataLine' },
     { path: '/scheduled-task', title: '定时任务', icon: 'Timer' },
     { path: '/sys-user', title: '用户管理', icon: 'User' },
+    { path: '/sys-role', title: '角色管理', icon: 'Avatar' },
   ];
 
   const activeMenu = computed(() => route.path);

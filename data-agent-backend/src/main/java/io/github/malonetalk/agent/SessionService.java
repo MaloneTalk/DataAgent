@@ -28,17 +28,23 @@ import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.state.SessionKey;
 import io.agentscope.core.state.SimpleSessionKey;
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.handler.ToolResultHandler;
 import io.github.malonetalk.dto.ChatStreamEvent;
+import io.github.malonetalk.dto.SessionDatasourceBinding;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.mapper.SessionDatasourceMapper;
+import io.github.malonetalk.mapper.UserSessionMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,25 +53,60 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 public class SessionService {
 
     private final DataSource dataSource;
+    private final SessionDatasourceMapper sessionDatasourceMapper;
+    private final UserSessionMapper userSessionMapper;
     private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
 
-    public SessionService(DataSource dataSource) {
+    public SessionService(
+            DataSource dataSource,
+            SessionDatasourceMapper sessionDatasourceMapper,
+            UserSessionMapper userSessionMapper) {
         this.dataSource = dataSource;
+        this.sessionDatasourceMapper = sessionDatasourceMapper;
+        this.userSessionMapper = userSessionMapper;
     }
 
     public Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(
-                sessionId,
-                k -> new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false));
+        return sessionCache.computeIfAbsent(sessionId, k -> createMysqlSession());
     }
 
-    public List<Msg> getSessionDebug(String sessionId) {
+    private MysqlSession createMysqlSession() {
+        return new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
+    }
+
+    /** 声明会话归属（INSERT IGNORE），首次访问时由 chatStream 调用。 */
+    public void bindUserSession(int userId, String sessionId) {
+        userSessionMapper.insertIgnore(userId, sessionId);
+    }
+
+    private void checkOwnership(int userId, String sessionId) {
+        if (!userSessionMapper.exists(userId, sessionId)) {
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+    }
+
+    public List<Msg> getSessionDebug(String sessionId, Integer userId) {
+        if (userId != null) {
+            checkOwnership(userId, sessionId);
+        }
+        return loadMessages(sessionId);
+    }
+
+    public List<TurnItem> getSessionHistory(String sessionId, Integer userId) {
+        if (userId != null) {
+            checkOwnership(userId, sessionId);
+        }
+        return buildTurnItems(loadMessages(sessionId));
+    }
+
+    private List<Msg> loadMessages(String sessionId) {
         Session session = getOrCreateSession(sessionId);
         if (!session.exists(SimpleSessionKey.of(sessionId))) {
             return Collections.emptyList();
@@ -73,16 +114,7 @@ public class SessionService {
         return session.getList(SimpleSessionKey.of(sessionId), "memory_messages", Msg.class);
     }
 
-    public List<TurnItem> getSessionHistory(String sessionId) {
-        Session session = getOrCreateSession(sessionId);
-
-        if (!session.exists(SimpleSessionKey.of(sessionId))) {
-            return Collections.emptyList();
-        }
-
-        List<Msg> messages =
-                session.getList(SimpleSessionKey.of(sessionId), "memory_messages", Msg.class);
-
+    private List<TurnItem> buildTurnItems(List<Msg> messages) {
         List<TurnItem> turns = new ArrayList<>();
         List<ContentBlock> agentBlocks = null;
 
@@ -185,34 +217,71 @@ public class SessionService {
                 .build();
     }
 
-    public void clearSession(String sessionId) {
+    @Transactional
+    public void clearSession(String sessionId, Integer userId) {
+        if (userId != null) {
+            checkOwnership(userId, sessionId);
+        }
+        doClearSession(sessionId);
+    }
+
+    private void doClearSession(String sessionId) {
         Session session = sessionCache.remove(sessionId);
-        if (session != null) {
+        if (session == null) {
+            session = createMysqlSession();
+        }
+        session.delete(SimpleSessionKey.of(sessionId));
+        sessionDatasourceMapper.deleteBySessionId(sessionId);
+        userSessionMapper.deleteBySessionId(sessionId);
+    }
+
+    /**
+     * 清空全部会话：admin 清全量，普通用户清自己名下。
+     *
+     * @param userId null 表示 admin（清全量），非 null 表示指定用户
+     */
+    @Transactional
+    public void clearAllSessions(Integer userId) {
+        if (userId == null) {
+            // admin: clear everything — query db for session IDs, not local cache
+            MysqlSession session = createMysqlSession();
+            Set<SessionKey> keys = session.listSessionKeys();
+            if (keys != null) {
+                for (SessionKey key : keys) {
+                    doClearSession(key.toIdentifier());
+                }
+            }
+            return;
+        }
+
+        List<String> userSessionIds = userSessionMapper.selectSessionIdsByUserId(userId);
+        for (String sessionId : userSessionIds) {
+            sessionCache.remove(sessionId);
+            MysqlSession session = createMysqlSession();
             session.delete(SimpleSessionKey.of(sessionId));
+            sessionDatasourceMapper.deleteBySessionId(sessionId);
         }
-        // 一并清理会话的数据源绑定，避免孤儿绑定。
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement ps =
-                        conn.prepareStatement(
-                                "DELETE FROM session_datasource WHERE session_id = ?")) {
-            ps.setString(1, sessionId);
-            ps.executeUpdate();
-        } catch (Exception e) {
-            log.error("Error deleting session datasource binding", e);
-        }
+        userSessionMapper.deleteByUserId(userId);
     }
 
-    public void clearAllSessions() {
-        sessionCache.clear();
-    }
-
-    public List<SessionInfo> listSessions() {
-        MysqlSession session =
-                new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
+    /**
+     * 列出会话列表。
+     *
+     * @param userId null 表示 admin（全量），非 null 表示只查该用户的会话
+     */
+    public List<SessionInfo> listSessions(Integer userId) {
+        MysqlSession session = createMysqlSession();
         Set<SessionKey> keys = session.listSessionKeys();
 
         if (keys == null || keys.isEmpty()) {
             return Collections.emptyList();
+        }
+
+        Set<String> visibleIds;
+        if (userId == null) {
+            visibleIds = keys.stream().map(SessionKey::toIdentifier).collect(Collectors.toSet());
+        } else {
+            visibleIds = new HashSet<>(userSessionMapper.selectSessionIdsByUserId(userId));
         }
 
         Map<String, String[]> timestamps = new HashMap<>();
@@ -230,23 +299,24 @@ public class SessionService {
         }
 
         Map<String, String[]> bindings = new HashMap<>();
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement ps =
-                        conn.prepareStatement(
-                                "SELECT sd.session_id, sd.datasource_id, d.name"
-                                        + " FROM session_datasource sd"
-                                        + " LEFT JOIN datasource d ON sd.datasource_id = d.id");
-                ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                bindings.put(rs.getString(1), new String[] {rs.getString(2), rs.getString(3)});
-            }
-        } catch (Exception e) {
-            log.error("Error listing session datasource bindings", e);
+        for (SessionDatasourceBinding row :
+                sessionDatasourceMapper.listBindingsWithDatasourceName()) {
+            bindings.put(
+                    row.getSessionId(),
+                    new String[] {
+                        row.getDatasourceId() != null
+                                ? String.valueOf(row.getDatasourceId())
+                                : null,
+                        row.getDatasourceName()
+                    });
         }
 
         List<SessionInfo> result = new ArrayList<>();
         for (SessionKey key : keys) {
             String sid = key.toIdentifier();
+            if (!visibleIds.contains(sid)) {
+                continue;
+            }
             List<Msg> messages = session.getList(key, "memory_messages", Msg.class);
 
             String title = "";

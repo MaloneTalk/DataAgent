@@ -43,6 +43,8 @@ import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.web.TraceIdFilter;
 import jakarta.annotation.PostConstruct;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +57,8 @@ import reactor.core.scheduler.Schedulers;
 @Service
 @RequiredArgsConstructor
 public class AgentService {
+
+    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final ModelFactory modelFactory;
     private final List<MarkAgentTool> allToolBeans;
@@ -85,6 +89,9 @@ public class AgentService {
 
     private Flux<ChatStreamEvent> streamAgent(
             ToolCallContext context, List<ChatRequest.ToolResultInput> toolResults) {
+        if (context.userId() != null) {
+            sessionService.bindUserSession(context.userId(), context.sessionId());
+        }
         if (context.datasourceId() != null) {
             datasourceService.bindSessionDatasource(context.sessionId(), context.datasourceId());
         }
@@ -161,7 +168,7 @@ public class AgentService {
                 ToolExecutionContext.builder().register(toolCallContext).build();
         return ReActAgent.builder()
                 .name("DataAgent")
-                .sysPrompt("你是一个数据助手，可以帮助用户查询数据库中的数据。")
+                .sysPrompt(systemPrompt())
                 .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
                 .toolExecutionContext(context)
@@ -170,5 +177,17 @@ public class AgentService {
                 .maxIters(10)
                 .enablePendingToolRecovery(true)
                 .build();
+    }
+
+    private String systemPrompt() {
+        LocalDate today = LocalDate.now(DEFAULT_ZONE);
+        return """
+        你是一个数据助手，可以帮助用户查询数据库中的数据。
+        当前时区是 Asia/Shanghai。
+        今天是 %s，昨天是 %s，明天是 %s。
+        当用户提到今天、昨天、明天、上周、本周等相对日期时，必须先按以上当前日期换算成具体日期。
+        查询日期、星期、节假日、调休或日期差时，优先使用 get_date_info 工具。
+        """
+                .formatted(today, today.minusDays(1), today.plusDays(1));
     }
 }

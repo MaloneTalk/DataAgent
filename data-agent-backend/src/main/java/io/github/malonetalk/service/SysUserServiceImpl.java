@@ -23,6 +23,7 @@ import io.github.malonetalk.dto.UserResponse;
 import io.github.malonetalk.dto.UserUpdateRequest;
 import io.github.malonetalk.entity.SysUser;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.util.PasswordUtil;
 import java.time.LocalDateTime;
@@ -35,6 +36,7 @@ import org.springframework.stereotype.Service;
 public class SysUserServiceImpl implements SysUserService {
 
     private final SysUserMapper sysUserMapper;
+    private final SysRoleMapper sysRoleMapper;
 
     @Override
     public List<UserResponse> listAll() {
@@ -54,6 +56,7 @@ public class SysUserServiceImpl implements SysUserService {
         user.setPasswordHash(PasswordUtil.hash(request.password()));
         user.setDisplayName(request.displayName());
         user.setRoleId(request.roleId());
+        requireRoleIfAssigned(request.roleId());
         user.setIdpType("LOCAL");
         user.setStatus(1);
         user.setCreateTime(now);
@@ -67,6 +70,7 @@ public class SysUserServiceImpl implements SysUserService {
         SysUser user = requireUser(id);
         user.setDisplayName(request.displayName());
         if (request.roleId() != null) {
+            requireRoleIfAssigned(request.roleId());
             user.setRoleId(request.roleId());
         }
         user.setUpdateTime(LocalDateTime.now());
@@ -105,5 +109,12 @@ public class SysUserServiceImpl implements SysUserService {
                 user.getRoleId(),
                 user.getStatus(),
                 user.getCreateTime());
+    }
+
+    private void requireRoleIfAssigned(Integer roleId) {
+        if (roleId == 0) return; // 0 = 未分配角色
+        if (sysRoleMapper.selectById(roleId) == null) {
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "角色ID " + roleId + " 不存在");
+        }
     }
 }

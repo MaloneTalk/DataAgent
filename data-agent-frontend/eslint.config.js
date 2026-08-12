@@ -194,6 +194,8 @@ export default tseslint.config(
         parseFloat: 'readonly',
         isNaN: 'readonly',
         isFinite: 'readonly',
+        Event: 'readonly',
+        MouseEvent: 'readonly',
       },
     },
     rules: {
@@ -253,6 +255,8 @@ export default tseslint.config(
         isFinite: 'readonly',
         AbortController: 'readonly',
         AbortSignal: 'readonly',
+        Event: 'readonly',
+        MouseEvent: 'readonly',
       },
     },
     rules: {

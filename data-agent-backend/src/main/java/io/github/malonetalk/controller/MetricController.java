@@ -39,7 +39,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@AdminOnly
 @Slf4j
 @RestController
 @AllArgsConstructor
@@ -50,12 +49,14 @@ public class MetricController {
     private final MetricService metricService;
     private final MetricConverter metricConverter;
 
+    @AdminOnly
     @PostMapping
     public Result<MetricResponse> create(@Valid @RequestBody MetricRequest request) {
         MetricInfo entity = metricConverter.toEntity(request);
         return Result.success(metricConverter.toResponse(metricService.create(entity)));
     }
 
+    @AdminOnly
     @PutMapping("/{id}")
     public Result<MetricResponse> update(
             @PathVariable @Positive(message = "id 必须为正数") Integer id,
@@ -64,6 +65,7 @@ public class MetricController {
         return Result.success(metricConverter.toResponse(metricService.update(id, entity)));
     }
 
+    @AdminOnly
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
         metricService.delete(id);

@@ -1,18 +1,19 @@
 name: Auto Reply PR
 
 on:
-  pull_request:
-    types: [opened] # 仅在 PR 被打开时触发
+  pull_request_target:
+    types: [opened]
 
 permissions:
-  pull-requests: write # 赋予机器人评论权限
+  pull-requests: write
+  issues: write
 
 jobs:
   auto-reply:
     runs-on: ubuntu-latest
     steps:
       - name: Send PR comment
-        uses: actions/github-script@v5
+        uses: actions/github-script@v7
         with:
           script: |
             const issueNumber = context.payload.pull_request.number;

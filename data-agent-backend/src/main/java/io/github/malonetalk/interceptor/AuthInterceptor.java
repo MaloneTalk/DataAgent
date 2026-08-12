@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.interceptor;
 
+import static io.github.malonetalk.common.Constants.ADMIN_ROLE_ID;
+
 import io.github.malonetalk.annotation.AdminOnly;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.UserContext;
@@ -43,8 +45,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 @AllArgsConstructor
 public class AuthInterceptor implements HandlerInterceptor {
-
-    private static final int ADMIN_ROLE_ID = 1;
 
     private final JwtUtil jwtUtil;
     private final SysUserMapper sysUserMapper;

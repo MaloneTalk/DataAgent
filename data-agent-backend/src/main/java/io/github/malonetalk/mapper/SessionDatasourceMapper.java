@@ -17,7 +17,9 @@
  */
 package io.github.malonetalk.mapper;
 
+import io.github.malonetalk.dto.SessionDatasourceBinding;
 import io.github.malonetalk.entity.SessionDatasource;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -28,4 +30,9 @@ public interface SessionDatasourceMapper {
     int insertIfAbsent(SessionDatasource sessionDatasource);
 
     SessionDatasource selectBySessionId(@Param("sessionId") String sessionId);
+
+    int deleteBySessionId(@Param("sessionId") String sessionId);
+
+    /** 列出所有绑定并关联数据源名称。 */
+    List<SessionDatasourceBinding> listBindingsWithDatasourceName();
 }

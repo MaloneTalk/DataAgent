@@ -55,6 +55,11 @@
   // 已发过消息 = 绑定已落库 = 不可再切换数据源（锁定语义）。
   const isBound = computed(() => messages.value.length > 0);
 
+  // 用户在当前会话中发过的消息文本（用于输入框上下键历史导航）
+  const userMessages = computed(() =>
+    messages.value.filter(m => m.role === 'user').map(m => m.content),
+  );
+
   // 未绑定的旧会话实际跟随全局激活源，展示其名字以免用户误以为可自由选源。
   const activeDatasourceName = computed(() => {
     if (datasourceId.value != null) return null;
@@ -138,7 +143,8 @@
   watch(
     () => route.params.sessionId,
     async newSid => {
-      if (newSid && typeof newSid === 'string') {
+      // Avoid triggering loadHistory when router.replace updates URL on first message
+      if (newSid && typeof newSid === 'string' && newSid !== sessionId.value) {
         await loadHistory(newSid);
         await resolveBoundDatasource(newSid);
       }
@@ -174,6 +180,7 @@
         ref="sessionListRef"
         :active-session-id="activeSessionId"
         @new-session="handleNewSession"
+        @session-deleted="sessionListRef?.loadList()"
       />
     </div>
 
@@ -246,8 +253,10 @@
       </div>
 
       <ChatInput
+        :key="sessionId"
         :is-streaming="isStreaming"
         :pending-question="pendingQuestion"
+        :user-messages="userMessages"
         @send="handleSend"
         @stop="stopStreaming"
       />
