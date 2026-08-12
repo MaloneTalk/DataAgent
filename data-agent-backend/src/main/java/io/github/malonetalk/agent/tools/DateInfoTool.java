@@ -35,6 +35,7 @@ import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Optional;
+import lombok.Builder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -69,17 +70,18 @@ public class DateInfoTool implements MarkAgentTool {
                     date. Use this whenever the user asks about today, a date, weekday, whether a \
                     day is a holiday, Chinese holiday schedule, or date difference. For relative \
                     dates, convert them using the system prompt's current date before passing \
-                    date; omit date for today. Pass end_date only when a calendar-day difference \
-                    is needed. Date difference counts start date inclusive and end date exclusive.\
+                    start_date; omit start_date for today. Pass end_date only when a calendar-day \
+                    difference is needed. Date difference counts start_date inclusive and \
+                    end_date exclusive.\
                     """)
     public String getDateInfo(
             @ToolParam(
-                            name = "date",
+                            name = "start_date",
                             description =
-                                    "Date in yyyy-MM-dd format. Defaults to today. Also acts as"
-                                            + " start date when end_date is provided.",
+                                    "Date in yyyy-MM-dd format. Defaults to today. When end_date"
+                                            + " is provided, this acts as the start of the range.",
                             required = false)
-                    String date,
+                    String startDate,
             @ToolParam(
                             name = "end_date",
                             description =
@@ -94,39 +96,39 @@ public class DateInfoTool implements MarkAgentTool {
                             required = false)
                     String timezone) {
         try {
-            return objectMapper.writeValueAsString(resolve(date, endDate, timezone));
+            return objectMapper.writeValueAsString(resolve(startDate, endDate, timezone));
         } catch (Exception e) {
             return "Error: failed to get date info: " + e.getMessage();
         }
     }
 
-    DateInfo resolve(String dateText, String timezoneText) {
-        return resolve(dateText, null, timezoneText);
-    }
-
-    DateInfo resolve(String dateText, String endDateText, String timezoneText) {
+    DateInfo resolve(String startDateText, String endDateText, String timezoneText) {
         ZoneId zoneId =
                 ZoneId.of(StringUtils.hasText(timezoneText) ? timezoneText : DEFAULT_TIMEZONE);
-        LocalDate date =
-                StringUtils.hasText(dateText)
-                        ? LocalDate.parse(dateText)
+        LocalDate startDate =
+                StringUtils.hasText(startDateText)
+                        ? LocalDate.parse(startDateText)
                         : LocalDate.now(clock.withZone(zoneId));
-        Optional<HolidayApiResponse> holidayApiResponse = queryHolidayApi(date);
+        Optional<HolidayApiResponse> holidayApiResponse = queryHolidayApi(startDate);
         HolidayDetail holiday = holidayApiResponse.map(HolidayApiResponse::holiday).orElse(null);
 
         boolean legalHoliday = holiday != null && Boolean.TRUE.equals(holiday.holiday());
+        // API returns holiday={holiday:false} only for adjusted workdays (调休补班);
+        // regular non-holiday days return holiday=null.
         boolean adjustedWorkday = holiday != null && Boolean.FALSE.equals(holiday.holiday());
-        boolean weekend = date.getDayOfWeek().getValue() >= 6;
+        boolean weekend = startDate.getDayOfWeek().getValue() >= 6;
 
-        return new DateInfo(
-                date.toString(),
-                date.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.CHINA),
-                holiday != null ? holiday.name() : null,
-                dayType(legalHoliday, adjustedWorkday, weekend),
-                holidayApiResponse.isPresent(),
-                StringUtils.hasText(endDateText)
-                        ? resolveDateDiff(date, LocalDate.parse(endDateText))
-                        : null);
+        return DateInfo.builder()
+                .date(startDate.toString())
+                .weekday(startDate.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.CHINA))
+                .holidayName(holiday != null ? holiday.name() : null)
+                .dayType(dayType(legalHoliday, adjustedWorkday, weekend))
+                .holidayDataAvailable(holidayApiResponse.isPresent())
+                .dateDiff(
+                        StringUtils.hasText(endDateText)
+                                ? resolveDateDiff(startDate, LocalDate.parse(endDateText))
+                                : null)
+                .build();
     }
 
     DateDiff resolveDateDiff(LocalDate startDate, LocalDate endDate) {
@@ -174,6 +176,7 @@ public class DateInfoTool implements MarkAgentTool {
         return weekend ? "WEEKEND" : "WORKDAY";
     }
 
+    @Builder
     record DateInfo(
             String date,
             String weekday,
@@ -185,11 +188,8 @@ public class DateInfoTool implements MarkAgentTool {
     record DateDiff(long calendarDays, long absoluteCalendarDays) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record HolidayApiResponse(int code, HolidayType type, HolidayDetail holiday) {}
+    record HolidayApiResponse(int code, HolidayDetail holiday) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record HolidayType(Integer type, String name, Integer week) {}
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record HolidayDetail(Boolean holiday, String name, String target, String date) {}
+    record HolidayDetail(Boolean holiday, String name) {}
 }
