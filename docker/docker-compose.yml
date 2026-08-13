@@ -1,9 +1,9 @@
 # Data Agent Docker Compose Configuration
 #
 # 所有配置项都有合理的默认值，可以直接启动。
-# 如需自定义配置，在 docker/ 目录创建 .env 文件覆盖默认值即可。
+# 如需自定义配置，在 docker/ 目录创建 .env.example 文件覆盖默认值即可。
 #
-# 示例 .env 文件：
+# 示例 .env.example 文件：
 # IO_GITHUB_MALONETALK_MODEL_API_KEY=sk-your-api-key
 # DB_PASSWORD=your-password
 # JWT_SECRET=your-jwt-secret-at-least-32-bytes-long
@@ -17,14 +17,14 @@ services:
     container_name: data-agent-mysql
     restart: unless-stopped
     environment:
-      # 可通过 .env 覆盖：DB_PASSWORD=xxx
+      # 可通过 .env.example 覆盖：DB_PASSWORD=xxx
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: data_agent
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
       TZ: Asia/Shanghai
     ports:
-      # 可通过 .env 覆盖：MYSQL_PORT=3307
+      # 可通过 .env.example 覆盖：MYSQL_PORT=3307
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - data-agent-mysql:/var/lib/mysql
@@ -60,14 +60,14 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-root}
 
       # AI 模型配置（重要：需要配置真实的 API Key）
-      # 可通过 .env 覆盖：IO_GITHUB_MALONETALK_MODEL_API_KEY=sk-xxx
+      # 可通过 .env.example 覆盖：IO_GITHUB_MALONETALK_MODEL_API_KEY=sk-xxx
       IO_GITHUB_MALONETALK_MODEL_PROVIDER: ${IO_GITHUB_MALONETALK_MODEL_PROVIDER:-dashscope}
       IO_GITHUB_MALONETALK_MODEL_NAME: ${IO_GITHUB_MALONETALK_MODEL_NAME:-qwen3-max}
       IO_GITHUB_MALONETALK_MODEL_BASE_URL: ${IO_GITHUB_MALONETALK_MODEL_BASE_URL:-}
       IO_GITHUB_MALONETALK_MODEL_API_KEY: ${IO_GITHUB_MALONETALK_MODEL_API_KEY:-}
       IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED: ${IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED:-false}
 
-      # JWT 配置（可通过 .env 覆盖）
+      # JWT 配置（可通过 .env.example 覆盖）
       # JWT_SECRET 必须 >= 32 字节
       JWT_SECRET: ${JWT_SECRET:-}
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
@@ -77,7 +77,7 @@ services:
 
       TZ: Asia/Shanghai
     ports:
-      # 可通过 .env 覆盖：BACKEND_PORT=8081
+      # 可通过 .env.example 覆盖：BACKEND_PORT=8081
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       mysql:
@@ -93,7 +93,7 @@ services:
     container_name: data-agent-frontend
     restart: unless-stopped
     ports:
-      # 可通过 .env 覆盖：FRONTEND_PORT=3001
+      # 可通过 .env.example 覆盖：FRONTEND_PORT=3001
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       backend:

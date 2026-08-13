@@ -13,7 +13,13 @@
 
 ### 环境变量配置
 
-启动前需要配置 `docker/.env` 文件中的环境变量：
+启动前需要配置环境变量, 将`docker/.env.example`重命名为`docker/.env`：
+
+```bash
+cp docker/.env.example docker/.env
+```
+
+然后编辑 `docker/.env`，参考以下说明：
 
 **必填项：**
 ```bash
