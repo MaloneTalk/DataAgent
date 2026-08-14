@@ -216,3 +216,30 @@ CREATE TABLE IF NOT EXISTS `user_session` (
     PRIMARY KEY (`user_id`, `session_id`),
     KEY `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-会话归属表';
+
+CREATE TABLE IF NOT EXISTS `mcp_server` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `name` VARCHAR(255) NOT NULL COMMENT 'MCP Server 名称',
+    `transport_type` VARCHAR(32) DEFAULT NULL COMMENT '传输类型',
+    `client_type` VARCHAR(32) DEFAULT NULL COMMENT '客户端类型',
+    `command` VARCHAR(500) DEFAULT NULL COMMENT '启动命令',
+    `args` TEXT DEFAULT NULL COMMENT '启动参数',
+    `env` TEXT DEFAULT NULL COMMENT '环境变量',
+    `url` VARCHAR(1000) DEFAULT NULL COMMENT '服务 URL',
+    `headers` TEXT DEFAULT NULL COMMENT '请求头',
+    `query_params` TEXT DEFAULT NULL COMMENT '查询参数',
+    `timeout` BIGINT DEFAULT NULL COMMENT '超时时间',
+    `initialization_timeout` BIGINT DEFAULT NULL COMMENT '初始化超时时间',
+    `enable_elicitation` TINYINT(1) DEFAULT NULL COMMENT '是否启用 elicitation',
+    `http_version` VARCHAR(32) DEFAULT NULL COMMENT 'HTTP 版本',
+    `connect_timeout` BIGINT DEFAULT NULL COMMENT '连接超时时间',
+    `redirect_policy` VARCHAR(32) DEFAULT NULL COMMENT '重定向策略',
+    `status` VARCHAR(32) DEFAULT NULL COMMENT '状态',
+    `description` TEXT DEFAULT NULL COMMENT '描述',
+    `creator_id` BIGINT DEFAULT NULL COMMENT '创建者ID',
+    `create_time` DATETIME DEFAULT NULL COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT NULL COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_mcp_server_name` (`name`),
+    KEY `idx_mcp_server_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP Server 配置表';
