@@ -124,3 +124,95 @@ CREATE TABLE IF NOT EXISTS `session_datasource` (
     PRIMARY KEY (`session_id`),
     KEY `idx_datasource_id` (`datasource_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话与数据源绑定表';
+
+CREATE TABLE IF NOT EXISTS `metric_info` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
+    `metric_key` VARCHAR(255) NOT NULL COMMENT '指标稳定标识(程序化引用用),如 sales',
+    `name` VARCHAR(255) NOT NULL COMMENT '指标显示名,如 销售额',
+    `aliases` TEXT DEFAULT NULL COMMENT '同义词,逗号分隔,如 GMV,营收,流水',
+    `measure_expr` VARCHAR(500) DEFAULT NULL COMMENT '度量表达式,如 SUM(paid_amount)',
+    `filters` TEXT DEFAULT NULL COMMENT '过滤条件,如 status=''paid'' AND is_test=0',
+    `time_field` VARCHAR(255) DEFAULT NULL COMMENT '时间维度字段,如 settle_time',
+    `description` TEXT DEFAULT NULL COMMENT '业务口径说明/规则',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_datasource_metric_key` (`datasource_id`, `metric_key`),
+    KEY `idx_datasource_name` (`datasource_id`, `name`),
+    KEY `idx_datasource_aliases` (`datasource_id`, `aliases`(255))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='指标口径表';
+
+-- 示例:销售额口径。请按你实际的 datasource_id 调整后再执行(取消注释)。
+-- INSERT INTO `metric_info`
+--   (`datasource_id`, `metric_key`, `name`, `aliases`,
+--    `measure_expr`, `filters`, `time_field`, `description`)
+-- VALUES
+--   (1, 'sales', '销售额', 'GMV,营收,流水,成交额',
+--    'SUM(paid_amount)', 'status=''paid'' AND is_test=0', 'settle_time',
+--    '已支付净额,使用结算时间,排除测试账号');
+
+-- 权限管理：角色表 + 表级白名单 + 列级黑名单。
+CREATE TABLE IF NOT EXISTS `sys_role` (
+    `id`          INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `name`        VARCHAR(64)  NOT NULL COMMENT '角色名称',
+    `description` VARCHAR(255) NULL COMMENT '角色描述',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色';
+
+-- 角色-表白名单：角色可见的表；缺省不可见（新表不会自动泄露）。
+CREATE TABLE IF NOT EXISTS `role_table_permission` (
+    `id`            INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `role_id`       INT NOT NULL COMMENT '角色ID',
+    `datasource_id` INT NOT NULL COMMENT '数据源ID',
+    `table_name`    VARCHAR(128) NOT NULL COMMENT '物理表名（与 table_info.table_name 一致）',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_role_ds_table` (`role_id`, `datasource_id`, `table_name`),
+    KEY `idx_role_id` (`role_id`),
+    KEY `idx_datasource_id` (`datasource_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色-表 白名单';
+
+-- 角色-隐藏列（黑名单）：记录存在 = 该列对角色不可见。缺省不隐藏。
+CREATE TABLE IF NOT EXISTS `role_hidden_column` (
+    `id`            INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `role_id`       INT NOT NULL COMMENT '角色ID',
+    `datasource_id` INT NOT NULL COMMENT '数据源ID',
+    `table_name`    VARCHAR(128) NOT NULL COMMENT '物理表名',
+    `column_name`   VARCHAR(128) NOT NULL COMMENT '列名（记录存在即对角色不可见）',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_role_ds_table_col` (`role_id`, `datasource_id`, `table_name`, `column_name`),
+    KEY `idx_role_id` (`role_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色-隐藏列（黑名单）';
+
+-- 用户表（带身份源抽象：兼容本系统账号 / 钉钉 / 飞书 / 企业微信）
+CREATE TABLE IF NOT EXISTS `sys_user` (
+    `id`            INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `username`      VARCHAR(64)  NOT NULL COMMENT '登录名；外部身份源用户=身份源昵称（可重名，靠 uk_idp 区分）',
+    `password_hash` VARCHAR(255) NULL COMMENT 'PBKDF2 哈希，仅 LOCAL 身份源使用；外部身份源用户为空',
+    `display_name`  VARCHAR(64)  NOT NULL COMMENT '显示名',
+    `role_id`       INT NOT NULL DEFAULT 0 COMMENT '角色ID；0=未分配角色（无任何表权限）',
+    `idp_type`      VARCHAR(16)  NOT NULL DEFAULT 'LOCAL' COMMENT '身份源：LOCAL=本系统账号 / DINGTALK / FEISHU / WECOM',
+    `idp_user_id`   VARCHAR(64)  NULL COMMENT '身份源里的用户ID（LOCAL为空）',
+    `status`        TINYINT NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_username` (`username`),
+    UNIQUE KEY `uk_idp` (`idp_type`, `idp_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户';
+-- 说明：username 用普通索引而非唯一键——外部身份源昵称允许重名（身份靠 uk_idp 区分）；
+-- LOCAL 本地账号的用户名唯一性由应用层（AuthService 创建用户时）保证。
+
+CREATE TABLE IF NOT EXISTS `user_session` (
+    `user_id`    INT          NOT NULL COMMENT '用户ID，关联 sys_user.id',
+    `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID（对应 agentscope_sessions.session_id）',
+    `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`user_id`, `session_id`),
+    KEY `idx_session_id` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-会话归属表';
