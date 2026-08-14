@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.AllArgsConstructor;
@@ -63,8 +64,9 @@ public class SchemaReader {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            Set<String> primaryKeys = getPrimaryKeys(conn, tableName);
-            return getColumns(conn, tableName, primaryKeys);
+            String metadataTableName = resolveMetadataTableName(conn, tableName);
+            Set<String> primaryKeys = getPrimaryKeys(conn, metadataTableName);
+            return getColumns(conn, metadataTableName, primaryKeys);
         } catch (SQLException e) {
             log.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
             throw BusinessException.of(
@@ -80,8 +82,10 @@ public class SchemaReader {
             return Map.of();
         }
         Map<String, Set<String>> columnNamesByTable = new LinkedHashMap<>();
+        Map<String, String> tableNameLookup = new LinkedHashMap<>();
         for (String tableName : tableNames) {
             columnNamesByTable.putIfAbsent(tableName, new LinkedHashSet<>());
+            tableNameLookup.putIfAbsent(caseInsensitiveKey(tableName), tableName);
         }
 
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
@@ -91,7 +95,12 @@ public class SchemaReader {
             try (ResultSet rs =
                     metaData.getColumns(conn.getCatalog(), conn.getSchema(), "%", null)) {
                 while (rs.next()) {
-                    Set<String> columnNames = columnNamesByTable.get(rs.getString("TABLE_NAME"));
+                    String metadataTableName = rs.getString("TABLE_NAME");
+                    String tableName =
+                            columnNamesByTable.containsKey(metadataTableName)
+                                    ? metadataTableName
+                                    : tableNameLookup.get(caseInsensitiveKey(metadataTableName));
+                    Set<String> columnNames = columnNamesByTable.get(tableName);
                     if (columnNames != null) {
                         columnNames.add(rs.getString("COLUMN_NAME"));
                     }
@@ -121,6 +130,32 @@ public class SchemaReader {
         }
 
         return tables;
+    }
+
+    private String resolveMetadataTableName(Connection conn, String tableName) throws SQLException {
+        DatabaseMetaData metaData = conn.getMetaData();
+        String catalog = conn.getCatalog();
+        String schema = conn.getSchema();
+        String[] types = new String[] {"TABLE"};
+
+        try (ResultSet rs = metaData.getTables(catalog, schema, tableName, types)) {
+            if (rs.next()) {
+                return rs.getString("TABLE_NAME");
+            }
+        }
+        try (ResultSet rs = metaData.getTables(catalog, schema, "%", types)) {
+            while (rs.next()) {
+                String metadataTableName = rs.getString("TABLE_NAME");
+                if (metadataTableName != null && metadataTableName.equalsIgnoreCase(tableName)) {
+                    return metadataTableName;
+                }
+            }
+        }
+        return tableName;
+    }
+
+    private String caseInsensitiveKey(String value) {
+        return value == null ? null : value.toLowerCase(Locale.ROOT);
     }
 
     private Set<String> getPrimaryKeys(Connection conn, String tableName) throws SQLException {
