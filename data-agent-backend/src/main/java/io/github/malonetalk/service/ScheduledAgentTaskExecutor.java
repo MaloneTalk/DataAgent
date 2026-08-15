@@ -25,6 +25,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -99,14 +100,15 @@ public class ScheduledAgentTaskExecutor {
         executor.shutdown();
     }
 
+    @Builder
     public record Result(boolean success, String error) {
 
         private static Result succeeded() {
-            return new Result(true, null);
+            return Result.builder().success(true).build();
         }
 
         private static Result failed(String error) {
-            return new Result(false, error);
+            return Result.builder().success(false).error(error).build();
         }
     }
 }

@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -77,7 +78,7 @@ class DatabaseScheduledAgentTaskRunner {
         }
 
         ScheduledAgentTask task = taskMapper.selectById(taskId);
-        return new ClaimedRun(task, lockOwner, false);
+        return ClaimedRun.builder().task(task).lockOwner(lockOwner).force(false).build();
     }
 
     private ClaimedRun claimManual(Integer taskId) {
@@ -89,7 +90,7 @@ class DatabaseScheduledAgentTaskRunner {
         }
 
         ScheduledAgentTask task = taskMapper.selectById(taskId);
-        return new ClaimedRun(task, lockOwner, true);
+        return ClaimedRun.builder().task(task).lockOwner(lockOwner).force(true).build();
     }
 
     private void finish(
@@ -136,5 +137,6 @@ class DatabaseScheduledAgentTaskRunner {
                 + (message == null || message.isBlank() ? "" : ": " + message);
     }
 
+    @Builder
     private record ClaimedRun(ScheduledAgentTask task, String lockOwner, boolean force) {}
 }
