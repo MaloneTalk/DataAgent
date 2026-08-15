@@ -20,7 +20,7 @@ package io.github.malonetalk.controller;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
 import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
-import io.github.malonetalk.service.ScheduledAgentTaskScheduler;
+import io.github.malonetalk.service.ScheduledAgentTaskService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
@@ -41,52 +41,52 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/scheduled-agent-tasks")
 public class ScheduledAgentTaskController {
 
-    private final ScheduledAgentTaskScheduler taskScheduler;
+    private final ScheduledAgentTaskService taskService;
 
     @PostMapping
     public Result<Boolean> create(@Valid @RequestBody ScheduledAgentTaskRequest request) {
-        return Result.success(taskScheduler.create(request));
+        return Result.success(taskService.create(request));
     }
 
     @PutMapping("/{id}")
     public Result<Boolean> update(
             @PathVariable @Positive(message = "id must be positive.") Integer id,
             @Valid @RequestBody ScheduledAgentTaskRequest request) {
-        return Result.success(taskScheduler.update(id, request));
+        return Result.success(taskService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        return Result.success(taskScheduler.delete(id));
+        return Result.success(taskService.delete(id));
     }
 
     @GetMapping
     public Result<List<ScheduledAgentTaskResponse>> listAll() {
-        return Result.success(taskScheduler.listAll());
+        return Result.success(taskService.listAll());
     }
 
     @GetMapping("/{id}/status")
     public Result<ScheduledAgentTaskResponse> getStatus(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        return Result.success(taskScheduler.getStatus(id));
+        return Result.success(taskService.getStatus(id));
     }
 
     @PostMapping("/{id}/activate")
     public Result<Boolean> activate(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        return Result.success(taskScheduler.activate(id));
+        return Result.success(taskService.activate(id));
     }
 
     @PostMapping("/{id}/deactivate")
     public Result<Boolean> deactivate(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        return Result.success(taskScheduler.deactivate(id));
+        return Result.success(taskService.deactivate(id));
     }
 
     @PostMapping("/{id}/run")
     public Result<Boolean> runNow(
             @PathVariable @Positive(message = "id must be positive.") Integer id) {
-        return Result.success(taskScheduler.runNow(id));
+        return Result.success(taskService.runNow(id));
     }
 }

@@ -47,8 +47,7 @@ public interface ScheduledAgentTaskMapper {
             @Param("id") Integer id,
             @Param("now") LocalDateTime now,
             @Param("lockUntil") LocalDateTime lockUntil,
-            @Param("lockOwner") String lockOwner,
-            @Param("force") boolean force);
+            @Param("lockOwner") String lockOwner);
 
     int lockForManualRun(
             @Param("id") Integer id,

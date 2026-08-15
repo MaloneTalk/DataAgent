@@ -30,10 +30,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-class DatabaseScheduledAgentTaskScheduler implements ScheduledAgentTaskScheduler {
+class DatabaseScheduledAgentTaskService implements ScheduledAgentTaskService {
 
     private final ScheduledAgentTaskMapper taskMapper;
-    private final ScheduledAgentTaskExecutor taskExecutor;
+    private final DatabaseScheduledAgentTaskRunner taskRunner;
 
     @Override
     public boolean create(ScheduledAgentTaskRequest request) {
@@ -86,7 +86,7 @@ class DatabaseScheduledAgentTaskScheduler implements ScheduledAgentTaskScheduler
 
     @Override
     public boolean runNow(Integer taskId) {
-        return taskExecutor.runNow(taskId);
+        return taskRunner.runNow(taskId);
     }
 
     private boolean updateEnabled(Integer id, boolean enabled, LocalDateTime nextRunAt) {

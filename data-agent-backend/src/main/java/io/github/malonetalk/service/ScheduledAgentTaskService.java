@@ -21,7 +21,7 @@ import io.github.malonetalk.dto.ScheduledAgentTaskRequest;
 import io.github.malonetalk.dto.ScheduledAgentTaskResponse;
 import java.util.List;
 
-public interface ScheduledAgentTaskScheduler {
+public interface ScheduledAgentTaskService {
 
     boolean create(ScheduledAgentTaskRequest request);
 
