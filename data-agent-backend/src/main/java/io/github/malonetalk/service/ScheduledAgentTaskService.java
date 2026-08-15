@@ -23,17 +23,13 @@ import java.util.List;
 
 public interface ScheduledAgentTaskService {
 
-    boolean create(ScheduledAgentTaskRequest request);
+    void create(ScheduledAgentTaskRequest request);
 
-    boolean update(Integer id, ScheduledAgentTaskRequest request);
+    void update(Integer id, ScheduledAgentTaskRequest request);
 
-    boolean delete(Integer id);
+    void delete(Integer id);
 
-    boolean activate(Integer id);
-
-    boolean deactivate(Integer id);
-
-    ScheduledAgentTaskResponse getStatus(Integer id);
+    void setEnabled(Integer id, boolean enabled);
 
     List<ScheduledAgentTaskResponse> listAll();
 

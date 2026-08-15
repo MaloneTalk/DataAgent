@@ -38,7 +38,7 @@ public class AskUserTool implements MarkAgentTool {
                     String question,
             ToolCallContext ctx) {
         log.info("Agent asks user: {}", question);
-        if (!ctx.allowUserPrompt()) {
+        if (ctx.scheduled()) {
             return "Cannot ask the user during this run. Explain what information is missing and"
                     + " stop.";
         }

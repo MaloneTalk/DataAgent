@@ -17,7 +17,9 @@
  */
 package io.github.malonetalk.service;
 
+import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.ScheduledAgentTask;
+import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -45,62 +47,57 @@ class DatabaseScheduledAgentTaskRunner {
     @Value("${data-agent.schedule.lock-duration}")
     private Duration lockDuration;
 
-    boolean runDue(Integer taskId) {
-        ClaimedRun claimedRun = claim(taskId);
-        return claimedRun == null || execute(claimedRun);
+    void runDue(Integer taskId) {
+        ClaimedRun claimedRun = claim(taskId, false);
+        if (claimedRun != null) {
+            execute(claimedRun);
+        }
     }
 
     boolean runNow(Integer taskId) {
-        ClaimedRun claimedRun = claimManual(taskId);
+        ClaimedRun claimedRun = claim(taskId, true);
         return claimedRun != null && execute(claimedRun);
     }
 
     private boolean execute(ClaimedRun claimedRun) {
-        CompletableFuture<ScheduledAgentTaskExecutor.Result> result;
+        CompletableFuture<Void> result;
         try {
             result = taskExecutor.execute(claimedRun.task());
         } catch (RejectedExecutionException e) {
             finish(claimedRun, STATUS_FAILED, REJECTED_MESSAGE);
             log.warn("Scheduled agent task executor rejected taskId={}", claimedRun.task().getId());
-            return false;
+            throw BusinessException.of(ErrorCode.DATA_CONFLICT, REJECTED_MESSAGE);
         }
 
-        result.whenComplete((runResult, throwable) -> finish(claimedRun, runResult, throwable));
+        result.whenComplete((ignored, throwable) -> finish(claimedRun, throwable));
         return true;
     }
 
-    private ClaimedRun claim(Integer taskId) {
+    private ClaimedRun claim(Integer taskId, boolean manual) {
         LocalDateTime startedAt = LocalDateTime.now();
         String lockOwner = UUID.randomUUID().toString();
-        if (taskMapper.lockForRun(taskId, startedAt, startedAt.plus(lockDuration), lockOwner)
-                == 0) {
+        LocalDateTime lockUntil = startedAt.plus(lockDuration);
+        int updated =
+                manual
+                        ? taskMapper.lockForManualRun(taskId, startedAt, lockUntil, lockOwner)
+                        : taskMapper.lockForRun(taskId, startedAt, lockUntil, lockOwner);
+        if (updated == 0) {
             return null;
         }
 
         ScheduledAgentTask task = taskMapper.selectById(taskId);
-        return ClaimedRun.builder().task(task).lockOwner(lockOwner).force(false).build();
+        return ClaimedRun.builder().task(task).lockOwner(lockOwner).force(manual).build();
     }
 
-    private ClaimedRun claimManual(Integer taskId) {
-        LocalDateTime startedAt = LocalDateTime.now();
-        String lockOwner = UUID.randomUUID().toString();
-        if (taskMapper.lockForManualRun(taskId, startedAt, startedAt.plus(lockDuration), lockOwner)
-                == 0) {
-            return null;
-        }
-
-        ScheduledAgentTask task = taskMapper.selectById(taskId);
-        return ClaimedRun.builder().task(task).lockOwner(lockOwner).force(true).build();
-    }
-
-    private void finish(
-            ClaimedRun claimedRun, ScheduledAgentTaskExecutor.Result result, Throwable throwable) {
+    private void finish(ClaimedRun claimedRun, Throwable throwable) {
         if (throwable != null) {
-            finish(claimedRun, STATUS_FAILED, rootCauseMessage(throwable));
+            String lastError = rootCauseMessage(throwable);
+            log.error("Scheduled agent task failed: taskId={}", claimedRun.task().getId(), throwable);
+            finish(claimedRun, STATUS_FAILED, lastError);
             return;
         }
 
-        finish(claimedRun, result.success() ? STATUS_SUCCESS : STATUS_FAILED, result.error());
+        finish(claimedRun, STATUS_SUCCESS, null);
     }
 
     private void finish(ClaimedRun claimedRun, String lastStatus, String lastError) {

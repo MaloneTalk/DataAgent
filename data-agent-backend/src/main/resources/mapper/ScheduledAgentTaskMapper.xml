@@ -2,6 +2,19 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="io.github.malonetalk.mapper.ScheduledAgentTaskMapper">
 
+    <sql id="taskColumns">
+        id,
+        name,
+        prompt,
+        schedule_type,
+        schedule_expr,
+        enabled,
+        (lock_until IS NOT NULL AND lock_until &gt; NOW()) AS running,
+        next_run_at,
+        last_status,
+        last_error
+    </sql>
+
     <insert id="insert" parameterType="io.github.malonetalk.entity.ScheduledAgentTask"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO scheduled_agent_task (
@@ -23,6 +36,7 @@
             next_run_at = #{nextRunAt},
             update_time = NOW()
         WHERE id = #{id}
+          AND (lock_until IS NULL OR lock_until &lt; NOW())
     </update>
 
     <delete id="deleteById">
@@ -33,19 +47,21 @@
     <update id="updateEnabled">
         UPDATE scheduled_agent_task
         SET enabled = #{enabled},
-            <if test="nextRunAt != null">next_run_at = #{nextRunAt},</if>
+            next_run_at = #{nextRunAt},
             update_time = NOW()
         WHERE id = #{id}
     </update>
 
     <select id="selectById" resultType="io.github.malonetalk.entity.ScheduledAgentTask">
-        SELECT * FROM scheduled_agent_task
+        SELECT <include refid="taskColumns"/>
+        FROM scheduled_agent_task
         WHERE id = #{id}
         LIMIT 1
     </select>
 
     <select id="selectAll" resultType="io.github.malonetalk.entity.ScheduledAgentTask">
-        SELECT * FROM scheduled_agent_task
+        SELECT <include refid="taskColumns"/>
+        FROM scheduled_agent_task
         ORDER BY id DESC
     </select>
 
@@ -62,7 +78,6 @@
         UPDATE scheduled_agent_task
         SET lock_until = #{lockUntil},
             lock_owner = #{lockOwner},
-            running = 1,
             update_time = #{now}
         WHERE id = #{id}
           AND (lock_until IS NULL OR lock_until &lt; #{now})
@@ -74,17 +89,15 @@
         UPDATE scheduled_agent_task
         SET lock_until = #{lockUntil},
             lock_owner = #{lockOwner},
-            running = 1,
             update_time = #{now}
         WHERE id = #{id}
-          AND (running = 0 OR lock_until IS NULL OR lock_until &lt; #{now})
+          AND (lock_until IS NULL OR lock_until &lt; #{now})
     </update>
 
     <update id="finishRun">
         UPDATE scheduled_agent_task
         SET lock_until = NULL,
             lock_owner = NULL,
-            running = 0,
             next_run_at = #{nextRunAt},
             last_run_at = #{finishedAt},
             last_status = #{lastStatus},

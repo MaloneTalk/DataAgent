@@ -25,19 +25,4 @@ public record ToolCallContext(
         String userInput,
         Integer datasourceId,
         Integer userId,
-        TaskType taskType) {
-
-    public ToolCallContext {
-        if (taskType == null) {
-            taskType = TaskType.NORMAL;
-        }
-    }
-
-    public boolean allowUserPrompt() {
-        return taskType == TaskType.NORMAL;
-    }
-
-    public boolean mapErrorsToStream() {
-        return taskType == TaskType.NORMAL;
-    }
-}
+        boolean scheduled) {}

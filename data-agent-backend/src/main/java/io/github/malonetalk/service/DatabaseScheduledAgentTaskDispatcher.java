@@ -42,9 +42,7 @@ class DatabaseScheduledAgentTaskDispatcher {
     @Scheduled(fixedDelayString = "${data-agent.schedule.dispatch-delay-ms}")
     public void dispatchDueTasks() {
         for (Integer taskId : taskMapper.findDueTaskIds(LocalDateTime.now(), batchSize)) {
-            if (!taskRunner.runDue(taskId)) {
-                return;
-            }
+            taskRunner.runDue(taskId);
         }
     }
 }

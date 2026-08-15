@@ -24,6 +24,7 @@
     deleteScheduledTask,
     listScheduledTasks,
     runScheduledTask,
+    setScheduledTaskEnabled,
     updateScheduledTask,
     type ScheduledTaskRequest,
     type ScheduledTaskResponse,
@@ -52,15 +53,13 @@
     scheduleExpr: [{ required: true, message: '调度表达式不能为空', trigger: 'blur' }],
   };
 
-  const schedulePlaceholder = computed(() => {
-    if (form.scheduleType === 'DAILY') {
-      return '09:00';
-    }
-    if (form.scheduleType === 'INTERVAL') {
-      return 'PT1H';
-    }
-    return '0 0 9 * * *';
-  });
+  const schedulePlaceholders = {
+    DAILY: '09:00',
+    INTERVAL: 'PT1H',
+    CRON: '0 0 9 * * *',
+  };
+
+  const schedulePlaceholder = computed(() => schedulePlaceholders[form.scheduleType]);
 
   async function loadTasks() {
     loading.value = true;
@@ -134,20 +133,8 @@
   }
 
   async function toggleEnabled(row: ScheduledTaskResponse) {
-    const payload: ScheduledTaskRequest = {
-      name: row.name,
-      prompt: row.prompt,
-      scheduleType: row.scheduleType,
-      scheduleExpr: row.scheduleExpr,
-      enabled: !row.enabled,
-    };
-    if (row.enabled) {
-      await updateScheduledTask(row.id, payload);
-      ElMessage.success('任务已停用');
-    } else {
-      await updateScheduledTask(row.id, payload);
-      ElMessage.success('任务已启用');
-    }
+    await setScheduledTaskEnabled(row.id, !row.enabled);
+    ElMessage.success(row.enabled ? '任务已停用' : '任务已启用');
     await loadTasks();
   }
 
@@ -223,23 +210,17 @@
         </el-table-column>
         <el-table-column label="上次结果" width="150">
           <template #default="{ row }">
-            <el-tooltip
-              v-if="row.lastError"
-              :content="row.lastError"
-              placement="top"
-              :show-after="300"
+            <el-tag
+              :title="row.lastError || ''"
+              :type="row.lastStatus === 'SUCCESS' ? 'success' : row.lastError ? 'danger' : 'info'"
+              effect="plain"
             >
-              <el-tag :type="row.lastStatus === 'SUCCESS' ? 'success' : 'danger'" effect="plain">
-                {{ row.lastStatus || '-' }}
-              </el-tag>
-            </el-tooltip>
-            <el-tag v-else :type="row.lastStatus === 'SUCCESS' ? 'success' : 'info'" effect="plain">
               {{ row.lastStatus || '-' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="下次运行" width="180">
-          <template #default="{ row }">{{ row.nextRunAt.replace('T', ' ') }}</template>
+          <template #default="{ row }">{{ row.nextRunAt?.replace('T', ' ') || '-' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">

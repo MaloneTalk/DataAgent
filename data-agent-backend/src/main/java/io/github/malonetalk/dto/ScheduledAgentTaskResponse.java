@@ -31,7 +31,6 @@ public record ScheduledAgentTaskResponse(
         Boolean enabled,
         Boolean running,
         LocalDateTime nextRunAt,
-        LocalDateTime lastRunAt,
         String lastStatus,
         String lastError) {
 
@@ -45,7 +44,6 @@ public record ScheduledAgentTaskResponse(
                 .enabled(task.getEnabled())
                 .running(task.getRunning())
                 .nextRunAt(task.getNextRunAt())
-                .lastRunAt(task.getLastRunAt())
                 .lastStatus(task.getLastStatus())
                 .lastError(task.getLastError())
                 .build();

@@ -81,7 +81,7 @@ public class AgentService {
     public Flux<ChatStreamEvent> chatStream(
             ToolCallContext context, List<ChatRequest.ToolResultInput> toolResults) {
         Flux<ChatStreamEvent> stream = Flux.defer(() -> streamAgent(context, toolResults));
-        if (context.mapErrorsToStream()) {
+        if (!context.scheduled()) {
             return stream.onErrorResume(this::toErrorEvent);
         }
         return stream;

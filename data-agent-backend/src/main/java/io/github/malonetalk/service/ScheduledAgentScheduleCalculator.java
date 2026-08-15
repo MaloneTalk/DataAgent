@@ -24,36 +24,28 @@ import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import org.springframework.scheduling.support.CronExpression;
 
 public final class ScheduledAgentScheduleCalculator {
 
-    private static final ZoneId TASK_ZONE = ZoneId.of("Asia/Shanghai");
-
     private ScheduledAgentScheduleCalculator() {}
 
     public static LocalDateTime nextRunAfter(String type, String expr, LocalDateTime after) {
-        ZoneId storageZone = ZoneId.systemDefault();
-        ZonedDateTime afterInTaskZone = after.atZone(storageZone).withZoneSameInstant(TASK_ZONE);
-        ZonedDateTime nextInTaskZone =
-                switch (ScheduledAgentScheduleType.valueOf(type)) {
-                    case DAILY -> nextDaily(expr, afterInTaskZone);
-                    case INTERVAL -> afterInTaskZone.plus(parsePositiveDuration(expr));
-                    case CRON -> nextCron(expr, afterInTaskZone);
-                };
-        return nextInTaskZone.withZoneSameInstant(storageZone).toLocalDateTime();
+        return switch (ScheduledAgentScheduleType.valueOf(type)) {
+            case DAILY -> nextDaily(expr, after);
+            case INTERVAL -> after.plus(parsePositiveDuration(expr));
+            case CRON -> nextCron(expr, after);
+        };
     }
 
-    private static ZonedDateTime nextDaily(String expr, ZonedDateTime after) {
+    private static LocalDateTime nextDaily(String expr, LocalDateTime after) {
         LocalTime time = parseDailyTime(expr);
-        ZonedDateTime next = after.toLocalDate().atTime(time).atZone(after.getZone());
+        LocalDateTime next = after.toLocalDate().atTime(time);
         return next.isAfter(after) ? next : next.plusDays(1);
     }
 
-    private static ZonedDateTime nextCron(String expr, ZonedDateTime after) {
-        ZonedDateTime next;
+    private static LocalDateTime nextCron(String expr, LocalDateTime after) {
+        LocalDateTime next;
         try {
             next = CronExpression.parse(requireScheduleExpr(expr)).next(after);
         } catch (IllegalArgumentException e) {

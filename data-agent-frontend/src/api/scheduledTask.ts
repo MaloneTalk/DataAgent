@@ -36,8 +36,7 @@ export interface ScheduledTaskResponse {
   scheduleExpr: string;
   enabled: boolean;
   running?: boolean;
-  nextRunAt: string;
-  lastRunAt?: string | null;
+  nextRunAt?: string | null;
   lastStatus?: string | null;
   lastError?: string | null;
 }
@@ -47,15 +46,19 @@ export function listScheduledTasks() {
 }
 
 export function createScheduledTask(data: ScheduledTaskRequest) {
-  return request.post<ApiResponse<boolean>>('/scheduled-agent-tasks', data);
+  return request.post<ApiResponse<void>>('/scheduled-agent-tasks', data);
 }
 
 export function updateScheduledTask(id: number, data: ScheduledTaskRequest) {
-  return request.put<ApiResponse<boolean>>(`/scheduled-agent-tasks/${id}`, data);
+  return request.put<ApiResponse<void>>(`/scheduled-agent-tasks/${id}`, data);
 }
 
 export function deleteScheduledTask(id: number) {
-  return request.delete<ApiResponse<boolean>>(`/scheduled-agent-tasks/${id}`);
+  return request.delete<ApiResponse<void>>(`/scheduled-agent-tasks/${id}`);
+}
+
+export function setScheduledTaskEnabled(id: number, enabled: boolean) {
+  return request.patch<ApiResponse<void>>(`/scheduled-agent-tasks/${id}/enabled`, { enabled });
 }
 
 export function runScheduledTask(id: number) {

@@ -36,47 +36,39 @@ class DatabaseScheduledAgentTaskService implements ScheduledAgentTaskService {
     private final DatabaseScheduledAgentTaskRunner taskRunner;
 
     @Override
-    public boolean create(ScheduledAgentTaskRequest request) {
-        ScheduledAgentTask task = buildTask(new ScheduledAgentTask(), request);
+    public void create(ScheduledAgentTaskRequest request) {
+        ScheduledAgentTask task = buildTask(request);
         taskMapper.insert(task);
-        return true;
     }
 
     @Override
-    public boolean update(Integer id, ScheduledAgentTaskRequest request) {
-        ScheduledAgentTask task = buildTask(new ScheduledAgentTask(), request);
+    public void update(Integer id, ScheduledAgentTaskRequest request) {
+        ScheduledAgentTask task = buildTask(request);
         task.setId(id);
         if (taskMapper.update(task) == 0) {
-            throw notFound(id);
+            throw BusinessException.of(
+                    ErrorCode.DATA_CONFLICT,
+                    "Scheduled task does not exist or is running: id=" + id);
         }
-        return true;
     }
 
     @Override
-    public boolean delete(Integer id) {
+    public void delete(Integer id) {
         if (taskMapper.deleteById(id) == 0) {
             throw notFound(id);
         }
-        return true;
     }
 
     @Override
-    public boolean activate(Integer id) {
-        ScheduledAgentTask task = requireTask(id);
-        LocalDateTime nextRunAt =
-                ScheduledAgentScheduleCalculator.nextRunAfter(
-                        task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now());
-        return updateEnabled(id, true, nextRunAt);
-    }
-
-    @Override
-    public boolean deactivate(Integer id) {
-        return updateEnabled(id, false, null);
-    }
-
-    @Override
-    public ScheduledAgentTaskResponse getStatus(Integer id) {
-        return ScheduledAgentTaskResponse.from(requireTask(id));
+    public void setEnabled(Integer id, boolean enabled) {
+        LocalDateTime nextRunAt = null;
+        if (enabled) {
+            ScheduledAgentTask task = requireTask(id);
+            nextRunAt =
+                    ScheduledAgentScheduleCalculator.nextRunAfter(
+                            task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now());
+        }
+        updateEnabled(id, enabled, nextRunAt);
     }
 
     @Override
@@ -89,11 +81,10 @@ class DatabaseScheduledAgentTaskService implements ScheduledAgentTaskService {
         return taskRunner.runNow(taskId);
     }
 
-    private boolean updateEnabled(Integer id, boolean enabled, LocalDateTime nextRunAt) {
+    private void updateEnabled(Integer id, boolean enabled, LocalDateTime nextRunAt) {
         if (taskMapper.updateEnabled(id, enabled, nextRunAt) == 0) {
             throw notFound(id);
         }
-        return true;
     }
 
     private ScheduledAgentTask requireTask(Integer id) {
@@ -104,16 +95,18 @@ class DatabaseScheduledAgentTaskService implements ScheduledAgentTaskService {
         return task;
     }
 
-    private ScheduledAgentTask buildTask(
-            ScheduledAgentTask task, ScheduledAgentTaskRequest request) {
+    private ScheduledAgentTask buildTask(ScheduledAgentTaskRequest request) {
+        ScheduledAgentTask task = new ScheduledAgentTask();
         task.setName(request.name().trim());
         task.setPrompt(request.prompt().trim());
         task.setScheduleType(request.scheduleType().name());
         task.setScheduleExpr(request.scheduleExpr().trim());
         task.setEnabled(request.enabled() == null || request.enabled());
         task.setNextRunAt(
-                ScheduledAgentScheduleCalculator.nextRunAfter(
-                        task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now()));
+                Boolean.TRUE.equals(task.getEnabled())
+                        ? ScheduledAgentScheduleCalculator.nextRunAfter(
+                                task.getScheduleType(), task.getScheduleExpr(), LocalDateTime.now())
+                        : null);
         return task;
     }
 
