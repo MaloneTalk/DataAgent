@@ -92,7 +92,8 @@ class DatabaseScheduledAgentTaskRunner {
     private void finish(ClaimedRun claimedRun, Throwable throwable) {
         if (throwable != null) {
             String lastError = rootCauseMessage(throwable);
-            log.error("Scheduled agent task failed: taskId={}", claimedRun.task().getId(), throwable);
+            log.error(
+                    "Scheduled agent task failed: taskId={}", claimedRun.task().getId(), throwable);
             finish(claimedRun, STATUS_FAILED, lastError);
             return;
         }
