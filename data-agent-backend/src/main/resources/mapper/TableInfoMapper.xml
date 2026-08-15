@@ -130,6 +130,7 @@
     <update id="updatePhysicalCacheFields" parameterType="io.github.malonetalk.entity.TableInfo">
         UPDATE table_info
         <set>
+            <if test="tableName != null">table_name = #{tableName},</if>
             physical_table_description = #{physicalTableDescription},
             <if test="physicalStatus != null">physical_status = #{physicalStatus},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>

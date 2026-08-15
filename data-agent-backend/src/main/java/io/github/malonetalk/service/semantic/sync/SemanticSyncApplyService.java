@@ -68,19 +68,21 @@ public class SemanticSyncApplyService {
         List<Integer> missingColumnIds = new ArrayList<>();
         List<SyncTableResult> results = new ArrayList<>();
         for (TableSyncSource table : presentTables) {
+            String tableKey = tableKey(table.tableName());
             results.add(
                     buildPresentTableResult(
                             table,
-                            existingTableIndex.get(table.tableName()),
-                            columnsByTableName.getOrDefault(table.tableName(), List.of()),
+                            existingTableIndex.get(tableKey),
+                            columnsByTableName.getOrDefault(tableKey, List.of()),
                             missingColumnIds));
         }
         for (String missingTable : missingTables) {
+            String tableKey = tableKey(missingTable);
             SyncTableResult result =
                     buildMissingTableResult(
                             missingTable,
-                            existingTableIndex.get(missingTable),
-                            columnsByTableName.getOrDefault(missingTable, List.of()),
+                            existingTableIndex.get(tableKey),
+                            columnsByTableName.getOrDefault(tableKey, List.of()),
                             missingColumnIds);
             results.add(result);
             if (result.tableMarkedAsMissing()) {
@@ -162,8 +164,9 @@ public class SemanticSyncApplyService {
         List<TableInfo> newTables = new ArrayList<>();
         List<ColumnInfo> newColumns = new ArrayList<>();
         for (TableSyncSource table : presentTables) {
+            String tableKey = tableKey(table.tableName());
             TableInfo tableInfo = buildPhysicalTableInfo(datasourceId, table);
-            TableInfo existingTable = existingTableIndex.get(table.tableName());
+            TableInfo existingTable = existingTableIndex.get(tableKey);
             if (existingTable == null) {
                 newTables.add(tableInfo);
             } else {
@@ -172,11 +175,11 @@ public class SemanticSyncApplyService {
             }
 
             Map<String, ColumnInfo> existingColumnIndex =
-                    loadColumnIndex(columnsByTableName.getOrDefault(table.tableName(), List.of()));
+                    loadColumnIndex(columnsByTableName.getOrDefault(tableKey, List.of()));
             for (ColumnSyncSource column : table.columns()) {
                 ColumnInfo columnInfo =
                         buildPhysicalColumnInfo(datasourceId, table.tableName(), column);
-                ColumnInfo existingColumn = existingColumnIndex.get(column.columnName());
+                ColumnInfo existingColumn = existingColumnIndex.get(columnKey(column.columnName()));
                 if (existingColumn == null) {
                     newColumns.add(columnInfo);
                 } else {
@@ -218,12 +221,13 @@ public class SemanticSyncApplyService {
         Set<String> physicalColumnNames =
                 table.columns().stream()
                         .map(ColumnSyncSource::columnName)
+                        .map(this::columnKey)
                         .collect(Collectors.toSet());
         int addedColumns = 0;
         int reactivatedColumns = 0;
         int updatedColumns = 0;
         for (ColumnSyncSource column : table.columns()) {
-            ColumnInfo existingColumn = existingColumnIndex.get(column.columnName());
+            ColumnInfo existingColumn = existingColumnIndex.get(columnKey(column.columnName()));
             if (existingColumn == null) {
                 addedColumns++;
                 continue;
@@ -240,7 +244,7 @@ public class SemanticSyncApplyService {
         int missingColumnsMarked =
                 collectMissingColumnIds(existingColumns, physicalColumnNames, missingColumnIds);
         return SyncTableResult.builder()
-                .tableName(table.displayName())
+                .tableName(table.tableName())
                 .physicalTableFound(true)
                 .tableAdded(existingTable == null)
                 .tableReactivated(
@@ -275,6 +279,14 @@ public class SemanticSyncApplyService {
                 .missingColumnsMarked(missingColumnsMarked)
                 .message("物理表不存在")
                 .build();
+    }
+
+    private String tableKey(String tableName) {
+        return SemanticUtils.normalizeObjectName(tableName, "Missing tableName.");
+    }
+
+    private String columnKey(String columnName) {
+        return SemanticUtils.normalizeObjectName(columnName, "Missing columnName.");
     }
 
     private Map<String, TableInfo> loadSemanticTableIndex(
@@ -362,10 +374,7 @@ public class SemanticSyncApplyService {
     }
 
     public record TableSyncSource(
-            String tableName,
-            String displayName,
-            String description,
-            List<ColumnSyncSource> columns) {}
+            String tableName, String description, List<ColumnSyncSource> columns) {}
 
     public record ColumnSyncSource(
             String columnName, String description, String typeName, Boolean primaryKey) {}
