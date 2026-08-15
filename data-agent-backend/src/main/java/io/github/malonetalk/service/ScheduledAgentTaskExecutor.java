@@ -77,13 +77,7 @@ public class ScheduledAgentTaskExecutor {
                         ToolCallContext.builder()
                                 .sessionId(
                                         "scheduled-task-" + task.getId() + "-" + UUID.randomUUID())
-                                .userInput(
-                                        task.getPrompt()
-                                                + "\n\n"
-                                                + "Scheduled task requirement: if information is"
-                                                + " insufficient or user confirmation is needed,"
-                                                + " state that the task cannot be completed; do not"
-                                                + " call ask_user.")
+                                .userInput(task.getPrompt())
                                 .taskType(TaskType.SCHEDULED)
                                 .build(),
                         null)
