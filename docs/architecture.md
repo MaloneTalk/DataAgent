@@ -12,7 +12,7 @@
 | 元数据库 | MySQL | 存语义层、数据源、会话、MCP 配置、报表、用户、角色与权限等 |
 | 查询数据源 | MySQL / PostgreSQL / Oracle | 用户真正要查的业务库，由 Agent 动态连接 |
 
-> 后端包名为 `io.github.malonetalk.agent`，应用名 `data-agent-management`，默认端口 `8080`。
+> 后端根包名为 `io.github.malonetalk`，应用名 `data-agent-management`，默认端口 `8080`。
 
 ## 2. 一次查询请求的流转
 
@@ -81,6 +81,6 @@
 | GET/POST/PUT/DELETE | `/api/sys/user[/...]` | 用户增删改查、重置密码 |
 | GET/POST/PUT/DELETE | `/api/sys/role[/...]` | 角色增删改查、表级白名单、列级黑名单 |
 | GET/POST/PUT/DELETE | `/api/mcp-server[/...]` | MCP Server 增删改查与启用/停用 |
-| REST | `/api/datasource`、`/api/domain`、`/api/semantic/*`、`/api/report` | 数据源、域、语义层、报表管理 |
+| REST | `/api/datasource`、`/api/domains`、`/api/semantic/*`、`/api/metric`、`/api/reports` | 数据源、域、语义层、指标口径、报表管理 |
 
 > 更完整的字段与请求/响应结构，建议直接阅读后端 `controller` 与 `dto` 包源码。

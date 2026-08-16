@@ -25,6 +25,7 @@
 | `name` | 模型名 | `gpt-4o-mini` / `deepseek-chat` / `qwen-plus` |
 | `base-url` | API 基址 | `https://api.openai.com/v1` |
 | `api-key` | 密钥（从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入，勿写死） | `sk-...` |
+| `thinking-enabled` | DashScope 模型是否开启思考能力，默认 `true`；其他 provider 当前会忽略该配置 | `true` / `false` |
 
 对应环境变量写法（Spring 把点号转为下划线大写）：
 
@@ -33,6 +34,7 @@ export IO_GITHUB_MALONETALK_MODEL_PROVIDER="openai"
 export IO_GITHUB_MALONETALK_MODEL_NAME="gpt-4o-mini"
 export IO_GITHUB_MALONETALK_MODEL_BASE_URL="https://api.openai.com/v1"
 export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
+export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 ```
 
 各提供商常见取值：
@@ -91,23 +93,23 @@ export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
 
 ```properties
 # 文件系统来源
-io.github.malonetalk.skill.filesystem[0].path=skills
-io.github.malonetalk.skill.filesystem[0].source=data-query
+io.github.malonetalk.skill.filesystem[0].path=./skills
+io.github.malonetalk.skill.filesystem[0].source=local-fs
 io.github.malonetalk.skill.filesystem[0].writeable=true
 
 # Git 来源（自动同步）
 io.github.malonetalk.skill.git[0].url=https://github.com/your-org/your-skills.git
 io.github.malonetalk.skill.git[0].branch=main
 io.github.malonetalk.skill.git[0].local-path=/tmp/skills-cache
-io.github.malonetalk.skill.git[0].source=data-query
+io.github.malonetalk.skill.git[0].source=git-repo
 
 # Nacos 来源（需显式指定 skillNames）
 io.github.malonetalk.skill.nacos[0].server-addr=127.0.0.1:8848
 io.github.malonetalk.skill.nacos[0].skill-names[0]=data-query
 
 # classpath 来源
-io.github.malonetalk.skill.classpath[0].resource-path=skills/data-query
-io.github.malonetalk.skill.classpath[0].source=data-query
+io.github.malonetalk.skill.classpath[0].resource-path=skills
+io.github.malonetalk.skill.classpath[0].source=classpath-skills
 ```
 
 仓库内置示例：`skills/data-query/SKILL.md`。
@@ -143,7 +145,13 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 
 ### 工作原理
 
-- 后端启动时，`AdminBootstrapRunner` 检查 `sys_user` 表是否为空；若为空，用 `admin.init-password` 创建 `admin` 用户（用户名固定为 `admin`，`displayName` 为 "Administrator"）。
+- 后端启动时，`AdminBootstrapRunner` 检查 `sys_user` 表是否为空；若为空，用 `admin.init-password` 创建 `admin` 用户（用户名固定为 `admin`，`displayName` 为「管理员」，`role_id=1`）。
 - 登录接口 `POST /api/auth/login` 接受 `{ username, password }`，返回 `{ token, user }`。前端将 token 存入 `localStorage`，后续请求通过 `Authorization: Bearer <token>` 携带。
 - `AuthInterceptor` 拦截除 `/api/auth/login` 外的所有接口（含 SSE 流式端点），校验 token 签名与时效。
-- 登录后即可使用全部功能。后续可在「用户管理」和「角色管理」页面中创建角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
+- 登录后可访问基础功能；带 `@AdminOnly` 的管理接口要求当前用户 `role_id=1`。后续可在「用户管理」和「角色管理」页面中创建角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
+
+## 8. 安全提示
+
+- 不要把 `IO_GITHUB_MALONETALK_MODEL_API_KEY`、`JWT_SECRET`、`ADMIN_INIT_PASSWORD` 写入仓库。
+- 生产环境必须设置长度不少于 32 字节的 `JWT_SECRET`；留空只适合本地开发。
+- 目标数据源的连接信息会保存在元数据库中，请限制元数据库账号、网络与备份访问权限。

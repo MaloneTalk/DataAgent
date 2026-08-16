@@ -18,7 +18,7 @@
 
 | 概念 | 说明 | Controller |
 | --- | --- | --- |
-| **域（Domain）** | 业务主题分组，如"交易""用户"，用于缩小表检索范围 | `TableSemanticController` |
+| **域（Domain）** | 业务主题分组，如"交易""用户"，用于缩小表检索范围 | `DomainController` |
 | **逻辑表** | 给物理表起一个业务名，含表描述、可见性、物理表是否存在 | `TableSemanticController` |
 | **逻辑列** | 给物理列补充业务含义、枚举值、单位、币种 | `TableColumnSemanticController` |
 | **表关系** | 表间 join 路径（一对一/一对多）、启禁状态，供 Agent 多表查询时自动拼 SQL | `TableRelationSemanticController` |
