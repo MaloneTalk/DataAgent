@@ -29,6 +29,5 @@ DataAgent/
 ├── data-agent-frontend/      # Vue 3 + TS + Vite 前端
 ├── skills/                   # Skill 目录（内置 + 自定义，放入即生效）
 ├── sql/                      # 元数据库初始化脚本（data_source.sql）
-├── io/agentscope/            # 实验性/参考代码
 └── docs/                     # 本文档集
 ```
