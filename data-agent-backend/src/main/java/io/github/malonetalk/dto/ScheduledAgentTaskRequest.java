@@ -15,23 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.dto;
 
-public final class Constants {
+import io.github.malonetalk.enums.ScheduledAgentScheduleType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-    public static final String SORT_ORDER_ASC = "asc";
-    public static final String SORT_ORDER_DESC = "desc";
-
-    /**
-     * 管理员角色 id：AuthInterceptor 靠 role_id==1 判 @AdminOnly，删掉即永久锁死管理员。
-     */
-    public static final int ADMIN_ROLE_ID = 1;
-
-    public static final String PROPERTIES_PREFIX = "io.github.malonetalk";
-
-    public static final String SCHEDULE_PROPERTIES_PREFIX = PROPERTIES_PREFIX + ".schedule";
-
-    private Constants() {
-        throw new IllegalCallerException("No Constants Instance for You!");
-    }
-}
+public record ScheduledAgentTaskRequest(
+        @NotBlank(message = "name cannot be blank.") String name,
+        @NotBlank(message = "prompt cannot be blank.") String prompt,
+        @NotNull(message = "scheduleType cannot be null.") ScheduledAgentScheduleType scheduleType,
+        @NotBlank(message = "scheduleExpr cannot be blank.") String scheduleExpr,
+        Boolean enabled) {}

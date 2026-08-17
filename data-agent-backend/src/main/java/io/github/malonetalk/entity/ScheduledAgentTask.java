@@ -15,23 +15,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.common;
+package io.github.malonetalk.entity;
 
-public final class Constants {
+import java.time.LocalDateTime;
+import lombok.Data;
 
-    public static final String SORT_ORDER_ASC = "asc";
-    public static final String SORT_ORDER_DESC = "desc";
+@Data
+public class ScheduledAgentTask {
 
-    /**
-     * 管理员角色 id：AuthInterceptor 靠 role_id==1 判 @AdminOnly，删掉即永久锁死管理员。
-     */
-    public static final int ADMIN_ROLE_ID = 1;
-
-    public static final String PROPERTIES_PREFIX = "io.github.malonetalk";
-
-    public static final String SCHEDULE_PROPERTIES_PREFIX = PROPERTIES_PREFIX + ".schedule";
-
-    private Constants() {
-        throw new IllegalCallerException("No Constants Instance for You!");
-    }
+    private Integer id;
+    private String name;
+    private String prompt;
+    private String scheduleType;
+    private String scheduleExpr;
+    private Boolean enabled;
+    private Boolean running;
+    private LocalDateTime nextRunAt;
+    private LocalDateTime lastRunAt;
+    private String lastStatus;
+    private String lastError;
 }

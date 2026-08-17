@@ -68,6 +68,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '指标口径管理' },
   },
   {
+    path: '/scheduled-task',
+    name: 'ScheduledTaskManage',
+    component: () => import('@/views/scheduled-task/ScheduledTaskManage.vue'),
+    meta: { title: '定时任务' },
+  },
+  {
     path: '/sys-user',
     name: 'UserManage',
     component: () => import('@/views/sys-user/UserManage.vue'),

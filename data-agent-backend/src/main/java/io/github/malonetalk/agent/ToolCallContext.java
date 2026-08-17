@@ -20,4 +20,9 @@ package io.github.malonetalk.agent;
 import lombok.Builder;
 
 @Builder
-public record ToolCallContext(String sessionId, Integer userId) {}
+public record ToolCallContext(
+        String sessionId,
+        String userInput,
+        Integer datasourceId,
+        Integer userId,
+        boolean scheduled) {}

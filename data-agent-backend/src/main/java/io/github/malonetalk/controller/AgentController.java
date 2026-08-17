@@ -22,6 +22,7 @@ import static io.github.malonetalk.common.Constants.ADMIN_ROLE_ID;
 import io.agentscope.core.message.Msg;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
+import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.common.UserContext;
@@ -57,16 +58,17 @@ public class AgentController {
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
             @Valid @RequestBody ChatRequest request) {
-        // 在 servlet 线程抓 userId，避免 Reactor 线程拿不到 ThreadLocal
         int userId = UserContext.require().userId();
         log.info("SSE chat stream started: sessionId={}, userId={}", request.sessionId(), userId);
+        ToolCallContext context =
+                ToolCallContext.builder()
+                        .sessionId(request.sessionId())
+                        .userInput(request.message())
+                        .datasourceId(request.datasourceId())
+                        .userId(userId)
+                        .build();
         return agentService
-                .chatStream(
-                        userId,
-                        request.sessionId(),
-                        request.message(),
-                        request.toolResults(),
-                        request.datasourceId())
+                .chatStream(context, request.toolResults())
                 .map(
                         event ->
                                 ServerSentEvent.<ChatStreamEvent>builder()
