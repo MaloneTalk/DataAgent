@@ -18,10 +18,10 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.config.ScheduledAgentScheduleProperties;
 import io.github.malonetalk.entity.ScheduledAgentTask;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -29,7 +29,6 @@ import java.util.concurrent.RejectedExecutionException;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -43,9 +42,7 @@ class DatabaseScheduledAgentTaskRunner {
 
     private final ScheduledAgentTaskMapper taskMapper;
     private final ScheduledAgentTaskExecutor taskExecutor;
-
-    @Value("${data-agent.schedule.lock-duration}")
-    private Duration lockDuration;
+    private final ScheduledAgentScheduleProperties scheduleProperties;
 
     void runDue(Integer taskId) {
         ClaimedRun claimedRun = claim(taskId, false);
@@ -76,7 +73,7 @@ class DatabaseScheduledAgentTaskRunner {
     private ClaimedRun claim(Integer taskId, boolean manual) {
         LocalDateTime startedAt = LocalDateTime.now();
         String lockOwner = UUID.randomUUID().toString();
-        LocalDateTime lockUntil = startedAt.plus(lockDuration);
+        LocalDateTime lockUntil = startedAt.plus(scheduleProperties.getLockDuration());
         int updated =
                 manual
                         ? taskMapper.lockForManualRun(taskId, startedAt, lockUntil, lockOwner)

@@ -19,13 +19,13 @@ package io.github.malonetalk.service;
 
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.config.ScheduledAgentScheduleProperties;
 import io.github.malonetalk.entity.ScheduledAgentTask;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -35,21 +35,13 @@ public class ScheduledAgentTaskExecutor {
 
     private final AgentService agentService;
     private final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-
-    @Value("${data-agent.schedule.executor.core-pool-size}")
-    private int corePoolSize;
-
-    @Value("${data-agent.schedule.executor.max-pool-size}")
-    private int maxPoolSize;
-
-    @Value("${data-agent.schedule.executor.queue-capacity}")
-    private int queueCapacity;
+    private final ScheduledAgentScheduleProperties scheduleProperties;
 
     @PostConstruct
     void initExecutor() {
-        executor.setCorePoolSize(corePoolSize);
-        executor.setMaxPoolSize(maxPoolSize);
-        executor.setQueueCapacity(queueCapacity);
+        executor.setCorePoolSize(scheduleProperties.getExecutor().getCorePoolSize());
+        executor.setMaxPoolSize(scheduleProperties.getExecutor().getMaxPoolSize());
+        executor.setQueueCapacity(scheduleProperties.getExecutor().getQueueCapacity());
         executor.setThreadNamePrefix("scheduled-agent-task-");
         executor.initialize();
     }

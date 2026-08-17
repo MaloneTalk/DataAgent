@@ -17,17 +17,20 @@
  */
 package io.github.malonetalk.service;
 
+import static io.github.malonetalk.common.Constants.SCHEDULE_PROPERTIES_PREFIX;
+
+import io.github.malonetalk.config.ScheduledAgentScheduleProperties;
 import io.github.malonetalk.mapper.ScheduledAgentTaskMapper;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
 @ConditionalOnProperty(
-        name = "data-agent.schedule.dispatcher",
+        prefix = SCHEDULE_PROPERTIES_PREFIX,
+        name = "dispatcher",
         havingValue = "database",
         matchIfMissing = true)
 @RequiredArgsConstructor
@@ -35,13 +38,12 @@ class DatabaseScheduledAgentTaskDispatcher {
 
     private final ScheduledAgentTaskMapper taskMapper;
     private final DatabaseScheduledAgentTaskRunner taskRunner;
+    private final ScheduledAgentScheduleProperties scheduleProperties;
 
-    @Value("${data-agent.schedule.batch-size}")
-    private int batchSize;
-
-    @Scheduled(fixedDelayString = "${data-agent.schedule.dispatch-delay-ms}")
+    @Scheduled(fixedDelayString = "#{@scheduledAgentScheduleProperties.dispatchDelayMs}")
     public void dispatchDueTasks() {
-        for (Integer taskId : taskMapper.findDueTaskIds(LocalDateTime.now(), batchSize)) {
+        for (Integer taskId :
+                taskMapper.findDueTaskIds(LocalDateTime.now(), scheduleProperties.getBatchSize())) {
             taskRunner.runDue(taskId);
         }
     }
