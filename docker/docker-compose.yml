@@ -1,13 +1,7 @@
 # Data Agent Docker Compose Configuration
 #
 # 所有配置项都有合理的默认值，可以直接启动。
-# 如需自定义配置，在 docker/ 目录创建 .env.example 文件覆盖默认值即可。
-#
-# 示例 .env.example 文件：
-# IO_GITHUB_MALONETALK_MODEL_API_KEY=sk-your-api-key
-# DB_PASSWORD=your-password
-# JWT_SECRET=your-jwt-secret-at-least-32-bytes-long
-# ADMIN_INIT_PASSWORD=your-admin-password
+# 如需自定义配置：cp .env.example .env，然后编辑 .env。
 #
 
 services:

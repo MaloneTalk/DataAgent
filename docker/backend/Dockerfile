@@ -3,6 +3,18 @@ FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
+# Maven 依赖默认直连 Maven Central。国内网络拉取易中断导致构建失败时，
+# 取消下面整段注释，改用阿里云镜像源：
+# RUN mkdir -p /root/.m2 && echo '<settings>\
+#   <mirrors>\
+#     <mirror>\
+#       <id>aliyun</id>\
+#       <url>https://maven.aliyun.com/repository/public</url>\
+#       <mirrorOf>*</mirrorOf>\
+#     </mirror>\
+#   </mirrors>\
+# </settings>' > /root/.m2/settings.xml
+
 # Copy pom.xml and download dependencies
 COPY data-agent-backend/pom.xml .
 RUN mvn dependency:go-offline -B
@@ -16,8 +28,8 @@ FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-# 创建 skills 目录（skill.properties 需要）
-RUN mkdir -p /app/skills
+# Skills 目录（skill.properties 的 filesystem 源）
+COPY skills/ /app/skills/
 
 # Add non-root user
 RUN addgroup -g 1001 appgroup && \
