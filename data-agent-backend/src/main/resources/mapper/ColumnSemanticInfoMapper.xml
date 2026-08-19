@@ -146,6 +146,8 @@
     <update id="updatePhysicalCacheFields" parameterType="io.github.malonetalk.entity.ColumnInfo">
         UPDATE column_info
         <set>
+            <if test="tableName != null">table_name = #{tableName},</if>
+            <if test="columnName != null">column_name = #{columnName},</if>
             physical_column_description = #{physicalColumnDescription},
             type_name = #{typeName},
             primary_key = #{primaryKey},

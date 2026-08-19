@@ -29,6 +29,7 @@ import io.github.malonetalk.dto.semantic.SyncTableResult;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
@@ -70,7 +71,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         }
         // SchemaReader 一次性读取物理表，筛选、排序和分页统一在内存中完成。
         List<PhysicalTableInfo> filteredTables =
-                schemaReader.getTables(datasource).stream()
+                loadCandidateTables(datasource).stream()
                         .filter(
                                 table ->
                                         keyword == null
@@ -99,26 +100,51 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return PageResponse.of(responses, filteredTables.size(), pageNumber, pageSize);
     }
 
+    private List<PhysicalTableInfo> loadCandidateTables(Datasource datasource) {
+        Map<String, PhysicalTableInfo> candidates = new LinkedHashMap<>();
+        for (PhysicalTableInfo table : schemaReader.getTables(datasource)) {
+            candidates.putIfAbsent(
+                    SemanticUtils.normalizeObjectName(
+                            table.tableName(), "Missing physical tableName."),
+                    table);
+        }
+        for (TableInfo table : tableInfoMapper.selectByDatasourceId(datasource.getId())) {
+            String tableName =
+                    SemanticUtils.requireTrimmed(
+                            table.getTableName(), "Missing semantic tableName.");
+            candidates.putIfAbsent(
+                    SemanticUtils.normalizeObjectName(tableName, "Missing semantic tableName."),
+                    new PhysicalTableInfo(
+                            tableName,
+                            SemanticUtils.trimToNull(table.getPhysicalTableDescription())));
+        }
+        return List.copyOf(candidates.values());
+    }
+
     @Override
     public SyncTableSemanticsResponse syncTables(SyncTableSemanticsRequest request) {
         Datasource datasource = requireDatasource(request.datasourceId());
         Map<String, PhysicalTableInfo> physicalTables = loadPhysicalTableIndex(datasource);
-        Set<String> selectedTableNames = new LinkedHashSet<>();
+        Map<String, String> selectedTableNames = new LinkedHashMap<>();
         for (String tableName : request.tableNames()) {
-            selectedTableNames.add(
-                    SemanticUtils.normalizeObjectName(tableName, "Missing physical tableName."));
+            String trimmedTableName =
+                    SemanticUtils.requireTrimmed(tableName, "Missing physical tableName.");
+            selectedTableNames.putIfAbsent(
+                    SemanticUtils.normalizeObjectName(
+                            trimmedTableName, "Missing physical tableName."),
+                    trimmedTableName);
         }
 
         List<TableSyncSource> presentTables = new ArrayList<>();
         List<String> missingTableNames = new ArrayList<>();
         // 先读取并整理全部物理结构，再交给事务方法批量写库，避免事务中访问外部数据源。
-        for (String normalizedTableName : selectedTableNames) {
-            PhysicalTableInfo physicalTable = physicalTables.get(normalizedTableName);
+        for (Map.Entry<String, String> selectedTable : selectedTableNames.entrySet()) {
+            PhysicalTableInfo physicalTable = physicalTables.get(selectedTable.getKey());
             if (physicalTable == null) {
-                missingTableNames.add(normalizedTableName);
+                missingTableNames.add(selectedTable.getValue());
                 continue;
             }
-            presentTables.add(readTableSyncSource(datasource, physicalTable, normalizedTableName));
+            presentTables.add(readTableSyncSource(datasource, physicalTable));
         }
 
         List<SyncTableResult> results =
@@ -169,21 +195,20 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     }
 
     private TableSyncSource readTableSyncSource(
-            Datasource datasource, PhysicalTableInfo physicalTable, String normalizedTableName) {
+            Datasource datasource, PhysicalTableInfo physicalTable) {
         // 在开启写事务前读取物理列快照，避免 JDBC 元数据读取延长事务时间。
         List<ColumnSyncSource> columns = new ArrayList<>();
         for (PhysicalColumnInfo column :
                 schemaReader.getTableSchema(datasource, physicalTable.tableName())) {
             columns.add(
                     new ColumnSyncSource(
-                            SemanticUtils.normalizeObjectName(
+                            SemanticUtils.requireTrimmed(
                                     column.columnName(), "Missing physical columnName."),
                             SemanticUtils.trimToNull(column.remarks()),
                             SemanticUtils.trimToNull(column.typeName()),
                             column.primaryKey()));
         }
         return new TableSyncSource(
-                normalizedTableName,
                 physicalTable.tableName(),
                 SemanticUtils.trimToNull(physicalTable.remarks()),
                 columns);

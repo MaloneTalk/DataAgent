@@ -15,7 +15,7 @@
 
 - **自然语言查数**：基于 LLM + ReAct 工具调用，把自然语言转为 SQL 并在目标库执行，全程流式输出。
 - **Python 数据分析**：对查询结果自动执行统计分析（相关性、回归、分布检验），补齐 SQL 在复杂统计计算上的短板。
-- **多模型可切换**：内置 OpenAI / Ollama / 通义 DashScope / Anthropic 等提供商，换底座模型不影响已沉淀的业务知识。
+- **多模型可切换**：内置 OpenAI 兼容接口 / Ollama / 通义 DashScope / Anthropic 等提供商，换底座模型不影响已沉淀的业务知识。
 - **多数据源（JDBC 抽象）**：数据读取与执行完全基于 JDBC 标准 API，因此支持**任意 JDBC 兼容数据库**——内置类型已覆盖 MySQL / PostgreSQL / Oracle（已验证）与 ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，其余 JDBC 兼容库扩展枚举即可接入。
 
   > **默认仅内置 MySQL 驱动**。使用其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应 JDBC 驱动依赖并重新构建后端，否则新增数据源时会提示「未找到数据库驱动」。类型列表与 Maven 坐标见 [docs/configuration.md](docs/configuration.md#4-查询数据源)。
@@ -68,20 +68,29 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 **前置依赖**：JDK 17+、Maven 3.9+、Node 18+、pnpm 8+、MySQL 8+、Python 3+（需安装 pandas、numpy、scipy）。
 
 ```bash
-# 1. 建元数据库并初始化表结构（sql/ 目录下所有 .sql 文件均需执行）
+# 1. 建元数据库并初始化表结构
 mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
-for f in sql/*.sql; do mysql -u root -p data_agent < "$f"; done
+mysql -u root -p data_agent < sql/data_source.sql
 
-# 2. 启动后端（默认端口 8080）
+# 2. 配置首启必需环境变量
+export ADMIN_INIT_PASSWORD="你的管理员初始密码"
+export IO_GITHUB_MALONETALK_MODEL_API_KEY="你的模型 API Key"
+
+# 可选：默认走 OpenAI 兼容接口，application.properties 当前示例指向 DeepSeek
+export IO_GITHUB_MALONETALK_MODEL_PROVIDER="openai"
+export IO_GITHUB_MALONETALK_MODEL_NAME="deepseek-v4-flash"
+export IO_GITHUB_MALONETALK_MODEL_BASE_URL="https://api.deepseek.com"
+
+# 3. 启动后端（默认端口 8080）
 cd data-agent-backend
 mvn spring-boot:run
 
-# 3. 启动前端（默认端口 3000）
+# 4. 启动前端（默认端口 3000）
 cd data-agent-frontend
 pnpm install && pnpm dev
 ```
 
-浏览器打开 http://localhost:3000 ，在聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"*
+浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，在聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"*
 
 ## 📚 文档
 

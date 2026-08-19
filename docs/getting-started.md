@@ -88,11 +88,11 @@ Data Agent 需要一张 MySQL 元数据库来存放语义层、数据源、会�
 # 创建数据库（字符集务必为 utf8mb4）
 mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
 
-# 导入表结构（sql/ 目录下所有 .sql 文件均需执行）
-for f in sql/*.sql; do mysql -u root -p data_agent < "$f"; done
+# 导入表结构
+mysql -u root -p data_agent < sql/data_source.sql
 ```
 
-> `sql/` 目录包含四个脚本：`data_source.sql`（数据源与语义层表）、`metric.sql`（指标口径表）、`sys_user.sql`（用户表）、`sys_role.sql`（角色与表/列权限表）。均需导入。
+> `sql/data_source.sql` 包含全部元数据库初始化表结构，导入这一份即可。
 
 ### 3. 配置并启动后端
 
@@ -116,6 +116,9 @@ export IO_GITHUB_MALONETALK_MODEL_PROVIDER="openai"
 export IO_GITHUB_MALONETALK_MODEL_NAME="gpt-4o-mini"
 export IO_GITHUB_MALONETALK_MODEL_BASE_URL="https://api.openai.com/v1"
 export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
+
+# DashScope 模型是否开启思考能力，默认 true；其他 provider 当前会忽略
+export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 ```
 
 > ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。详见 [configuration.md](configuration.md#安全提示) 。
@@ -167,7 +170,7 @@ pnpm dev
 3. 在「语义层」中把相关表/列映射成业务语言（可选，但能显著提升准确率）。
 4. 进入聊天界面，输入类似：*"上个月各区域销售额是多少？"*，观察流式回答与生成的 SQL。
 
-> 初始的 `admin` 用户拥有所有权限。如需多人使用，可在「用户管理」中创建用户、在「角色管理」中为角色配置表/列级权限、再将用户绑定到角色。当前权限仅在页面管理层面生效，尚未接入 Agent 推理链路。
+> 初始的 `admin` 用户会绑定管理员角色（`role_id=1`），可访问所有标记了 `@AdminOnly` 的管理接口。如需多人使用，可在「用户管理」中创建用户、在「角色管理」中为角色配置表/列级权限、再将用户绑定到角色。当前表/列权限仍主要用于管理侧配置，Agent 推理链路的表/列过滤还在后续完善中。
 
 > 如果回答不准，多半是语义层/指标口径没配好，或数据源尚未接入。参见 [semantic-layer.md](semantic-layer.md) 与 [configuration.md](configuration.md)。
 
