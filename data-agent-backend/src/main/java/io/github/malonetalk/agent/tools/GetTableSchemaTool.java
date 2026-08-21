@@ -43,12 +43,9 @@ public class GetTableSchemaTool implements MarkAgentTool {
             name = "get_table_schema",
             description =
                     """
-                    Get the schema information of the specified table, including column name, data \
-                    type, whether it is primary key, whether it allows null, default value \
-                    and column comments. Returns semantic-first merged column information \
-                    (uses semantic layer if available, falls back to physical layer \
-                    otherwise). This tool should be called to understand the table \
-                    structure before generating SQL.\
+                    Get synced semantic-layer schema information for the specified table, \
+                    including column name, data type, primary key flag, index hints and column \
+                    descriptions. Call this tool before generating SQL.\
                     """)
     public ToolResultBlock getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")

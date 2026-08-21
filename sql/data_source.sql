@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     `physical_status` TINYINT(1) DEFAULT 1 COMMENT '物理列是否存在',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `index_info` TEXT COMMENT 'physical index info',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_datasource_table_column` (`datasource_id`, `table_name`, `column_name`),
     KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_visible`),

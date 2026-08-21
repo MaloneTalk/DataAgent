@@ -10,6 +10,7 @@
         <result column="physical_column_description" property="physicalColumnDescription"/>
         <result column="type_name" property="typeName"/>
         <result column="primary_key" property="primaryKey"/>
+        <result column="index_info" property="indexInfo"/>
         <result column="column_description" property="columnDescription"/>
         <result column="is_visible" property="isVisible"/>
         <result column="physical_status" property="physicalStatus"/>
@@ -100,10 +101,11 @@
     <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO column_info (
             datasource_id, table_name, column_name, physical_column_description, type_name,
-            primary_key, column_description, is_visible, physical_status, create_time, update_time
+            primary_key, index_info, column_description, is_visible, physical_status,
+            create_time, update_time
         ) VALUES (
             #{datasourceId}, #{tableName}, #{columnName}, #{physicalColumnDescription},
-            #{typeName}, COALESCE(#{primaryKey}, 0), #{columnDescription},
+            #{typeName}, COALESCE(#{primaryKey}, 0), #{indexInfo}, #{columnDescription},
             COALESCE(#{isVisible}, 1), COALESCE(#{physicalStatus}, 1),
             COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
         )
@@ -112,13 +114,15 @@
     <insert id="batchUpsertPhysicalCache">
         INSERT INTO column_info (
             datasource_id, table_name, column_name, physical_column_description, type_name,
-            primary_key, column_description, is_visible, physical_status, create_time, update_time
+            primary_key, index_info, column_description, is_visible, physical_status,
+            create_time, update_time
         ) VALUES
         <foreach collection="columns" item="column" separator=",">
             (
                 #{column.datasourceId}, #{column.tableName}, #{column.columnName},
                 #{column.physicalColumnDescription}, #{column.typeName},
-                COALESCE(#{column.primaryKey}, 0), #{column.columnDescription},
+                COALESCE(#{column.primaryKey}, 0), #{column.indexInfo},
+                #{column.columnDescription},
                 COALESCE(#{column.isVisible}, 1), COALESCE(#{column.physicalStatus}, 1),
                 COALESCE(#{column.createTime}, NOW()), COALESCE(#{column.updateTime}, NOW())
             )
@@ -127,6 +131,7 @@
             physical_column_description = VALUES(physical_column_description),
             type_name = VALUES(type_name),
             primary_key = VALUES(primary_key),
+            index_info = VALUES(index_info),
             physical_status = VALUES(physical_status),
             update_time = VALUES(update_time)
     </insert>
@@ -151,6 +156,7 @@
             physical_column_description = #{physicalColumnDescription},
             type_name = #{typeName},
             primary_key = #{primaryKey},
+            index_info = #{indexInfo},
             <if test="physicalStatus != null">physical_status = #{physicalStatus},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>

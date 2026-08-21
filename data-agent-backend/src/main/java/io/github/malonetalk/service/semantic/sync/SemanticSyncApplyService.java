@@ -237,7 +237,8 @@ public class SemanticSyncApplyService {
             }
             if (!Objects.equals(existingColumn.getPhysicalColumnDescription(), column.description())
                     || !Objects.equals(existingColumn.getTypeName(), column.typeName())
-                    || !Objects.equals(existingColumn.getPrimaryKey(), column.primaryKey())) {
+                    || !Objects.equals(existingColumn.getPrimaryKey(), column.primaryKey())
+                    || !Objects.equals(existingColumn.getIndexInfo(), column.indexInfo())) {
                 updatedColumns++;
             }
         }
@@ -368,6 +369,7 @@ public class SemanticSyncApplyService {
         columnInfo.setPhysicalColumnDescription(column.description());
         columnInfo.setTypeName(column.typeName());
         columnInfo.setPrimaryKey(column.primaryKey());
+        columnInfo.setIndexInfo(column.indexInfo());
         columnInfo.setIsVisible(Boolean.TRUE);
         columnInfo.setPhysicalStatus(Boolean.TRUE);
         return columnInfo;
@@ -377,5 +379,9 @@ public class SemanticSyncApplyService {
             String tableName, String description, List<ColumnSyncSource> columns) {}
 
     public record ColumnSyncSource(
-            String columnName, String description, String typeName, Boolean primaryKey) {}
+            String columnName,
+            String description,
+            String typeName,
+            Boolean primaryKey,
+            String indexInfo) {}
 }
