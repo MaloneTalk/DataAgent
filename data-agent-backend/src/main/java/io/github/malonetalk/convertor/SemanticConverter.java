@@ -70,6 +70,7 @@ public class SemanticConverter {
                 .columnDescription(columnInfo.getColumnDescription())
                 .typeName(SemanticUtils.trimToNull(columnInfo.getTypeName()))
                 .primaryKey(columnInfo.getPrimaryKey())
+                .indexInfo(SemanticUtils.trimToNull(columnInfo.getIndexInfo()))
                 .isVisible(columnInfo.getIsVisible())
                 .hasPhysicalColumn(hasPhysicalColumn)
                 .effective(
