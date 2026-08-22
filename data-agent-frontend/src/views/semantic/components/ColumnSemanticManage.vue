@@ -211,7 +211,6 @@
     <div class="section-header">
       <div>
         <h3>列语义列表</h3>
-        <p>管理和维护物理列的业务语义信息。</p>
       </div>
       <el-tag type="primary" effect="plain">共 {{ page.total }} 列</el-tag>
     </div>
@@ -353,10 +352,6 @@
     color: var(--app-text-primary);
     margin-bottom: 6px;
     font-weight: 600;
-  }
-
-  .section-header p {
-    color: var(--app-text-secondary);
   }
 
   .error-banner {

@@ -16,26 +16,16 @@
  -->
 
 <script setup lang="ts">
-  import { computed, ref, watch } from 'vue';
+  import { ref, watch } from 'vue';
+  import HelpTip from '@/components/common/HelpTip.vue';
   import DomainManage from './components/DomainManage.vue';
+  import MetricManage from '@/views/metric/MetricManage.vue';
   import RelationManage from './components/RelationManage.vue';
   import TableSemanticManage from './components/TableSemanticManage.vue';
 
-  const activeTab = ref<'domain' | 'table' | 'relation'>('domain');
-  const keyword = ref('');
-  const sortOrder = ref<'asc' | 'desc'>('asc');
+  const activeTab = ref<'domain' | 'table' | 'metric' | 'relation'>('domain');
   const domainManageRef = ref<InstanceType<typeof DomainManage>>();
   const tableManageRef = ref<InstanceType<typeof TableSemanticManage>>();
-
-  const showSearchToolbar = computed(() => activeTab.value === 'domain');
-
-  const handleSearch = async () => {
-    if (activeTab.value === 'domain' && domainManageRef.value) {
-      await domainManageRef.value.loadDomainPage();
-    } else if (activeTab.value === 'table' && tableManageRef.value) {
-      await tableManageRef.value.loadPage();
-    }
-  };
 
   watch(activeTab, async tab => {
     if (tab === 'domain' && domainManageRef.value) {
@@ -48,47 +38,62 @@
 
 <template>
   <div class="semantic-page">
-    <section class="hero-card">
-      <div>
-        <h2 class="hero-title">语义管理</h2>
-        <p class="hero-desc">
-          统一管理数据领域、表语义、列语义和逻辑外键配置，用于分类和组织表结构。
-        </p>
-      </div>
-    </section>
-
-    <section v-if="showSearchToolbar" class="toolbar-card">
-      <div class="toolbar-grid">
-        <el-input
-          v-model="keyword"
-          class="toolbar-field"
-          clearable
-          placeholder="按领域名称搜索"
-          @keyup.enter="handleSearch"
-        />
-        <el-segmented
-          v-model="sortOrder"
-          :options="[
-            { label: '名称升序', value: 'asc' },
-            { label: '名称降序', value: 'desc' },
-          ]"
-          @change="handleSearch"
-        />
-        <div class="toolbar-actions">
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-        </div>
-      </div>
-    </section>
+    <div class="page-header">
+      <h2 class="page-title">语义管理</h2>
+    </div>
 
     <section class="content-card">
       <el-tabs v-model="activeTab" class="semantic-tabs">
-        <el-tab-pane label="数据领域管理" name="domain">
-          <DomainManage ref="domainManageRef" :keyword="keyword" :sort-order="sortOrder" />
+        <el-tab-pane name="domain">
+          <template #label>
+            <span class="tab-label-with-help">
+              数据领域管理
+              <HelpTip>
+                <strong>数据领域</strong>
+                是业务主题分类，例如会员、订单、商品、售后。领域用于把表分组，帮助 AI
+                先判断该去哪些表里找数据。
+              </HelpTip>
+            </span>
+          </template>
+          <DomainManage ref="domainManageRef" keyword="" sort-order="asc" />
         </el-tab-pane>
-        <el-tab-pane label="表语义管理" name="table">
-          <TableSemanticManage ref="tableManageRef" :keyword="keyword" :sort-order="sortOrder" />
+        <el-tab-pane name="table">
+          <template #label>
+            <span class="tab-label-with-help">
+              表语义管理
+              <HelpTip>
+                <strong>表语义</strong>
+                说明一张物理表在业务上代表什么、属于哪个领域、是否允许被 AI
+                查询，以及它和其他表的逻辑关系。
+              </HelpTip>
+            </span>
+          </template>
+          <TableSemanticManage ref="tableManageRef" keyword="" sort-order="asc" />
         </el-tab-pane>
-        <el-tab-pane label="逻辑外键" name="relation">
+        <el-tab-pane name="metric">
+          <template #label>
+            <span class="tab-label-with-help">
+              指标口径
+              <HelpTip>
+                <strong>指标口径</strong>
+                是指标的统一计算规则。它定义业务叫法、同义词、聚合表达式、过滤条件和时间字段，供
+                Agent 生成 SQL 时检索使用。
+              </HelpTip>
+            </span>
+          </template>
+          <MetricManage />
+        </el-tab-pane>
+        <el-tab-pane name="relation">
+          <template #label>
+            <span class="tab-label-with-help">
+              逻辑外键
+              <HelpTip>
+                <strong>逻辑外键</strong>
+                是语义层里的表关联说明。即使数据库没有真实外键，也可以告诉 AI 哪些字段能
+                join，减少乱连表。
+              </HelpTip>
+            </span>
+          </template>
           <RelationManage />
         </el-tab-pane>
       </el-tabs>
@@ -103,64 +108,36 @@
     gap: 20px;
   }
 
-  .hero-card,
-  .toolbar-card,
   .content-card {
     background: var(--app-bg-card);
     border: 1px solid var(--app-border);
     border-radius: 8px;
+    padding: 24px;
     transition:
       background-color 0.2s,
       border-color 0.2s;
   }
 
-  .hero-card {
-    padding: 24px 32px;
-    background: var(--app-gradient-hero);
-  }
-
-  .hero-title {
-    margin: 0 0 8px;
-    font-size: 20px;
-    color: var(--app-text-primary);
-    font-weight: 700;
-  }
-
-  .hero-desc {
-    max-width: 720px;
-    margin: 0;
-    color: var(--app-text-secondary);
-    line-height: 1.7;
-  }
-
-  .toolbar-card,
-  .content-card {
-    padding: 24px;
-  }
-
-  .toolbar-grid {
-    display: grid;
-    grid-template-columns: minmax(240px, 1fr) auto auto;
-    gap: 16px;
+  .page-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
   }
 
-  .toolbar-field {
-    width: 100%;
+  .page-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--app-text-primary);
   }
 
-  .toolbar-actions {
-    display: flex;
-    gap: 12px;
+  .tab-label-with-help {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .semantic-tabs :deep(.el-tabs__header) {
     margin-bottom: 24px;
-  }
-
-  @media (max-width: 1024px) {
-    .toolbar-grid {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

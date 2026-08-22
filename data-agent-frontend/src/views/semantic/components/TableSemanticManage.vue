@@ -258,10 +258,6 @@
 <template>
   <section class="table-panel">
     <div class="section-header">
-      <div>
-        <h3>表语义列表</h3>
-        <p>管理和维护物理表的业务语义信息。</p>
-      </div>
       <div class="header-actions">
         <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
         <el-button :loading="refreshingPhysicalStatus" @click="handleRefreshPhysicalStatus">
@@ -409,7 +405,7 @@
 <style scoped>
   .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-start;
     gap: 16px;
     margin-bottom: 20px;
@@ -419,17 +415,6 @@
     display: flex;
     align-items: center;
     gap: 12px;
-  }
-
-  .section-header h3 {
-    font-size: 16px;
-    color: var(--app-text-primary);
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-
-  .section-header p {
-    color: var(--app-text-secondary);
   }
 
   .error-banner {

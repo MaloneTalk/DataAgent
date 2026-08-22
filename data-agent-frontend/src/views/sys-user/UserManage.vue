@@ -22,6 +22,7 @@
   import * as sysUserApi from '@/api/sysUser';
   import { listRoles, type RoleResponse } from '@/api/sysRole';
   import type { UserResponse } from '@/api/sysUser';
+  import { formatDateTime } from '@/views/semantic/utils';
 
   const loading = ref(false);
   const users = ref<UserResponse[]>([]);
@@ -166,8 +167,7 @@
 
 <template>
   <div class="user-manage-page">
-    <div class="page-header">
-      <h2>用户管理</h2>
+    <div class="table-actions">
       <el-button type="primary" @click="openCreate">新建用户</el-button>
     </div>
 
@@ -189,7 +189,11 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="创建时间" width="180" align="center" />
+      <el-table-column label="创建时间" width="180" align="center">
+        <template #default="{ row }">
+          {{ formatDateTime(row.createTime) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="280" align="center" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
@@ -285,20 +289,14 @@
 
 <style scoped>
   .user-manage-page {
-    max-width: 1200px;
+    width: 100%;
   }
 
-  .page-header {
+  .table-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-
-  .page-header h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--app-text-primary);
+    justify-content: flex-end;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 </style>
