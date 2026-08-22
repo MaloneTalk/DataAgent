@@ -111,6 +111,7 @@
         </foreach>
         ON DUPLICATE KEY UPDATE
             physical_table_description = VALUES(physical_table_description),
+            table_description = COALESCE(NULLIF(table_description, ''), VALUES(table_description)),
             physical_status = VALUES(physical_status),
             update_time = VALUES(update_time)
     </insert>
@@ -132,6 +133,7 @@
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
             physical_table_description = #{physicalTableDescription},
+            table_description = COALESCE(NULLIF(table_description, ''), #{tableDescription}),
             <if test="physicalStatus != null">physical_status = #{physicalStatus},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>

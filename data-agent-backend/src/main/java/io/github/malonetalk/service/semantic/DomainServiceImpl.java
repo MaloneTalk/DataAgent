@@ -25,6 +25,7 @@ import io.github.malonetalk.dto.DomainCreateRequest;
 import io.github.malonetalk.dto.DomainPageQuery;
 import io.github.malonetalk.dto.DomainUpdateRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.prompt.DomainPromptResponse;
 import io.github.malonetalk.entity.DomainInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.DomainInfoMapper;
@@ -139,6 +140,17 @@ public class DomainServiceImpl implements DomainService {
                 .map(DomainInfo::getName)
                 .distinct()
                 .sorted(String::compareToIgnoreCase)
+                .toList();
+    }
+
+    @Override
+    public List<DomainPromptResponse> listDomainPrompts() {
+        return domainInfoMapper.selectAll().stream()
+                .map(
+                        domain ->
+                                new DomainPromptResponse(
+                                        domain.getName(),
+                                        SemanticUtils.trimToNull(domain.getDescription())))
                 .toList();
     }
 }

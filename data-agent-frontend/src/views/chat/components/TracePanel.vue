@@ -133,7 +133,7 @@
       <span class="trace-panel__arrow">></span>
       <span class="trace-panel__dot"></span>
       <span v-if="message.isStreaming" class="trace-panel__spinner"></span>
-      <span class="trace-panel__title">{{ message.isStreaming ? '思考中' : '思维链' }}</span>
+      <span class="trace-panel__title">{{ message.isStreaming ? '思考中' : '思考完成' }}</span>
       <span class="trace-panel__summary">{{ summaryLabel }}</span>
     </div>
     <div v-show="isExpanded" class="trace-panel__body">

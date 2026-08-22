@@ -31,7 +31,7 @@
   } from '@/api/semantic';
   import ColumnSemanticManage from './ColumnSemanticManage.vue';
   import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
-  import { buildSyncSummary, physicalStatusSyncSummaryFields } from '../utils';
+  import { buildSyncSummary, formatDateTime, physicalStatusSyncSummaryFields } from '../utils';
 
   interface TableEditForm {
     tableName: string;
@@ -142,7 +142,7 @@
     Object.assign(form, {
       tableName: row.tableName,
       domain: row.domain,
-      tableDescription: row.tableDescription ?? row.physicalTableDescription ?? '',
+      tableDescription: row.tableDescription ?? '',
       isVisible: row.isVisible,
     });
     // 加载领域选项
@@ -278,11 +278,6 @@
     <el-table v-loading="loading" :data="rows">
       <el-table-column prop="tableName" label="表名" min-width="150" />
       <el-table-column prop="domain" label="领域" min-width="120" />
-      <el-table-column label="物理描述" min-width="180" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ row.physicalTableDescription || '-' }}
-        </template>
-      </el-table-column>
       <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.tableDescription || '-' }}
@@ -303,7 +298,11 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="updateTime" label="更新时间" width="180" />
+      <el-table-column label="更新时间" width="180">
+        <template #default="{ row }">
+          {{ formatDateTime(row.updateTime) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
@@ -372,7 +371,7 @@
             v-model="form.tableDescription"
             type="textarea"
             :rows="4"
-            placeholder="请输入表的语义描述信息（为空时将使用物理描述）"
+            placeholder="请输入表的语义描述信息"
           />
         </el-form-item>
         <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">

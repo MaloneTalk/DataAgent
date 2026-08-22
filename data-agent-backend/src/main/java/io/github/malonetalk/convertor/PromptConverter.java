@@ -40,10 +40,7 @@ public final class PromptConverter {
                 .name(column.getColumnName())
                 .type(SemanticUtils.trimToNull(column.getTypeName()))
                 .primaryKey(column.getPrimaryKey())
-                .description(
-                        SemanticUtils.firstNonBlank(
-                                column.getColumnDescription(),
-                                column.getPhysicalColumnDescription()))
+                .description(SemanticUtils.trimToNull(column.getColumnDescription()))
                 .indexInfo(SemanticUtils.trimToNull(column.getIndexInfo()))
                 .build();
     }
@@ -56,9 +53,7 @@ public final class PromptConverter {
         return TablePromptResponse.builder()
                 .name(table.getTableName())
                 .domain(SemanticUtils.normalizeDomain(table.getDomain()))
-                .description(
-                        SemanticUtils.firstNonBlank(
-                                table.getTableDescription(), table.getPhysicalTableDescription()))
+                .description(SemanticUtils.trimToNull(table.getTableDescription()))
                 .relations(resolvedRelations)
                 .build();
     }
