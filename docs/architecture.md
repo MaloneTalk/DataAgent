@@ -1,16 +1,16 @@
 # 架构
 
-本文说明 Data Agent 的系统组成、一次查询请求是如何流转的，以及主要模块与对外接口。"
+本文说明 Data Agent 的系统组成、一次查询请求是如何流转的，以及主要模块与对外接口。
 
 ## 1. 系统组成
 
 | 组件 | 技术 | 职责 |
 | --- | --- | --- |
-| 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源/语义层/报表管理后台、用户与角色管理 |
+| 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源管理、语义管理、报表管理、系统管理 |
 | 后端 | Spring Boot 4（Java 17+） | Agent 推理、工具执行、语义层、数据源、会话、MCP 管理 |
 | Skill 系统 | 多源加载（文件系统 / Git / Nacos / classpath） | 加载"已验证查询模式"作为可复用流程 |
 | 元数据库 | MySQL | 存语义层、数据源、会话、MCP 配置、报表、用户、角色与权限等 |
-| 查询数据源 | MySQL / PostgreSQL / Oracle | 用户真正要查的业务库，由 Agent 动态连接 |
+| 查询数据源 | 任意 JDBC 兼容关系型数据库 | 用户真正要查的业务库，由 Agent 动态连接；默认内置 MySQL 驱动，其他数据库需按需加入驱动 |
 
 > 后端根包名为 `io.github.malonetalk`，应用名 `data-agent-management`，默认端口 `8080`。
 
@@ -30,7 +30,7 @@
                    (MySQL)  │     │     ▼
                             ▼     │  ┌──────────────┐
                    get_domains/  │  │ 目标数据源     │
-                   get_tables/   │  │(MySQL/PG/Oracle)│
+                   get_tables/   │  │(JDBC 兼容数据库)│
                    get_table_    │  └──────────────┘
                    schema        │
                             │     │ 反问用户(ask_user)
@@ -44,6 +44,7 @@
 - 后端 `AgentService` 维护一个 **ReAct 循环**：LLM 决定调用哪个工具 → 工具执行 → 结果回灌 → LLM 继续，直到给出最终答案。
 - 工具执行 SQL 时，连接到用户在「数据源管理」中配置的目标库，而非元数据库。
 - 语义层（域/表/列/关系/指标口径）在需要时从元数据库按需读取，用于把自然语言映射到物理表与字段，并校正指标口径。
+- Agent 工具链按 `get_domains` → `get_tables` → `get_table_schema` 递进取数：领域返回名称与描述，表返回领域、说明与已启用关系，字段返回同步后的类型、主键、索引提示与业务描述。
 
 ## 3. 后端模块划分（按职责）
 
@@ -82,5 +83,7 @@
 | GET/POST/PUT/DELETE | `/api/sys/role[/...]` | 角色增删改查、表级白名单、列级黑名单 |
 | GET/POST/PUT/DELETE | `/api/mcp-server[/...]` | MCP Server 增删改查与启用/停用 |
 | REST | `/api/datasource`、`/api/domains`、`/api/semantic/*`、`/api/metric`、`/api/reports` | 数据源、域、语义层、指标口径、报表管理 |
+
+> 前端导航当前收敛为「AI 智能分析」「数据源管理」「语义管理」「报告管理」「系统管理」。指标口径在「语义管理」的 Tab 中维护；用户与角色在「系统管理」的 Tab 中维护。旧路由 `/metric`、`/sys-user`、`/sys-role` 会重定向到对应新入口。
 
 > 更完整的字段与请求/响应结构，建议直接阅读后端 `controller` 与 `dto` 包源码。
