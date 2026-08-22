@@ -19,7 +19,7 @@
 - **多数据源（JDBC 抽象）**：数据读取与执行完全基于 JDBC 标准 API，因此支持**任意 JDBC 兼容数据库**——内置类型已覆盖 MySQL / PostgreSQL / Oracle（已验证）与 ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，其余 JDBC 兼容库扩展枚举即可接入。
 
   > **默认仅内置 MySQL 驱动**。使用其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应 JDBC 驱动依赖并重新构建后端，否则新增数据源时会提示「未找到数据库驱动」。类型列表与 Maven 坐标见 [docs/configuration.md](docs/configuration.md#4-查询数据源)。
-- **语义层（无向量召回）**：以"域（Domain）"组织表，由 LLM 在工具调用时**推理出业务问题所属域、主动选表**，而非向量相似度召回——更精准、更稳定，也无需维护任何 embedding 索引。维度包括逻辑表 / 逻辑列 / 表关系 / 指标口径的业务映射。
+- **语义层（无向量召回）**：以"域（Domain）"组织表，由 LLM 在工具调用时**推理出业务问题所属域、主动选表**，而非向量相似度召回——更精准、更稳定，也无需维护任何 embedding 索引。维度包括领域描述、逻辑表 / 逻辑列 / 表关系 / 指标口径的业务映射。
 - **会话式分析**：SSE 流式回答，会话历史可追溯、可调试。
 - **报表生成**：内置报表工具与配套前端报表视图。
 - **Skill 系统**：从文件系统 / Git / Nacos 多源加载可复用的查询流程（"已验证查询模式"）。
@@ -37,7 +37,7 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 
 ### 2. 数据源层：纯 JDBC 抽象，兼容一切关系型库
 
-- `SchemaReader` 完全基于 JDBC 标准 `DatabaseMetaData` 读取表 / 列 / 主键，不绑定任何数据库方言；
+- `SchemaReader` 完全基于 JDBC 标准 `DatabaseMetaData` 读取表 / 列 / 主键 / 索引提示，不绑定任何数据库方言；
 - `SqlExecutor` 只使用 `Connection` / `PreparedStatement` / `ResultSet` 执行查询，并叠加 SELECT 校验、自动 `LIMIT` 等安全护栏。
 
 整条"读取表结构 → 执行查询"的路径都跑在 JDBC 标准 API 上，因此只要目标库**提供 JDBC 驱动**，Data Agent 就能接入。目前已内置 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite 八种类型（前端数据源下拉与后端枚举同步支持），其余任意 JDBC 兼容数据库扩展 `DataSourceType` 枚举即可接入。注意：**默认发布包仅内置 MySQL 驱动**，接入其他数据库前请先按 [docs/configuration.md](docs/configuration.md#4-查询数据源) 在 `data-agent-backend/pom.xml` 中引入对应驱动。
@@ -90,7 +90,7 @@ cd data-agent-frontend
 pnpm install && pnpm dev
 ```
 
-浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，在聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"*
+浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，先在「数据源管理」接入业务库，在「语义管理」同步表结构并维护表/列/指标口径，再到聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"* 用户与角色入口在「系统管理」。
 
 ## 📚 文档
 
@@ -116,4 +116,3 @@ pnpm install && pnpm dev
 ## 📄 许可证
 
 本项目基于 [AGPL-3.0](LICENSE) 开源。
-

@@ -148,7 +148,7 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 - 后端启动时，`AdminBootstrapRunner` 检查 `sys_user` 表是否为空；若为空，用 `admin.init-password` 创建 `admin` 用户（用户名固定为 `admin`，`displayName` 为「管理员」，`role_id=1`）。
 - 登录接口 `POST /api/auth/login` 接受 `{ username, password }`，返回 `{ token, user }`。前端将 token 存入 `localStorage`，后续请求通过 `Authorization: Bearer <token>` 携带。
 - `AuthInterceptor` 拦截除 `/api/auth/login` 外的所有接口（含 SSE 流式端点），校验 token 签名与时效。
-- 登录后可访问基础功能；带 `@AdminOnly` 的管理接口要求当前用户 `role_id=1`。后续可在「用户管理」和「角色管理」页面中创建角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
+- 登录后可访问基础功能；带 `@AdminOnly` 的管理接口要求当前用户 `role_id=1`。后续可在「系统管理」中创建用户、维护角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
 
 ## 8. 安全提示
 
