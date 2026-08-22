@@ -27,6 +27,7 @@
     type MetricInfo,
     type MetricUpsertRequest,
   } from '@/api/metric';
+  import { formatDateTime } from '@/views/semantic/utils';
 
   interface MetricEditForm {
     metricKey: string;
@@ -169,13 +170,6 @@
     }
   };
 
-  const formatTime = (value: string | null) => {
-    if (!value) {
-      return '-';
-    }
-    return value.replace('T', ' ');
-  };
-
   onMounted(() => {
     void loadMetrics();
   });
@@ -183,22 +177,8 @@
 
 <template>
   <div class="metric-page">
-    <section class="hero-card">
-      <div>
-        <h2 class="hero-title">指标口径管理</h2>
-        <p class="hero-desc">
-          定义业务指标的精确口径（度量、过滤、时间字段），供 Agent 在生成 SQL
-          时按名称或同义词检索使用。指标归属于当前活跃数据源。
-        </p>
-      </div>
-    </section>
-
-    <section class="content-card">
+    <section>
       <div class="section-header">
-        <div>
-          <h3>指标口径列表</h3>
-          <p>维护指标的度量表达式、过滤条件与时间字段口径。</p>
-        </div>
         <div class="section-header-actions">
           <el-input
             v-model="keyword"
@@ -241,7 +221,7 @@
         </el-table-column>
         <el-table-column label="更新时间" width="180">
           <template #default="{ row }">
-            {{ formatTime(row.updateTime) }}
+            {{ formatDateTime(row.updateTime) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
@@ -306,59 +286,14 @@
   .metric-page {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-  }
-
-  .hero-card,
-  .content-card {
-    background: var(--app-bg-card);
-    border: 1px solid var(--app-border);
-    border-radius: 8px;
-    transition:
-      background-color 0.2s,
-      border-color 0.2s;
-  }
-
-  .hero-card {
-    padding: 24px 32px;
-    background: var(--app-gradient-hero);
-  }
-
-  .hero-title {
-    margin: 0 0 8px;
-    font-size: 20px;
-    color: var(--app-text-primary);
-    font-weight: 700;
-  }
-
-  .hero-desc {
-    max-width: 760px;
-    margin: 0;
-    color: var(--app-text-secondary);
-    line-height: 1.7;
-  }
-
-  .content-card {
-    padding: 24px;
   }
 
   .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-start;
     gap: 16px;
     margin-bottom: 20px;
-  }
-
-  .section-header h3 {
-    font-size: 16px;
-    color: var(--app-text-primary);
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-
-  .section-header p {
-    color: var(--app-text-secondary);
   }
 
   .section-header-actions {

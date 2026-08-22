@@ -182,10 +182,6 @@
 <template>
   <section class="table-panel">
     <div class="section-header">
-      <div>
-        <h3>数据领域列表</h3>
-        <p>管理全局数据领域标签，可用于表语义配置。</p>
-      </div>
       <div class="section-header-actions">
         <el-button type="primary" @click="handleOpenDomainCreate">新增领域</el-button>
         <el-tag type="primary" effect="plain">共 {{ domainPage.total }} 个领域</el-tag>
@@ -263,21 +259,10 @@
 <style scoped>
   .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-start;
     gap: 16px;
     margin-bottom: 20px;
-  }
-
-  .section-header h3 {
-    font-size: 16px;
-    color: var(--app-text-primary);
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-
-  .section-header p {
-    color: var(--app-text-secondary);
   }
 
   .section-header-actions {

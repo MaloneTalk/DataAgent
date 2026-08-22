@@ -25,13 +25,11 @@
   const isCollapse = ref(false);
 
   const menuItems = [
-    { path: '/chat', title: 'AI 智能分析', icon: 'ChatDotRound' },
-    { path: '/data-source', title: '数据源管理', icon: 'Connection' },
-    { path: '/semantic', title: '语义管理', icon: 'Collection' },
-    { path: '/report', title: '报告管理', icon: 'Document' },
-    { path: '/metric', title: '指标口径管理', icon: 'DataLine' },
-    { path: '/sys-user', title: '用户管理', icon: 'User' },
-    { path: '/sys-role', title: '角色管理', icon: 'Avatar' },
+    { path: '/chat', title: 'AI 智能分析' },
+    { path: '/data-source', title: '数据源管理' },
+    { path: '/semantic', title: '语义管理' },
+    { path: '/report', title: '报告管理' },
+    { path: '/system', title: '系统管理' },
   ];
 
   const activeMenu = computed(() => route.path);

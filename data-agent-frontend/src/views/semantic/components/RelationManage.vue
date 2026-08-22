@@ -19,7 +19,6 @@
   import { computed, onMounted, reactive, ref, watch } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
-  import type { DatasourceResponse } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     createLogicalRelation,
@@ -73,6 +72,7 @@
   const relationNodes = ref<TableNodeLayout[]>([]);
   const relationRecords = ref<LogicalTableRelationResponse[]>([]);
   const selectedRelation = ref<LogicalTableRelationResponse | null>(null);
+  const relationWorkspaceRef = ref<InstanceType<typeof RelationWorkspace>>();
   const relationLoadToken = ref(0);
   const workspacePage = reactive({
     page: 1,
@@ -99,10 +99,6 @@
   const relationTargetColumns = ref<RelationColumnNode[]>([]);
   const suppressRelationTableWatch = ref(false);
   const suppressDatasourceWatch = ref(false);
-
-  const activeDatasource = computed<DatasourceResponse | undefined>(() =>
-    datasourceList.value.find(item => item.id === selectedDatasourceId.value),
-  );
 
   const canQuery = computed(() => typeof selectedDatasourceId.value === 'number');
 
@@ -546,6 +542,10 @@
     resetRelationForm();
   }
 
+  function handleResetViewport() {
+    relationWorkspaceRef.value?.resetViewport();
+  }
+
   onMounted(() => {
     void initializeDatasource();
   });
@@ -566,17 +566,6 @@
 
 <template>
   <div class="relation-manage-page">
-    <section class="hero-card">
-      <div>
-        <h2 class="hero-title">逻辑外键管理</h2>
-        <p class="hero-desc">维护表间关系，支持在 ER 图中直接查看和拖拽创建逻辑外键。</p>
-      </div>
-      <div class="hero-meta">
-        <span>当前数据源</span>
-        <strong>{{ activeDatasource?.name ?? '未选择' }}</strong>
-      </div>
-    </section>
-
     <section class="toolbar-card">
       <div class="toolbar-grid">
         <el-select
@@ -594,13 +583,7 @@
           />
         </el-select>
         <div class="toolbar-actions">
-          <el-button
-            type="primary"
-            :loading="relationLoading || relationNodeLoading"
-            @click="loadRelationData"
-          >
-            刷新关系
-          </el-button>
+          <el-button @click="handleResetViewport">重置视图</el-button>
         </div>
       </div>
       <div v-if="datasourceError" class="error-tip">
@@ -610,6 +593,7 @@
 
     <section class="content-card">
       <RelationWorkspace
+        ref="relationWorkspaceRef"
         :loading="relationLoading"
         :node-loading="relationNodeLoading"
         :relation-error="relationError"
@@ -617,7 +601,6 @@
         :nodes="relationNodes"
         :relations="relationRecords"
         :draft-relation="draftRelation"
-        @refresh="loadRelationData"
         @edit-relation="handleEditRelation"
         @delete-relation="handleDeleteRelation"
         @toggle-relation-enabled="handleToggleRelationEnabled"
@@ -662,63 +645,15 @@
     gap: 20px;
   }
 
-  .hero-card,
   .toolbar-card,
   .content-card {
     background: var(--app-bg-card);
     border: 1px solid var(--app-border);
     border-radius: 8px;
-    transition:
-      background-color 0.2s,
-      border-color 0.2s;
-  }
-
-  .hero-card {
-    display: flex;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 24px 32px;
-    background: var(--app-gradient-hero);
-  }
-
-  .hero-title {
-    margin: 0 0 8px;
-    color: var(--app-text-primary);
-    font-size: 20px;
-    font-weight: 700;
-  }
-
-  .hero-desc {
-    max-width: 680px;
-    margin: 0;
-    color: var(--app-text-secondary);
-    line-height: 1.7;
-  }
-
-  .hero-meta {
-    min-width: 180px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 16px 20px;
-    border-radius: 8px;
-    background: var(--app-bg-page);
-    border: 1px solid var(--app-border);
-    color: var(--app-text-secondary);
-    transition:
-      background-color 0.2s,
-      border-color 0.2s;
-  }
-
-  .hero-meta strong {
-    margin-top: 6px;
-    color: var(--app-text-primary);
-    font-size: 16px;
-  }
-
-  .toolbar-card,
-  .content-card {
     padding: 24px;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
   }
 
   .toolbar-grid {
@@ -749,10 +684,6 @@
   }
 
   @media (max-width: 1024px) {
-    .hero-card {
-      flex-direction: column;
-    }
-
     .toolbar-grid {
       grid-template-columns: 1fr;
     }

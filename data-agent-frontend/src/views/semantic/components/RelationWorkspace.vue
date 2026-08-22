@@ -81,7 +81,6 @@
   }>();
 
   const emit = defineEmits<{
-    (event: 'refresh'): void;
     (event: 'edit-relation', relation: LogicalTableRelationResponse): void;
     (event: 'delete-relation', relation: LogicalTableRelationResponse): void;
     (
@@ -652,21 +651,14 @@
     }
     return 'success';
   }
+
+  defineExpose({
+    resetViewport,
+  });
 </script>
 
 <template>
   <section class="relation-panel">
-    <div class="section-header">
-      <div>
-        <h3>逻辑外键 ER 图</h3>
-        <p>滚轮缩放，空白区拖动画布，从字段拖到字段创建关系。</p>
-      </div>
-      <div class="relation-actions">
-        <el-button @click="resetViewport">重置视图</el-button>
-        <el-button :loading="loading || nodeLoading" @click="emit('refresh')">刷新关系图</el-button>
-      </div>
-    </div>
-
     <div class="relation-layout">
       <div
         ref="viewportRef"
@@ -835,13 +827,6 @@
           <button class="canvas-ctrl-btn" title="缩小" @click.stop="zoomOut">-</button>
           <span class="canvas-ctrl-label">{{ zoomPercent }}%</span>
           <button class="canvas-ctrl-btn" title="放大" @click.stop="zoomIn">+</button>
-          <button
-            class="canvas-ctrl-btn canvas-ctrl-fit"
-            title="适应画布"
-            @click.stop="resetViewport"
-          >
-            []
-          </button>
         </div>
       </div>
 
@@ -921,30 +906,6 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: flex-start;
-  }
-
-  .section-header h3 {
-    margin: 0 0 4px;
-    color: var(--app-text-primary);
-    font-size: 16px;
-    font-weight: 600;
-  }
-
-  .section-header p {
-    margin: 0;
-    color: var(--app-text-secondary);
-  }
-
-  .relation-actions {
-    display: flex;
-    gap: 12px;
   }
 
   .relation-layout {
@@ -1228,12 +1189,6 @@
     text-align: center;
     color: var(--app-text-secondary);
     font-size: 12px;
-  }
-
-  .canvas-ctrl-fit {
-    margin-left: 4px;
-    border-left: 1px solid var(--app-border);
-    padding-left: 4px;
   }
 
   @media (max-width: 1280px) {

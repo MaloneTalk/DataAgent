@@ -62,22 +62,22 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '报告管理' },
   },
   {
+    path: '/system',
+    name: 'SystemManage',
+    component: () => import('@/views/system/SystemManage.vue'),
+    meta: { title: '系统管理' },
+  },
+  {
     path: '/metric',
-    name: 'MetricManage',
-    component: () => import('@/views/metric/MetricManage.vue'),
-    meta: { title: '指标口径管理' },
+    redirect: '/semantic',
   },
   {
     path: '/sys-user',
-    name: 'UserManage',
-    component: () => import('@/views/sys-user/UserManage.vue'),
-    meta: { title: '用户管理' },
+    redirect: '/system?tab=user',
   },
   {
     path: '/sys-role',
-    name: 'RoleManage',
-    component: () => import('@/views/sys-role/RoleManage.vue'),
-    meta: { title: '角色管理' },
+    redirect: '/system?tab=role',
   },
 ];
 
