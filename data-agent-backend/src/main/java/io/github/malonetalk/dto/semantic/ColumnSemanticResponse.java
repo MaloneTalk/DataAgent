@@ -28,6 +28,7 @@ public record ColumnSemanticResponse(
         String columnDescription,
         String typeName,
         Boolean primaryKey,
+        String indexInfo,
         Boolean isVisible,
         Boolean hasPhysicalColumn,
         // 最终可用性（推导值，非存储字段）：effective = isVisible && hasPhysicalColumn。

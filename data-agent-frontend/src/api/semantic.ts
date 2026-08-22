@@ -46,6 +46,7 @@ export interface ColumnSemanticResponse {
   columnDescription: string | null;
   typeName: string | null;
   primaryKey: boolean | null;
+  indexInfo: string | null;
   isVisible: boolean;
   hasPhysicalColumn: boolean;
   effective: boolean;

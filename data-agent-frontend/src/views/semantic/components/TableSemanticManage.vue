@@ -389,7 +389,7 @@
       v-model="columnDrawerVisible"
       :title="`列语义管理 - ${selectedTableForColumns}`"
       direction="rtl"
-      size="65%"
+      size="90%"
     >
       <ColumnSemanticManage
         ref="columnManageRef"

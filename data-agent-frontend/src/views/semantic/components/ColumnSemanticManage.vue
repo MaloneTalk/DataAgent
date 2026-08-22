@@ -231,6 +231,11 @@
           <el-tag v-if="row.primaryKey" type="danger" size="small">PK</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="索引" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.indexInfo || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column label="物理描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.physicalColumnDescription || '-' }}

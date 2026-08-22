@@ -30,6 +30,7 @@ public class ColumnInfo {
     private String physicalColumnDescription;
     private String typeName;
     private Boolean primaryKey;
+    private String indexInfo;
     private String columnDescription;
     private Boolean isVisible;
     private Boolean physicalStatus;
