@@ -354,6 +354,7 @@ public class SemanticSyncApplyService {
         tableInfo.setDatasourceId(datasourceId);
         tableInfo.setTableName(table.tableName());
         tableInfo.setPhysicalTableDescription(table.description());
+        tableInfo.setTableDescription(table.description());
         tableInfo.setDomain(SemanticConstants.DEFAULT_DOMAIN);
         tableInfo.setIsVisible(Boolean.TRUE);
         tableInfo.setPhysicalStatus(Boolean.TRUE);
@@ -367,6 +368,7 @@ public class SemanticSyncApplyService {
         columnInfo.setTableName(tableName);
         columnInfo.setColumnName(column.columnName());
         columnInfo.setPhysicalColumnDescription(column.description());
+        columnInfo.setColumnDescription(column.description());
         columnInfo.setTypeName(column.typeName());
         columnInfo.setPrimaryKey(column.primaryKey());
         columnInfo.setIndexInfo(column.indexInfo());

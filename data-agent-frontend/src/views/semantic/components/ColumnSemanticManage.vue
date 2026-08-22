@@ -27,6 +27,7 @@
     updateColumnSemantic,
     type ColumnSemanticInfo,
   } from '@/api/semantic';
+  import { formatDateTime } from '../utils';
 
   interface ColumnEditForm {
     tableName: string;
@@ -145,7 +146,7 @@
     Object.assign(form, {
       tableName: selectedTableName.value,
       columnName: row.columnName,
-      columnDescription: row.columnDescription ?? row.physicalColumnDescription ?? '',
+      columnDescription: row.columnDescription ?? '',
       isVisible: row.isVisible,
     });
     dialogVisible.value = true;
@@ -236,11 +237,6 @@
           {{ row.indexInfo || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="物理描述" min-width="180" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ row.physicalColumnDescription || '-' }}
-        </template>
-      </el-table-column>
       <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.columnDescription || '-' }}
@@ -272,7 +268,11 @@
           {{ row.invalidReason || '-' }}
         </template>
       </el-table-column>
-      <el-table-column prop="updateTime" label="更新时间" width="180" />
+      <el-table-column label="更新时间" width="180">
+        <template #default="{ row }">
+          {{ formatDateTime(row.updateTime) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
@@ -324,7 +324,7 @@
             v-model="form.columnDescription"
             type="textarea"
             :rows="4"
-            placeholder="请输入列的语义描述信息（为空时将使用物理描述）"
+            placeholder="请输入列的语义描述信息"
           />
         </el-form-item>
         <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">

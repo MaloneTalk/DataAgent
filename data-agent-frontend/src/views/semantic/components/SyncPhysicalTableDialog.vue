@@ -157,7 +157,7 @@
       <el-input
         v-model="keyword"
         clearable
-        placeholder="按表名或物理描述搜索"
+        placeholder="按表名搜索"
         @keyup.enter="loadCandidates"
       />
       <el-button @click="loadCandidates">查询</el-button>
@@ -171,11 +171,6 @@
     >
       <el-table-column type="selection" width="48" />
       <el-table-column prop="tableName" label="物理表名" min-width="220" />
-      <el-table-column label="物理描述" min-width="240" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ row.physicalTableDescription || '-' }}
-        </template>
-      </el-table-column>
       <el-table-column label="语义层" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.synced ? 'info' : 'success'" size="small">

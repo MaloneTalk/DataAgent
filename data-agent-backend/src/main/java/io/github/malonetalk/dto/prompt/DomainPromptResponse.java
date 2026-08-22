@@ -15,10 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.dto.prompt;
 
-import jakarta.validation.constraints.NotBlank;
-
-public record DomainCreateRequest(
-        @NotBlank(message = "领域名称不能为空") String name,
-        @NotBlank(message = "域描述不能为空") String description) {}
+/** Agent-facing DTO for domain selection. */
+public record DomainPromptResponse(String name, String description) {}

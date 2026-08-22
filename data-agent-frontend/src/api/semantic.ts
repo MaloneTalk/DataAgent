@@ -21,7 +21,6 @@ import type { PageResponse } from './domain';
 
 export interface PhysicalTableCandidateResponse {
   tableName: string;
-  physicalTableDescription: string | null;
   synced: boolean;
 }
 
@@ -29,7 +28,6 @@ export interface TableSemanticResponse {
   id: number | null;
   tableName: string;
   domain: string | null;
-  physicalTableDescription: string | null;
   tableDescription: string | null;
   isVisible: boolean;
   hasPhysicalTable: boolean;
@@ -42,7 +40,6 @@ export type TableSemanticInfo = TableSemanticResponse;
 export interface ColumnSemanticResponse {
   id: number | null;
   columnName: string;
-  physicalColumnDescription: string | null;
   columnDescription: string | null;
   typeName: string | null;
   primaryKey: boolean | null;

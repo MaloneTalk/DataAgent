@@ -56,3 +56,11 @@ export const buildSyncSummary = (
       return `${label} ${result[field]} ${unit}`;
     })
     .join('，');
+
+export const formatDateTime = (value: string | null | undefined) => {
+  if (!value) {
+    return '-';
+  }
+  const matched = value.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/);
+  return matched ? `${matched[1]} ${matched[2]}` : value.replace('T', ' ');
+};

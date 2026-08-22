@@ -21,6 +21,7 @@ import io.github.malonetalk.dto.DomainCreateRequest;
 import io.github.malonetalk.dto.DomainPageQuery;
 import io.github.malonetalk.dto.DomainUpdateRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.dto.prompt.DomainPromptResponse;
 import io.github.malonetalk.entity.DomainInfo;
 import java.util.List;
 
@@ -37,4 +38,6 @@ public interface DomainService {
     void delete(Integer id);
 
     List<String> listDomainNames();
+
+    List<DomainPromptResponse> listDomainPrompts();
 }

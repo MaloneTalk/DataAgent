@@ -129,6 +129,7 @@
         </foreach>
         ON DUPLICATE KEY UPDATE
             physical_column_description = VALUES(physical_column_description),
+            column_description = COALESCE(NULLIF(column_description, ''), VALUES(column_description)),
             type_name = VALUES(type_name),
             primary_key = VALUES(primary_key),
             index_info = VALUES(index_info),
@@ -154,6 +155,7 @@
             <if test="tableName != null">table_name = #{tableName},</if>
             <if test="columnName != null">column_name = #{columnName},</if>
             physical_column_description = #{physicalColumnDescription},
+            column_description = COALESCE(NULLIF(column_description, ''), #{columnDescription}),
             type_name = #{typeName},
             primary_key = #{primaryKey},
             index_info = #{indexInfo},

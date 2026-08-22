@@ -210,7 +210,7 @@
     return items.map(
       (item): RelationColumnNode => ({
         columnName: item.columnName,
-        description: item.columnDescription ?? item.physicalColumnDescription,
+        description: item.columnDescription,
         typeName: item.typeName,
         primaryKey: item.primaryKey,
         operable: item.effective,

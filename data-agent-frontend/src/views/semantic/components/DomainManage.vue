@@ -27,6 +27,7 @@
     deleteDomain,
     type DomainInfo,
   } from '@/api/domain';
+  import { formatDateTime } from '../utils';
 
   interface DomainEditForm {
     name: string;
@@ -63,6 +64,7 @@
 
   const domainRules: FormRules<DomainEditForm> = {
     name: [{ required: true, message: '领域名称不能为空', trigger: 'blur' }],
+    description: [{ required: true, whitespace: true, message: '域描述不能为空', trigger: 'blur' }],
   };
 
   const loadDomainPage = async () => {
@@ -133,7 +135,7 @@
     try {
       const payload = {
         name: domainForm.name.trim(),
-        description: domainForm.description.trim() || undefined,
+        description: domainForm.description.trim(),
       };
 
       if (selectedDomain.value) {
@@ -168,13 +170,6 @@
     }
   };
 
-  const formatTime = (value: string | null) => {
-    if (!value) {
-      return '-';
-    }
-    return value.replace('T', ' ');
-  };
-
   defineExpose({
     loadDomainPage,
   });
@@ -206,12 +201,12 @@
       </el-table-column>
       <el-table-column label="创建时间" width="180">
         <template #default="{ row }">
-          {{ formatTime(row.createTime) }}
+          {{ formatDateTime(row.createTime) }}
         </template>
       </el-table-column>
       <el-table-column label="更新时间" width="180">
         <template #default="{ row }">
-          {{ formatTime(row.updateTime) }}
+          {{ formatDateTime(row.updateTime) }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
