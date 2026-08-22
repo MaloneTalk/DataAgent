@@ -49,7 +49,9 @@
             <span class="tab-label-with-help">
               数据领域管理
               <HelpTip>
-                <strong>数据领域</strong> 是业务主题分类，例如会员、订单、商品、售后。领域用于把表分组，帮助 AI 先判断该去哪些表里找数据。
+                <strong>数据领域</strong>
+                是业务主题分类，例如会员、订单、商品、售后。领域用于把表分组，帮助 AI
+                先判断该去哪些表里找数据。
               </HelpTip>
             </span>
           </template>
@@ -60,7 +62,9 @@
             <span class="tab-label-with-help">
               表语义管理
               <HelpTip>
-                <strong>表语义</strong> 说明一张物理表在业务上代表什么、属于哪个领域、是否允许被 AI 查询，以及它和其他表的逻辑关系。
+                <strong>表语义</strong>
+                说明一张物理表在业务上代表什么、属于哪个领域、是否允许被 AI
+                查询，以及它和其他表的逻辑关系。
               </HelpTip>
             </span>
           </template>
@@ -71,7 +75,9 @@
             <span class="tab-label-with-help">
               指标口径
               <HelpTip>
-                <strong>指标口径</strong> 是指标的统一计算规则。它定义业务叫法、同义词、聚合表达式、过滤条件和时间字段，供 Agent 生成 SQL 时检索使用。
+                <strong>指标口径</strong>
+                是指标的统一计算规则。它定义业务叫法、同义词、聚合表达式、过滤条件和时间字段，供
+                Agent 生成 SQL 时检索使用。
               </HelpTip>
             </span>
           </template>
@@ -82,7 +88,9 @@
             <span class="tab-label-with-help">
               逻辑外键
               <HelpTip>
-                <strong>逻辑外键</strong> 是语义层里的表关联说明。即使数据库没有真实外键，也可以告诉 AI 哪些字段能 join，减少乱连表。
+                <strong>逻辑外键</strong>
+                是语义层里的表关联说明。即使数据库没有真实外键，也可以告诉 AI 哪些字段能
+                join，减少乱连表。
               </HelpTip>
             </span>
           </template>
