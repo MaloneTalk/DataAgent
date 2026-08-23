@@ -27,7 +27,16 @@
   const menuItems = [
     { path: '/chat', title: 'AI 智能分析' },
     { path: '/data-source', title: '数据源管理' },
-    { path: '/semantic', title: '语义管理' },
+    {
+      path: '/semantic',
+      title: '语义管理',
+      children: [
+        { path: '/semantic/domain', title: '数据领域' },
+        { path: '/semantic/table', title: '表语义' },
+        { path: '/semantic/metric', title: '指标口径' },
+        { path: '/semantic/relation', title: '逻辑外键' },
+      ],
+    },
     {
       path: '/asset',
       title: '资产管理',
@@ -36,7 +45,14 @@
         { path: '/asset/table-export', title: '表格导出' },
       ],
     },
-    { path: '/system', title: '系统管理' },
+    {
+      path: '/system',
+      title: '系统管理',
+      children: [
+        { path: '/system/user', title: '用户管理' },
+        { path: '/system/role', title: '角色管理' },
+      ],
+    },
   ];
 
   const activeMenu = computed(() => route.path);
@@ -99,6 +115,8 @@
 
   .app-sidebar :deep(.el-menu-item),
   .app-sidebar :deep(.el-sub-menu__title) {
+    width: calc(100% - 16px);
+    box-sizing: border-box;
     color: var(--app-text-secondary);
     font-weight: 500;
     font-size: 13px;
@@ -106,6 +124,7 @@
     border-radius: 6px;
     height: 38px;
     line-height: 38px;
+    cursor: pointer;
     transition: all 0.15s;
   }
 
@@ -116,6 +135,11 @@
   }
 
   .app-sidebar :deep(.el-menu-item.is-active) {
+    background-color: var(--app-accent);
+    color: var(--app-accent-text);
+  }
+
+  .app-sidebar :deep(.el-menu-item.is-active:hover) {
     background-color: var(--app-accent);
     color: var(--app-accent-text);
   }

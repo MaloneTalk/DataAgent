@@ -167,6 +167,10 @@
 
 <template>
   <div class="user-manage-page">
+    <div class="page-header">
+      <h2 class="page-title">用户管理</h2>
+    </div>
+
     <div class="table-actions">
       <el-button type="primary" @click="openCreate">新建用户</el-button>
     </div>

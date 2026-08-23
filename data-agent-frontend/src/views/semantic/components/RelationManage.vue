@@ -18,6 +18,7 @@
 <script setup lang="ts">
   import { computed, onMounted, reactive, ref, watch } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import HelpTip from '@/components/common/HelpTip.vue';
   import { useDatasource } from '@/composables/useDatasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
@@ -566,6 +567,17 @@
 
 <template>
   <div class="relation-manage-page">
+    <div class="page-header">
+      <h2 class="page-title page-title-with-help">
+        逻辑外键
+        <HelpTip>
+          <strong>逻辑外键</strong>
+          是语义层里的表关联说明。即使数据库没有真实外键，也可以告诉 AI 哪些字段能
+          join，减少乱连表。
+        </HelpTip>
+      </h2>
+    </div>
+
     <section class="toolbar-card">
       <div class="toolbar-grid">
         <el-select

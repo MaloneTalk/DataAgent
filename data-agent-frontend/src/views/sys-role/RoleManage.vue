@@ -215,6 +215,10 @@
 
 <template>
   <div class="role-manage-page">
+    <div class="page-header">
+      <h2 class="page-title">角色管理</h2>
+    </div>
+
     <div class="table-actions">
       <el-button type="primary" @click="openCreate">新建角色</el-button>
     </div>

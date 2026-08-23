@@ -51,9 +51,31 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/semantic',
-    name: 'SemanticManage',
-    component: () => import('@/views/semantic/SemanticManage.vue'),
-    meta: { title: '语义管理' },
+    redirect: '/semantic/domain',
+  },
+  {
+    path: '/semantic/domain',
+    name: 'DomainManage',
+    component: () => import('@/views/semantic/components/DomainManage.vue'),
+    meta: { title: '数据领域' },
+  },
+  {
+    path: '/semantic/table',
+    name: 'TableSemanticManage',
+    component: () => import('@/views/semantic/components/TableSemanticManage.vue'),
+    meta: { title: '表语义' },
+  },
+  {
+    path: '/semantic/metric',
+    name: 'MetricManage',
+    component: () => import('@/views/metric/MetricManage.vue'),
+    meta: { title: '指标口径' },
+  },
+  {
+    path: '/semantic/relation',
+    name: 'RelationManage',
+    component: () => import('@/views/semantic/components/RelationManage.vue'),
+    meta: { title: '逻辑外键' },
   },
   {
     path: '/asset',
@@ -73,21 +95,31 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/system',
-    name: 'SystemManage',
-    component: () => import('@/views/system/SystemManage.vue'),
-    meta: { title: '系统管理' },
+    redirect: '/system/user',
+  },
+  {
+    path: '/system/user',
+    name: 'UserManage',
+    component: () => import('@/views/sys-user/UserManage.vue'),
+    meta: { title: '用户管理' },
+  },
+  {
+    path: '/system/role',
+    name: 'RoleManage',
+    component: () => import('@/views/sys-role/RoleManage.vue'),
+    meta: { title: '角色管理' },
   },
   {
     path: '/metric',
-    redirect: '/semantic',
+    redirect: '/semantic/metric',
   },
   {
     path: '/sys-user',
-    redirect: '/system?tab=user',
+    redirect: '/system/user',
   },
   {
     path: '/sys-role',
-    redirect: '/system?tab=role',
+    redirect: '/system/role',
   },
   {
     path: '/report',

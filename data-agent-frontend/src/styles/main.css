@@ -106,6 +106,12 @@ textarea {
   margin: 0;
 }
 
+.page-title-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .search-bar {
   display: flex;
   gap: 12px;

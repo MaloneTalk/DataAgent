@@ -19,6 +19,7 @@
   import { computed, ref, onUnmounted } from 'vue';
   import { marked } from 'marked';
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
+  import ChatFileDownload from './ChatFileDownload.vue';
   import TracePanel from './TracePanel.vue';
 
   marked.use({ gfm: true, breaks: true });
@@ -44,7 +45,57 @@
     };
   });
 
-  const renderedText = computed(() => marked.parse(contentParts.value.text) as string);
+  const DOWNLOAD_LABEL_RE = /^(?:Download URL|下载链接|下载地址)\s*[:：]\s*/i;
+  const TABLE_EXPORT_RE = /\/api\/table-exports\/([0-9a-f-]{36})\/download/i;
+  const FILE_URL_RE = /(?:\/api\/\S+|https?:\/\/\S+)\.(?:csv|xls|xlsx)(?:\?\S*)?$/i;
+  const MARKDOWN_LINK_RE = /^\[([^\]]+)]\(([^)]+)\)$/;
+
+  interface ChatDownloadFile {
+    id: string;
+    url: string;
+    name: string;
+  }
+
+  function fileNameFromUrl(url: string) {
+    const cleanUrl = url.split(/[?#]/)[0];
+    return decodeURIComponent(cleanUrl.slice(cleanUrl.lastIndexOf('/') + 1)) || 'download.csv';
+  }
+
+  function fileNameOrFallback(name: string | undefined, fallback: string) {
+    return name && /\.[A-Za-z0-9]+$/.test(name) ? name : fallback;
+  }
+
+  function parseDownloadLine(line: string): ChatDownloadFile | null {
+    const text = line.trim().replace(DOWNLOAD_LABEL_RE, '').trim();
+    const markdownLink = text.match(MARKDOWN_LINK_RE);
+    const name = markdownLink?.[1];
+    const url = markdownLink?.[2] ?? text;
+    const tableExport = url.match(TABLE_EXPORT_RE);
+    if (tableExport) {
+      const id = tableExport[1];
+      return { id, url, name: fileNameOrFallback(name, `${id}.csv`) };
+    }
+    if (!FILE_URL_RE.test(url)) {
+      return null;
+    }
+    return { id: url, url, name: fileNameOrFallback(name, fileNameFromUrl(url)) };
+  }
+
+  function extractDownloads(text: string) {
+    const files: ChatDownloadFile[] = [];
+    const lines = text.split('\n').filter(line => {
+      const file = parseDownloadLine(line);
+      if (!file) {
+        return true;
+      }
+      files.push(file);
+      return false;
+    });
+    return { text: lines.join('\n').trim(), files };
+  }
+
+  const textContent = computed(() => extractDownloads(contentParts.value.text));
+  const renderedText = computed(() => marked.parse(textContent.value.text) as string);
   const renderedSummary = computed(() => marked.parse(contentParts.value.summary) as string);
 
   const copied = ref(false);
@@ -83,12 +134,16 @@
         :message="message"
         @preview-report="c => emit('previewReport', c)"
       />
-      <div v-if="contentParts.text" class="chat-message__content" v-html="renderedText"></div>
+      <div v-if="textContent.text" class="chat-message__content" v-html="renderedText"></div>
+      <div v-if="textContent.files.length > 0" class="chat-message__downloads">
+        <ChatFileDownload v-for="file in textContent.files" :key="file.id" :file="file" />
+      </div>
       <div v-if="contentParts.summary" class="chat-message__summary" v-html="renderedSummary"></div>
       <div
         v-if="
           message.isStreaming &&
-          !contentParts.text &&
+          !textContent.text &&
+          textContent.files.length === 0 &&
           !contentParts.summary &&
           message.traceSteps.length === 0
         "
@@ -98,7 +153,10 @@
         <span class="chat-message__cursor">...</span>
       </div>
       <span
-        v-if="message.isStreaming && (contentParts.text || contentParts.summary)"
+        v-if="
+          message.isStreaming &&
+          (textContent.text || textContent.files.length > 0 || contentParts.summary)
+        "
         class="chat-message__cursor"
       >
         |
@@ -262,6 +320,12 @@
       padding-left: 20px;
       margin: 4px 0 8px;
     }
+  }
+
+  .chat-message__downloads {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   [data-theme='dark'] .chat-message__summary {
