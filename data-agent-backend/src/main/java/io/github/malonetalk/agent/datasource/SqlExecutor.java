@@ -63,7 +63,23 @@ public class SqlExecutor {
         }
     }
 
+    public String validateSelectSql(String sql) {
+        parseAllowedSelect(sql);
+        return trimTrailingSemicolon(sql);
+    }
+
     String validateAndTransform(String sql) {
+        Select select = parseAllowedSelect(sql);
+        String safeSql = trimTrailingSemicolon(sql);
+
+        //  inject LIMIT if absent, to prevent full table scans
+        if (!hasLimit(select)) {
+            return "SELECT * FROM (" + safeSql + ") AS _sandbox LIMIT " + MAX_ROWS;
+        }
+        return safeSql;
+    }
+
+    private Select parseAllowedSelect(String sql) {
         if (sql == null || sql.isBlank()) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "SQL must not be empty.");
         }
@@ -91,16 +107,15 @@ public class SqlExecutor {
             throw BusinessException.of(ErrorCode.SQL_NOT_ALLOWED, "SELECT INTO is not allowed.");
         }
 
-        //  inject LIMIT if absent, to prevent full table scans
-        if (!hasLimit(select)) {
-            // strip trailing semicolon to avoid syntax error in subquery
-            String safeSql = sql.trim();
-            if (safeSql.endsWith(";")) {
-                safeSql = safeSql.substring(0, safeSql.length() - 1).trim();
-            }
-            return "SELECT * FROM (" + safeSql + ") AS _sandbox LIMIT " + MAX_ROWS;
+        return select;
+    }
+
+    private String trimTrailingSemicolon(String sql) {
+        String safeSql = sql.trim();
+        if (safeSql.endsWith(";")) {
+            return safeSql.substring(0, safeSql.length() - 1).trim();
         }
-        return sql;
+        return safeSql;
     }
 
     private boolean hasLimit(Select select) {

@@ -17,8 +17,6 @@
  */
 package io.github.malonetalk.interceptor;
 
-import static io.github.malonetalk.common.Constants.ADMIN_ROLE_ID;
-
 import io.github.malonetalk.annotation.AdminOnly;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.UserContext;
@@ -65,7 +63,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         UserContext.set(context);
 
         if (handler instanceof HandlerMethod handlerMethod && isAdminRequired(handlerMethod)) {
-            if (context.roleId() == null || context.roleId() != ADMIN_ROLE_ID) {
+            if (!context.isAdmin()) {
                 throw BusinessException.of(ErrorCode.FORBIDDEN, "需要管理员权限");
             }
         }

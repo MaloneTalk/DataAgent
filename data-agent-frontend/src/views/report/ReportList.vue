@@ -19,6 +19,7 @@
   import { ref, onMounted } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { getReports, deleteReport, type ReportResponse } from '@/api/report';
+  import { formatDateTime } from '@/utils/dateTime';
   import { buildReportHtml, downloadHtml } from '@/utils/reportTemplate';
   import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
 
@@ -115,17 +116,6 @@
     ElMessage.success('导出成功');
   }
 
-  function formatTime(time: string) {
-    if (!time) return '-';
-    try {
-      const d = new Date(time);
-      if (isNaN(d.getTime())) return time;
-      return d.toLocaleString('zh-CN');
-    } catch {
-      return time;
-    }
-  }
-
   onMounted(() => {
     fetchReports();
   });
@@ -166,10 +156,10 @@
       <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
       <el-table-column prop="sessionId" label="Session ID" width="260" show-overflow-tooltip />
       <el-table-column label="创建时间" width="180">
-        <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
+        <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
       </el-table-column>
       <el-table-column label="更新时间" width="180">
-        <template #default="{ row }">{{ formatTime(row.updateTime) }}</template>
+        <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
@@ -202,42 +192,3 @@
     />
   </div>
 </template>
-
-<style scoped>
-  .report-list {
-    padding: 0;
-  }
-
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-
-  .page-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--app-text-primary);
-    margin: 0;
-  }
-
-  .search-bar {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .empty-tip {
-    text-align: center;
-    padding: 40px 0;
-    color: var(--app-text-muted);
-    font-size: 14px;
-  }
-
-  .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 16px;
-  }
-</style>

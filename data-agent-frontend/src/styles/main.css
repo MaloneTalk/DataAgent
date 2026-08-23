@@ -86,3 +86,41 @@ textarea {
 .mb-20 {
   margin-bottom: 20px;
 }
+
+.report-list,
+.table-export-list {
+  padding: 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+  margin: 0;
+}
+
+.search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.TableExportMapper">
+
+    <insert id="insert" parameterType="io.github.malonetalk.entity.TableExport">
+        INSERT INTO table_export (
+            id, title, row_count, session_id
+        ) VALUES (
+            #{id}, #{title}, #{rowCount}, #{sessionId}
+        )
+    </insert>
+
+    <select id="selectPage" resultType="io.github.malonetalk.entity.TableExport">
+        SELECT te.* FROM table_export te
+        <where>
+            <if test="sessionId != null and sessionId != ''">
+                te.session_id = #{sessionId}
+            </if>
+            <if test="userId != null">
+                AND EXISTS (
+                    SELECT 1 FROM user_session us
+                    WHERE us.session_id = te.session_id AND us.user_id = #{userId}
+                )
+            </if>
+        </where>
+        ORDER BY te.create_time DESC
+    </select>
+
+    <select id="selectById" resultType="io.github.malonetalk.entity.TableExport">
+        SELECT * FROM table_export WHERE id = #{id}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM table_export WHERE id = #{id}
+    </delete>
+
+</mapper>

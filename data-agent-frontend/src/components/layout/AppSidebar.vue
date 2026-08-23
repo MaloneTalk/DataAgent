@@ -28,7 +28,14 @@
     { path: '/chat', title: 'AI 智能分析' },
     { path: '/data-source', title: '数据源管理' },
     { path: '/semantic', title: '语义管理' },
-    { path: '/report', title: '报告管理' },
+    {
+      path: '/asset',
+      title: '资产管理',
+      children: [
+        { path: '/asset/report', title: '报告管理' },
+        { path: '/asset/table-export', title: '表格导出' },
+      ],
+    },
     { path: '/system', title: '系统管理' },
   ];
 
@@ -46,9 +53,19 @@
 <template>
   <aside class="app-sidebar" :class="{ collapsed: isCollapse }">
     <el-menu :default-active="activeMenu" :collapse="isCollapse" router @select="handleMenuSelect">
-      <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
-        <span>{{ item.title }}</span>
-      </el-menu-item>
+      <template v-for="item in menuItems" :key="item.path">
+        <el-sub-menu v-if="item.children" :index="item.path">
+          <template #title>
+            <span>{{ item.title }}</span>
+          </template>
+          <el-menu-item v-for="child in item.children" :key="child.path" :index="child.path">
+            <span>{{ child.title }}</span>
+          </el-menu-item>
+        </el-sub-menu>
+        <el-menu-item v-else :index="item.path">
+          <span>{{ item.title }}</span>
+        </el-menu-item>
+      </template>
     </el-menu>
     <div class="sidebar-toggle" @click="toggleSidebar">
       <span>{{ isCollapse ? '»' : '«' }}</span>
@@ -80,7 +97,8 @@
     background-color: transparent;
   }
 
-  .app-sidebar :deep(.el-menu-item) {
+  .app-sidebar :deep(.el-menu-item),
+  .app-sidebar :deep(.el-sub-menu__title) {
     color: var(--app-text-secondary);
     font-weight: 500;
     font-size: 13px;
@@ -91,7 +109,8 @@
     transition: all 0.15s;
   }
 
-  .app-sidebar :deep(.el-menu-item:hover) {
+  .app-sidebar :deep(.el-menu-item:hover),
+  .app-sidebar :deep(.el-sub-menu__title:hover) {
     background-color: var(--app-bg-hover);
     color: var(--app-text-primary);
   }

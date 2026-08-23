@@ -15,6 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { downloadBlob } from './download';
+
 const REPORT_CSS = `
 * { box-sizing: border-box; }
 body {
@@ -111,12 +113,5 @@ export function buildReportHtml(title: string, markdownContent: string): string 
 
 export function downloadHtml(filename: string, html: string) {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(filename, blob);
 }

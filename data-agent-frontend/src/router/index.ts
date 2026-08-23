@@ -56,10 +56,20 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '语义管理' },
   },
   {
-    path: '/report',
+    path: '/asset',
+    redirect: '/asset/report',
+  },
+  {
+    path: '/asset/report',
     name: 'ReportList',
     component: () => import('@/views/report/ReportList.vue'),
     meta: { title: '报告管理' },
+  },
+  {
+    path: '/asset/table-export',
+    name: 'TableExportList',
+    component: () => import('@/views/table-export/TableExportList.vue'),
+    meta: { title: '表格导出' },
   },
   {
     path: '/system',
@@ -78,6 +88,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/sys-role',
     redirect: '/system?tab=role',
+  },
+  {
+    path: '/report',
+    redirect: '/asset/report',
+  },
+  {
+    path: '/table-export',
+    redirect: '/asset/table-export',
   },
 ];
 

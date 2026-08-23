@@ -48,4 +48,19 @@ public record UserContext(Integer userId, String username, String displayName, I
         }
         return context;
     }
+
+    public static Integer requireScopedUserId() {
+        return require().scopedUserId();
+    }
+
+    public Integer scopedUserId() {
+        if (isAdmin()) {
+            return null;
+        }
+        return userId;
+    }
+
+    public boolean isAdmin() {
+        return roleId != null && roleId == Constants.ADMIN_ROLE_ID;
+    }
 }
