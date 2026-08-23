@@ -163,7 +163,9 @@ public class TableExportServiceImpl implements TableExportService {
                                     sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
                     BufferedWriter writer =
                             Files.newBufferedWriter(
-                                    target, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
+                                    target,
+                                    StandardCharsets.UTF_8,
+                                    StandardOpenOption.CREATE_NEW)) {
                 stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
                 stmt.setFetchSize(
                         "mysql".equalsIgnoreCase(datasource.getType())
@@ -182,8 +184,7 @@ public class TableExportServiceImpl implements TableExportService {
         }
     }
 
-    private int writeRows(BufferedWriter writer, ResultSet rs)
-            throws SQLException, IOException {
+    private int writeRows(BufferedWriter writer, ResultSet rs) throws SQLException, IOException {
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {

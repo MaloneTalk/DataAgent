@@ -20,8 +20,4 @@ package io.github.malonetalk.dto;
 import java.time.LocalDateTime;
 
 public record TableExportResponse(
-        String id,
-        String title,
-        Integer rowCount,
-        String sessionId,
-        LocalDateTime createTime) {}
+        String id, String title, Integer rowCount, String sessionId, LocalDateTime createTime) {}
