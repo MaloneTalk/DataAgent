@@ -45,53 +45,19 @@
     };
   });
 
-  const DOWNLOAD_LABEL_RE = /^(?:Download URL|下载链接|下载地址)\s*[:：]\s*/i;
   const TABLE_EXPORT_RE = /\/api\/table-exports\/([0-9a-f-]{36})\/download/i;
-  const FILE_URL_RE = /(?:\/api\/\S+|https?:\/\/\S+)\.(?:csv|xls|xlsx)(?:\?\S*)?$/i;
-  const MARKDOWN_LINK_RE = /^\[([^\]]+)]\(([^)]+)\)$/;
-
-  interface ChatDownloadFile {
-    id: string;
-    url: string;
-    name: string;
-  }
-
-  function fileNameFromUrl(url: string) {
-    const cleanUrl = url.split(/[?#]/)[0];
-    return decodeURIComponent(cleanUrl.slice(cleanUrl.lastIndexOf('/') + 1)) || 'download.csv';
-  }
-
-  function fileNameOrFallback(name: string | undefined, fallback: string) {
-    return name && /\.[A-Za-z0-9]+$/.test(name) ? name : fallback;
-  }
-
-  function parseDownloadLine(line: string): ChatDownloadFile | null {
-    const text = line.trim().replace(DOWNLOAD_LABEL_RE, '').trim();
-    const markdownLink = text.match(MARKDOWN_LINK_RE);
-    const name = markdownLink?.[1];
-    const url = markdownLink?.[2] ?? text;
-    const tableExport = url.match(TABLE_EXPORT_RE);
-    if (tableExport) {
-      const id = tableExport[1];
-      return { id, url, name: fileNameOrFallback(name, `${id}.csv`) };
-    }
-    if (!FILE_URL_RE.test(url)) {
-      return null;
-    }
-    return { id: url, url, name: fileNameOrFallback(name, fileNameFromUrl(url)) };
-  }
 
   function extractDownloads(text: string) {
-    const files: ChatDownloadFile[] = [];
+    const fileIds: string[] = [];
     const lines = text.split('\n').filter(line => {
-      const file = parseDownloadLine(line);
-      if (!file) {
+      const match = line.match(TABLE_EXPORT_RE);
+      if (!match) {
         return true;
       }
-      files.push(file);
+      fileIds.push(match[1]);
       return false;
     });
-    return { text: lines.join('\n').trim(), files };
+    return { text: lines.join('\n').trim(), fileIds };
   }
 
   const textContent = computed(() => extractDownloads(contentParts.value.text));
@@ -135,15 +101,15 @@
         @preview-report="c => emit('previewReport', c)"
       />
       <div v-if="textContent.text" class="chat-message__content" v-html="renderedText"></div>
-      <div v-if="textContent.files.length > 0" class="chat-message__downloads">
-        <ChatFileDownload v-for="file in textContent.files" :key="file.id" :file="file" />
+      <div v-if="textContent.fileIds.length > 0" class="chat-message__downloads">
+        <ChatFileDownload v-for="id in textContent.fileIds" :key="id" :id="id" />
       </div>
       <div v-if="contentParts.summary" class="chat-message__summary" v-html="renderedSummary"></div>
       <div
         v-if="
           message.isStreaming &&
           !textContent.text &&
-          textContent.files.length === 0 &&
+          textContent.fileIds.length === 0 &&
           !contentParts.summary &&
           message.traceSteps.length === 0
         "
@@ -155,7 +121,7 @@
       <span
         v-if="
           message.isStreaming &&
-          (textContent.text || textContent.files.length > 0 || contentParts.summary)
+          (textContent.text || textContent.fileIds.length > 0 || contentParts.summary)
         "
         class="chat-message__cursor"
       >

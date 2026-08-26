@@ -4,9 +4,9 @@
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.TableExport">
         INSERT INTO table_export (
-            id, title, row_count, session_id
+            id, title, row_count, session_id, create_time
         ) VALUES (
-            #{id}, #{title}, #{rowCount}, #{sessionId}
+            #{id}, #{title}, #{rowCount}, #{sessionId}, #{createTime}
         )
     </insert>
 

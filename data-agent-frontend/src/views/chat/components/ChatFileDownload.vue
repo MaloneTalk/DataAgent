@@ -16,51 +16,20 @@
  -->
 
 <script setup lang="ts">
-  import { computed, ref } from 'vue';
-  import { ElMessage } from 'element-plus';
-  import request from '@/api/request';
-  import { downloadBlob } from '@/utils/download';
-
-  interface ChatDownloadFile {
-    id: string;
-    url: string;
-    name: string;
-  }
+  import { ref } from 'vue';
+  import { downloadTableExport } from '@/api/tableExport';
 
   const props = defineProps<{
-    file: ChatDownloadFile;
+    id: string;
   }>();
 
   const loading = ref(false);
-  const fileType = computed(() => {
-    const match = props.file.name.match(/\.([^.]+)$/);
-    return (match?.[1] || 'csv').toUpperCase();
-  });
-
-  function requestPath(url: string) {
-    return url.startsWith('/api/') ? url.slice('/api'.length) : url;
-  }
-
-  async function fetchBlob() {
-    if (props.file.url.startsWith('/api/')) {
-      const response = await request.get<Blob>(requestPath(props.file.url), {
-        responseType: 'blob',
-      });
-      return response.data;
-    }
-    const response = await fetch(props.file.url);
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status}`);
-    }
-    return response.blob();
-  }
-
   async function download() {
     loading.value = true;
     try {
-      downloadBlob(props.file.name, await fetchBlob());
-    } catch (e) {
-      ElMessage.error((e as Error).message || '下载失败');
+      await downloadTableExport(props.id);
+    } catch {
+      // request interceptor shows the error message.
     } finally {
       loading.value = false;
     }
@@ -69,9 +38,9 @@
 
 <template>
   <button type="button" class="chat-file-download" :disabled="loading" @click="download">
-    <span class="chat-file-download__icon">{{ fileType }}</span>
+    <span class="chat-file-download__icon">CSV</span>
     <span class="chat-file-download__body">
-      <span class="chat-file-download__name">{{ file.name }}</span>
+      <span class="chat-file-download__name">{{ id }}.csv</span>
       <span class="chat-file-download__hint">{{ loading ? '下载中' : '点击下载' }}</span>
     </span>
   </button>

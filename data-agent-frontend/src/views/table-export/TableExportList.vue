@@ -77,8 +77,8 @@
   async function handleDownload(row: TableExportResponse) {
     try {
       await downloadTableExport(row.id);
-    } catch (e) {
-      ElMessage.error((e as Error).message || '下载失败');
+    } catch {
+      // request interceptor shows the error message.
     }
   }
 
@@ -87,8 +87,8 @@
       await deleteTableExport(row.id);
       ElMessage.success('删除成功');
       fetchExports();
-    } catch (e) {
-      ElMessage.error((e as Error).message || '删除失败');
+    } catch {
+      // request interceptor shows the error message.
     }
   }
 

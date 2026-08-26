@@ -16,6 +16,7 @@
  */
 
 import request from './request';
+import type { ApiResponse } from './request';
 import type { PageResponse } from './types';
 import { downloadBlob } from '@/utils/download';
 
@@ -34,14 +35,13 @@ export interface TableExportPageQuery {
 }
 
 export function getTableExports(query: TableExportPageQuery) {
-  return request.get<{ code: number; message: string; data: PageResponse<TableExportResponse> }>(
-    '/table-exports',
-    { params: query },
-  );
+  return request.get<ApiResponse<PageResponse<TableExportResponse>>>('/table-exports', {
+    params: query,
+  });
 }
 
 export function deleteTableExport(id: string) {
-  return request.delete<{ code: number; message: string; data: boolean }>(`/table-exports/${id}`);
+  return request.delete<ApiResponse<boolean>>(`/table-exports/${id}`);
 }
 
 export async function downloadTableExport(id: string) {

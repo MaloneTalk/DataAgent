@@ -23,7 +23,6 @@ import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.service.TableExportService;
-import io.github.malonetalk.utils.RequestAssert;
 import jakarta.validation.Valid;
 import java.nio.file.Path;
 import lombok.AllArgsConstructor;
@@ -55,9 +54,7 @@ public class TableExportController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> download(@PathVariable String id) {
-        RequestAssert.requireNotBlank(id, "id cannot be blank.");
         Path file = tableExportService.findDownload(id, UserContext.requireScopedUserId());
-        Resource resource = new FileSystemResource(file);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
                 .header(
@@ -66,12 +63,11 @@ public class TableExportController {
                                 .filename(file.getFileName().toString())
                                 .build()
                                 .toString())
-                .body(resource);
+                .body(new FileSystemResource(file));
     }
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable String id) {
-        RequestAssert.requireNotBlank(id, "id cannot be blank.");
         tableExportService.deleteById(id, UserContext.requireScopedUserId());
         return Result.success(true);
     }

@@ -16,6 +16,7 @@
  */
 
 import request from './request';
+import type { ApiResponse } from './request';
 import type { PageResponse } from './types';
 
 export interface ReportResponse {
@@ -36,12 +37,9 @@ export interface ReportPageQuery {
 }
 
 export function getReports(query: ReportPageQuery) {
-  return request.get<{ code: number; message: string; data: PageResponse<ReportResponse> }>(
-    '/reports',
-    { params: query },
-  );
+  return request.get<ApiResponse<PageResponse<ReportResponse>>>('/reports', { params: query });
 }
 
 export function deleteReport(id: number) {
-  return request.delete<{ code: number; message: string; data: boolean }>(`/reports/${id}`);
+  return request.delete<ApiResponse<boolean>>(`/reports/${id}`);
 }

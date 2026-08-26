@@ -35,17 +35,6 @@
     description: string;
   }
 
-  const props = withDefaults(
-    defineProps<{
-      keyword?: string;
-      sortOrder?: 'asc' | 'desc';
-    }>(),
-    {
-      keyword: '',
-      sortOrder: 'asc',
-    },
-  );
-
   const domainLoading = ref(false);
   const domainError = ref('');
   const domainRows = ref<DomainInfo[]>([]);
@@ -81,8 +70,6 @@
       const response = await getDomainPage({
         page: domainPage.page,
         pageSize: domainPage.pageSize,
-        keyword: props.keyword.trim() || undefined,
-        sortOrder: props.sortOrder,
       });
       const pageData = response.data.data;
       domainRows.value = pageData.items;

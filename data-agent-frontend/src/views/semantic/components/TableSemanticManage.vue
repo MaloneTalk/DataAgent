@@ -41,17 +41,6 @@
     isVisible: boolean;
   }
 
-  const props = withDefaults(
-    defineProps<{
-      keyword?: string;
-      sortOrder?: 'asc' | 'desc';
-    }>(),
-    {
-      keyword: '',
-      sortOrder: 'asc',
-    },
-  );
-
   const loading = ref(false);
   const error = ref('');
   const rows = ref<TableSemanticInfo[]>([]);
@@ -118,8 +107,6 @@
         datasourceId: activeDatasourceId,
         page: page.page,
         pageSize: page.pageSize,
-        keyword: props.keyword.trim() || undefined,
-        sortOrder: props.sortOrder,
       });
       const pageData = response.data.data;
       rows.value = pageData.items;

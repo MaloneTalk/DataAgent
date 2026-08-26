@@ -43,6 +43,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -82,7 +83,6 @@ public class TableExportServiceImpl implements TableExportService {
 
         String exportId = UUID.randomUUID().toString();
         Path target = exportFile(exportId);
-        ensureInExportDir(target);
 
         try {
             int rowCount = writeCsv(datasource, safeSql, target);
@@ -91,6 +91,7 @@ public class TableExportServiceImpl implements TableExportService {
             tableExport.setSessionId(exportSessionId);
             tableExport.setTitle(exportTitle);
             tableExport.setRowCount(rowCount);
+            tableExport.setCreateTime(LocalDateTime.now());
             if (tableExportMapper.insert(tableExport) <= 0) {
                 throw BusinessException.of(
                         ErrorCode.OPERATION_FAILED, "Failed to save table export.");
@@ -142,14 +143,14 @@ public class TableExportServiceImpl implements TableExportService {
         sessionService.requireOwnership(userId, tableExport.getSessionId());
         Path file = exportFile(id);
         ensureInExportDir(file);
+        if (tableExportMapper.deleteById(id) == 0) {
+            throw exportNotFound(id);
+        }
         try {
             Files.deleteIfExists(file);
         } catch (IOException e) {
             throw BusinessException.of(
                     ErrorCode.OPERATION_FAILED, "Failed to delete export file.", e);
-        }
-        if (tableExportMapper.deleteById(id) == 0) {
-            throw exportNotFound(id);
         }
     }
 
