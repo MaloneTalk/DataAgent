@@ -21,15 +21,16 @@ import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.Datasource;
-import java.nio.file.Path;
 
 public interface TableExportService {
+
+    record TableExportDownload(String fileName, byte[] content) {}
 
     TableExportResponse create(String sessionId, Datasource datasource, String title, String sql);
 
     PageResponse<TableExportResponse> getExportPage(TableExportPageQuery query, Integer userId);
 
-    Path findDownload(String id, Integer userId);
+    TableExportDownload findDownload(String id, Integer userId);
 
     void deleteById(String id, Integer userId);
 }

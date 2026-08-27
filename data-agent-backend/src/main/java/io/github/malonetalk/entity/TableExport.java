@@ -27,5 +27,6 @@ public class TableExport {
     private String title;
     private Integer rowCount;
     private String sessionId;
+    private byte[] csvContent;
     private LocalDateTime createTime;
 }

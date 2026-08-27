@@ -23,11 +23,9 @@ import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.service.TableExportService;
+import io.github.malonetalk.service.TableExportService.TableExportDownload;
 import jakarta.validation.Valid;
-import java.nio.file.Path;
 import lombok.AllArgsConstructor;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -53,17 +51,18 @@ public class TableExportController {
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable String id) {
-        Path file = tableExportService.findDownload(id, UserContext.requireScopedUserId());
+    public ResponseEntity<byte[]> download(@PathVariable String id) {
+        TableExportDownload file =
+                tableExportService.findDownload(id, UserContext.requireScopedUserId());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment()
-                                .filename(file.getFileName().toString())
+                                .filename(file.fileName())
                                 .build()
                                 .toString())
-                .body(new FileSystemResource(file));
+                .body(file.content());
     }
 
     @DeleteMapping("/{id}")

@@ -4,14 +4,15 @@
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.TableExport">
         INSERT INTO table_export (
-            id, title, row_count, session_id, create_time
+            id, title, row_count, session_id, csv_content, create_time
         ) VALUES (
-            #{id}, #{title}, #{rowCount}, #{sessionId}, #{createTime}
+            #{id}, #{title}, #{rowCount}, #{sessionId}, #{csvContent}, #{createTime}
         )
     </insert>
 
     <select id="selectPage" resultType="io.github.malonetalk.entity.TableExport">
-        SELECT te.* FROM table_export te
+        SELECT te.id, te.title, te.row_count, te.session_id, te.create_time
+        FROM table_export te
         <where>
             <if test="sessionId != null and sessionId != ''">
                 te.session_id = #{sessionId}
@@ -27,7 +28,15 @@
     </select>
 
     <select id="selectById" resultType="io.github.malonetalk.entity.TableExport">
-        SELECT * FROM table_export WHERE id = #{id}
+        SELECT id, title, row_count, session_id, create_time
+        FROM table_export
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectDownloadById" resultType="io.github.malonetalk.entity.TableExport">
+        SELECT id, title, row_count, session_id, csv_content, create_time
+        FROM table_export
+        WHERE id = #{id}
     </select>
 
     <delete id="deleteById">

@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS `table_export` (
     `title` VARCHAR(255) NOT NULL COMMENT 'export title',
     `row_count` INT NOT NULL DEFAULT 0 COMMENT 'exported row count',
     `session_id` VARCHAR(255) NOT NULL COMMENT 'session id',
+    `csv_content` LONGBLOB NOT NULL COMMENT 'csv file content',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'create time',
     PRIMARY KEY (`id`),
     KEY `idx_session_create_time` (`session_id`, `create_time`),

@@ -32,5 +32,7 @@ public interface TableExportMapper {
 
     TableExport selectById(@Param("id") String id);
 
+    TableExport selectDownloadById(@Param("id") String id);
+
     int deleteById(@Param("id") String id);
 }

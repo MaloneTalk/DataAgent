@@ -33,11 +33,10 @@ import io.github.malonetalk.mapper.TableExportMapper;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -48,11 +47,8 @@ import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TableExportServiceImpl implements TableExportService {
@@ -65,9 +61,6 @@ public class TableExportServiceImpl implements TableExportService {
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlExecutor sqlExecutor;
     private final SessionService sessionService;
-
-    @Value("${data-agent.export-dir:${user.dir}/exports}")
-    private String exportDir;
 
     @Override
     public TableExportResponse create(
@@ -82,25 +75,18 @@ public class TableExportServiceImpl implements TableExportService {
         String safeSql = sqlExecutor.validateSelectSql(sql);
 
         String exportId = UUID.randomUUID().toString();
-        Path target = exportFile(exportId);
-
-        try {
-            int rowCount = writeCsv(datasource, safeSql, target);
-            TableExport tableExport = new TableExport();
-            tableExport.setId(exportId);
-            tableExport.setSessionId(exportSessionId);
-            tableExport.setTitle(exportTitle);
-            tableExport.setRowCount(rowCount);
-            tableExport.setCreateTime(LocalDateTime.now());
-            if (tableExportMapper.insert(tableExport) <= 0) {
-                throw BusinessException.of(
-                        ErrorCode.OPERATION_FAILED, "Failed to save table export.");
-            }
-            return toResponse(tableExport);
-        } catch (RuntimeException e) {
-            deleteQuietly(target);
-            throw e;
+        CsvResult csv = writeCsv(datasource, safeSql);
+        TableExport tableExport = new TableExport();
+        tableExport.setId(exportId);
+        tableExport.setSessionId(exportSessionId);
+        tableExport.setTitle(exportTitle);
+        tableExport.setRowCount(csv.rowCount());
+        tableExport.setCsvContent(csv.content());
+        tableExport.setCreateTime(LocalDateTime.now());
+        if (tableExportMapper.insert(tableExport) <= 0) {
+            throw BusinessException.of(ErrorCode.OPERATION_FAILED, "Failed to save table export.");
         }
+        return toResponse(tableExport);
     }
 
     @Override
@@ -125,63 +111,48 @@ public class TableExportServiceImpl implements TableExportService {
     }
 
     @Override
-    public Path findDownload(String id, Integer userId) {
-        TableExport tableExport = requireExport(id);
+    public TableExportDownload findDownload(String id, Integer userId) {
+        TableExport tableExport = requireDownload(id);
         sessionService.requireOwnership(userId, tableExport.getSessionId());
-        Path file = exportFile(id);
-        ensureInExportDir(file);
-        if (!Files.exists(file)) {
-            throw BusinessException.of(
-                    ErrorCode.RESOURCE_NOT_FOUND, "Export file does not exist: id=" + id);
-        }
-        return file;
+        return new TableExportDownload(id + ".csv", tableExport.getCsvContent());
     }
 
     @Override
     public void deleteById(String id, Integer userId) {
         TableExport tableExport = requireExport(id);
         sessionService.requireOwnership(userId, tableExport.getSessionId());
-        Path file = exportFile(id);
-        ensureInExportDir(file);
         if (tableExportMapper.deleteById(id) == 0) {
             throw exportNotFound(id);
         }
-        try {
-            Files.deleteIfExists(file);
-        } catch (IOException e) {
-            throw BusinessException.of(
-                    ErrorCode.OPERATION_FAILED, "Failed to delete export file.", e);
-        }
     }
 
-    private int writeCsv(Datasource datasource, String sql, Path target) {
+    private CsvResult writeCsv(Datasource datasource, String sql) {
         DataSource dataSource = dynamicDataSourceManager.getOrCreateDataSource(datasource);
-        try {
-            Files.createDirectories(target.getParent());
-            try (Connection conn = dataSource.getConnection();
-                    PreparedStatement stmt =
-                            conn.prepareStatement(
-                                    sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-                    BufferedWriter writer =
-                            Files.newBufferedWriter(
-                                    target,
-                                    StandardCharsets.UTF_8,
-                                    StandardOpenOption.CREATE_NEW)) {
-                stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
-                stmt.setFetchSize(
-                        "mysql".equalsIgnoreCase(datasource.getType())
-                                ? Integer.MIN_VALUE
-                                : FETCH_SIZE);
-                writer.write('\ufeff');
-                try (ResultSet rs = stmt.executeQuery()) {
-                    return writeRows(writer, rs);
-                }
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt =
+                        conn.prepareStatement(
+                                sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                BufferedWriter writer =
+                        new BufferedWriter(
+                                new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
+            stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
+            stmt.setFetchSize(
+                    "mysql".equalsIgnoreCase(datasource.getType())
+                            ? Integer.MIN_VALUE
+                            : FETCH_SIZE);
+            writer.write('\ufeff');
+            int rowCount;
+            try (ResultSet rs = stmt.executeQuery()) {
+                rowCount = writeRows(writer, rs);
             }
+            writer.flush();
+            return new CsvResult(output.toByteArray(), rowCount);
         } catch (SQLException e) {
             throw BusinessException.of(ErrorCode.SQL_EXECUTION_FAILED, "SQL export failed.", e);
         } catch (IOException e) {
             throw BusinessException.of(
-                    ErrorCode.OPERATION_FAILED, "Failed to write export file.", e);
+                    ErrorCode.OPERATION_FAILED, "Failed to write export content.", e);
         }
     }
 
@@ -237,24 +208,19 @@ public class TableExportServiceImpl implements TableExportService {
         return value;
     }
 
-    private Path rootDir() {
-        return Path.of(exportDir).toAbsolutePath().normalize();
-    }
-
-    private Path exportFile(String id) {
-        return rootDir().resolve(id + ".csv").normalize();
-    }
-
-    private void ensureInExportDir(Path target) {
-        if (!target.startsWith(rootDir())) {
-            throw BusinessException.of(ErrorCode.BAD_REQUEST, "Invalid export file path.");
-        }
-    }
-
     private TableExport requireExport(String id) {
         RequestAssert.requireNotBlank(id, "id cannot be blank.");
         TableExport tableExport = tableExportMapper.selectById(id);
         if (tableExport == null) {
+            throw exportNotFound(id);
+        }
+        return tableExport;
+    }
+
+    private TableExport requireDownload(String id) {
+        RequestAssert.requireNotBlank(id, "id cannot be blank.");
+        TableExport tableExport = tableExportMapper.selectDownloadById(id);
+        if (tableExport == null || tableExport.getCsvContent() == null) {
             throw exportNotFound(id);
         }
         return tableExport;
@@ -269,16 +235,10 @@ public class TableExportServiceImpl implements TableExportService {
                 tableExport.getCreateTime());
     }
 
-    private void deleteQuietly(Path file) {
-        try {
-            Files.deleteIfExists(file);
-        } catch (IOException e) {
-            log.warn("Failed to delete export file: {}", file, e);
-        }
-    }
-
     private BusinessException exportNotFound(String id) {
         return BusinessException.of(
                 ErrorCode.RESOURCE_NOT_FOUND, "Table export does not exist: id=" + id);
     }
+
+    private record CsvResult(byte[] content, int rowCount) {}
 }
