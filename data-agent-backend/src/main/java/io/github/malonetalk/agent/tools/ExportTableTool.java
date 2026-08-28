@@ -42,7 +42,8 @@ public class ExportTableTool implements MarkAgentTool {
             description =
                     "Export a SELECT query result to a CSV spreadsheet file and return a download"
                         + " link. Use this after large data queries or when the user asks to export"
-                        + " data.")
+                        + " data. Exports are capped at 10000 rows; add filters or LIMIT for larger"
+                        + " tables.")
     public ToolResultBlock exportTable(
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to export")
                     String sql,

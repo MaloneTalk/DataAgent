@@ -56,6 +56,7 @@ public class TableExportServiceImpl implements TableExportService {
     private static final int FETCH_SIZE = 1000;
     private static final int QUERY_TIMEOUT_SECONDS = 120;
     private static final int MAX_TITLE_LENGTH = 255;
+    private static final int MAX_EXPORT_ROWS = 10_000;
 
     private final TableExportMapper tableExportMapper;
     private final DynamicDataSourceManager dynamicDataSourceManager;
@@ -169,6 +170,13 @@ public class TableExportServiceImpl implements TableExportService {
 
         int rowCount = 0;
         while (rs.next()) {
+            if (rowCount >= MAX_EXPORT_ROWS) {
+                throw BusinessException.of(
+                        ErrorCode.BAD_REQUEST,
+                        "Export result exceeds "
+                                + MAX_EXPORT_ROWS
+                                + " rows. Add filters or LIMIT to reduce it.");
+            }
             for (int i = 1; i <= columnCount; i++) {
                 if (i > 1) {
                     writer.write(',');

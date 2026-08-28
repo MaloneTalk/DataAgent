@@ -25,4 +25,5 @@ download URL instead of pasting large row sets into the chat.
 - If the query result is empty, suggest the user check the query conditions
 - When the user's question is ambiguous about which domain to use, query multiple domains to increase coverage
 - Use `execute_sql` for preview and validation; use `export_table` for large readable spreadsheets.
+- `export_table` is capped at 10000 rows per export; add filters or LIMIT for larger tables.
 - Large exports are optimized for MySQL streaming. PostgreSQL can be queried, but large PostgreSQL exports need cursor/transaction support before relying on them.

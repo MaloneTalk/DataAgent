@@ -83,7 +83,7 @@ export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 
 > **SQLite 特殊说明**：SQLite 是本地文件数据库，没有主机/端口概念。新增时无需填写主机/端口/数据库名，直接在「连接URL」中填写形如 `jdbc:sqlite:/path/to/db` 的文件路径即可。
 
-> **表格导出限制**：`export_table` 会把 SELECT 结果导出为 CSV，CSV 内容保存在元数据库中，适合数据量可控的导出结果。当前大批量导出的流式读取按 MySQL 路径处理；PostgreSQL 虽可接入查询，但大批量导出前需在实现中补 cursor/事务设置（例如关闭 auto-commit），否则驱动可能一次性拉取结果集。
+> **表格导出限制**：`export_table` 会把 SELECT 结果导出为 CSV，CSV 内容保存在元数据库中，单次最多 10000 行。当前大批量导出的流式读取按 MySQL 路径处理；PostgreSQL 虽可接入查询，但大批量导出前需在实现中补 cursor/事务设置（例如关闭 auto-commit），否则驱动可能一次性拉取结果集。
 
 > 上述列表之外的其他 JDBC 兼容数据库，可通过扩展 `DataSourceType` 枚举接入（见 [contributing.md](contributing.md)）。
 
