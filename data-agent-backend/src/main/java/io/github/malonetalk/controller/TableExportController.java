@@ -20,10 +20,10 @@ package io.github.malonetalk.controller;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.TableExportPageQuery;
+import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.service.TableExportService;
-import io.github.malonetalk.service.TableExportService.TableExportDownload;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ContentDisposition;
@@ -52,7 +52,7 @@ public class TableExportController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<byte[]> download(@PathVariable String id) {
-        TableExportDownload file =
+        TableExportResource file =
                 tableExportService.findDownload(id, UserContext.requireScopedUserId());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))

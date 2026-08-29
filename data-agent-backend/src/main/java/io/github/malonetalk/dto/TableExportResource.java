@@ -15,21 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
+package io.github.malonetalk.dto;
 
-import io.github.malonetalk.dto.TableExportPageQuery;
-import io.github.malonetalk.dto.TableExportResource;
-import io.github.malonetalk.dto.TableExportResponse;
-import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.entity.Datasource;
-
-public interface TableExportService {
-
-    TableExportResponse create(String sessionId, Datasource datasource, String title, String sql);
-
-    PageResponse<TableExportResponse> getExportPage(TableExportPageQuery query, Integer userId);
-
-    TableExportResource findDownload(String id, Integer userId);
-
-    void deleteById(String id, Integer userId);
-}
+public record TableExportResource(String fileName, byte[] content) {}

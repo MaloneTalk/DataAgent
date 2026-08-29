@@ -24,6 +24,7 @@ import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.dto.TableExportPageQuery;
+import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.Datasource;
@@ -112,10 +113,10 @@ public class TableExportServiceImpl implements TableExportService {
     }
 
     @Override
-    public TableExportDownload findDownload(String id, Integer userId) {
+    public TableExportResource findDownload(String id, Integer userId) {
         TableExport tableExport = requireDownload(id);
         sessionService.requireOwnership(userId, tableExport.getSessionId());
-        return new TableExportDownload(id + ".csv", tableExport.getCsvContent());
+        return new TableExportResource(id + ".csv", tableExport.getCsvContent());
     }
 
     @Override
