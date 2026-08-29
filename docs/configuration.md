@@ -83,6 +83,8 @@ export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 
 > **SQLite 特殊说明**：SQLite 是本地文件数据库，没有主机/端口概念。新增时无需填写主机/端口/数据库名，直接在「连接URL」中填写形如 `jdbc:sqlite:/path/to/db` 的文件路径即可。
 
+> **表格导出限制**：`export_table` 会把 SELECT 结果导出为 CSV，CSV 内容保存在元数据库中，单次最多 10000 行。当前大批量导出的流式读取按 MySQL 路径处理；PostgreSQL 虽可接入查询，但大批量导出前需在实现中补 cursor/事务设置（例如关闭 auto-commit），否则驱动可能一次性拉取结果集。
+
 > 上述列表之外的其他 JDBC 兼容数据库，可通过扩展 `DataSourceType` 枚举接入（见 [contributing.md](contributing.md)）。
 
 > 连接信息（host/port/database/username/password）保存在元数据库中，属敏感信息，请妥善管理元数据库访问权限。
@@ -148,7 +150,7 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 - 后端启动时，`AdminBootstrapRunner` 检查 `sys_user` 表是否为空；若为空，用 `admin.init-password` 创建 `admin` 用户（用户名固定为 `admin`，`displayName` 为「管理员」，`role_id=1`）。
 - 登录接口 `POST /api/auth/login` 接受 `{ username, password }`，返回 `{ token, user }`。前端将 token 存入 `localStorage`，后续请求通过 `Authorization: Bearer <token>` 携带。
 - `AuthInterceptor` 拦截除 `/api/auth/login` 外的所有接口（含 SSE 流式端点），校验 token 签名与时效。
-- 登录后可访问基础功能；带 `@AdminOnly` 的管理接口要求当前用户 `role_id=1`。后续可在「用户管理」和「角色管理」页面中创建角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
+- 登录后可访问基础功能；带 `@AdminOnly` 的管理接口要求当前用户 `role_id=1`。后续可在「系统管理」中创建用户、维护角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
 
 ## 8. 安全提示
 

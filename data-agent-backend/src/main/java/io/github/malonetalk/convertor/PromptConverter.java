@@ -17,9 +17,6 @@
  */
 package io.github.malonetalk.convertor;
 
-import io.github.malonetalk.common.SemanticConstants;
-import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
-import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.prompt.TableRelationPromptResponse;
@@ -29,85 +26,35 @@ import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
-import java.util.Map;
 
-/** 物理层/语义层 → Agent Prompt DTO 的统一转换器，集中管理所有面向 LLM 的 DTO 映射逻辑。 */
+/** Converts synced semantic-layer snapshots into Agent-facing prompt DTOs. */
 public final class PromptConverter {
 
     private PromptConverter() {}
 
-    /** 将物理列信息与语义列信息合并，转换为面向 Agent 的列响应 DTO */
-    public static ColumnPromptResponse mapColumnPrompt(
-            PhysicalColumnInfo physicalColumn, Map<String, ColumnInfo> semanticByName) {
-        ColumnInfo semanticColumn =
-                semanticByName.get(
-                        SemanticUtils.normalizeObjectName(
-                                physicalColumn.columnName(),
-                                "Missing physical column name for prompt conversion."));
-        // null = 没有语义列记录，视为纯物理列、纳入 prompt；
-        // 仅在确有语义记录且不可用时才跳过
-        if (semanticColumn != null
-                && !SemanticAvailabilityHelper.isColumnAvailable(
-                        semanticColumn, UsageLevelEnum.AI_PROMPT)) {
+    public static ColumnPromptResponse mapColumnPrompt(ColumnInfo column) {
+        if (!SemanticAvailabilityHelper.isColumnAvailable(column, UsageLevelEnum.AI_PROMPT)) {
             return null;
         }
-
-        String description =
-                SemanticUtils.firstNonBlank(
-                        semanticColumn == null ? null : semanticColumn.getColumnDescription(),
-                        physicalColumn.remarks());
-
-        StringBuilder typeBuilder = new StringBuilder(physicalColumn.typeName());
-        if (physicalColumn.columnSize() > 0) {
-            typeBuilder.append("(").append(physicalColumn.columnSize()).append(")");
-        }
-
         return ColumnPromptResponse.builder()
-                .name(physicalColumn.columnName())
-                .type(typeBuilder.toString())
-                .primaryKey(physicalColumn.primaryKey())
-                .nullable(physicalColumn.nullable())
-                .defaultValue(SemanticUtils.trimToNull(physicalColumn.defaultValue()))
-                .description(description)
+                .name(column.getColumnName())
+                .type(SemanticUtils.trimToNull(column.getTypeName()))
+                .primaryKey(column.getPrimaryKey())
+                .description(SemanticUtils.trimToNull(column.getColumnDescription()))
+                .indexInfo(SemanticUtils.trimToNull(column.getIndexInfo()))
                 .build();
     }
 
-    /** 将物理表信息与语义表信息合并，转换为面向 Agent 的表响应 DTO */
     public static TablePromptResponse mapTablePrompt(
-            PhysicalTableInfo physicalTable,
-            Map<String, TableInfo> semanticByName,
-            List<TableRelationPromptResponse> resolvedRelations) {
-        TableInfo semanticTable =
-                semanticByName.get(
-                        SemanticUtils.normalizeObjectName(
-                                physicalTable.tableName(),
-                                "Missing physical table name for prompt conversion."));
-        // ponytail: null = 没有语义表记录，视为纯物理表、纳入 prompt；
-        // 仅在确有语义记录且不可用时才跳过
-        if (semanticTable != null
-                && !SemanticAvailabilityHelper.isTableAvailable(
-                        semanticTable, UsageLevelEnum.AI_PROMPT)) {
+            TableInfo table, List<TableRelationPromptResponse> resolvedRelations) {
+        if (!SemanticAvailabilityHelper.isTableAvailable(table, UsageLevelEnum.AI_PROMPT)) {
             return null;
         }
-
         return TablePromptResponse.builder()
-                .name(physicalTable.tableName())
-                .domain(resolveDomain(semanticTable))
-                .description(resolveDescription(physicalTable, semanticTable))
+                .name(table.getTableName())
+                .domain(SemanticUtils.normalizeDomain(table.getDomain()))
+                .description(SemanticUtils.trimToNull(table.getTableDescription()))
                 .relations(resolvedRelations)
                 .build();
-    }
-
-    private static String resolveDomain(TableInfo semanticTable) {
-        return semanticTable == null
-                ? SemanticConstants.DEFAULT_DOMAIN
-                : SemanticUtils.normalizeDomain(semanticTable.getDomain());
-    }
-
-    private static String resolveDescription(
-            PhysicalTableInfo physicalTable, TableInfo semanticTable) {
-        return SemanticUtils.firstNonBlank(
-                semanticTable == null ? null : semanticTable.getTableDescription(),
-                physicalTable.remarks());
     }
 }

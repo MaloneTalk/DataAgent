@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     `physical_status` TINYINT(1) DEFAULT 1 COMMENT '物理列是否存在',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `index_info` TEXT COMMENT 'physical index info',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_datasource_table_column` (`datasource_id`, `table_name`, `column_name`),
     KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_visible`),
@@ -105,6 +106,18 @@ CREATE TABLE IF NOT EXISTS `report` (
     PRIMARY KEY (`id`),
     KEY `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告表';
+
+CREATE TABLE IF NOT EXISTS `table_export` (
+    `id` VARCHAR(36) NOT NULL COMMENT 'export id',
+    `title` VARCHAR(255) NOT NULL COMMENT 'export title',
+    `row_count` INT NOT NULL DEFAULT 0 COMMENT 'exported row count',
+    `session_id` VARCHAR(255) NOT NULL COMMENT 'session id',
+    `csv_content` LONGBLOB NOT NULL COMMENT 'csv file content',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'create time',
+    PRIMARY KEY (`id`),
+    KEY `idx_session_create_time` (`session_id`, `create_time`),
+    KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='table export';
 
 CREATE TABLE IF NOT EXISTS  `agentscope_sessions` (
   `session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,

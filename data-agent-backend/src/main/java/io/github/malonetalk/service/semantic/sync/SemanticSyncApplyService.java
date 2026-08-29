@@ -237,7 +237,8 @@ public class SemanticSyncApplyService {
             }
             if (!Objects.equals(existingColumn.getPhysicalColumnDescription(), column.description())
                     || !Objects.equals(existingColumn.getTypeName(), column.typeName())
-                    || !Objects.equals(existingColumn.getPrimaryKey(), column.primaryKey())) {
+                    || !Objects.equals(existingColumn.getPrimaryKey(), column.primaryKey())
+                    || !Objects.equals(existingColumn.getIndexInfo(), column.indexInfo())) {
                 updatedColumns++;
             }
         }
@@ -353,6 +354,7 @@ public class SemanticSyncApplyService {
         tableInfo.setDatasourceId(datasourceId);
         tableInfo.setTableName(table.tableName());
         tableInfo.setPhysicalTableDescription(table.description());
+        tableInfo.setTableDescription(table.description());
         tableInfo.setDomain(SemanticConstants.DEFAULT_DOMAIN);
         tableInfo.setIsVisible(Boolean.TRUE);
         tableInfo.setPhysicalStatus(Boolean.TRUE);
@@ -366,8 +368,10 @@ public class SemanticSyncApplyService {
         columnInfo.setTableName(tableName);
         columnInfo.setColumnName(column.columnName());
         columnInfo.setPhysicalColumnDescription(column.description());
+        columnInfo.setColumnDescription(column.description());
         columnInfo.setTypeName(column.typeName());
         columnInfo.setPrimaryKey(column.primaryKey());
+        columnInfo.setIndexInfo(column.indexInfo());
         columnInfo.setIsVisible(Boolean.TRUE);
         columnInfo.setPhysicalStatus(Boolean.TRUE);
         return columnInfo;
@@ -377,5 +381,9 @@ public class SemanticSyncApplyService {
             String tableName, String description, List<ColumnSyncSource> columns) {}
 
     public record ColumnSyncSource(
-            String columnName, String description, String typeName, Boolean primaryKey) {}
+            String columnName,
+            String description,
+            String typeName,
+            Boolean primaryKey,
+            String indexInfo) {}
 }

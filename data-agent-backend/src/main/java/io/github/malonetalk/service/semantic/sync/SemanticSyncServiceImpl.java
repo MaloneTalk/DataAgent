@@ -205,8 +205,9 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                             SemanticUtils.requireTrimmed(
                                     column.columnName(), "Missing physical columnName."),
                             SemanticUtils.trimToNull(column.remarks()),
-                            SemanticUtils.trimToNull(column.typeName()),
-                            column.primaryKey()));
+                            column.formattedTypeName(),
+                            column.primaryKey(),
+                            column.formattedIndexInfo()));
         }
         return new TableSyncSource(
                 physicalTable.tableName(),

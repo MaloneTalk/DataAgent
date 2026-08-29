@@ -36,6 +36,7 @@ public class ToolExceptionMapper {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
 
+    // TODO: 所有工具都接上，并且转为AOP切面形式
     public ToolResultBlock run(ToolAction action) {
         try {
             return action.run();

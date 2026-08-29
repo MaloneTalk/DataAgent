@@ -22,9 +22,4 @@ import lombok.Builder;
 /** Agent-facing DTO for LLM prompt formatting. */
 @Builder
 public record ColumnPromptResponse(
-        String name,
-        String type,
-        Boolean primaryKey,
-        Boolean nullable,
-        String defaultValue,
-        String description) {}
+        String name, String type, Boolean primaryKey, String description, String indexInfo) {}

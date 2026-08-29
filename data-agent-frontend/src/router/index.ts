@@ -51,33 +51,83 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/semantic',
-    name: 'SemanticManage',
-    component: () => import('@/views/semantic/SemanticManage.vue'),
-    meta: { title: '语义管理' },
+    redirect: '/semantic/domain',
   },
   {
-    path: '/report',
+    path: '/semantic/domain',
+    name: 'DomainManage',
+    component: () => import('@/views/semantic/components/DomainManage.vue'),
+    meta: { title: '数据领域' },
+  },
+  {
+    path: '/semantic/table',
+    name: 'TableSemanticManage',
+    component: () => import('@/views/semantic/components/TableSemanticManage.vue'),
+    meta: { title: '表语义' },
+  },
+  {
+    path: '/semantic/metric',
+    name: 'MetricManage',
+    component: () => import('@/views/metric/MetricManage.vue'),
+    meta: { title: '指标口径' },
+  },
+  {
+    path: '/semantic/relation',
+    name: 'RelationManage',
+    component: () => import('@/views/semantic/components/RelationManage.vue'),
+    meta: { title: '逻辑外键' },
+  },
+  {
+    path: '/asset',
+    redirect: '/asset/report',
+  },
+  {
+    path: '/asset/report',
     name: 'ReportList',
     component: () => import('@/views/report/ReportList.vue'),
     meta: { title: '报告管理' },
   },
   {
-    path: '/metric',
-    name: 'MetricManage',
-    component: () => import('@/views/metric/MetricManage.vue'),
-    meta: { title: '指标口径管理' },
+    path: '/asset/table-export',
+    name: 'TableExportList',
+    component: () => import('@/views/table-export/TableExportList.vue'),
+    meta: { title: '表格导出' },
   },
   {
-    path: '/sys-user',
+    path: '/system',
+    redirect: '/system/user',
+  },
+  {
+    path: '/system/user',
     name: 'UserManage',
     component: () => import('@/views/sys-user/UserManage.vue'),
     meta: { title: '用户管理' },
   },
   {
-    path: '/sys-role',
+    path: '/system/role',
     name: 'RoleManage',
     component: () => import('@/views/sys-role/RoleManage.vue'),
     meta: { title: '角色管理' },
+  },
+  {
+    path: '/metric',
+    redirect: '/semantic/metric',
+  },
+  {
+    path: '/sys-user',
+    redirect: '/system/user',
+  },
+  {
+    path: '/sys-role',
+    redirect: '/system/role',
+  },
+  {
+    path: '/report',
+    redirect: '/asset/report',
+  },
+  {
+    path: '/table-export',
+    redirect: '/asset/table-export',
   },
 ];
 

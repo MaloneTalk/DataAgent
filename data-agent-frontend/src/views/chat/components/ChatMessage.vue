@@ -19,6 +19,7 @@
   import { computed, ref, onUnmounted } from 'vue';
   import { marked } from 'marked';
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
+  import ChatFileDownload from './ChatFileDownload.vue';
   import TracePanel from './TracePanel.vue';
 
   marked.use({ gfm: true, breaks: true });
@@ -44,7 +45,23 @@
     };
   });
 
-  const renderedText = computed(() => marked.parse(contentParts.value.text) as string);
+  const TABLE_EXPORT_RE = /\/api\/table-exports\/([0-9a-f-]{36})\/download/i;
+
+  function extractDownloads(text: string) {
+    const fileIds: string[] = [];
+    const lines = text.split('\n').filter(line => {
+      const match = line.match(TABLE_EXPORT_RE);
+      if (!match) {
+        return true;
+      }
+      fileIds.push(match[1]);
+      return false;
+    });
+    return { text: lines.join('\n').trim(), fileIds };
+  }
+
+  const textContent = computed(() => extractDownloads(contentParts.value.text));
+  const renderedText = computed(() => marked.parse(textContent.value.text) as string);
   const renderedSummary = computed(() => marked.parse(contentParts.value.summary) as string);
 
   const copied = ref(false);
@@ -83,12 +100,16 @@
         :message="message"
         @preview-report="c => emit('previewReport', c)"
       />
-      <div v-if="contentParts.text" class="chat-message__content" v-html="renderedText"></div>
+      <div v-if="textContent.text" class="chat-message__content" v-html="renderedText"></div>
+      <div v-if="textContent.fileIds.length > 0" class="chat-message__downloads">
+        <ChatFileDownload v-for="id in textContent.fileIds" :key="id" :id="id" />
+      </div>
       <div v-if="contentParts.summary" class="chat-message__summary" v-html="renderedSummary"></div>
       <div
         v-if="
           message.isStreaming &&
-          !contentParts.text &&
+          !textContent.text &&
+          textContent.fileIds.length === 0 &&
           !contentParts.summary &&
           message.traceSteps.length === 0
         "
@@ -98,7 +119,10 @@
         <span class="chat-message__cursor">...</span>
       </div>
       <span
-        v-if="message.isStreaming && (contentParts.text || contentParts.summary)"
+        v-if="
+          message.isStreaming &&
+          (textContent.text || textContent.fileIds.length > 0 || contentParts.summary)
+        "
         class="chat-message__cursor"
       >
         |
@@ -262,6 +286,12 @@
       padding-left: 20px;
       margin: 4px 0 8px;
     }
+  }
+
+  .chat-message__downloads {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   [data-theme='dark'] .chat-message__summary {

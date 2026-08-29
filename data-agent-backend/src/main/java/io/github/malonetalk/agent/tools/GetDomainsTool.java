@@ -35,12 +35,14 @@ public class GetDomainsTool implements MarkAgentTool {
     @Tool(
             name = "get_domains",
             description =
-                    "Get available data domains in the datasource. Call this tool first to discover"
-                            + " what domains are available before querying tables.")
+                    "Get available data domains, including domain names and descriptions. Call"
+                            + " this tool first to choose the most relevant domains before querying"
+                            + " tables.")
     public ToolResultBlock getDomains() {
         return toolExceptionMapper.run(
                 () ->
                         ToolResultBlock.text(
-                                JsonUtils.getJsonCodec().toJson(domainService.listDomainNames())));
+                                JsonUtils.getJsonCodec()
+                                        .toJson(domainService.listDomainPrompts())));
     }
 }

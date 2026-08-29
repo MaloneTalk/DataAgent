@@ -29,7 +29,7 @@
     (e: 'previewReport', content: string): void;
   }>();
 
-  const isExpanded = ref(true);
+  const isExpanded = ref(false);
 
   function toggleExpand() {
     isExpanded.value = !isExpanded.value;
@@ -132,7 +132,8 @@
     <div class="trace-panel__header" @click="toggleExpand">
       <span class="trace-panel__arrow">></span>
       <span class="trace-panel__dot"></span>
-      <span class="trace-panel__title">Agent 思考与执行链路</span>
+      <span v-if="message.isStreaming" class="trace-panel__spinner"></span>
+      <span class="trace-panel__title">{{ message.isStreaming ? '思考中' : '思考完成' }}</span>
       <span class="trace-panel__summary">{{ summaryLabel }}</span>
     </div>
     <div v-show="isExpanded" class="trace-panel__body">
@@ -216,6 +217,15 @@
 
   .trace-panel__title {
     white-space: nowrap;
+  }
+
+  .trace-panel__spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--app-border);
+    border-top-color: var(--app-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
 
   .trace-panel__summary {
@@ -316,5 +326,11 @@
     font-size: 12px;
     line-height: 1.5;
     margin: 0;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>

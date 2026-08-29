@@ -19,6 +19,7 @@
   import { onMounted, reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import HelpTip from '@/components/common/HelpTip.vue';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     getDomainPage,
@@ -27,16 +28,12 @@
     deleteDomain,
     type DomainInfo,
   } from '@/api/domain';
+  import { formatDateTime } from '../utils';
 
   interface DomainEditForm {
     name: string;
     description: string;
   }
-
-  const props = defineProps<{
-    keyword: string;
-    sortOrder: 'asc' | 'desc';
-  }>();
 
   const domainLoading = ref(false);
   const domainError = ref('');
@@ -63,6 +60,7 @@
 
   const domainRules: FormRules<DomainEditForm> = {
     name: [{ required: true, message: '领域名称不能为空', trigger: 'blur' }],
+    description: [{ required: true, whitespace: true, message: '域描述不能为空', trigger: 'blur' }],
   };
 
   const loadDomainPage = async () => {
@@ -72,8 +70,6 @@
       const response = await getDomainPage({
         page: domainPage.page,
         pageSize: domainPage.pageSize,
-        keyword: props.keyword.trim() || undefined,
-        sortOrder: props.sortOrder,
       });
       const pageData = response.data.data;
       domainRows.value = pageData.items;
@@ -133,7 +129,7 @@
     try {
       const payload = {
         name: domainForm.name.trim(),
-        description: domainForm.description.trim() || undefined,
+        description: domainForm.description.trim(),
       };
 
       if (selectedDomain.value) {
@@ -168,13 +164,6 @@
     }
   };
 
-  const formatTime = (value: string | null) => {
-    if (!value) {
-      return '-';
-    }
-    return value.replace('T', ' ');
-  };
-
   defineExpose({
     loadDomainPage,
   });
@@ -186,11 +175,18 @@
 
 <template>
   <section class="table-panel">
+    <div class="page-header">
+      <h2 class="page-title page-title-with-help">
+        数据领域
+        <HelpTip>
+          <strong>数据领域</strong>
+          是业务主题分类，例如会员、订单、商品、售后。领域用于把表分组，帮助 AI
+          先判断该去哪些表里找数据。
+        </HelpTip>
+      </h2>
+    </div>
+
     <div class="section-header">
-      <div>
-        <h3>数据领域列表</h3>
-        <p>管理全局数据领域标签，可用于表语义配置。</p>
-      </div>
       <div class="section-header-actions">
         <el-button type="primary" @click="handleOpenDomainCreate">新增领域</el-button>
         <el-tag type="primary" effect="plain">共 {{ domainPage.total }} 个领域</el-tag>
@@ -206,12 +202,12 @@
       </el-table-column>
       <el-table-column label="创建时间" width="180">
         <template #default="{ row }">
-          {{ formatTime(row.createTime) }}
+          {{ formatDateTime(row.createTime) }}
         </template>
       </el-table-column>
       <el-table-column label="更新时间" width="180">
         <template #default="{ row }">
-          {{ formatTime(row.updateTime) }}
+          {{ formatDateTime(row.updateTime) }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
@@ -268,21 +264,10 @@
 <style scoped>
   .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-start;
     gap: 16px;
     margin-bottom: 20px;
-  }
-
-  .section-header h3 {
-    font-size: 16px;
-    color: var(--app-text-primary);
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-
-  .section-header p {
-    color: var(--app-text-secondary);
   }
 
   .section-header-actions {

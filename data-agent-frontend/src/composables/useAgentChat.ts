@@ -182,16 +182,11 @@ export function useAgentChat(initialSessionId?: string) {
                 toolName: event.toolCall!.name,
                 question: (event.toolCall!.input[def.questionField] as string) ?? '',
               };
-              msg.isStreaming = false;
             }
 
             if (event.type === 'report') {
               lastReportContent.value = event.toolResult?.output ?? null;
             }
-          }
-
-          if (event.isLast) {
-            msg.isStreaming = false;
           }
         });
       }
@@ -199,7 +194,6 @@ export function useAgentChat(initialSessionId?: string) {
       if ((e as Error).name !== 'AbortError') {
         updateAgentMessage(agentMsg.id, msg => {
           msg.content = msg.content || `请求失败: ${(e as Error).message}`;
-          msg.isStreaming = false;
         });
       }
     } finally {

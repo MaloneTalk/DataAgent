@@ -17,11 +17,10 @@
 
 import request, { type ApiResponse } from './request';
 import { getDatasourceList } from './datasource';
-import type { PageResponse } from './domain';
+import type { PageResponse } from './types';
 
 export interface PhysicalTableCandidateResponse {
   tableName: string;
-  physicalTableDescription: string | null;
   synced: boolean;
 }
 
@@ -29,7 +28,6 @@ export interface TableSemanticResponse {
   id: number | null;
   tableName: string;
   domain: string | null;
-  physicalTableDescription: string | null;
   tableDescription: string | null;
   isVisible: boolean;
   hasPhysicalTable: boolean;
@@ -42,10 +40,10 @@ export type TableSemanticInfo = TableSemanticResponse;
 export interface ColumnSemanticResponse {
   id: number | null;
   columnName: string;
-  physicalColumnDescription: string | null;
   columnDescription: string | null;
   typeName: string | null;
   primaryKey: boolean | null;
+  indexInfo: string | null;
   isVisible: boolean;
   hasPhysicalColumn: boolean;
   effective: boolean;

@@ -42,10 +42,8 @@ public class GetTablesTool implements MarkAgentTool {
             name = "get_tables",
             description =
                     """
-                    Get table information from the database, including table name, domain, \
-                    description and relations. Returns semantic-first merged table \
-                    information (uses semantic layer if available, falls back to physical \
-                    layer otherwise).\
+                    Get synced semantic-layer table information, including table name, domain, \
+                    description and enabled relations.\
                     """)
     public ToolResultBlock getTables(
             @ToolParam(

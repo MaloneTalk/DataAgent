@@ -23,6 +23,7 @@
   import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
   import type { RoleResponse } from '@/api/sysRole';
   import request from '@/api/request';
+  import { formatDateTime } from '@/views/semantic/utils';
 
   const loading = ref(false);
   const roles = ref<RoleResponse[]>([]);
@@ -215,7 +216,10 @@
 <template>
   <div class="role-manage-page">
     <div class="page-header">
-      <h2>角色管理</h2>
+      <h2 class="page-title">角色管理</h2>
+    </div>
+
+    <div class="table-actions">
       <el-button type="primary" @click="openCreate">新建角色</el-button>
     </div>
 
@@ -223,6 +227,11 @@
       <el-table-column prop="id" label="ID" width="70" align="center" />
       <el-table-column prop="name" label="角色名称" min-width="140" />
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+      <el-table-column label="创建时间" width="180" align="center">
+        <template #default="{ row }">
+          {{ formatDateTime(row.createTime) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="240" align="center" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
@@ -354,18 +363,13 @@
 
 <style scoped>
   .role-manage-page {
-    max-width: 900px;
+    width: 100%;
   }
-  .page-header {
+  .table-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-  .page-header h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--app-text-primary);
+    justify-content: flex-end;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 </style>

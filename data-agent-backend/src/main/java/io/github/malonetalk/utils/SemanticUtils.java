@@ -101,9 +101,13 @@ public final class SemanticUtils {
         sb.append(String.format("Schema of table %s:%n", tableName));
         sb.append("  Columns:\n");
         for (ColumnPromptResponse col : columns) {
-            sb.append(String.format("    - %s (%s)", col.name(), col.type()));
+            String type = col.type() == null ? "UNKNOWN" : col.type();
+            sb.append(String.format("    - %s (%s)", col.name(), type));
             if (Boolean.TRUE.equals(col.primaryKey())) {
                 sb.append(" [PRIMARY KEY]");
+            }
+            if (col.indexInfo() != null) {
+                sb.append(String.format(" [INDEX_PART: %s]", col.indexInfo()));
             }
             if (col.description() != null) {
                 sb.append(String.format(" - %s", col.description()));
