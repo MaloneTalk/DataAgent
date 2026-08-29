@@ -86,23 +86,19 @@ public class SessionService {
         userSessionMapper.insertIgnore(userId, sessionId);
     }
 
-    private void checkOwnership(int userId, String sessionId) {
-        if (!userSessionMapper.exists(userId, sessionId)) {
+    public void requireOwnership(Integer userId, String sessionId) {
+        if (userId != null && !userSessionMapper.exists(userId, sessionId)) {
             throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
     public List<Msg> getSessionDebug(String sessionId, Integer userId) {
-        if (userId != null) {
-            checkOwnership(userId, sessionId);
-        }
+        requireOwnership(userId, sessionId);
         return loadMessages(sessionId);
     }
 
     public List<TurnItem> getSessionHistory(String sessionId, Integer userId) {
-        if (userId != null) {
-            checkOwnership(userId, sessionId);
-        }
+        requireOwnership(userId, sessionId);
         return buildTurnItems(loadMessages(sessionId));
     }
 
@@ -219,9 +215,7 @@ public class SessionService {
 
     @Transactional
     public void clearSession(String sessionId, Integer userId) {
-        if (userId != null) {
-            checkOwnership(userId, sessionId);
-        }
+        requireOwnership(userId, sessionId);
         doClearSession(sessionId);
     }
 

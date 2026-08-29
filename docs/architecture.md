@@ -6,7 +6,7 @@
 
 | 组件 | 技术 | 职责 |
 | --- | --- | --- |
-| 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源管理、语义管理、报表管理、系统管理 |
+| 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源管理、语义管理、资产管理、系统管理 |
 | 后端 | Spring Boot 4（Java 17+） | Agent 推理、工具执行、语义层、数据源、会话、MCP 管理 |
 | Skill 系统 | 多源加载（文件系统 / Git / Nacos / classpath） | 加载"已验证查询模式"作为可复用流程 |
 | 元数据库 | MySQL | 存语义层、数据源、会话、MCP 配置、报表、用户、角色与权限等 |
@@ -82,8 +82,8 @@
 | GET/POST/PUT/DELETE | `/api/sys/user[/...]` | 用户增删改查、重置密码 |
 | GET/POST/PUT/DELETE | `/api/sys/role[/...]` | 角色增删改查、表级白名单、列级黑名单 |
 | GET/POST/PUT/DELETE | `/api/mcp-server[/...]` | MCP Server 增删改查与启用/停用 |
-| REST | `/api/datasource`、`/api/domains`、`/api/semantic/*`、`/api/metric`、`/api/reports` | 数据源、域、语义层、指标口径、报表管理 |
+| REST | `/api/datasource`、`/api/domains`、`/api/semantic/*`、`/api/metric`、`/api/reports`、`/api/table-exports` | 数据源、域、语义层、指标口径、报表与表格导出 |
 
-> 前端导航当前收敛为「AI 智能分析」「数据源管理」「语义管理」「报告管理」「系统管理」。指标口径在「语义管理」的 Tab 中维护；用户与角色在「系统管理」的 Tab 中维护。旧路由 `/metric`、`/sys-user`、`/sys-role` 会重定向到对应新入口。
+> 前端导航当前收敛为「AI 智能分析」「数据源管理」「语义管理」「资产管理」「系统管理」。「语义管理」包含数据领域、表语义、指标口径与逻辑外键；「资产管理」包含报告管理与表格导出；「系统管理」包含用户管理与角色管理。旧路由 `/metric`、`/report`、`/table-export`、`/sys-user`、`/sys-role` 会重定向到对应新入口。
 
 > 更完整的字段与请求/响应结构，建议直接阅读后端 `controller` 与 `dto` 包源码。

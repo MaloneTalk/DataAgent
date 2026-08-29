@@ -18,28 +18,35 @@
 import request from './request';
 import type { ApiResponse } from './request';
 import type { PageResponse } from './types';
+import { downloadBlob } from '@/utils/download';
 
-export interface ReportResponse {
-  id: number;
+export interface TableExportResponse {
+  id: string;
   title: string;
-  content: string;
+  rowCount: number;
   sessionId: string;
   createTime: string;
-  updateTime: string;
 }
 
-export interface ReportPageQuery {
+export interface TableExportPageQuery {
   sessionId?: string;
   page?: number;
   pageSize?: number;
-  keyword?: string;
-  sortOrder?: 'asc' | 'desc';
 }
 
-export function getReports(query: ReportPageQuery) {
-  return request.get<ApiResponse<PageResponse<ReportResponse>>>('/reports', { params: query });
+export function getTableExports(query: TableExportPageQuery) {
+  return request.get<ApiResponse<PageResponse<TableExportResponse>>>('/table-exports', {
+    params: query,
+  });
 }
 
-export function deleteReport(id: number) {
-  return request.delete<ApiResponse<boolean>>(`/reports/${id}`);
+export function deleteTableExport(id: string) {
+  return request.delete<ApiResponse<boolean>>(`/table-exports/${id}`);
+}
+
+export async function downloadTableExport(id: string) {
+  const response = await request.get<Blob>(`/table-exports/${id}/download`, {
+    responseType: 'blob',
+  });
+  downloadBlob(`${id}.csv`, response.data);
 }

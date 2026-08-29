@@ -17,16 +17,7 @@
 
 import request from './request';
 import type { ApiResponse } from './request';
-
-export interface PageResponse<T> {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-  items: T[];
-}
+import type { PageResponse } from './types';
 
 export interface DomainInfo {
   id: number;

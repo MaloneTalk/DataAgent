@@ -19,6 +19,7 @@
   import { computed, onMounted, reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import HelpTip from '@/components/common/HelpTip.vue';
   import {
     listMetrics,
     createMetric,
@@ -177,6 +178,17 @@
 
 <template>
   <div class="metric-page">
+    <div class="page-header">
+      <h2 class="page-title page-title-with-help">
+        指标口径
+        <HelpTip>
+          <strong>指标口径</strong>
+          是指标的统一计算规则。它定义业务叫法、同义词、聚合表达式、过滤条件和时间字段，供 Agent
+          生成 SQL 时检索使用。
+        </HelpTip>
+      </h2>
+    </div>
+
     <section>
       <div class="section-header">
         <div class="section-header-actions">

@@ -85,6 +85,9 @@ export function handleUnauthorized() {
 
 service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
+    if (response.config.responseType === 'blob') {
+      return response;
+    }
     const res = response.data;
     if (res.code !== 200) {
       const apiError = toApiError(res, '请求失败');

@@ -19,6 +19,7 @@
   import { onMounted, reactive, ref, nextTick } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import HelpTip from '@/components/common/HelpTip.vue';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import { getDomainNames } from '@/api/domain';
   import {
@@ -39,11 +40,6 @@
     tableDescription: string;
     isVisible: boolean;
   }
-
-  const props = defineProps<{
-    keyword: string;
-    sortOrder: 'asc' | 'desc';
-  }>();
 
   const loading = ref(false);
   const error = ref('');
@@ -111,8 +107,6 @@
         datasourceId: activeDatasourceId,
         page: page.page,
         pageSize: page.pageSize,
-        keyword: props.keyword.trim() || undefined,
-        sortOrder: props.sortOrder,
       });
       const pageData = response.data.data;
       rows.value = pageData.items;
@@ -257,6 +251,17 @@
 
 <template>
   <section class="table-panel">
+    <div class="page-header">
+      <h2 class="page-title page-title-with-help">
+        表语义
+        <HelpTip>
+          <strong>表语义</strong>
+          说明一张物理表在业务上代表什么、属于哪个领域、是否允许被 AI
+          查询，以及它和其他表的逻辑关系。
+        </HelpTip>
+      </h2>
+    </div>
+
     <div class="section-header">
       <div class="header-actions">
         <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>

@@ -19,6 +19,7 @@
   import { onMounted, reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
+  import HelpTip from '@/components/common/HelpTip.vue';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
     getDomainPage,
@@ -33,11 +34,6 @@
     name: string;
     description: string;
   }
-
-  const props = defineProps<{
-    keyword: string;
-    sortOrder: 'asc' | 'desc';
-  }>();
 
   const domainLoading = ref(false);
   const domainError = ref('');
@@ -74,8 +70,6 @@
       const response = await getDomainPage({
         page: domainPage.page,
         pageSize: domainPage.pageSize,
-        keyword: props.keyword.trim() || undefined,
-        sortOrder: props.sortOrder,
       });
       const pageData = response.data.data;
       domainRows.value = pageData.items;
@@ -181,6 +175,17 @@
 
 <template>
   <section class="table-panel">
+    <div class="page-header">
+      <h2 class="page-title page-title-with-help">
+        数据领域
+        <HelpTip>
+          <strong>数据领域</strong>
+          是业务主题分类，例如会员、订单、商品、售后。领域用于把表分组，帮助 AI
+          先判断该去哪些表里找数据。
+        </HelpTip>
+      </h2>
+    </div>
+
     <div class="section-header">
       <div class="section-header-actions">
         <el-button type="primary" @click="handleOpenDomainCreate">新增领域</el-button>

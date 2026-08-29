@@ -17,7 +17,7 @@
 
 import request, { type ApiResponse } from './request';
 import { getDatasourceList } from './datasource';
-import type { PageResponse } from './domain';
+import type { PageResponse } from './types';
 
 export interface PhysicalTableCandidateResponse {
   tableName: string;

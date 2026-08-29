@@ -107,6 +107,18 @@ CREATE TABLE IF NOT EXISTS `report` (
     KEY `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告表';
 
+CREATE TABLE IF NOT EXISTS `table_export` (
+    `id` VARCHAR(36) NOT NULL COMMENT 'export id',
+    `title` VARCHAR(255) NOT NULL COMMENT 'export title',
+    `row_count` INT NOT NULL DEFAULT 0 COMMENT 'exported row count',
+    `session_id` VARCHAR(255) NOT NULL COMMENT 'session id',
+    `csv_content` LONGBLOB NOT NULL COMMENT 'csv file content',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'create time',
+    PRIMARY KEY (`id`),
+    KEY `idx_session_create_time` (`session_id`, `create_time`),
+    KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='table export';
+
 CREATE TABLE IF NOT EXISTS  `agentscope_sessions` (
   `session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `state_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,

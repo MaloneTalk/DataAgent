@@ -15,31 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import request from './request';
-import type { ApiResponse } from './request';
-import type { PageResponse } from './types';
-
-export interface ReportResponse {
-  id: number;
-  title: string;
-  content: string;
-  sessionId: string;
-  createTime: string;
-  updateTime: string;
-}
-
-export interface ReportPageQuery {
-  sessionId?: string;
-  page?: number;
-  pageSize?: number;
-  keyword?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-export function getReports(query: ReportPageQuery) {
-  return request.get<ApiResponse<PageResponse<ReportResponse>>>('/reports', { params: query });
-}
-
-export function deleteReport(id: number) {
-  return request.delete<ApiResponse<boolean>>(`/reports/${id}`);
+export function formatDateTime(time: string) {
+  if (!time) return '-';
+  const date = new Date(time);
+  if (Number.isNaN(date.getTime())) {
+    return time;
+  }
+  return date.toLocaleString('zh-CN');
 }
