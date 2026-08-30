@@ -21,7 +21,8 @@
   import {
     deleteDashboardCard,
     getDashboardCards,
-    refreshDashboardCard,
+    refreshDashboardCards,
+    type DashboardCardRefreshResponse,
     type DashboardCardResponse,
     type QueryResult,
   } from '@/api/dashboard';
@@ -30,6 +31,29 @@
   const cards = ref<DashboardCardResponse[]>([]);
   const loading = ref(false);
   const results = ref<Record<number, QueryResult>>({});
+  const errors = ref<Record<number, string>>({});
+
+  function applyRefreshResults(data: Record<number, DashboardCardRefreshResponse>) {
+    const nextResults = { ...results.value };
+    const nextErrors = { ...errors.value };
+    for (const [id, item] of Object.entries(data)) {
+      if (item.result) {
+        nextResults[Number(id)] = item.result;
+        delete nextErrors[Number(id)];
+      } else {
+        delete nextResults[Number(id)];
+        nextErrors[Number(id)] = item.errorMessage ?? '刷新失败';
+      }
+    }
+    results.value = nextResults;
+    errors.value = nextErrors;
+  }
+
+  async function refreshCardResults(ids: number[]) {
+    if (ids.length === 0) return;
+    const res = await refreshDashboardCards(ids);
+    applyRefreshResults(res.data.data ?? {});
+  }
 
   async function loadDashboard() {
     loading.value = true;
@@ -37,15 +61,11 @@
       const cardRes = await getDashboardCards();
       cards.value = cardRes.data.data ?? [];
       results.value = {};
-      await Promise.all(cards.value.map(refreshCard));
+      errors.value = {};
+      await refreshCardResults(cards.value.map(card => card.id));
     } finally {
       loading.value = false;
     }
-  }
-
-  async function refreshCard(card: DashboardCardResponse) {
-    const res = await refreshDashboardCard(card.id);
-    results.value = { ...results.value, [card.id]: res.data.data };
   }
 
   async function removeCard(card: DashboardCardResponse) {
@@ -69,23 +89,24 @@
       <h2>看板管理</h2>
     </div>
 
-    <el-empty v-if="!loading && cards.length === 0" description="暂无卡片，从聊天结果保存一个试试" />
+    <el-empty
+      v-if="!loading && cards.length === 0"
+      description="暂无卡片，从聊天结果保存一个试试"
+    />
 
     <div v-else class="card-grid">
       <section v-for="card in cards" :key="card.id" class="dashboard-card">
         <div class="card-header">
           <div>
             <h3>{{ card.title }}</h3>
-            <p>
-              数据源 #{{ card.datasourceId }} · {{ card.chartType }}
-            </p>
+            <p>数据源 #{{ card.datasourceId }} · {{ card.chartType }}</p>
           </div>
           <div class="card-actions">
-            <el-button link type="primary" @click="refreshCard(card)">刷新</el-button>
+            <el-button link type="primary" @click="refreshCardResults([card.id])">刷新</el-button>
             <el-button link type="danger" @click="removeCard(card)">删除</el-button>
           </div>
         </div>
-        <DashboardCardChart :card="card" :result="results[card.id]" />
+        <DashboardCardChart :card="card" :result="results[card.id]" :error="errors[card.id]" />
         <details class="sql-detail">
           <summary>SQL</summary>
           <pre>{{ card.sqlText }}</pre>

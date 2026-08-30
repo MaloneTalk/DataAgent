@@ -17,14 +17,15 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.DashboardDtos.DashboardCardCreateRequest;
+import io.github.malonetalk.dto.DashboardDtos.DashboardCardRefreshResponse;
 import io.github.malonetalk.dto.DashboardDtos.DashboardCardResponse;
 import io.github.malonetalk.service.DashboardService;
 import io.github.malonetalk.utils.RequestAssert;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,9 +60,9 @@ public class DashboardController {
         return Result.success();
     }
 
-    @PostMapping("/dashboard-cards/{id}/refresh")
-    public Result<QueryResult> refreshCard(@PathVariable Integer id) {
-        RequestAssert.requireNonNegative(id, "id must be non-negative.");
-        return Result.success(dashboardService.refreshCard(id));
+    @PostMapping("/dashboard-cards/refresh")
+    public Result<Map<Integer, DashboardCardRefreshResponse>> refreshCards(
+            @RequestBody List<Integer> ids) {
+        return Result.success(dashboardService.refreshCards(ids));
     }
 }

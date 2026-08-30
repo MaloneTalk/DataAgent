@@ -29,8 +29,8 @@ public interface DashboardMapper {
 
     List<DashboardCard> selectCardsByCreator(@Param("creatorId") Integer creatorId);
 
-    DashboardCard selectCardByIdAndCreator(
-            @Param("id") Integer id, @Param("creatorId") Integer creatorId);
+    List<DashboardCard> selectCardsByIdsAndCreator(
+            @Param("ids") List<Integer> ids, @Param("creatorId") Integer creatorId);
 
     int deleteCard(@Param("id") Integer id, @Param("creatorId") Integer creatorId);
 }

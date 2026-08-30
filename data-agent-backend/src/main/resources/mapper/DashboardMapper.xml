@@ -17,11 +17,13 @@
         ORDER BY id DESC
     </select>
 
-    <select id="selectCardByIdAndCreator" resultType="io.github.malonetalk.entity.DashboardCard">
+    <select id="selectCardsByIdsAndCreator" resultType="io.github.malonetalk.entity.DashboardCard">
         SELECT * FROM dashboard_card
-        WHERE id = #{id}
-          AND creator_id = #{creatorId}
-        LIMIT 1
+        WHERE creator_id = #{creatorId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </select>
 
     <delete id="deleteCard">

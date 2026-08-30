@@ -22,13 +22,16 @@ import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.DashboardDtos.DashboardCardCreateRequest;
+import io.github.malonetalk.dto.DashboardDtos.DashboardCardRefreshResponse;
 import io.github.malonetalk.dto.DashboardDtos.DashboardCardResponse;
 import io.github.malonetalk.entity.DashboardCard;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.DashboardMapper;
 import io.github.malonetalk.utils.RequestAssert;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
+
+    private static final int MAX_REFRESH_CARDS = 100;
 
     private final DashboardMapper dashboardMapper;
     private final DatasourceService datasourceService;
@@ -49,8 +54,7 @@ public class DashboardService {
 
     @Transactional
     public DashboardCardResponse createCard(DashboardCardCreateRequest request) {
-        Integer userId = currentUserId();
-        Datasource datasource = requireDatasource(request.datasourceId());
+        Datasource datasource = datasourceService.getDatasourceForSession(request.sessionId());
         String sql = sqlExecutor.validateSelectSql(request.sqlText());
 
         DashboardCard card = new DashboardCard();
@@ -58,7 +62,7 @@ public class DashboardService {
         card.setDatasourceId(datasource.getId());
         card.setSqlText(sql);
         card.setChartType(normalizeChartType(request.chartType()));
-        card.setCreatorId(userId);
+        card.setCreatorId(currentUserId());
         if (dashboardMapper.insertCard(card) <= 0) {
             throw BusinessException.of(
                     ErrorCode.OPERATION_FAILED, "Failed to save dashboard card.");
@@ -69,23 +73,45 @@ public class DashboardService {
     @Transactional
     public void deleteCard(Integer id) {
         if (dashboardMapper.deleteCard(id, currentUserId()) <= 0) {
-            throw cardNotFound(id);
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Dashboard card does not exist: id=" + id);
         }
     }
 
-    public QueryResult refreshCard(Integer id) {
-        DashboardCard card = requireCard(id);
+    public Map<Integer, DashboardCardRefreshResponse> refreshCards(List<Integer> ids) {
+        RequestAssert.requireNotEmpty(ids, "card ids cannot be empty.");
+        ids.forEach(id -> RequestAssert.requireNonNegative(id, "id must be non-negative."));
+        List<Integer> cardIds = ids.stream().distinct().toList();
+        if (cardIds.size() > MAX_REFRESH_CARDS) {
+            throw BusinessException.of(
+                    ErrorCode.BAD_REQUEST,
+                    "Cannot refresh more than " + MAX_REFRESH_CARDS + " dashboard cards.");
+        }
+        List<DashboardCard> cards =
+                dashboardMapper.selectCardsByIdsAndCreator(cardIds, currentUserId());
+        if (cards.size() != cardIds.size()) {
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND, "Dashboard card does not exist.");
+        }
+
+        Map<Integer, DashboardCardRefreshResponse> results = new LinkedHashMap<>();
+        for (DashboardCard card : cards) {
+            results.put(card.getId(), refreshCardSafely(card));
+        }
+        return results;
+    }
+
+    private DashboardCardRefreshResponse refreshCardSafely(DashboardCard card) {
+        try {
+            return new DashboardCardRefreshResponse(refreshCard(card), null);
+        } catch (BusinessException e) {
+            return new DashboardCardRefreshResponse(null, e.getMessage());
+        }
+    }
+
+    private QueryResult refreshCard(DashboardCard card) {
         Datasource datasource = requireDatasource(card.getDatasourceId());
         return sqlExecutor.execute(datasource, card.getSqlText());
-    }
-
-    private DashboardCard requireCard(Integer id) {
-        RequestAssert.requireNonNull(id, "card id cannot be null.");
-        DashboardCard card = dashboardMapper.selectCardByIdAndCreator(id, currentUserId());
-        if (card == null) {
-            throw cardNotFound(id);
-        }
-        return card;
     }
 
     private Datasource requireDatasource(Integer id) {
@@ -119,10 +145,5 @@ public class DashboardService {
                 card.getDatasourceId(),
                 card.getSqlText(),
                 card.getChartType());
-    }
-
-    private BusinessException cardNotFound(Integer id) {
-        return BusinessException.of(
-                ErrorCode.RESOURCE_NOT_FOUND, "Dashboard card does not exist: id=" + id);
     }
 }

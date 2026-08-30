@@ -187,17 +187,8 @@
     saveCardVisible.value = true;
   }
 
-  function currentDatasourceId() {
-    return datasourceId.value ?? datasources.value.find(d => d.status === 'ACTIVE')?.id ?? null;
-  }
-
   async function submitSaveCard() {
-    const dsId = currentDatasourceId();
     const title = saveCardForm.value.title.trim();
-    if (dsId === null) {
-      ElMessage.error('请先选择或激活一个数据源');
-      return;
-    }
     if (!title) {
       ElMessage.error('卡片标题不能为空');
       return;
@@ -206,7 +197,7 @@
     try {
       await createDashboardCard({
         title,
-        datasourceId: dsId,
+        sessionId: sessionId.value,
         sqlText: saveCardForm.value.sqlText,
         chartType: saveCardForm.value.chartType,
       });

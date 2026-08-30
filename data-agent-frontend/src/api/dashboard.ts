@@ -36,9 +36,14 @@ export interface DashboardCardResponse {
 
 export interface DashboardCardCreateRequest {
   title: string;
-  datasourceId: number;
+  sessionId: string;
   sqlText: string;
   chartType: ChartType;
+}
+
+export interface DashboardCardRefreshResponse {
+  result: QueryResult | null;
+  errorMessage: string | null;
 }
 
 export function getDashboardCards() {
@@ -53,6 +58,9 @@ export function deleteDashboardCard(id: number) {
   return request.delete<ApiResponse<void>>(`/dashboard-cards/${id}`);
 }
 
-export function refreshDashboardCard(id: number) {
-  return request.post<ApiResponse<QueryResult>>(`/dashboard-cards/${id}/refresh`);
+export function refreshDashboardCards(ids: number[]) {
+  return request.post<ApiResponse<Record<number, DashboardCardRefreshResponse>>>(
+    '/dashboard-cards/refresh',
+    ids,
+  );
 }
