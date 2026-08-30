@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.DashboardMapper">
+
+    <insert id="insertCard" parameterType="io.github.malonetalk.entity.DashboardCard"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dashboard_card (
+            title, datasource_id, sql_text, chart_type, creator_id
+        ) VALUES (
+            #{title}, #{datasourceId}, #{sqlText}, #{chartType}, #{creatorId}
+        )
+    </insert>
+
+    <select id="selectCardsByCreator" resultType="io.github.malonetalk.entity.DashboardCard">
+        SELECT * FROM dashboard_card
+        WHERE creator_id = #{creatorId}
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectCardByIdAndCreator" resultType="io.github.malonetalk.entity.DashboardCard">
+        SELECT * FROM dashboard_card
+        WHERE id = #{id}
+          AND creator_id = #{creatorId}
+        LIMIT 1
+    </select>
+
+    <delete id="deleteCard">
+        DELETE FROM dashboard_card
+        WHERE id = #{id}
+          AND creator_id = #{creatorId}
+    </delete>
+</mapper>

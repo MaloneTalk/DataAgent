@@ -42,6 +42,7 @@
       title: '资产管理',
       children: [
         { path: '/asset/report', title: '报告管理' },
+        { path: '/asset/dashboard', title: '看板管理' },
         { path: '/asset/table-export', title: '表格导出' },
       ],
     },

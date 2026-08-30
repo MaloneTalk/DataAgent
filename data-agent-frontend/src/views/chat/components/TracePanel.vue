@@ -27,6 +27,7 @@
 
   const emit = defineEmits<{
     (e: 'previewReport', content: string): void;
+    (e: 'saveSqlCard', sql: string): void;
   }>();
 
   const isExpanded = ref(false);
@@ -125,6 +126,11 @@
     if (!text) return '';
     return text.replace(/\\n/g, '\n');
   }
+
+  function sqlFromStep(step: TraceStep): string {
+    const sql = step.toolCall?.input.sql;
+    return typeof sql === 'string' ? sql : '';
+  }
 </script>
 
 <template>
@@ -148,6 +154,15 @@
         <div v-if="step.type === 'tool_call' && step.toolCall" class="trace-step__code">
           <div class="code-label">Input:</div>
           <pre class="code-block">{{ displayMultiline(formatJson(step.toolCall.input)) }}</pre>
+          <el-button
+            v-if="step.toolCall.name === 'execute_sql' && sqlFromStep(step)"
+            link
+            type="primary"
+            class="trace-step__action"
+            @click.stop="emit('saveSqlCard', sqlFromStep(step))"
+          >
+            保存为卡片
+          </el-button>
         </div>
         <div
           v-if="
@@ -326,6 +341,10 @@
     font-size: 12px;
     line-height: 1.5;
     margin: 0;
+  }
+
+  .trace-step__action {
+    margin-top: 6px;
   }
 
   @keyframes spin {

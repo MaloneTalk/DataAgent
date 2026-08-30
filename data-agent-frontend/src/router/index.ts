@@ -88,6 +88,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '报告管理' },
   },
   {
+    path: '/asset/dashboard',
+    name: 'DashboardManage',
+    component: () => import('@/views/dashboard/DashboardManage.vue'),
+    meta: { title: '看板管理' },
+  },
+  {
     path: '/asset/table-export',
     name: 'TableExportList',
     component: () => import('@/views/table-export/TableExportList.vue'),
@@ -124,6 +130,10 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/report',
     redirect: '/asset/report',
+  },
+  {
+    path: '/dashboard',
+    redirect: '/asset/dashboard',
   },
   {
     path: '/table-export',

@@ -18,6 +18,8 @@
 <script setup lang="ts">
   import { ref, nextTick, watch, onMounted, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
+  import { ElMessage } from 'element-plus';
+  import { createDashboardCard, type ChartType } from '@/api/dashboard';
   import { useAgentChat } from '@/composables/useAgentChat';
   import { fetchSessionList } from '@/api/agent';
   import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
@@ -51,6 +53,13 @@
   const previewVisible = ref(false);
   const previewContent = ref('');
   const datasources = ref<DatasourceResponse[]>([]);
+  const saveCardVisible = ref(false);
+  const saveCardLoading = ref(false);
+  const saveCardForm = ref({
+    title: '',
+    sqlText: '',
+    chartType: 'table' as ChartType,
+  });
 
   // 已发过消息 = 绑定已落库 = 不可再切换数据源（锁定语义）。
   const isBound = computed(() => messages.value.length > 0);
@@ -168,6 +177,45 @@
     newSession();
     router.push(`/chat/${sessionId.value}`);
   }
+
+  function handleSaveSqlCard(sql: string) {
+    saveCardForm.value = {
+      title: '查询卡片',
+      sqlText: sql,
+      chartType: 'table',
+    };
+    saveCardVisible.value = true;
+  }
+
+  function currentDatasourceId() {
+    return datasourceId.value ?? datasources.value.find(d => d.status === 'ACTIVE')?.id ?? null;
+  }
+
+  async function submitSaveCard() {
+    const dsId = currentDatasourceId();
+    const title = saveCardForm.value.title.trim();
+    if (dsId === null) {
+      ElMessage.error('请先选择或激活一个数据源');
+      return;
+    }
+    if (!title) {
+      ElMessage.error('卡片标题不能为空');
+      return;
+    }
+    saveCardLoading.value = true;
+    try {
+      await createDashboardCard({
+        title,
+        datasourceId: dsId,
+        sqlText: saveCardForm.value.sqlText,
+        chartType: saveCardForm.value.chartType,
+      });
+      ElMessage.success('已保存到默认看板');
+      saveCardVisible.value = false;
+    } finally {
+      saveCardLoading.value = false;
+    }
+  }
 </script>
 
 <template>
@@ -245,6 +293,7 @@
           :key="msg.id"
           :message="msg"
           @preview-report="showReportPreview"
+          @save-sql-card="handleSaveSqlCard"
         />
 
         <div v-if="isStreaming && messages.length === 0" class="chat-view__thinking-hint">
@@ -275,6 +324,30 @@
         destroy-on-close
       >
         <ReportList :key="reportListKey" :fixed-session-id="sessionId" embedded />
+      </el-dialog>
+
+      <el-dialog v-model="saveCardVisible" title="保存为卡片" width="620px">
+        <el-form label-width="90px">
+          <el-form-item label="标题">
+            <el-input v-model="saveCardForm.title" />
+          </el-form-item>
+          <el-form-item label="图表类型">
+            <el-select v-model="saveCardForm.chartType" style="width: 100%">
+              <el-option label="表格" value="table" />
+              <el-option label="指标卡" value="metric" />
+              <el-option label="柱状图" value="bar" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="SQL">
+            <el-input v-model="saveCardForm.sqlText" type="textarea" :rows="5" disabled />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="saveCardVisible = false">取消</el-button>
+          <el-button type="primary" :loading="saveCardLoading" @click="submitSaveCard">
+            保存
+          </el-button>
+        </template>
       </el-dialog>
     </div>
   </div>

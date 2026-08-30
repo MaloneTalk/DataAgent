@@ -107,6 +107,17 @@ CREATE TABLE IF NOT EXISTS `report` (
     KEY `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告表';
 
+CREATE TABLE IF NOT EXISTS `dashboard_card` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT 'primary key',
+    `title` VARCHAR(255) NOT NULL COMMENT 'card title',
+    `datasource_id` INT NOT NULL COMMENT 'datasource id',
+    `sql_text` TEXT NOT NULL COMMENT 'select sql text',
+    `chart_type` VARCHAR(32) NOT NULL COMMENT 'table/metric/bar',
+    `creator_id` INT NOT NULL COMMENT 'creator user id',
+    PRIMARY KEY (`id`),
+    KEY `idx_creator_id` (`creator_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='dashboard card';
+
 CREATE TABLE IF NOT EXISTS `table_export` (
     `id` VARCHAR(36) NOT NULL COMMENT 'export id',
     `title` VARCHAR(255) NOT NULL COMMENT 'export title',
