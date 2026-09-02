@@ -19,13 +19,16 @@ package io.github.malonetalk.dto;
 
 import io.github.malonetalk.agent.datasource.QueryResult;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public final class DashboardDtos {
 
     private DashboardDtos() {}
 
     public record DashboardCardCreateRequest(
-            @NotBlank(message = "title cannot be blank.") String title,
+            @NotBlank(message = "title cannot be blank.")
+                    @Size(max = 255, message = "title length cannot exceed 255.")
+                    String title,
             @NotBlank(message = "sessionId cannot be blank.") String sessionId,
             @NotBlank(message = "sqlText cannot be blank.") String sqlText,
             @NotBlank(message = "chartType cannot be blank.") String chartType) {}

@@ -32,6 +32,7 @@
   const loading = ref(false);
   const results = ref<Record<number, QueryResult>>({});
   const errors = ref<Record<number, string>>({});
+  const dataViews = ref<Record<number, boolean>>({});
 
   function applyRefreshResults(data: Record<number, DashboardCardRefreshResponse>) {
     const nextResults = { ...results.value };
@@ -80,6 +81,14 @@
     await loadDashboard();
   }
 
+  function isDataView(cardId: number) {
+    return dataViews.value[cardId] ?? false;
+  }
+
+  function toggleChartView(cardId: number, value: boolean | string | number) {
+    dataViews.value = { ...dataViews.value, [cardId]: !value };
+  }
+
   onMounted(loadDashboard);
 </script>
 
@@ -102,11 +111,24 @@
             <p>数据源 #{{ card.datasourceId }} · {{ card.chartType }}</p>
           </div>
           <div class="card-actions">
+            <el-switch
+              v-if="card.chartType !== 'table'"
+              :model-value="!isDataView(card.id)"
+              active-text="图表"
+              inactive-text="数据"
+              inline-prompt
+              @change="toggleChartView(card.id, $event)"
+            />
             <el-button link type="primary" @click="refreshCardResults([card.id])">刷新</el-button>
             <el-button link type="danger" @click="removeCard(card)">删除</el-button>
           </div>
         </div>
-        <DashboardCardChart :card="card" :result="results[card.id]" :error="errors[card.id]" />
+        <DashboardCardChart
+          :card="card"
+          :result="results[card.id]"
+          :error="errors[card.id]"
+          :force-table="isDataView(card.id)"
+        />
         <details class="sql-detail">
           <summary>SQL</summary>
           <pre>{{ card.sqlText }}</pre>
@@ -171,6 +193,9 @@
   }
 
   .card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     white-space: nowrap;
   }
 

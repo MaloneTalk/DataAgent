@@ -23,6 +23,7 @@
     card: DashboardCardResponse;
     result?: QueryResult;
     error?: string;
+    forceTable?: boolean;
   }>();
 
   const bars = computed(() => {
@@ -45,11 +46,11 @@
 <template>
   <div v-if="error" class="chart-error">{{ error }}</div>
   <div v-else-if="!result" class="chart-empty">暂无数据</div>
-  <div v-else-if="card.chartType === 'metric'" class="metric-value">
+  <div v-else-if="!forceTable && card.chartType === 'metric'" class="metric-value">
     {{ result.columns[0] ? result.rows[0]?.[result.columns[0]] : '-' }}
   </div>
   <el-table
-    v-else-if="card.chartType === 'table'"
+    v-else-if="forceTable || card.chartType === 'table'"
     :data="result.rows.slice(0, 20)"
     size="small"
     max-height="260"

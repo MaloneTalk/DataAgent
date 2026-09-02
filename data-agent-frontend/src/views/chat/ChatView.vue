@@ -320,7 +320,7 @@
       <el-dialog v-model="saveCardVisible" title="保存为卡片" width="620px">
         <el-form label-width="90px">
           <el-form-item label="标题">
-            <el-input v-model="saveCardForm.title" />
+            <el-input v-model="saveCardForm.title" maxlength="255" show-word-limit />
           </el-form-item>
           <el-form-item label="图表类型">
             <el-select v-model="saveCardForm.chartType" style="width: 100%">

@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.service;
 
+import io.github.malonetalk.agent.SessionService;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.common.ErrorCode;
@@ -40,10 +41,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DashboardService {
 
-    private static final int MAX_REFRESH_CARDS = 100;
+    private static final int MAX_REFRESH_CARDS = 10;
 
     private final DashboardMapper dashboardMapper;
     private final DatasourceService datasourceService;
+    private final SessionService sessionService;
     private final SqlExecutor sqlExecutor;
 
     public List<DashboardCardResponse> listCards() {
@@ -54,6 +56,8 @@ public class DashboardService {
 
     @Transactional
     public DashboardCardResponse createCard(DashboardCardCreateRequest request) {
+        UserContext user = UserContext.require();
+        sessionService.requireOwnership(user.scopedUserId(), request.sessionId());
         Datasource datasource = datasourceService.getDatasourceForSession(request.sessionId());
         String sql = sqlExecutor.validateSelectSql(request.sqlText());
 
@@ -62,7 +66,7 @@ public class DashboardService {
         card.setDatasourceId(datasource.getId());
         card.setSqlText(sql);
         card.setChartType(normalizeChartType(request.chartType()));
-        card.setCreatorId(currentUserId());
+        card.setCreatorId(user.userId());
         if (dashboardMapper.insertCard(card) <= 0) {
             throw BusinessException.of(
                     ErrorCode.OPERATION_FAILED, "Failed to save dashboard card.");

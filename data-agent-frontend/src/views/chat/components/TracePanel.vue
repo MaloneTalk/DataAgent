@@ -131,6 +131,15 @@
     const sql = step.toolCall?.input.sql;
     return typeof sql === 'string' ? sql : '';
   }
+
+  function sqlFromResult(step: TraceStep): string {
+    const id = step.toolResult?.id;
+    if (!id) return '';
+    const toolCall = props.message.traceSteps.find(
+      item => item.type === 'tool_call' && item.toolCall?.id === id,
+    );
+    return toolCall ? sqlFromStep(toolCall) : '';
+  }
 </script>
 
 <template>
@@ -154,15 +163,6 @@
         <div v-if="step.type === 'tool_call' && step.toolCall" class="trace-step__code">
           <div class="code-label">Input:</div>
           <pre class="code-block">{{ displayMultiline(formatJson(step.toolCall.input)) }}</pre>
-          <el-button
-            v-if="step.toolCall.name === 'execute_sql' && sqlFromStep(step)"
-            link
-            type="primary"
-            class="trace-step__action"
-            @click.stop="emit('saveSqlCard', sqlFromStep(step))"
-          >
-            保存为卡片
-          </el-button>
         </div>
         <div
           v-if="
@@ -174,6 +174,15 @@
         >
           <div class="code-label">Output:</div>
           <pre class="code-block">{{ displayMultiline(step.toolResult.output) }}</pre>
+          <el-button
+            v-if="step.toolResult.name === 'execute_sql' && sqlFromResult(step)"
+            link
+            type="primary"
+            class="trace-step__action"
+            @click.stop="emit('saveSqlCard', sqlFromResult(step))"
+          >
+            保存为卡片
+          </el-button>
         </div>
         <div v-if="step.type === 'report' && step.toolResult" class="trace-step__code">
           <el-button link type="primary" @click="emit('previewReport', step.toolResult!.output)">
