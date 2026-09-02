@@ -1,11 +1,11 @@
 # Dependencies
-node_modules/
+**/node_modules/
 .pnpm-store/
 
 # Build output
-dist/
+**/dist/
 build/
-target/
+**/target/
 
 # IDE files
 .idea/

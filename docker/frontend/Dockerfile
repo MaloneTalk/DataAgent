@@ -1,10 +1,10 @@
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# 直接安装 pnpm（不使用 corepack）
-RUN npm install -g pnpm
+# 直接安装 pnpm（不使用 corepack；项目 pnpm-workspace.yaml 用了 allowBuilds，需 pnpm 11）
+RUN npm install -g pnpm@11.24.0
 
 # 先复制所有源代码（.dockerignore 会排除不需要的文件）
 COPY data-agent-frontend/ .
