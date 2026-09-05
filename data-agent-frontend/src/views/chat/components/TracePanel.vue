@@ -27,6 +27,7 @@
 
   const emit = defineEmits<{
     (e: 'previewReport', content: string): void;
+    (e: 'saveSqlCard', sql: string): void;
   }>();
 
   const isExpanded = ref(false);
@@ -125,6 +126,20 @@
     if (!text) return '';
     return text.replace(/\\n/g, '\n');
   }
+
+  function sqlFromStep(step: TraceStep): string {
+    const sql = step.toolCall?.input.sql;
+    return typeof sql === 'string' ? sql : '';
+  }
+
+  function sqlFromResult(step: TraceStep): string {
+    const id = step.toolResult?.id;
+    if (!id) return '';
+    const toolCall = props.message.traceSteps.find(
+      item => item.type === 'tool_call' && item.toolCall?.id === id,
+    );
+    return toolCall ? sqlFromStep(toolCall) : '';
+  }
 </script>
 
 <template>
@@ -159,6 +174,15 @@
         >
           <div class="code-label">Output:</div>
           <pre class="code-block">{{ displayMultiline(step.toolResult.output) }}</pre>
+          <el-button
+            v-if="step.toolResult.name === 'execute_sql' && sqlFromResult(step)"
+            link
+            type="primary"
+            class="trace-step__action"
+            @click.stop="emit('saveSqlCard', sqlFromResult(step))"
+          >
+            保存为卡片
+          </el-button>
         </div>
         <div v-if="step.type === 'report' && step.toolResult" class="trace-step__code">
           <el-button link type="primary" @click="emit('previewReport', step.toolResult!.output)">
@@ -326,6 +350,10 @@
     font-size: 12px;
     line-height: 1.5;
     margin: 0;
+  }
+
+  .trace-step__action {
+    margin-top: 6px;
   }
 
   @keyframes spin {

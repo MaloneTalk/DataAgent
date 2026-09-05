@@ -30,6 +30,7 @@
 
   const emit = defineEmits<{
     (e: 'previewReport', content: string): void;
+    (e: 'saveSqlCard', sql: string): void;
   }>();
 
   const SUMMARY_MARKER = '\n\nSummary：\n';
@@ -99,6 +100,7 @@
         v-if="message.role === 'agent'"
         :message="message"
         @preview-report="c => emit('previewReport', c)"
+        @save-sql-card="sql => emit('saveSqlCard', sql)"
       />
       <div v-if="textContent.text" class="chat-message__content" v-html="renderedText"></div>
       <div v-if="textContent.fileIds.length > 0" class="chat-message__downloads">
