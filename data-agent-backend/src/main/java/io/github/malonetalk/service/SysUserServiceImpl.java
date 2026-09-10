@@ -25,7 +25,7 @@ import io.github.malonetalk.entity.SysUser;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
-import io.github.malonetalk.util.PasswordUtil;
+import io.github.malonetalk.utils.PasswordUtil;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;

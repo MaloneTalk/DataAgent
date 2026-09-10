@@ -19,7 +19,7 @@ package io.github.malonetalk.config;
 
 import io.github.malonetalk.entity.SysUser;
 import io.github.malonetalk.mapper.SysUserMapper;
-import io.github.malonetalk.util.PasswordUtil;
+import io.github.malonetalk.utils.PasswordUtil;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

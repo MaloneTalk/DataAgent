@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.util;
+package io.github.malonetalk.utils;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;

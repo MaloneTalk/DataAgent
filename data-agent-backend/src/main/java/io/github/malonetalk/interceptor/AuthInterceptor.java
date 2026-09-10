@@ -22,7 +22,7 @@ import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.SysUserMapper;
-import io.github.malonetalk.util.JwtUtil;
+import io.github.malonetalk.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
