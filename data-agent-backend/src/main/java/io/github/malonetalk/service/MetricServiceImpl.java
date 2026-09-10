@@ -21,8 +21,12 @@ import io.github.malonetalk.entity.MetricInfo;
 import io.github.malonetalk.mapper.MetricInfoMapper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +35,10 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class MetricServiceImpl implements MetricService {
+
+    private static final int MIN_TERM_LENGTH = 2;
+    private static final int MAX_CANDIDATES = 3;
+    private static final String ALIAS_SEPARATORS = "[,，、;；/|]";
 
     private final MetricInfoMapper metricInfoMapper;
     private final DatasourceService datasourceService;
@@ -45,21 +53,65 @@ public class MetricServiceImpl implements MetricService {
     @Override
     public String getCaliberByHint(String hint) {
         Integer dsId = activeDatasourceId();
-        String normalized = SemanticUtils.trimToNull(hint);
-        if (normalized == null) {
+        String query = SemanticUtils.trimToNull(hint);
+        if (query == null) {
             return "缺少指标描述,无法查询口径。";
         }
-        List<MetricInfo> candidates = metricInfoMapper.matchByHint(dsId, normalized);
+        List<MetricInfo> candidates = match(metricInfoMapper.selectAllByDatasource(dsId), query);
         if (candidates.isEmpty()) {
             List<MetricInfo> suggestions = metricInfoMapper.suggest(dsId, 5);
-            log.warn("指标口径未命中: hint={}", normalized);
-            return formatNotFound(normalized, suggestions);
+            log.warn("指标口径未命中: hint={}", query);
+            return formatNotFound(query, suggestions);
         }
         MetricInfo best = candidates.get(0);
         if (candidates.size() == 1) {
             return best.toCaliberText();
         }
         return formatCaliberWithAlternatives(best, candidates.subList(1, candidates.size()));
+    }
+
+    /**
+     * 反向包含匹配:拿指标的每个名字去用户的话里找,而不是拿整句话去别名串里找。
+     * 后者要求模型先把问题提炼成干净的指标名,而它通常直接把用户原话整句传进来,必然落空。
+     * 多个指标命中时按「命中的词有多长」降序——命中"销售额"比命中"额"可信。
+     *
+     */
+    static List<MetricInfo> match(List<MetricInfo> metrics, String query) {
+        return metrics.stream()
+                .map(m -> new Hit(m, longestMatchedTerm(m, query)))
+                .filter(Hit::matched)
+                .sorted(Comparator.comparingInt(Hit::length).reversed())
+                .limit(MAX_CANDIDATES)
+                .map(Hit::metric)
+                .toList();
+    }
+
+    private static int longestMatchedTerm(MetricInfo metric, String query) {
+        return termsOf(metric).stream()
+                .filter(term -> SemanticUtils.containsIgnoreCase(query, term))
+                .mapToInt(String::length)
+                .max()
+                .orElse(0);
+    }
+
+    /** name + aliases 拆成候选词。过短的别名(如"额")会误伤大量无关问句,直接丢弃。 */
+    private static List<String> termsOf(MetricInfo metric) {
+        Stream<String> aliases =
+                metric.getAliases() == null
+                        ? Stream.empty()
+                        : Arrays.stream(metric.getAliases().split(ALIAS_SEPARATORS));
+        return Stream.concat(Stream.of(metric.getName()), aliases)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(term -> term.length() >= MIN_TERM_LENGTH)
+                .distinct()
+                .toList();
+    }
+
+    private record Hit(MetricInfo metric, int length) {
+        boolean matched() {
+            return length > 0;
+        }
     }
 
     private String formatNotFound(String hint, List<MetricInfo> suggestions) {

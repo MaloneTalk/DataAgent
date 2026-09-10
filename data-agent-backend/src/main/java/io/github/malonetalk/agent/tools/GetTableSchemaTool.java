@@ -59,7 +59,8 @@ public class GetTableSchemaTool implements MarkAgentTool {
                             columnSemanticService.getMergedTableSchema(
                                     datasource.getId(), tableName);
                     return ToolResultBlock.text(
-                            SemanticUtils.formatTableSchema(tableName, columns));
+                            SemanticUtils.formatTableSchema(tableName, columns)
+                                    + ToolCallConstants.METRIC_CALIBER_REMINDER);
                 });
     }
 }

@@ -63,9 +63,10 @@ public class GetTablesTool implements MarkAgentTool {
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
                     return ToolResultBlock.text(
                             JsonUtils.getJsonCodec()
-                                    .toJson(
-                                            tableSemanticService.listMergedTablesByDomains(
-                                                    dataSource.getId(), domains)));
+                                            .toJson(
+                                                    tableSemanticService.listMergedTablesByDomains(
+                                                            dataSource.getId(), domains))
+                                    + ToolCallConstants.METRIC_CALIBER_REMINDER);
                 });
     }
 }

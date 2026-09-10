@@ -2,7 +2,75 @@
 
 本文带你从零把 Data Agent 跑起来，并在前端用自然语言提第一个问题。预计耗时 10–20 分钟。
 
-## 1. 前置依赖
+## 方式一：Docker 启动（推荐）
+
+最快的方式，自动搭建 MySQL、后端、前端。
+
+### 前置要求
+
+- Docker 20.10+ 与 Docker Compose v2.0+
+- 支持 Linux / Windows / macOS
+
+### 环境变量配置
+
+启动前需要配置环境变量, 将`docker/.env.example`重命名为`docker/.env`：
+
+```bash
+cp docker/.env.example docker/.env
+```
+
+然后编辑 `docker/.env`，参考以下说明：
+
+**必填项：**
+```bash
+# AI 模型配置（必须配置，否则 AI 功能无法使用）
+IO_GITHUB_MALONETALK_MODEL_API_KEY={你的密钥}
+IO_GITHUB_MALONETALK_MODEL_PROVIDER=openai
+IO_GITHUB_MALONETALK_MODEL_NAME=deepseek-v4-flash
+IO_GITHUB_MALONETALK_MODEL_BASE_URL=https://api.deepseek.com
+IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED=true
+```
+
+**可选项（有默认值，生产环境建议修改）：**
+```bash
+# 数据库密码（默认：root）
+DB_PASSWORD=
+
+# JWT 密钥（默认：空，生产环境必须设置且 >= 32 字节）
+JWT_SECRET=
+
+# 管理员初始密码（默认：admin）
+ADMIN_INIT_PASSWORD=
+```
+
+### 启动
+
+```bash
+cd docker
+docker-compose up -d --build
+```
+
+首次启动会自动：
+- 构建后端/前端镜像
+- 下载 MySQL 镜像
+- 执行 `sql/` 目录初始化数据库
+- 启动所有服务
+
+修改配置后重启：`docker-compose restart`
+
+### 访问
+
+- **前端**: http://localhost:3000
+- **后端**: http://localhost:8080
+- **管理员账号**: `admin` / `admin`（或你设置的 `ADMIN_INIT_PASSWORD`）
+
+---
+
+## 方式二：手动搭建
+
+适合开发调试或不想用 Docker 的场景。
+
+#### 1. 前置依赖
 
 | 依赖 | 版本要求 | 说明 |
 | --- | --- | --- |
@@ -12,7 +80,7 @@
 | pnpm | 8+ | 前端包管理 |
 | MySQL | 8+ | 元数据库（存语义层/数据源/会话等） |
 
-## 2. 准备元数据库
+### 2. 准备元数据库
 
 Data Agent 需要一张 MySQL 元数据库来存放语义层、数据源、会话等信息。
 
@@ -26,7 +94,7 @@ mysql -u root -p data_agent < sql/data_source.sql
 
 > `sql/data_source.sql` 包含全部元数据库初始化表结构，导入这一份即可。
 
-## 3. 配置并启动后端
+### 3. 配置并启动后端
 
 后端默认端口 `8080`，应用名 `data-agent-management`。启动前需要告诉它：元数据库在哪、用哪个 LLM。
 
@@ -83,7 +151,7 @@ mvn spring-boot:run
 
 看到日志中嵌入式容器启动在 `8080` 即成功。
 
-## 4. 启动前端
+### 4. 启动前端
 
 ```bash
 cd data-agent-frontend
@@ -93,7 +161,7 @@ pnpm dev
 
 前端默认运行在 http://localhost:3000 ，开发代理已把 `/api` 转发到 `http://localhost:8080`（见 `vite.config.ts`）。
 
-## 5. 第一次提问
+## 第一次提问
 
 > **先分清两类数据库**：「数据源管理」里配置的是 **Agent 要连接、执行 SQL 数据分析的目标数据库**（你的业务库），不是第 2 步准备的元数据库 `data_agent`（后端存放语义层/数据源配置/会话的库）。元数据库在后端启动时通过环境变量 `DB_URL` 指定，不在页面上配置。
 
@@ -106,7 +174,7 @@ pnpm dev
 
 > 如果回答不准，多半是语义层/指标口径没配好，或数据源尚未接入。参见 [semantic-layer.md](semantic-layer.md) 与 [configuration.md](configuration.md)。
 
-## 6. 常见问题
+## 常见问题
 
 - **新增数据源连接失败，提示「未找到数据库驱动」**：后端默认仅内置 MySQL 驱动。请在 `data-agent-backend/pom.xml` 中添加你所用数据库的 JDBC 驱动依赖（坐标见 [configuration.md](configuration.md#4-查询数据源)），重新构建并启动后端后再试。
 - **启动后端报数据源连接失败**：检查 `DB_URL` 中的库名、账号密码，以及 MySQL 是否允许该连接方式。

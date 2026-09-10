@@ -46,28 +46,9 @@
         ORDER BY name ASC, id ASC
     </select>
 
-    <!-- 命中:精确 name 优先,其次 aliases/description 包含提示词。
-         metric_key 仅作程序化引用(供 skill/API 直接 getByKey),不参与自然语言匹配。
-         匹配大小写不敏感靠 LOWER();本表排序规则为 utf8mb4_unicode_ci(_ci 已大小写不敏感),
-         故 LOWER 在此冗余但无害——若换 _bin 库仍可兜底。
-         性能:datasource_id 复合索引先把候选集砍到单个数据源(数十~数百行),
-         段内逐行 LIKE 可接受;前导通配符 '%x%' 与 LOWER(列) 会使 aliases/description 索引用不上,
-         但候选集已极小,无需优化。仅当指标膨胀到成千上万条时再改 FULLTEXT 索引。 -->
-    <select id="matchByHint" resultMap="BaseResultMap">
-        SELECT * FROM metric_info
-        WHERE datasource_id = #{datasourceId}
-          AND is_deleted = 0
-          AND (
-            LOWER(name) = LOWER(#{hint})
-            OR LOWER(aliases) LIKE CONCAT('%', LOWER(#{hint}), '%')
-            OR LOWER(description) LIKE CONCAT('%', LOWER(#{hint}), '%')
-          )
-        ORDER BY
-          CASE WHEN LOWER(name) = LOWER(#{hint})
-               THEN 0 ELSE 1 END,
-          id ASC
-    </select>
-
+    <!-- 命中逻辑已移到 MetricServiceImpl#match:拿指标的 name/aliases 去用户的话里做包含判断,
+         而不是拿整句话到别名串里 LIKE——模型传进来的通常是用户原话整句,后者必然落空。
+         metric_key 仅作程序化引用(供 skill/API 直接 getByKey),不参与自然语言匹配。 -->
     <select id="suggest" resultMap="BaseResultMap">
         SELECT * FROM metric_info
         WHERE datasource_id = #{datasourceId}

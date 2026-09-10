@@ -1,0 +1,104 @@
+# Data Agent Docker Compose Configuration
+#
+# 所有配置项都有合理的默认值，可以直接启动。
+# 如需自定义配置：cp .env.example .env，然后编辑 .env。
+#
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: data-agent-mysql
+    restart: unless-stopped
+    environment:
+      # 可通过 .env.example 覆盖：DB_PASSWORD=xxx
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: data_agent
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+      TZ: Asia/Shanghai
+    ports:
+      # 可通过 .env.example 覆盖：MYSQL_PORT=3307
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - data-agent-mysql:/var/lib/mysql
+      # 自动挂载项目根目录的 sql/ 文件夹进行初始化
+      - ../sql:/docker-entrypoint-initdb.d:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --character-set-client-handshake=FALSE
+      - --init-connect='SET NAMES utf8mb4'
+      - --default-authentication-plugin=mysql_native_password
+    networks:
+      - data-agent-network
+    healthcheck:
+      # 使用 mysql 命令实际测试数据库连接和查询
+      test: ["CMD", "mysql", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-root}", "-e", "SELECT 1 FROM data_agent.sys_user LIMIT 1;"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # Backend Service (Spring Boot)
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    container_name: data-agent-backend
+    restart: unless-stopped
+    environment:
+      # 数据库配置（通常不需要修改）
+      DB_URL: ${DB_URL:-jdbc:mysql://mysql:3306/data_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+
+      # AI 模型配置（重要：需要配置真实的 API Key）
+      # 可通过 .env.example 覆盖：IO_GITHUB_MALONETALK_MODEL_API_KEY=sk-xxx
+      IO_GITHUB_MALONETALK_MODEL_PROVIDER: ${IO_GITHUB_MALONETALK_MODEL_PROVIDER:-dashscope}
+      IO_GITHUB_MALONETALK_MODEL_NAME: ${IO_GITHUB_MALONETALK_MODEL_NAME:-qwen3-max}
+      IO_GITHUB_MALONETALK_MODEL_BASE_URL: ${IO_GITHUB_MALONETALK_MODEL_BASE_URL:-}
+      IO_GITHUB_MALONETALK_MODEL_API_KEY: ${IO_GITHUB_MALONETALK_MODEL_API_KEY:-}
+      IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED: ${IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED:-false}
+
+      # JWT 配置（可通过 .env.example 覆盖）
+      # JWT_SECRET 必须 >= 32 字节
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+
+      # 初始管理员密码（首次启动时使用）
+      ADMIN_INIT_PASSWORD: ${ADMIN_INIT_PASSWORD:-admin}
+
+      TZ: Asia/Shanghai
+    ports:
+      # 可通过 .env.example 覆盖：BACKEND_PORT=8081
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - data-agent-network
+
+  # Frontend Service (Vue + Nginx)
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend/Dockerfile
+    container_name: data-agent-frontend
+    restart: unless-stopped
+    ports:
+      # 可通过 .env.example 覆盖：FRONTEND_PORT=3001
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - data-agent-network
+
+volumes:
+  data-agent-mysql:
+    name: data-agent-mysql
+
+networks:
+  data-agent-network:
+    name: data-agent-network

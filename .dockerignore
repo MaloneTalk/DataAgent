@@ -1,0 +1,55 @@
+# Dependencies
+**/node_modules/
+.pnpm-store/
+
+# Build output
+**/dist/
+build/
+**/target/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Git files
+.git/
+.gitignore
+
+# Docker files (避免递归，但保留需要的配置文件)
+docker/backend/
+docker/frontend/Dockerfile
+docker/.env
+docker/.env.example
+docker/docker-compose.yml
+docker/docker-*.sh
+docker/docker-*.bat
+
+# Test files
+coverage/
+.nyc_output/
+.playwright-cli/
+
+# Documentation
+*.md
+docs/
+
+# Root config files (不需要复制到镜像)
+.env
+.gitattributes
+.github/
+AGENTS.md
+LICENSE
+
+# SQL files (通过 volume 挂载，不需要复制)
+sql/

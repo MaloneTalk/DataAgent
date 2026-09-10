@@ -43,9 +43,6 @@ public interface MetricInfoMapper {
 
     List<MetricInfo> selectAllByDatasource(@Param("datasourceId") Integer datasourceId);
 
-    List<MetricInfo> matchByHint(
-            @Param("datasourceId") Integer datasourceId, @Param("hint") String hint);
-
     List<MetricInfo> suggest(
             @Param("datasourceId") Integer datasourceId, @Param("limit") int limit);
 }

@@ -29,6 +29,18 @@ public final class ToolCallConstants {
 
     public static final String SUCCESS = "SUCCESS";
 
+    /**
+     * 追加在 get_tables / get_table_schema 的返回结果末尾。模型写 SQL 前基本必看表结构,
+     * 在那个时机提醒「先确认指标口径」比在 system prompt 里说更准——此时它正准备动笔。
+     * 数据源没定义任何指标时,get_metric_caliber 会回「未定义」,模型自然跳过。
+     */
+    public static final String METRIC_CALIBER_REMINDER =
+            """
+
+            If the question involves a business metric, call get_metric_caliber to confirm its \
+            caliber before writing SQL.\
+            """;
+
     public static final String SEPARATOR = ": ";
 
     public static final String SUCCESS_PREFIX = SUCCESS + SEPARATOR;
