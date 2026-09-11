@@ -114,6 +114,41 @@ pnpm install && pnpm dev
 
 > 部分用户可能因账号安全问题无法加入，条件允许的情况下可换账号申请。
 
-## 📄 许可证
+## 📄 开源协议
 
-本项目基于 [AGPL-3.0](LICENSE) 开源。
+本项目采用 [GNU Affero General Public License Version 3](LICENSE)（AGPLv3）开源。考虑到部分开发者对 AGPLv3 的义务存在疑问，现根据 AGPLv3 的条款，就常见使用场景明确说明如下：
+
+**无需对外公开修改后源代码：**
+
+- 个人学习、研究或自行使用
+- 公司内部修改二开，仅在公司内网部署供内部员工使用
+- 将二开后的产品分发或出售给客户（须同时向该客户提供源代码，同时客户需要继续遵守 AGPLv3）
+
+**需要对外公开修改后源代码：**
+
+- 通过互联网向外部用户提供服务（无论是否盈利，如 SaaS、Web 应用、API 服务等）
+- 通过导入 jar 包、Maven/Gradle 依赖等方式将本项目链接或组合进其他服务，构成单一程序或衍生作品
+
+> 其他程序仅通过 HTTP、RPC、MCP、A2A 等标准通信协议与本项目进行独立进程间通信，无需按 AGPLv3 开源。
+
+所有贡献者均应遵守 AGPLv3 的要求。
+
+更详细的说明请阅读 [AGPLv3 使用说明](docs/AGPLv3-NOTICE.md) 以及 [LICENSE](LICENSE)。
+
+## 🌟 Star 历史
+
+<a href="https://www.star-history.com/?repos=malonetalk%2Fdataagent&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=malonetalk/dataagent&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=malonetalk/dataagent&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=malonetalk/dataagent&type=date&legend=top-left" />
+ </picture>
+</a>
+
+## 🧑‍💻 贡献者名单
+
+<a href="https://github.com/MaloneTalk/DataAgent/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MaloneTalk/DataAgent" />
+</a>
+
+---

@@ -84,6 +84,6 @@
 
 ## 6. 行为准则
 
-- 提交代码即表示你同意以 [AGPL-3.0](../../LICENSE) 许可证发布你的贡献。
+- 提交代码即表示你同意以 [AGPL-3.0](../../LICENSE) 许可证发布你的贡献，以及 [AGPLv3-NOTICE.md](AGPLv3-NOTICE.md) 中的要求。
 - 不要提交密钥、凭证或敏感信息（参见 [configuration.md](configuration.md#安全提示)）。
 - 重大设计变更建议先开 Issue 讨论。
