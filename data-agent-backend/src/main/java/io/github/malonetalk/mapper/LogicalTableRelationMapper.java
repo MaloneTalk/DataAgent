@@ -43,11 +43,6 @@ public interface LogicalTableRelationMapper {
             @Param("query") RelationSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
-    LogicalTableRelation selectByUniqueSourceKey(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName,
-            @Param("sourceColumnSignature") String sourceColumnSignature);
-
     int insert(LogicalTableRelation logicalTableRelation);
 
     int update(LogicalTableRelation logicalTableRelation);

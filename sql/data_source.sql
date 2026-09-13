@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS `logical_table_relation` (
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_relation_source_signature`
+    KEY `idx_relation_source_signature`
         (`datasource_id`, `source_table_name`, `source_column_signature`),
     KEY `idx_relation_source_table` (`datasource_id`, `source_table_name`),
     KEY `idx_relation_source_enabled` (`datasource_id`, `source_table_name`, `is_enabled`),

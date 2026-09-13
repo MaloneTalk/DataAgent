@@ -15,7 +15,32 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { SyncTableSemanticsResponse } from '@/api/semantic';
+import type {
+  EditableLogicalTableRelationType,
+  LogicalTableRelationType,
+  SyncTableSemanticsResponse,
+} from '@/api/semantic';
+
+export const logicalRelationTypeOptions: Array<{
+  label: string;
+  value: EditableLogicalTableRelationType;
+}> = [
+  { label: '一对一', value: 'one_to_one' },
+  { label: '一对多', value: 'one_to_many' },
+  { label: '多对一', value: 'many_to_one' },
+  { label: '多对多', value: 'many_to_many' },
+];
+
+const logicalRelationTypeLabels: Record<LogicalTableRelationType, string> = {
+  foreign_key: '外键',
+  one_to_one: '一对一',
+  one_to_many: '一对多',
+  many_to_one: '多对一',
+  many_to_many: '多对多',
+};
+
+export const formatLogicalRelationType = (value: LogicalTableRelationType | string) =>
+  logicalRelationTypeLabels[value as LogicalTableRelationType] ?? value;
 
 export type SyncSummaryField = keyof Omit<SyncTableSemanticsResponse, 'results'>;
 

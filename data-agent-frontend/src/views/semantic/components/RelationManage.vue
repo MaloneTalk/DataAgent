@@ -88,6 +88,7 @@
     sourceColumnNames: [],
     targetTableName: '',
     targetColumnNames: [],
+    relationType: '',
     description: '',
     enabled: true,
   });
@@ -117,6 +118,7 @@
       sourceColumnNames: [...relationForm.sourceColumnNames],
       targetTableName: relationForm.targetTableName,
       targetColumnNames: [...relationForm.targetColumnNames],
+      relationType: relationForm.relationType,
       enabled: relationForm.enabled,
     };
   });
@@ -314,6 +316,7 @@
       sourceColumnNames: [],
       targetTableName: '',
       targetColumnNames: [],
+      relationType: '',
       description: '',
       enabled: true,
     });
@@ -376,6 +379,7 @@
         sourceColumnNames: [payload.sourceColumnName],
         targetTableName: payload.targetTableName,
         targetColumnNames: [payload.targetColumnName],
+        relationType: '',
         description: '',
         enabled: true,
       });
@@ -415,6 +419,7 @@
         sourceColumnNames: [...relation.sourceColumnNames],
         targetTableName: relation.targetTableName,
         targetColumnNames: [...relation.targetColumnNames],
+        relationType: relation.relationType === 'foreign_key' ? '' : relation.relationType,
         description: relation.description ?? '',
         enabled: relation.enabled,
       });
@@ -444,6 +449,10 @@
       ElMessage.warning('源列与目标列数量必须一致');
       return;
     }
+    if (!relationForm.relationType) {
+      ElMessage.warning('请选择关系方式');
+      return;
+    }
 
     relationSubmitLoading.value = true;
 
@@ -453,6 +462,7 @@
         sourceColumnNames: [...relationForm.sourceColumnNames],
         targetTableName: relationForm.targetTableName,
         targetColumnNames: [...relationForm.targetColumnNames],
+        relationType: relationForm.relationType,
         description: relationForm.description.trim(),
         enabled: relationForm.enabled,
       };

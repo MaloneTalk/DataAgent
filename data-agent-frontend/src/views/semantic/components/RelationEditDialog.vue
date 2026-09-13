@@ -16,9 +16,10 @@
  -->
 
 <script setup lang="ts">
-  import { computed, reactive, ref, watch } from 'vue';
+  import { computed, nextTick, reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import type { LogicalTableRelationResponse } from '@/api/semantic';
+  import { logicalRelationTypeOptions } from '../utils';
   import type { RelationColumnNode, RelationForm, TableNodeLayout } from '../types';
 
   const props = defineProps<{
@@ -42,11 +43,13 @@
   }>();
 
   const formRef = ref<FormInstance>();
+  const syncingFromProps = ref(false);
   const localForm = reactive<RelationForm>({
     sourceTableName: '',
     sourceColumnNames: [],
     targetTableName: '',
     targetColumnNames: [],
+    relationType: '',
     description: '',
     enabled: true,
   });
@@ -56,6 +59,7 @@
     sourceColumnNames: [{ required: true, message: '请选择源列', trigger: 'change' }],
     targetTableName: [{ required: true, message: '请选择目标表', trigger: 'change' }],
     targetColumnNames: [{ required: true, message: '请选择目标列', trigger: 'change' }],
+    relationType: [{ required: true, message: '请选择关系方式', trigger: 'change' }],
   };
 
   const title = computed(() => (props.relation ? '编辑逻辑外键' : '新增逻辑外键'));
@@ -63,13 +67,18 @@
   watch(
     () => props.form,
     value => {
+      syncingFromProps.value = true;
       Object.assign(localForm, {
         sourceTableName: value.sourceTableName,
         sourceColumnNames: [...value.sourceColumnNames],
         targetTableName: value.targetTableName,
         targetColumnNames: [...value.targetColumnNames],
+        relationType: value.relationType,
         description: value.description,
         enabled: value.enabled,
+      });
+      void nextTick(() => {
+        syncingFromProps.value = false;
       });
     },
     { immediate: true, deep: true },
@@ -78,11 +87,15 @@
   watch(
     localForm,
     value => {
+      if (syncingFromProps.value) {
+        return;
+      }
       emit('update:form', {
         sourceTableName: value.sourceTableName,
         sourceColumnNames: [...value.sourceColumnNames],
         targetTableName: value.targetTableName,
         targetColumnNames: [...value.targetColumnNames],
+        relationType: value.relationType,
         description: value.description,
         enabled: value.enabled,
       });
@@ -180,6 +193,17 @@
             :label="`${column.columnName} (${column.typeName || 'UNKNOWN'})`"
             :value="column.columnName"
             :disabled="!column.operable"
+          />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item label="关系方式" prop="relationType" :error="fieldErrors.relationType">
+        <el-select v-model="localForm.relationType" placeholder="选择关系方式">
+          <el-option
+            v-for="option in logicalRelationTypeOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
           />
         </el-select>
       </el-form-item>

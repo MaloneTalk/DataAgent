@@ -53,6 +53,14 @@ export interface ColumnSemanticResponse {
 
 export type ColumnSemanticInfo = ColumnSemanticResponse;
 
+export type LogicalTableRelationType =
+  | 'foreign_key'
+  | 'one_to_one'
+  | 'one_to_many'
+  | 'many_to_one'
+  | 'many_to_many';
+export type EditableLogicalTableRelationType = Exclude<LogicalTableRelationType, 'foreign_key'>;
+
 export interface SyncTableResult {
   tableName: string;
   physicalTableFound: boolean;
@@ -88,7 +96,7 @@ export interface LogicalTableRelationResponse {
   sourceColumnNames: string[];
   targetTableName: string;
   targetColumnNames: string[];
-  relationType: string;
+  relationType: LogicalTableRelationType;
   description: string | null;
   enabled: boolean;
   invalidReason: string | null;
@@ -158,6 +166,7 @@ export interface BindLogicalTableRelationRequest {
   sourceColumnNames: string[];
   targetTableName: string;
   targetColumnNames: string[];
+  relationType: EditableLogicalTableRelationType;
   description: string;
   enabled: boolean;
 }
