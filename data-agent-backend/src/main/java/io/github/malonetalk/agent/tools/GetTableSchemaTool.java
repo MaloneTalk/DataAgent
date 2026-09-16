@@ -44,8 +44,8 @@ public class GetTableSchemaTool implements MarkAgentTool {
             description =
                     """
                     Get synced semantic-layer schema information for the specified table, \
-                    including column name, data type, primary key flag, index hints and column \
-                    descriptions. Call this tool before generating SQL.\
+                    including column name, physical data type, semantic type, primary key flag, \
+                    index hints and column descriptions. Call this tool before generating SQL.\
                     """)
     public ToolResultBlock getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")

@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     `type_name` VARCHAR(255) DEFAULT NULL COMMENT '物理列类型',
     `primary_key` TINYINT(1) DEFAULT NULL COMMENT '是否物理主键',
     `column_description` VARCHAR(500) DEFAULT NULL COMMENT '列描述',
+    `semantic_type` VARCHAR(32) DEFAULT NULL COMMENT '语义类型：IDENTIFIER/DIMENSION/MEASURE/TIME/LOCATION',
     `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见',
     `physical_status` TINYINT(1) DEFAULT 1 COMMENT '物理列是否存在',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

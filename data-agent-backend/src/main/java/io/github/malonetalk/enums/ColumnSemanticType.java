@@ -15,27 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.enums;
 
-import io.github.malonetalk.enums.ColumnSemanticType;
-import java.time.LocalDateTime;
-import lombok.Data;
-
-@Data
-public class ColumnInfo {
-
-    private Integer id;
-    private Integer datasourceId;
-    private String tableName;
-    private String columnName;
-    private String physicalColumnDescription;
-    private String typeName;
-    private Boolean primaryKey;
-    private String indexInfo;
-    private String columnDescription;
-    private ColumnSemanticType semanticType;
-    private Boolean isVisible;
-    private Boolean physicalStatus;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+public enum ColumnSemanticType {
+    IDENTIFIER,
+    DIMENSION,
+    MEASURE,
+    TIME,
+    LOCATION
 }

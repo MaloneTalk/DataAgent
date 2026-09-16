@@ -26,6 +26,7 @@
     resetColumnSemantic,
     updateColumnSemantic,
     type ColumnSemanticInfo,
+    type ColumnSemanticType,
   } from '@/api/semantic';
   import { formatDateTime } from '../utils';
 
@@ -33,8 +34,20 @@
     tableName: string;
     columnName: string;
     columnDescription: string;
+    semanticType: ColumnSemanticType | '';
     isVisible: boolean;
   }
+
+  const semanticTypeOptions: Array<{ value: ColumnSemanticType; label: string }> = [
+    { value: 'IDENTIFIER', label: '标识' },
+    { value: 'DIMENSION', label: '维度' },
+    { value: 'MEASURE', label: '度量' },
+    { value: 'TIME', label: '时间' },
+    { value: 'LOCATION', label: '地点' },
+  ];
+
+  const semanticTypeLabel = (value: ColumnSemanticType | null) =>
+    semanticTypeOptions.find(option => option.value === value)?.label ?? '-';
 
   const props = defineProps<{
     keyword: string;
@@ -60,6 +73,7 @@
     tableName: '',
     columnName: '',
     columnDescription: '',
+    semanticType: '',
     isVisible: true,
   });
   const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
@@ -147,6 +161,7 @@
       tableName: selectedTableName.value,
       columnName: row.columnName,
       columnDescription: row.columnDescription ?? '',
+      semanticType: row.semanticType ?? '',
       isVisible: row.isVisible,
     });
     dialogVisible.value = true;
@@ -165,6 +180,7 @@
         datasourceId: activeDatasourceId,
         columnName: form.columnName,
         columnDescription: form.columnDescription.trim() || undefined,
+        semanticType: form.semanticType || undefined,
         isVisible: form.isVisible,
       });
       ElMessage.success('更新成功');
@@ -221,9 +237,17 @@
 
     <el-table v-loading="loading" :data="rows">
       <el-table-column prop="columnName" label="列名" min-width="150" />
-      <el-table-column label="类型" width="120">
+      <el-table-column label="物理类型" width="120">
         <template #default="{ row }">
           {{ row.typeName || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="语义类型" width="110" align="center">
+        <template #default="{ row }">
+          <el-tag v-if="row.semanticType" type="primary" size="small">
+            {{ semanticTypeLabel(row.semanticType) }}
+          </el-tag>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column prop="primaryKey" label="主键" width="80" align="center">
@@ -325,6 +349,16 @@
             :rows="4"
             placeholder="请输入列的语义描述信息"
           />
+        </el-form-item>
+        <el-form-item label="语义类型" prop="semanticType" :error="fieldErrors.semanticType">
+          <el-select v-model="form.semanticType" placeholder="请选择语义类型" clearable>
+            <el-option
+              v-for="option in semanticTypeOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">
           <el-switch v-model="form.isVisible" active-text="可见" inactive-text="隐藏" />

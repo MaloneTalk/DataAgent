@@ -103,6 +103,9 @@ public final class SemanticUtils {
         for (ColumnPromptResponse col : columns) {
             String type = col.type() == null ? "UNKNOWN" : col.type();
             sb.append(String.format("    - %s (%s)", col.name(), type));
+            if (col.semanticType() != null) {
+                sb.append(String.format(" [SEMANTIC: %s]", col.semanticType()));
+            }
             if (Boolean.TRUE.equals(col.primaryKey())) {
                 sb.append(" [PRIMARY KEY]");
             }

@@ -38,10 +38,13 @@ export interface TableSemanticResponse {
 
 export type TableSemanticInfo = TableSemanticResponse;
 
+export type ColumnSemanticType = 'IDENTIFIER' | 'DIMENSION' | 'MEASURE' | 'TIME' | 'LOCATION';
+
 export interface ColumnSemanticResponse {
   id: number | null;
   columnName: string;
   columnDescription: string | null;
+  semanticType: ColumnSemanticType | null;
   typeName: string | null;
   primaryKey: boolean | null;
   indexInfo: string | null;
@@ -160,6 +163,7 @@ export interface ColumnSemanticUpdateRequest {
   datasourceId: number;
   columnName: string;
   columnDescription?: string;
+  semanticType?: ColumnSemanticType;
   isVisible: boolean;
 }
 
