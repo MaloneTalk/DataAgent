@@ -19,7 +19,7 @@
 | 概念 | 说明 | Controller |
 | --- | --- | --- |
 | **域（Domain）** | 业务主题分组，如"交易""用户"；Agent 会读取域名与描述，用它先判断该去哪些域找表 | `DomainController` |
-| **逻辑表** | 给物理表起一个业务名，含领域、表描述、可见性、物理表是否存在 | `TableSemanticController` |
+| **逻辑表** | 给物理表补充业务语义，含领域、表描述、数据粒度（一行代表什么）、可见性、物理表是否存在 | `TableSemanticController` |
 | **逻辑列** | 给物理列补充业务含义；同步缓存会保存字段类型、主键与索引提示，供 Agent 生成 SQL 前参考 | `TableColumnSemanticController` |
 | **表关系** | 表间 join 路径（一对一/一对多）、启禁状态，供 Agent 多表查询时自动拼 SQL | `TableRelationSemanticController` |
 | **关系工作区** | 全局视角查看所有数据源的表关系，支持分页、关键词过滤、按 enabled 筛选 | `TableRelationWorkspaceController` |
@@ -39,10 +39,12 @@
 Agent 查询前按需调用语义工具：
 
 1. `get_domains`：返回可用领域的 `name` 与 `description`，让模型先选业务域。
-2. `get_tables(domains=[...])`：返回同步后的表语义，包括表名、领域、描述与已启用表关系。
+2. `get_tables(domains=[...])`：返回同步后的表语义，包括表名、领域、描述、数据粒度与已启用表关系。数据粒度说明一行代表的业务实体或事件，例如“每行代表一份订单”。
 3. `get_table_schema(table_name=...)`：返回同步后的字段信息，包括字段名、类型、主键、索引提示和字段描述。
 
 这条链路依赖语义层同步后的缓存。新增或变更业务库表结构后，请先在「语义管理 / 表语义」里同步物理表，再让 Agent 查询。
+
+已有元数据库升级时，执行 `sql/migration_compatibility.sql` 增加数据粒度字段；全新安装无需额外执行。
 
 ## 5. 最佳实践
 

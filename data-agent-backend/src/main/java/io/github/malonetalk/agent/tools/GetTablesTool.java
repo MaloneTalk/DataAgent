@@ -43,7 +43,7 @@ public class GetTablesTool implements MarkAgentTool {
             description =
                     """
                     Get synced semantic-layer table information, including table name, domain, \
-                    description and enabled relations.\
+                    description, data granularity (what one row represents) and enabled relations.\
                     """)
     public ToolResultBlock getTables(
             @ToolParam(

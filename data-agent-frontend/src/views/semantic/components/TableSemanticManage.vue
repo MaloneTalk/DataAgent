@@ -38,6 +38,7 @@
     tableName: string;
     domain: string;
     tableDescription: string;
+    dataGranularity: string;
     isVisible: boolean;
   }
 
@@ -59,6 +60,7 @@
     tableName: '',
     domain: '',
     tableDescription: '',
+    dataGranularity: '',
     isVisible: true,
   });
   const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
@@ -137,6 +139,7 @@
       tableName: row.tableName,
       domain: row.domain,
       tableDescription: row.tableDescription ?? '',
+      dataGranularity: row.dataGranularity ?? '',
       isVisible: row.isVisible,
     });
     // 加载领域选项
@@ -158,6 +161,7 @@
         tableName: form.tableName,
         domain: form.domain.trim() || undefined,
         tableDescription: form.tableDescription.trim() || undefined,
+        dataGranularity: form.dataGranularity.trim() || undefined,
         isVisible: form.isVisible,
       });
       ElMessage.success('更新成功');
@@ -257,7 +261,7 @@
         <HelpTip>
           <strong>表语义</strong>
           说明一张物理表在业务上代表什么、属于哪个领域、是否允许被 AI
-          查询，以及它和其他表的逻辑关系。
+          查询，以及它和其他表的逻辑关系。数据粒度用于说明表中一行代表什么。
         </HelpTip>
       </h2>
     </div>
@@ -282,6 +286,11 @@
       <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.tableDescription || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="数据粒度" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.dataGranularity || '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="isVisible" label="可见性" width="100" align="center">
@@ -373,6 +382,14 @@
             type="textarea"
             :rows="4"
             placeholder="请输入表的语义描述信息"
+          />
+        </el-form-item>
+        <el-form-item label="数据粒度" prop="dataGranularity" :error="fieldErrors.dataGranularity">
+          <el-input
+            v-model="form.dataGranularity"
+            type="textarea"
+            :rows="2"
+            placeholder="说明一行代表什么，例如：每行代表一份订单"
           />
         </el-form-item>
         <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">

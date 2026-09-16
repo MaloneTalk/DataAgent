@@ -27,6 +27,7 @@ public class TableInfo {
     private String tableName;
     private String physicalTableDescription;
     private String tableDescription;
+    private String dataGranularity;
     private String domain;
     private Integer datasourceId;
     private Boolean isVisible;

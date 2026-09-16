@@ -25,4 +25,5 @@ public record TableSemanticUpdateRequest(
         @NotBlank(message = "tableName 不能为空") String tableName,
         String domain,
         String tableDescription,
+        String dataGranularity,
         @NotNull(message = "isVisible 不能为空") Boolean isVisible) {}

@@ -27,6 +27,7 @@ public record TableSemanticResponse(
         String domain,
         String physicalTableDescription,
         String tableDescription,
+        String dataGranularity,
         Boolean isVisible,
         Boolean hasPhysicalTable,
         String invalidReason,

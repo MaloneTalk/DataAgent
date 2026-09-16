@@ -51,6 +51,7 @@ public class SemanticConverter {
                 .physicalTableDescription(
                         SemanticUtils.trimToNull(tableInfo.getPhysicalTableDescription()))
                 .tableDescription(SemanticUtils.trimToNull(tableInfo.getTableDescription()))
+                .dataGranularity(SemanticUtils.trimToNull(tableInfo.getDataGranularity()))
                 .isVisible(isVisible)
                 .hasPhysicalTable(hasPhysicalTable)
                 .invalidReason(

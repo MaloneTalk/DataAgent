@@ -29,6 +29,7 @@ export interface TableSemanticResponse {
   tableName: string;
   domain: string | null;
   tableDescription: string | null;
+  dataGranularity: string | null;
   isVisible: boolean;
   hasPhysicalTable: boolean;
   invalidReason: string | null;
@@ -151,6 +152,7 @@ export interface TableSemanticUpdateRequest {
   tableName: string;
   domain?: string;
   tableDescription?: string;
+  dataGranularity?: string;
   isVisible: boolean;
 }
 
