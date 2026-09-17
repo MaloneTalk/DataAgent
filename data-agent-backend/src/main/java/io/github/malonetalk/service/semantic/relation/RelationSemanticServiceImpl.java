@@ -20,7 +20,6 @@ package io.github.malonetalk.service.semantic.relation;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.github.malonetalk.common.ErrorCode;
-import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
@@ -35,6 +34,7 @@ import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.enums.LogicalTableRelationType;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
@@ -180,11 +180,6 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String tableName, BindLogicalTableRelationRequest request) {
         requireDatasource(request.datasourceId());
         LogicalTableRelation relation = buildRelation(request.datasourceId(), tableName, request);
-        ensureUniqueSourceKey(
-                request.datasourceId(),
-                relation.getSourceTableName(),
-                relation.getSourceColumnSignature(),
-                null);
         logicalTableRelationMapper.insert(relation);
         return semanticConverter.toResponse(relation);
     }
@@ -197,11 +192,6 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         LogicalTableRelation existing =
                 requireRelation(request.datasourceId(), tableName, request.relationId());
         applyRelationUpdate(existing, tableName, request);
-        ensureUniqueSourceKey(
-                request.datasourceId(),
-                existing.getSourceTableName(),
-                existing.getSourceColumnSignature(),
-                existing.getId());
         existing.setUpdateTime(LocalDateTime.now());
         logicalTableRelationMapper.update(existing);
         return semanticConverter.toResponse(existing);
@@ -285,6 +275,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 request.sourceColumnNames(),
                 request.targetColumnNames(),
                 request.targetTableName(),
+                request.relationType(),
                 request.description(),
                 request.enabled());
         ensureRelationEndpointsOperable(relation);
@@ -303,6 +294,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 request.sourceColumnNames(),
                 request.targetColumnNames(),
                 request.targetTableName(),
+                request.relationType(),
                 request.description(),
                 request.enabled());
         ensureRelationEndpointsOperable(relation);
@@ -382,6 +374,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             List<String> sourceColumnNames,
             List<String> targetColumnNames,
             String targetTableName,
+            LogicalTableRelationType relationType,
             String description,
             Boolean enabled) {
         relation.setSourceTableName(
@@ -402,28 +395,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 logicalTableRelationHelper.toJson(normalizedTargetColumns));
         relation.setTargetColumnSignature(
                 logicalTableRelationHelper.buildColumnSignature(normalizedTargetColumns));
-        relation.setRelationType(SemanticConstants.RELATION_TYPE_FOREIGN_KEY);
+        LogicalTableRelationType resolvedRelationType =
+                relationType == null ? LogicalTableRelationType.FOREIGN_KEY : relationType;
+        relation.setRelationType(resolvedRelationType.getCode());
         relation.setDescription(SemanticUtils.trimToNull(description));
         relation.setIsEnabled(enabled);
-    }
-
-    private void ensureUniqueSourceKey(
-            Integer datasourceId,
-            String sourceTableName,
-            String sourceColumnSignature,
-            Integer currentRelationId) {
-        LogicalTableRelation existing =
-                logicalTableRelationMapper.selectByUniqueSourceKey(
-                        datasourceId, sourceTableName, sourceColumnSignature);
-        if (existing == null) {
-            return;
-        }
-        if (currentRelationId != null && currentRelationId.equals(existing.getId())) {
-            return;
-        }
-        throw BusinessException.of(
-                ErrorCode.DATA_CONFLICT,
-                "A logical relation already exists for the same source columns.");
     }
 
     private LogicalTableRelation requireRelation(

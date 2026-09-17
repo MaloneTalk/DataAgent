@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.dto.semantic;
 
+import io.github.malonetalk.enums.ColumnSemanticType;
 import java.time.LocalDateTime;
 import lombok.Builder;
 
@@ -26,6 +27,7 @@ public record ColumnSemanticResponse(
         String columnName,
         String physicalColumnDescription,
         String columnDescription,
+        ColumnSemanticType semanticType,
         String typeName,
         Boolean primaryKey,
         String indexInfo,

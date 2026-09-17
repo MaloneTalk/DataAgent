@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.entity;
 
+import io.github.malonetalk.enums.ColumnSemanticType;
 import java.time.LocalDateTime;
 import lombok.Data;
 
@@ -32,6 +33,7 @@ public class ColumnInfo {
     private Boolean primaryKey;
     private String indexInfo;
     private String columnDescription;
+    private ColumnSemanticType semanticType;
     private Boolean isVisible;
     private Boolean physicalStatus;
     private LocalDateTime createTime;

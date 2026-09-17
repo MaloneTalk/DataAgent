@@ -29,6 +29,7 @@ export interface TableSemanticResponse {
   tableName: string;
   domain: string | null;
   tableDescription: string | null;
+  dataGranularity: string | null;
   isVisible: boolean;
   hasPhysicalTable: boolean;
   invalidReason: string | null;
@@ -37,10 +38,13 @@ export interface TableSemanticResponse {
 
 export type TableSemanticInfo = TableSemanticResponse;
 
+export type ColumnSemanticType = 'IDENTIFIER' | 'DIMENSION' | 'MEASURE' | 'TIME' | 'LOCATION';
+
 export interface ColumnSemanticResponse {
   id: number | null;
   columnName: string;
   columnDescription: string | null;
+  semanticType: ColumnSemanticType | null;
   typeName: string | null;
   primaryKey: boolean | null;
   indexInfo: string | null;
@@ -52,6 +56,14 @@ export interface ColumnSemanticResponse {
 }
 
 export type ColumnSemanticInfo = ColumnSemanticResponse;
+
+export type LogicalTableRelationType =
+  | 'foreign_key'
+  | 'one_to_one'
+  | 'one_to_many'
+  | 'many_to_one'
+  | 'many_to_many';
+export type EditableLogicalTableRelationType = Exclude<LogicalTableRelationType, 'foreign_key'>;
 
 export interface SyncTableResult {
   tableName: string;
@@ -88,7 +100,7 @@ export interface LogicalTableRelationResponse {
   sourceColumnNames: string[];
   targetTableName: string;
   targetColumnNames: string[];
-  relationType: string;
+  relationType: LogicalTableRelationType;
   description: string | null;
   enabled: boolean;
   invalidReason: string | null;
@@ -143,6 +155,7 @@ export interface TableSemanticUpdateRequest {
   tableName: string;
   domain?: string;
   tableDescription?: string;
+  dataGranularity?: string;
   isVisible: boolean;
 }
 
@@ -150,6 +163,7 @@ export interface ColumnSemanticUpdateRequest {
   datasourceId: number;
   columnName: string;
   columnDescription?: string;
+  semanticType?: ColumnSemanticType;
   isVisible: boolean;
 }
 
@@ -158,6 +172,7 @@ export interface BindLogicalTableRelationRequest {
   sourceColumnNames: string[];
   targetTableName: string;
   targetColumnNames: string[];
+  relationType: EditableLogicalTableRelationType;
   description: string;
   enabled: boolean;
 }

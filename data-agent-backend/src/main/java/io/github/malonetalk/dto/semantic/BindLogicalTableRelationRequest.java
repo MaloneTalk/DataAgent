@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.dto.semantic;
 
+import io.github.malonetalk.enums.LogicalTableRelationType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -28,5 +29,6 @@ public record BindLogicalTableRelationRequest(
         @NotEmpty(message = "sourceColumnNames 不能为空") List<String> sourceColumnNames,
         @NotBlank(message = "targetTableName 不能为空") String targetTableName,
         @NotEmpty(message = "targetColumnNames 不能为空") List<String> targetColumnNames,
+        LogicalTableRelationType relationType,
         @Size(max = 1000, message = "description 长度不能超过 1000") String description,
         @NotNull(message = "enabled 不能为空") Boolean enabled) {}

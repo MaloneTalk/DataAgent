@@ -18,6 +18,7 @@
 <script setup lang="ts">
   import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
   import type { LogicalTableRelationResponse } from '@/api/semantic';
+  import { formatLogicalRelationType } from '../utils';
   import type {
     RelationDraftPreview,
     RelationDragCreatePayload,
@@ -157,7 +158,9 @@
         relation.targetColumnNames[0],
         targetSide,
       );
-      const label = relation.sourceColumnNames.length > 1 ? '多列外键' : '外键';
+      const relationTypeLabel = formatLogicalRelationType(relation.relationType);
+      const label =
+        relation.sourceColumnNames.length > 1 ? `多列${relationTypeLabel}` : relationTypeLabel;
 
       return [
         {
@@ -858,6 +861,9 @@
               {{ relation.sourceColumnNames.join(', ') }} ->
               {{ relation.targetColumnNames.join(', ') }}
             </div>
+            <div class="relation-type-line">
+              {{ formatLogicalRelationType(relation.relationType) }}
+            </div>
             <div class="relation-description">{{ relation.description || '无备注' }}</div>
             <div v-if="relation.invalidReason" class="relation-invalid">
               {{ relation.invalidReason }}
@@ -1118,6 +1124,11 @@
     color: var(--app-text-primary);
     margin-bottom: 6px;
     line-height: 1.5;
+  }
+
+  .relation-type-line {
+    color: var(--app-text-muted);
+    margin-bottom: 6px;
   }
 
   .relation-description {

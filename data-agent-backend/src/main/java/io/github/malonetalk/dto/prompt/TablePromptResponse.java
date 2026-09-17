@@ -26,4 +26,5 @@ public record TablePromptResponse(
         String name,
         String domain,
         String description,
+        String dataGranularity,
         List<TableRelationPromptResponse> relations) {}

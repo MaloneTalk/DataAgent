@@ -15,15 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto.semantic;
+package io.github.malonetalk.enums;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
-public record TableSemanticUpdateRequest(
-        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
-        @NotBlank(message = "tableName 不能为空") String tableName,
-        String domain,
-        String tableDescription,
-        String dataGranularity,
-        @NotNull(message = "isVisible 不能为空") Boolean isVisible) {}
+public enum ColumnSemanticType {
+    IDENTIFIER,
+    DIMENSION,
+    MEASURE,
+    TIME,
+    LOCATION
+}

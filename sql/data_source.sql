@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS `table_info` (
     `table_name` VARCHAR(255) NOT NULL COMMENT '表名',
     `physical_table_description` VARCHAR(500) DEFAULT NULL COMMENT '物理表原始描述',
     `table_description` VARCHAR(500) DEFAULT NULL COMMENT '表描述',
+    `data_granularity` VARCHAR(500) DEFAULT NULL COMMENT '数据粒度（一行代表的业务实体或事件）',
     `domain` VARCHAR(255) DEFAULT NULL COMMENT '领域',
     `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
     `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见',
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     `type_name` VARCHAR(255) DEFAULT NULL COMMENT '物理列类型',
     `primary_key` TINYINT(1) DEFAULT NULL COMMENT '是否物理主键',
     `column_description` VARCHAR(500) DEFAULT NULL COMMENT '列描述',
+    `semantic_type` VARCHAR(32) DEFAULT NULL COMMENT '语义类型：IDENTIFIER/DIMENSION/MEASURE/TIME/LOCATION',
     `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见',
     `physical_status` TINYINT(1) DEFAULT 1 COMMENT '物理列是否存在',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -72,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `logical_table_relation` (
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_relation_source_signature`
+    KEY `idx_relation_source_signature`
         (`datasource_id`, `source_table_name`, `source_column_signature`),
     KEY `idx_relation_source_table` (`datasource_id`, `source_table_name`),
     KEY `idx_relation_source_enabled` (`datasource_id`, `source_table_name`, `is_enabled`),

@@ -12,6 +12,7 @@
         <result column="primary_key" property="primaryKey"/>
         <result column="index_info" property="indexInfo"/>
         <result column="column_description" property="columnDescription"/>
+        <result column="semantic_type" property="semanticType"/>
         <result column="is_visible" property="isVisible"/>
         <result column="physical_status" property="physicalStatus"/>
         <result column="create_time" property="createTime"/>
@@ -30,6 +31,7 @@
             ORDER BY
                 CASE
                     WHEN t2.column_description IS NOT NULL AND t2.column_description &lt;&gt; '' THEN 0
+                    WHEN t2.semantic_type IS NOT NULL AND t2.semantic_type &lt;&gt; '' THEN 0
                     WHEN t2.is_visible = 0 THEN 0
                     ELSE 1
                 END ASC,
@@ -101,12 +103,12 @@
     <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO column_info (
             datasource_id, table_name, column_name, physical_column_description, type_name,
-            primary_key, index_info, column_description, is_visible, physical_status,
+            primary_key, index_info, column_description, semantic_type, is_visible, physical_status,
             create_time, update_time
         ) VALUES (
             #{datasourceId}, #{tableName}, #{columnName}, #{physicalColumnDescription},
             #{typeName}, COALESCE(#{primaryKey}, 0), #{indexInfo}, #{columnDescription},
-            COALESCE(#{isVisible}, 1), COALESCE(#{physicalStatus}, 1),
+            #{semanticType}, COALESCE(#{isVisible}, 1), COALESCE(#{physicalStatus}, 1),
             COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
         )
     </insert>
@@ -143,6 +145,7 @@
             <if test="tableName != null">table_name = #{tableName},</if>
             <if test="columnName != null">column_name = #{columnName},</if>
             column_description = #{columnDescription},
+            semantic_type = #{semanticType},
             <if test="isVisible != null">is_visible = #{isVisible},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>

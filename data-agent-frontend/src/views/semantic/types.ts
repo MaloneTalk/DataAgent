@@ -15,11 +15,14 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { EditableLogicalTableRelationType, LogicalTableRelationType } from '@/api/semantic';
+
 export interface RelationForm {
   sourceTableName: string;
   sourceColumnNames: string[];
   targetTableName: string;
   targetColumnNames: string[];
+  relationType: EditableLogicalTableRelationType | '';
   description: string;
   enabled: boolean;
 }
@@ -29,6 +32,7 @@ export interface RelationDraftPreview {
   sourceColumnNames: string[];
   targetTableName: string;
   targetColumnNames: string[];
+  relationType: LogicalTableRelationType | '';
   enabled: boolean;
 }
 

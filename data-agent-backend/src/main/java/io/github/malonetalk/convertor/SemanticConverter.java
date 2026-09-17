@@ -51,6 +51,7 @@ public class SemanticConverter {
                 .physicalTableDescription(
                         SemanticUtils.trimToNull(tableInfo.getPhysicalTableDescription()))
                 .tableDescription(SemanticUtils.trimToNull(tableInfo.getTableDescription()))
+                .dataGranularity(SemanticUtils.trimToNull(tableInfo.getDataGranularity()))
                 .isVisible(isVisible)
                 .hasPhysicalTable(hasPhysicalTable)
                 .invalidReason(
@@ -68,6 +69,7 @@ public class SemanticConverter {
                 .physicalColumnDescription(
                         SemanticUtils.trimToNull(columnInfo.getPhysicalColumnDescription()))
                 .columnDescription(columnInfo.getColumnDescription())
+                .semanticType(columnInfo.getSemanticType())
                 .typeName(SemanticUtils.trimToNull(columnInfo.getTypeName()))
                 .primaryKey(columnInfo.getPrimaryKey())
                 .indexInfo(SemanticUtils.trimToNull(columnInfo.getIndexInfo()))
