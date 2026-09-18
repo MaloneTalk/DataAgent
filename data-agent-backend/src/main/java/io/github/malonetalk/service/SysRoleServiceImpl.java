@@ -17,8 +17,6 @@
  */
 package io.github.malonetalk.service;
 
-import static io.github.malonetalk.common.Constants.ADMIN_ROLE_ID;
-
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.RoleConverter;
 import io.github.malonetalk.dto.ColumnPermissionResponse;
@@ -82,9 +80,6 @@ public class SysRoleServiceImpl implements SysRoleService {
     @Transactional
     public void delete(Integer id) {
         requireRole(id);
-        if (id == ADMIN_ROLE_ID) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "不能删除管理员角色");
-        }
         roleTablePermissionMapper.deleteByRoleId(id);
         roleHiddenColumnMapper.deleteByRoleId(id);
         sysRoleMapper.deleteById(id);
