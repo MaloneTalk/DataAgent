@@ -17,17 +17,21 @@
  */
 package io.github.malonetalk.annotation;
 
+import io.github.malonetalk.enums.PermissionEnum;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标记需要管理员权限的 Controller 方法或类。
+ * 标记当前接口需要用户所拥有的权限。
  *
- * <p>可用于方法级覆盖类级行为。拦截器检查当前用户 role_id == 1 时放行，否则返回 403。
+ * <p>可用于方法级覆盖类级行为。如果用户不具备相应的权限则返回 403。
  * 与 {@link io.github.malonetalk.common.ErrorCode#FORBIDDEN} 联动。
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface AdminOnly {}
+public @interface RequirePermission {
+
+    PermissionEnum[] value() default {};
+}

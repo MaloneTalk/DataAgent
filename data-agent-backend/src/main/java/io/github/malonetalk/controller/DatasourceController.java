@@ -18,7 +18,7 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.agent.datasource.DataSourceType;
-import io.github.malonetalk.annotation.AdminOnly;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
@@ -79,7 +79,7 @@ public class DatasourceController {
     }
 
     /** 返回某数据源下的所有物理表名，供权限配置页使用。 */
-    @AdminOnly
+    @RequirePermission
     @GetMapping("/{id}/tables")
     public Result<List<String>> listTableNames(@PathVariable Integer id) {
         requireDatasource(id);
@@ -91,7 +91,7 @@ public class DatasourceController {
     }
 
     /** 返回某数据源下所有表的列名，一次查询，供列级权限配置使用。 */
-    @AdminOnly
+    @RequirePermission
     @GetMapping("/{id}/columns")
     public Result<Map<String, List<String>>> listAllColumns(@PathVariable Integer id) {
         requireDatasource(id);
@@ -105,7 +105,7 @@ public class DatasourceController {
         return Result.success(map);
     }
 
-    @AdminOnly
+    @RequirePermission
     @PostMapping
     public Result<Boolean> save(@Valid @RequestBody DatasourceRequest request) {
         DataSourceType type = requireDatasourceType(request.type());
@@ -117,7 +117,7 @@ public class DatasourceController {
         return Result.success();
     }
 
-    @AdminOnly
+    @RequirePermission
     @PutMapping("/{id}")
     public Result<Boolean> update(
             @PathVariable Integer id, @Valid @RequestBody DatasourceRequest request) {
@@ -139,7 +139,7 @@ public class DatasourceController {
         return Result.success(true);
     }
 
-    @AdminOnly
+    @RequirePermission
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteById(@PathVariable Integer id) {
         requireDatasource(id);
@@ -166,7 +166,7 @@ public class DatasourceController {
         return Result.success(list);
     }
 
-    @AdminOnly
+    @RequirePermission
     @PutMapping("/{id}/activate")
     public Result<Boolean> activate(@PathVariable Integer id) {
         requireDatasource(id);
@@ -176,7 +176,7 @@ public class DatasourceController {
         return Result.success(true);
     }
 
-    @AdminOnly
+    @RequirePermission
     @PutMapping("/{id}/deactivate")
     public Result<Boolean> deactivate(@PathVariable Integer id) {
         requireDatasource(id);

@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.annotation.AdminOnly;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.dto.ReportResponse;
@@ -44,7 +44,7 @@ public class ReportController {
         return Result.success(reportService.getReportPage(query));
     }
 
-    @AdminOnly
+    @RequirePermission
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Integer id) {
         RequestAssert.requireNonNegative(id, "id must be non-negative.");

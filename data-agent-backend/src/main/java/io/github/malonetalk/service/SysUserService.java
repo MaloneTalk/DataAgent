@@ -17,12 +17,15 @@
  */
 package io.github.malonetalk.service;
 
+import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.UserCreateRequest;
 import io.github.malonetalk.dto.UserResponse;
 import io.github.malonetalk.dto.UserUpdateRequest;
 import java.util.List;
 
 public interface SysUserService {
+
+    UserContext selectAuthProjection(Integer userId);
 
     List<UserResponse> listAll();
 

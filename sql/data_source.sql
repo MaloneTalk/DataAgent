@@ -212,6 +212,7 @@ CREATE TABLE IF NOT EXISTS `sys_user` (
     `password_hash` VARCHAR(255) NULL COMMENT 'PBKDF2 哈希，仅 LOCAL 身份源使用；外部身份源用户为空',
     `display_name`  VARCHAR(64)  NOT NULL COMMENT '显示名',
     `role_id`       INT NOT NULL DEFAULT 0 COMMENT '角色ID；0=未分配角色（无任何表权限）',
+    `is_super_admin` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否超级管理员:0否,1是',
     `idp_type`      VARCHAR(16)  NOT NULL DEFAULT 'LOCAL' COMMENT '身份源：LOCAL=本系统账号 / DINGTALK / FEISHU / WECOM',
     `idp_user_id`   VARCHAR(64)  NULL COMMENT '身份源里的用户ID（LOCAL为空）',
     `status`        TINYINT NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',

@@ -23,6 +23,7 @@ export interface UserResponse {
   username: string;
   displayName: string;
   roleId: number; // 1=管理员 0=普通用户
+  superAdmin: boolean; // 是否超级管理员
   status: number; // 1=启用 0=禁用
   createTime: string;
 }

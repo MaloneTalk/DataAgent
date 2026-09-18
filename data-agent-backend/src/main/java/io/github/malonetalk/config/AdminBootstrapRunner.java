@@ -49,7 +49,7 @@ public class AdminBootstrapRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (sysUserMapper.countAll() > 0) {
+        if (sysUserMapper.existUser()) {
             return;
         }
         if (adminInitPassword == null || adminInitPassword.isBlank()) {
@@ -61,8 +61,9 @@ public class AdminBootstrapRunner implements CommandLineRunner {
         SysUser admin = new SysUser();
         admin.setUsername("admin");
         admin.setPasswordHash(PasswordUtil.hash(adminInitPassword));
-        admin.setDisplayName("管理员");
-        admin.setRoleId(1); // 管理员角色，对应 @AdminOnly 权限判定
+        admin.setDisplayName("超级管理员");
+        admin.setRoleId(0);
+        admin.setSuperAdmin(true);
         admin.setIdpType("LOCAL");
         admin.setIdpUserId(null);
         admin.setStatus(1);
@@ -70,8 +71,8 @@ public class AdminBootstrapRunner implements CommandLineRunner {
         admin.setUpdateTime(now);
         sysUserMapper.insert(admin);
         log.info(
-                "Bootstrapped initial admin account (id={}, username=admin). Change its password"
-                        + " ASAP.",
+                "Bootstrapped initial super admin account (id={}, username=admin). Change its"
+                        + " password ASAP.",
                 admin.getId());
     }
 }

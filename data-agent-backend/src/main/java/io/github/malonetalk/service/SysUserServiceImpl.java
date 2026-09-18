@@ -18,6 +18,7 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.UserCreateRequest;
 import io.github.malonetalk.dto.UserResponse;
 import io.github.malonetalk.dto.UserUpdateRequest;
@@ -37,6 +38,21 @@ public class SysUserServiceImpl implements SysUserService {
 
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
+
+    @Override
+    public UserContext selectAuthProjection(Integer userId) {
+        SysUser sysUser = sysUserMapper.selectById(userId);
+        if (sysUser == null) {
+            return null;
+        }
+        return UserContext.builder()
+                .userId(sysUser.getId())
+                .username(sysUser.getUsername())
+                .displayName(sysUser.getDisplayName())
+                .roleId(sysUser.getRoleId())
+                .superAdmin(sysUser.getSuperAdmin())
+                .build();
+    }
 
     @Override
     public List<UserResponse> listAll() {
@@ -107,6 +123,7 @@ public class SysUserServiceImpl implements SysUserService {
                 user.getUsername(),
                 user.getDisplayName(),
                 user.getRoleId(),
+                user.getSuperAdmin(),
                 user.getStatus(),
                 user.getCreateTime());
     }
