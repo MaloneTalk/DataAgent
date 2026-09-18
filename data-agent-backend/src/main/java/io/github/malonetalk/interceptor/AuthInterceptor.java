@@ -51,18 +51,17 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Missing or invalid token.");
         }
         UserContext context = sysUserService.selectAuthProjection(userId);
+        if (context == null) {
+            // 用户不存在或 status=0（禁用），均视为未授权。
+            throw BusinessException.of(
+                    ErrorCode.UNAUTHORIZED, "Account is disabled or does not exist.");
+        }
         UserContext.set(context);
 
         // 如果没有权限校验注解，直接返回
         if (!(handler instanceof HandlerMethod handlerMethod
                 && hashRequiredAnnotation(handlerMethod))) {
             return true;
-        }
-
-        if (context == null) {
-            // 用户不存在或 status=0（禁用），均视为未授权。
-            throw BusinessException.of(
-                    ErrorCode.UNAUTHORIZED, "Account is disabled or does not exist.");
         }
 
         if (Boolean.TRUE.equals(context.superAdmin())) {

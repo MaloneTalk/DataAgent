@@ -14,7 +14,7 @@
 
 ## 2. 语义层的组成
 
-所有操作均需 `@AdminOnly` 权限。前端入口是「语义管理」（`/semantic` 会跳到 `/semantic/domain`），代码在 `src/views/semantic` 与 `src/views/metric`。
+所有操作均需 `@RequirePermission` 权限。前端入口是「语义管理」（`/semantic` 会跳到 `/semantic/domain`），代码在 `src/views/semantic` 与 `src/views/metric`。
 
 | 概念 | 说明 | Controller |
 | --- | --- | --- |

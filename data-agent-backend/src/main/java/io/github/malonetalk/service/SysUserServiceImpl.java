@@ -42,7 +42,7 @@ public class SysUserServiceImpl implements SysUserService {
     @Override
     public UserContext selectAuthProjection(Integer userId) {
         SysUser sysUser = sysUserMapper.selectById(userId);
-        if (sysUser == null) {
+        if (sysUser == null || sysUser.getStatus() == null || sysUser.getStatus() != 1) {
             return null;
         }
         return UserContext.builder()
