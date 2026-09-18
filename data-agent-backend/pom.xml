@@ -76,6 +76,8 @@
         <pagehelper-spring-boot.version>2.1.1</pagehelper-spring-boot.version>
         <lombok.version>1.18.42</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
+        <jsqlparser.version>5.0</jsqlparser.version>
+        <jsonwebtoken.version>0.12.6</jsonwebtoken.version>
     </properties>
 
     <dependencies>
@@ -146,25 +148,25 @@
         <dependency>
             <groupId>com.github.jsqlparser</groupId>
             <artifactId>jsqlparser</artifactId>
-            <version>5.0</version>
+            <version>${jsqlparser.version}</version>
         </dependency>
 
         <!-- JWT 签发/校验（HS256）；唯一为登录引入的依赖，密码哈希走 JDK 标准库无新依赖 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.12.6</version>
+            <version>${jsonwebtoken.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.12.6</version>
+            <version>${jsonwebtoken.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.6</version>
+            <version>${jsonwebtoken.version}</version>
             <scope>runtime</scope>
         </dependency>
     </dependencies>

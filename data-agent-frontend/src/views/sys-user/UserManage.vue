@@ -179,9 +179,10 @@
       <el-table-column prop="id" label="ID" width="70" align="center" />
       <el-table-column prop="username" label="用户名" min-width="120" />
       <el-table-column prop="displayName" label="显示名" min-width="120" />
-      <el-table-column label="角色" width="100" align="center">
+      <el-table-column label="角色" width="130" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.roleId === 1 ? '' : 'info'" size="small">
+          <el-tag v-if="row.superAdmin" type="danger" size="small">超级管理员</el-tag>
+          <el-tag v-else :type="row.roleId === 1 ? '' : 'info'" size="small">
             {{ roleName(row.roleId) }}
           </el-tag>
         </template>

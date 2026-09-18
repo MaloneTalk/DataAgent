@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.annotation.AdminOnly;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ResetPasswordRequest;
 import io.github.malonetalk.dto.UserCreateRequest;
@@ -42,7 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>username 唯一性由 Service 层保证；password 不允许通过 update 接口修改（需调用重置密码）。
  */
-@AdminOnly
+@RequirePermission
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/sys/user")

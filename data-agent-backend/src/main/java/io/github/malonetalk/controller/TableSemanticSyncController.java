@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.annotation.AdminOnly;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.PhysicalTableCandidatePageQuery;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@AdminOnly
+@RequirePermission
 @RestController
 @RequestMapping("/api/semantic/tables/sync")
 @RequiredArgsConstructor

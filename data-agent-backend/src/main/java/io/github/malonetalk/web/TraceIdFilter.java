@@ -30,6 +30,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * 为每个请求生成（或复用入站 X-Trace-Id）traceId：放入 MDC 供日志串联，
  * 并通过响应头 X-Trace-Id 回传给调用方（含 SSE 流与异常响应）。
+ * <p>
+ * TODO: 改用 Micrometer Tracing + {@code micrometer-tracing-bridge-otel} 自动处理链路追踪
  */
 @Component
 public class TraceIdFilter extends OncePerRequestFilter {

@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.annotation.AdminOnly;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.MetricConverter;
 import io.github.malonetalk.dto.MetricRequest;
@@ -49,14 +49,14 @@ public class MetricController {
     private final MetricService metricService;
     private final MetricConverter metricConverter;
 
-    @AdminOnly
+    @RequirePermission
     @PostMapping
     public Result<MetricResponse> create(@Valid @RequestBody MetricRequest request) {
         MetricInfo entity = metricConverter.toEntity(request);
         return Result.success(metricConverter.toResponse(metricService.create(entity)));
     }
 
-    @AdminOnly
+    @RequirePermission
     @PutMapping("/{id}")
     public Result<MetricResponse> update(
             @PathVariable @Positive(message = "id 必须为正数") Integer id,
@@ -65,7 +65,7 @@ public class MetricController {
         return Result.success(metricConverter.toResponse(metricService.update(id, entity)));
     }
 
-    @AdminOnly
+    @RequirePermission
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
         metricService.delete(id);

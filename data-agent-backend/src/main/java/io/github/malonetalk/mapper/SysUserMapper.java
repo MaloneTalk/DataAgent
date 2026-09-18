@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.entity.SysUser;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -31,17 +31,14 @@ public interface SysUserMapper {
 
     SysUser selectById(@Param("id") Integer id);
 
-    /** 拦截器每次请求调用：仅取鉴权必要字段，且 status=1 才返回；禁用即时生效。 */
-    UserContext selectAuthProjection(@Param("id") Integer id);
-
     int insert(SysUser user);
 
     int updatePassword(
             @Param("id") Integer id,
             @Param("passwordHash") String passwordHash,
-            @Param("updateTime") java.time.LocalDateTime updateTime);
+            @Param("updateTime") LocalDateTime updateTime);
 
-    int countAll();
+    boolean existUser();
 
     List<SysUser> selectAll();
 

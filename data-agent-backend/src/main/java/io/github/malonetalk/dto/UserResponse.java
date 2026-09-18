@@ -24,5 +24,6 @@ public record UserResponse(
         String username,
         String displayName,
         Integer roleId,
+        Boolean superAdmin,
         Integer status,
         LocalDateTime createTime) {}

@@ -20,14 +20,13 @@ package io.github.malonetalk.controller;
 import io.agentscope.core.message.Msg;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
-import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
-import io.github.malonetalk.exception.BusinessException;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -101,12 +100,9 @@ public class AgentController {
         return Result.success(sessions);
     }
 
+    @RequirePermission
     @DeleteMapping("/session")
     public Result<Boolean> clearAllSessions() {
-        UserContext user = UserContext.require();
-        if (!user.isAdmin()) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN);
-        }
         sessionService.clearAllSessions(null);
         return Result.success(true);
     }

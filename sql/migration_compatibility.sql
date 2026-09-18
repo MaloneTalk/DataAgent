@@ -27,3 +27,18 @@ SET @migration_sql = IF(
 PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND COLUMN_NAME = 'is_super_admin'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `sys_user` ADD COLUMN `is_super_admin` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''是否超级管理员:0否,1是'' AFTER `role_id`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;

@@ -35,6 +35,7 @@ out/
 *.suo
 *.user2
 *.classpath
+*.factorypath
 *.path
 
 # NetBeans

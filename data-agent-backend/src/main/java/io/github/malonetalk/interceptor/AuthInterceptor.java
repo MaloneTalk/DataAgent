@@ -17,11 +17,11 @@
  */
 package io.github.malonetalk.interceptor;
 
-import io.github.malonetalk.annotation.AdminOnly;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.exception.BusinessException;
-import io.github.malonetalk.mapper.SysUserMapper;
+import io.github.malonetalk.service.SysUserService;
 import io.github.malonetalk.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,19 +33,15 @@ import org.springframework.web.servlet.HandlerInterceptor;
 /**
  * 鉴权拦截器：拦 /api/**，放行 /api/auth/login 与 /error。
  *
- * <p>解析 Authorization: Bearer → JwtUtil 取 userId → 每次请求查库（selectAuthProjection 只返回启用用户）
- * → 放入 UserContext。token 缺失/过期/非法 或 用户被禁用 一律抛 {@link ErrorCode#UNAUTHORIZED}，
- * 由 GlobalExceptionHandler 统一输出 401。每次查库保证禁用即时生效。
- *
- * <p>方法/类上有 {@link AdminOnly} 且当前用户 role_id != 1 时返回
- * {@link ErrorCode#FORBIDDEN} (403)。表/列拦截、会话隔离 = 后续轮次。
+ * <p>方法/类上有 {@link RequirePermission} 且当前用户没有相应权限时返回
+ * {@link ErrorCode#FORBIDDEN} (403)。表/列拦截、会话隔离 = 后续轮次。规定超级管理员不需要校验权限。
  */
 @Component
 @AllArgsConstructor
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
-    private final SysUserMapper sysUserMapper;
+    private final SysUserService sysUserService;
 
     @Override
     public boolean preHandle(
@@ -54,7 +50,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (userId == null) {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Missing or invalid token.");
         }
-        UserContext context = sysUserMapper.selectAuthProjection(userId);
+        UserContext context = sysUserService.selectAuthProjection(userId);
         if (context == null) {
             // 用户不存在或 status=0（禁用），均视为未授权。
             throw BusinessException.of(
@@ -62,11 +58,17 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         UserContext.set(context);
 
-        if (handler instanceof HandlerMethod handlerMethod && isAdminRequired(handlerMethod)) {
-            if (!context.isAdmin()) {
-                throw BusinessException.of(ErrorCode.FORBIDDEN, "需要管理员权限");
-            }
+        // 如果没有权限校验注解，直接返回
+        if (!(handler instanceof HandlerMethod handlerMethod
+                && hashRequiredAnnotation(handlerMethod))) {
+            return true;
         }
+
+        if (Boolean.TRUE.equals(context.superAdmin())) {
+            return true;
+        }
+        checkPermission(context);
+
         return true;
     }
 
@@ -79,13 +81,18 @@ public class AuthInterceptor implements HandlerInterceptor {
         UserContext.clear();
     }
 
-    /** 方法或所在类上有 @AdminOnly 注解时要求管理员权限；方法级注解覆盖类级。 */
-    private boolean isAdminRequired(HandlerMethod handlerMethod) {
-        AdminOnly methodAnnotation = handlerMethod.getMethodAnnotation(AdminOnly.class);
+    private boolean hashRequiredAnnotation(HandlerMethod handlerMethod) {
+        RequirePermission methodAnnotation =
+                handlerMethod.getMethodAnnotation(RequirePermission.class);
         if (methodAnnotation != null) {
             return true;
         }
-        return handlerMethod.getBeanType().isAnnotationPresent(AdminOnly.class);
+        return handlerMethod.getBeanType().isAnnotationPresent(RequirePermission.class);
+    }
+
+    private void checkPermission(UserContext user) {
+        // TODO 实现按角色、按业务类型枚举授权（Issue #150）
+        throw BusinessException.of(ErrorCode.FORBIDDEN, "Missing required permission.");
     }
 
     private String extractBearer(HttpServletRequest request) {

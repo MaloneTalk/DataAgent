@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.annotation.AdminOnly;
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ColumnPermissionResponse;
 import io.github.malonetalk.dto.RoleRequest;
@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@AdminOnly
+@RequirePermission
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/sys/role")
