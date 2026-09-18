@@ -610,11 +610,14 @@
 
     const target = event.target as globalThis.Element | null;
     if (
-      target?.closest('.relation-side-card, .el-dialog, .el-button, .el-switch, .relation-edge-hit')
+      target?.closest(
+        '.relation-side-card, .el-dialog, .el-button, .el-switch, .relation-edge-hit, .canvas-controls',
+      )
     ) {
       return;
     }
 
+    event.preventDefault?.();
     canvasPan.value = {
       startClientX: event.clientX,
       startClientY: event.clientY,
@@ -630,6 +633,7 @@
     }
 
     event.stopPropagation();
+    event.preventDefault?.();
     const node = localNodes.value.find(item => item.tableName === tableName);
     if (!node) {
       return;
@@ -668,6 +672,9 @@
         class="relation-canvas-wrap"
         @wheel="handleViewportWheel"
         @pointerdown="handleViewportPointerDown"
+        @pointermove="handleCanvasPointerMove"
+        @pointerup="handleCanvasPointerUp"
+        @pointerleave="handleCanvasPointerUp"
       >
         <div v-if="nodeLoading" class="canvas-empty">正在加载表结构...</div>
         <div
@@ -678,9 +685,6 @@
             height: `${canvasBounds.height}px`,
             transform: `translate(${viewport.offsetX}px, ${viewport.offsetY}px) scale(${viewport.scale})`,
           }"
-          @pointermove="handleCanvasPointerMove"
-          @pointerup="handleCanvasPointerUp"
-          @pointerleave="handleCanvasPointerUp"
         >
           <svg
             class="relation-svg"
@@ -931,6 +935,8 @@
     min-height: 720px;
     position: relative;
     cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
     transition:
       background-color 0.2s,
       border-color 0.2s;
