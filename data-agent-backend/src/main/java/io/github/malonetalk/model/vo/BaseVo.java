@@ -17,4 +17,8 @@
  */
 package io.github.malonetalk.model.vo;
 
-public abstract class BaseVo {}
+/**
+ * 出参 VO 的根标记：Controller 直接返回它的实现，由 {@link io.github.malonetalk.aop.BaseVoResponseAdvice}
+ * 统一包装为 {@link ResultVo}。
+ */
+public interface BaseVo {}

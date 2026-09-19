@@ -24,6 +24,7 @@ import org.springframework.http.HttpStatus;
 
 /** 统一 API 响应体；错误响应通过 errorCode 暴露稳定业务码，message 暴露展示文案。 */
 @Data
+@Deprecated
 public class Result<T> implements Serializable {
 
     private Integer code;
