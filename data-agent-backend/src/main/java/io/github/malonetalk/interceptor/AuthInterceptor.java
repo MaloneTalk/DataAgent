@@ -18,9 +18,9 @@
 package io.github.malonetalk.interceptor;
 
 import io.github.malonetalk.annotation.RequirePermission;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.service.SysUserService;
 import io.github.malonetalk.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;

@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.common;
 
+import io.github.malonetalk.exception.ErrorCode;
 import java.io.Serializable;
 import lombok.Data;
 import org.springframework.http.HttpStatus;

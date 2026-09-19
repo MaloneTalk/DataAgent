@@ -19,7 +19,6 @@ package io.github.malonetalk.controller;
 
 import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.annotation.RequirePermission;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.DatasourceConverter;
 import io.github.malonetalk.dto.DatasourceRequest;
@@ -29,6 +28,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;

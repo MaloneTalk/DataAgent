@@ -15,24 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.annotation;
+package io.github.malonetalk.model.po;
 
-import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ErrorCode;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-/**
- * 标记当前接口需要用户所拥有的权限。
- *
- * <p>可用于方法级覆盖类级行为。如果用户不具备相应的权限则返回 403。
- * 与 {@link ErrorCode#FORBIDDEN} 联动。
- */
-@Target({ElementType.TYPE, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-public @interface RequirePermission {
+@Data
+public abstract class BasePo {
 
-    PermissionEnum[] value() default {};
+    private Long creatorId;
+    private LocalDateTime createTime;
+    private Long updaterId;
+    private LocalDateTime updateTime;
+    private Integer isDeleted;
 }

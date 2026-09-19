@@ -15,24 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.annotation;
-
-import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ErrorCode;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 
 /**
- * 标记当前接口需要用户所拥有的权限。
- *
- * <p>可用于方法级覆盖类级行为。如果用户不具备相应的权限则返回 403。
- * 与 {@link ErrorCode#FORBIDDEN} 联动。
+ * 定义当前项目的实体类，分别有 dto/vo/bo/po 四个维度。
+ * TODO: 逐渐将当前项目的所有实体类均移动到该包下，
+ * 并废弃 `io.github.malonetalk.dto` 和 `io.github.malonetalk.entity`
  */
-@Target({ElementType.TYPE, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-public @interface RequirePermission {
-
-    PermissionEnum[] value() default {};
-}
+package io.github.malonetalk.model;

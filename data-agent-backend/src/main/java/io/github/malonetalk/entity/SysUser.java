@@ -22,6 +22,7 @@ import lombok.Data;
 
 /** 系统用户。身份源抽象字段（idp_type/idp_user_id）本轮登录仅用 LOCAL，外部身份源对接后置。 */
 @Data
+@Deprecated
 public class SysUser {
 
     private Integer id;

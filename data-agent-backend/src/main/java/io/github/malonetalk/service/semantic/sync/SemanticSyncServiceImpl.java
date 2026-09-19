@@ -18,7 +18,6 @@
 package io.github.malonetalk.service.semantic.sync;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.dto.pagination.PageResponse;
@@ -31,6 +30,7 @@ import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;

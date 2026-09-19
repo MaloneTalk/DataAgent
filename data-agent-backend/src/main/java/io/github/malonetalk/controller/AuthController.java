@@ -17,7 +17,6 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.ChangePasswordRequest;
@@ -26,6 +25,7 @@ import io.github.malonetalk.dto.LoginResponse;
 import io.github.malonetalk.dto.UserInfoResponse;
 import io.github.malonetalk.entity.SysUser;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.utils.JwtUtil;
 import io.github.malonetalk.utils.PasswordUtil;
@@ -50,8 +50,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private static final String BAD_CREDENTIALS = "用户名或密码错误";
-
     private final SysUserMapper sysUserMapper;
     private final JwtUtil jwtUtil;
 
@@ -62,7 +60,7 @@ public class AuthController {
         if (user == null
                 || user.getPasswordHash() == null
                 || !PasswordUtil.verify(request.password(), user.getPasswordHash())) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, BAD_CREDENTIALS);
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
         if (user.getStatus() == null || user.getStatus() != 1) {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "账号已禁用，请联系管理员");

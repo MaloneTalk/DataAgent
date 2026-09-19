@@ -17,7 +17,6 @@
  */
 package io.github.malonetalk.exception;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.FieldValidationError;
 import jakarta.validation.ConstraintViolationException;

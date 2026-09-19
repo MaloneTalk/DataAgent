@@ -19,8 +19,8 @@ package io.github.malonetalk.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import java.util.Arrays;
 import lombok.AllArgsConstructor;
 
