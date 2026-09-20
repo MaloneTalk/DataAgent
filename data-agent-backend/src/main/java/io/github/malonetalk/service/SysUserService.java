@@ -21,7 +21,6 @@ import io.github.malonetalk.dto.UserCreateRequest;
 import io.github.malonetalk.dto.UserResponse;
 import io.github.malonetalk.dto.UserUpdateRequest;
 import io.github.malonetalk.model.bo.UserContextBo;
-
 import java.util.List;
 
 public interface SysUserService {

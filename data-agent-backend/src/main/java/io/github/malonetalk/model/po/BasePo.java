@@ -17,15 +17,29 @@
  */
 package io.github.malonetalk.model.po;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import java.time.LocalDateTime;
 import lombok.Data;
 
+/**
+ * 持久化对象基类：统一承载审计字段。
+ */
 @Data
 public abstract class BasePo {
 
+    @TableField(fill = FieldFill.INSERT)
     private Long creatorId;
+
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updaterId;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
-    private Integer isDeleted;
+
+    @TableLogic private Integer isDeleted;
 }

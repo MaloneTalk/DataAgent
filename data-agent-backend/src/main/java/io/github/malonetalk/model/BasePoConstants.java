@@ -15,10 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.model.bo;
+package io.github.malonetalk.model;
 
-import lombok.Builder;
-
-@Builder
-public record UserContextBo(
-        Integer userId, String username, String displayName, Integer roleId, Boolean superAdmin) {}
+public final class BasePoConstants {
+    public static final String CREATOR_ID = "creatorId";
+    public static final String CREATE_TIME = "createTime";
+    public static final String UPDATE_ID = "updaterId";
+    public static final String UPDATE_TIME = "updateTime";
+}

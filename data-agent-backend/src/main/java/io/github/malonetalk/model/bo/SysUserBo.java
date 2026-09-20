@@ -17,8 +17,23 @@
  */
 package io.github.malonetalk.model.bo;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Data
 @Builder
-public record UserContextBo(
-        Integer userId, String username, String displayName, Integer roleId, Boolean superAdmin) {}
+@NoArgsConstructor
+@AllArgsConstructor
+public class SysUserBo {
+    private Integer id;
+    private String username;
+    private String passwordHash;
+    private String displayName;
+    private Integer roleId;
+    private Boolean superAdmin;
+    private String idpType;
+    private String idpUserId;
+    private Integer status;
+}

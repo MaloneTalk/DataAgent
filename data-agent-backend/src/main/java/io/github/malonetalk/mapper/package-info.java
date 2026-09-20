@@ -15,10 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.model.bo;
 
-import lombok.Builder;
-
-@Builder
-public record UserContextBo(
-        Integer userId, String username, String displayName, Integer roleId, Boolean superAdmin) {}
+/**
+ * TODO：实体类逐步改造为BasePo的子类，Mapper逐步改造为Mybatis-Plus Mapper
+ */
+package io.github.malonetalk.mapper;

@@ -17,20 +17,30 @@
  */
 package io.github.malonetalk.model.po;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /** 系统用户。身份源抽象字段（idp_type/idp_user_id）本轮登录仅用 LOCAL，外部身份源对接后置。 */
 @Data
 @EqualsAndHashCode(callSuper = true)
+@TableName("sys_user")
 public class SysUserPo extends BasePo {
 
+    @TableId(type = IdType.AUTO)
     private Integer id;
+
     private String username;
     private String passwordHash;
     private String displayName;
     private Integer roleId;
+
+    @TableField("is_super_admin")
     private Boolean superAdmin;
+
     private String idpType;
     private String idpUserId;
     private Integer status;
