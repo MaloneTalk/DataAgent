@@ -15,26 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service;
 
-import io.github.malonetalk.dto.UserCreateRequest;
-import io.github.malonetalk.dto.UserResponse;
-import io.github.malonetalk.dto.UserUpdateRequest;
-import io.github.malonetalk.model.bo.UserContextBo;
-
-import java.util.List;
-
-public interface SysUserService {
-
-    UserContextBo selectAuthProjection(Integer userId);
-
-    List<UserResponse> listAll();
-
-    UserResponse create(UserCreateRequest request);
-
-    UserResponse update(Integer id, UserUpdateRequest request);
-
-    void resetPassword(Integer id, String newPassword);
-
-    void updateStatus(Integer id, Integer status);
-}
+/**
+ * 逐渐迁移到 `io.github.malonetalk.model.po`
+ */
+@Deprecated
+package io.github.malonetalk.entity;

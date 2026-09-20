@@ -18,9 +18,10 @@
 package io.github.malonetalk.interceptor;
 
 import io.github.malonetalk.annotation.RequirePermission;
-import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.service.SysUserService;
 import io.github.malonetalk.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,6 +42,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final UserContextHolder userContextHolder;
     private final SysUserService sysUserService;
 
     @Override
@@ -50,13 +52,13 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (userId == null) {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Missing or invalid token.");
         }
-        UserContext context = sysUserService.selectAuthProjection(userId);
+        UserContextBo context = sysUserService.selectAuthProjection(userId);
         if (context == null) {
             // 用户不存在或 status=0（禁用），均视为未授权。
             throw BusinessException.of(
                     ErrorCode.UNAUTHORIZED, "Account is disabled or does not exist.");
         }
-        UserContext.set(context);
+        userContextHolder.set(context);
 
         // 如果没有权限校验注解，直接返回
         if (!(handler instanceof HandlerMethod handlerMethod
@@ -78,7 +80,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             HttpServletResponse response,
             Object handler,
             Exception ex) {
-        UserContext.clear();
+        userContextHolder.clear();
     }
 
     private boolean hashRequiredAnnotation(HandlerMethod handlerMethod) {
@@ -90,7 +92,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         return handlerMethod.getBeanType().isAnnotationPresent(RequirePermission.class);
     }
 
-    private void checkPermission(UserContext user) {
+    private void checkPermission(UserContextBo user) {
         // TODO 实现按角色、按业务类型枚举授权（Issue #150）
         throw BusinessException.of(ErrorCode.FORBIDDEN, "Missing required permission.");
     }

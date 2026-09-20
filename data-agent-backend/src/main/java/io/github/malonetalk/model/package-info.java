@@ -17,7 +17,7 @@
  */
 
 /**
- * 定义当前项目的实体类，分别有 dto/vo/bo/po 四个维度。
+ * 定义当前项目的实体类，分别有 dto/vo/bo/po 四个维度，另有 holder/converter 两个辅助包。
  * TODO: 逐渐将当前项目的所有实体类均移动到该包下，
  * 并废弃 `io.github.malonetalk.dto` 和 `io.github.malonetalk.entity`
  */

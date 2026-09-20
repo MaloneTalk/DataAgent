@@ -18,7 +18,6 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.ChangePasswordRequest;
 import io.github.malonetalk.dto.LoginRequest;
 import io.github.malonetalk.dto.LoginResponse;
@@ -27,6 +26,8 @@ import io.github.malonetalk.entity.SysUser;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.SysUserMapper;
+import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.utils.JwtUtil;
 import io.github.malonetalk.utils.PasswordUtil;
 import jakarta.validation.Valid;
@@ -52,6 +53,7 @@ public class AuthController {
 
     private final SysUserMapper sysUserMapper;
     private final JwtUtil jwtUtil;
+    private final UserContextHolder userContextHolder;
 
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -73,14 +75,14 @@ public class AuthController {
 
     @GetMapping("/me")
     public Result<UserInfoResponse> me() {
-        UserContext context = UserContext.require();
+        UserContextBo context = userContextHolder.checkAndGet();
         return Result.success(
                 new UserInfoResponse(context.userId(), context.username(), context.displayName()));
     }
 
     @PostMapping("/change-password")
     public Result<Boolean> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-        Integer userId = UserContext.require().userId();
+        Integer userId = userContextHolder.checkAndGet().userId();
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null
                 || user.getPasswordHash() == null
