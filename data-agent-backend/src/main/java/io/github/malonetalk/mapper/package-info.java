@@ -17,6 +17,6 @@
  */
 
 /**
- * TODO：实体类逐步改造为BasePo的子类，Mapper逐步改造为Mybatis-Plus Mapper
+ * TODO：实体类逐步改造为BasePo的子类，Mapper逐步改造为Mybatis-Plus Mapper，并扩展 AuditableMapper 接口
  */
 package io.github.malonetalk.mapper;
