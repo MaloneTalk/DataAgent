@@ -24,3 +24,8 @@ export interface PageResponse<T> {
   hasNext: boolean;
   items: T[];
 }
+
+/** 对应后端 BooleanVo：布尔结果统一包一层 { value }。 */
+export interface BooleanVo {
+  value: boolean;
+}

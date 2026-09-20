@@ -26,6 +26,9 @@
 
   const loading = ref(false);
   const users = ref<UserResponse[]>([]);
+  const page = ref(1);
+  const pageSize = ref(10);
+  const total = ref(0);
   const roleOptions = ref<RoleResponse[]>([]);
   function roleName(roleId: number) {
     if (roleId === 0) return '未分配';
@@ -35,10 +38,23 @@
   async function reload() {
     loading.value = true;
     try {
-      users.value = await sysUserApi.listUsers();
+      const result = await sysUserApi.listUsers({ page: page.value, pageSize: pageSize.value });
+      users.value = result.items;
+      total.value = result.total;
     } finally {
       loading.value = false;
     }
+  }
+
+  function handlePageChange(newPage: number) {
+    page.value = newPage;
+    reload();
+  }
+
+  function handleSizeChange(newSize: number) {
+    pageSize.value = newSize;
+    page.value = 1;
+    reload();
   }
 
   // ── Create / Edit dialog ──
@@ -214,6 +230,18 @@
       </el-table-column>
     </el-table>
 
+    <div v-if="total > 0" class="pagination-wrap">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
+    </div>
+
     <!-- Create / Edit dialog -->
     <el-dialog v-model="formVisible" :title="formTitle" width="420px" :close-on-click-modal="false">
       <el-form
@@ -303,5 +331,11 @@
     justify-content: flex-end;
     gap: 12px;
     margin-bottom: 20px;
+  }
+
+  .pagination-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
   }
 </style>
