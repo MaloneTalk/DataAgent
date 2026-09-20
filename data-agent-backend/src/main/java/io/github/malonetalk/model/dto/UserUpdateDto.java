@@ -15,10 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
-public record LoginRequest(
-        @NotBlank(message = "username 不能为空") String username,
-        @NotBlank(message = "password 不能为空") String password) {}
+/** 更新用户。roleId 为 null 表示不修改角色。 */
+public record UserUpdateDto(
+        @NotBlank(message = "displayName 不能为空") String displayName,
+        @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}

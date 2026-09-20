@@ -17,15 +17,21 @@
  */
 package io.github.malonetalk.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.annotation.RequirePermission;
-import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.ResetPasswordRequest;
-import io.github.malonetalk.dto.UserCreateRequest;
-import io.github.malonetalk.dto.UserResponse;
-import io.github.malonetalk.dto.UserUpdateRequest;
+import io.github.malonetalk.model.converter.BatchQueryConverter;
+import io.github.malonetalk.model.converter.UserConverter;
+import io.github.malonetalk.model.dto.BaseBatchQueryDto;
+import io.github.malonetalk.model.dto.ResetPasswordDto;
+import io.github.malonetalk.model.dto.UserCreateDto;
+import io.github.malonetalk.model.dto.UserUpdateDto;
+import io.github.malonetalk.model.vo.BatchQueryVo;
+import io.github.malonetalk.model.vo.BooleanVo;
+import io.github.malonetalk.model.vo.UserVo;
 import io.github.malonetalk.service.SysUserService;
 import jakarta.validation.Valid;
-import java.util.List;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,40 +56,37 @@ import org.springframework.web.bind.annotation.RestController;
 public class SysUserController {
 
     private final SysUserService sysUserService;
+    private final UserConverter userConverter;
 
     @GetMapping
-    public Result<List<UserResponse>> listAll() {
-        return Result.success(sysUserService.listAll());
+    public BatchQueryVo<UserVo> list(@Valid BaseBatchQueryDto dto) {
+        IPage<UserVo> page = sysUserService.page(dto).convert(userConverter::toVo);
+        return BatchQueryConverter.toVo(page);
     }
 
     @PostMapping
-    public Result<UserResponse> create(@Valid @RequestBody UserCreateRequest request) {
-        return Result.success(sysUserService.create(request));
+    public UserVo create(@Valid @RequestBody UserCreateDto dto) {
+        return userConverter.toVo(sysUserService.create(dto));
     }
 
     @PutMapping("/{id}")
-    public Result<UserResponse> update(
-            @PathVariable Integer id, @Valid @RequestBody UserUpdateRequest request) {
-        return Result.success(sysUserService.update(id, request));
+    public UserVo update(@PathVariable Integer id, @Valid @RequestBody UserUpdateDto dto) {
+        return userConverter.toVo(sysUserService.update(id, dto));
     }
 
     /** 管理员重置用户密码（不需旧密码）。 */
     @PutMapping("/{id}/password")
-    public Result<Boolean> resetPassword(
-            @PathVariable Integer id, @Valid @RequestBody ResetPasswordRequest request) {
-        sysUserService.resetPassword(id, request.newPassword());
-        return Result.success(true);
+    public BooleanVo resetPassword(
+            @PathVariable Integer id, @Valid @RequestBody ResetPasswordDto dto) {
+        sysUserService.resetPassword(id, dto.newPassword());
+        return BooleanVo.TRUE;
     }
 
     /** 启 / 停用户。 */
     @PutMapping("/{id}/status")
-    public Result<Boolean> updateStatus(
-            @PathVariable Integer id,
-            @RequestParam
-                    @jakarta.validation.constraints.Min(0)
-                    @jakarta.validation.constraints.Max(1)
-                    Integer status) {
+    public BooleanVo updateStatus(
+            @PathVariable Integer id, @RequestParam @Min(0) @Max(1) Integer status) {
         sysUserService.updateStatus(id, status);
-        return Result.success(true);
+        return BooleanVo.TRUE;
     }
 }

@@ -17,32 +17,26 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.SysUser;
-import java.time.LocalDateTime;
-import java.util.List;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import io.github.malonetalk.model.po.SysUserPo;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 @Mapper
-public interface SysUserMapper {
+public interface SysUserMapper extends AuditableMapper<SysUserPo> {
 
-    /** 登录校验：按用户名查 LOCAL 账号（含 password_hash）。 */
-    SysUser selectByUsername(@Param("username") String username);
+    /** 登录/创建校验：按用户名查 LOCAL 账号（含 password_hash）。 */
+    default SysUserPo selectLocalByUsername(String username) {
+        return selectOne(
+                Wrappers.<SysUserPo>lambdaQuery()
+                        .eq(SysUserPo::getUsername, username)
+                        .eq(SysUserPo::getIdpType, "LOCAL"));
+    }
 
-    SysUser selectById(@Param("id") Integer id);
-
-    int insert(SysUser user);
-
-    int updatePassword(
-            @Param("id") Integer id,
-            @Param("passwordHash") String passwordHash,
-            @Param("updateTime") LocalDateTime updateTime);
-
-    boolean existUser();
-
-    List<SysUser> selectAll();
-
-    int update(SysUser user);
-
-    int updateStatus(@Param("id") Integer id, @Param("status") Integer status);
+    /** 改密码：走实体 updateById，updater_id/update_time 交由 AuditMetaObjectHandler 填充。 */
+    default int updatePassword(Integer id, String passwordHash) {
+        SysUserPo patch = new SysUserPo();
+        patch.setId(id);
+        patch.setPasswordHash(passwordHash);
+        return updateById(patch);
+    }
 }

@@ -15,15 +15,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.converter;
 
-import java.time.LocalDateTime;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import io.github.malonetalk.model.vo.BatchQueryVo;
 
-public record UserResponse(
-        Integer id,
-        String username,
-        String displayName,
-        Integer roleId,
-        Boolean superAdmin,
-        Integer status,
-        LocalDateTime createTime) {}
+/** MyBatis-Plus 分页对象到统一分页 VO 的转换（与具体业务无关）。 */
+public final class BatchQueryConverter {
+
+    private BatchQueryConverter() {}
+
+    public static <T> BatchQueryVo<T> toVo(IPage<T> page) {
+        return new BatchQueryVo<>(
+                (int) page.getCurrent(),
+                (int) page.getSize(),
+                page.getTotal(),
+                (int) page.getPages(),
+                page.getCurrent() > 1,
+                page.getCurrent() < page.getPages(),
+                page.getRecords());
+    }
+}

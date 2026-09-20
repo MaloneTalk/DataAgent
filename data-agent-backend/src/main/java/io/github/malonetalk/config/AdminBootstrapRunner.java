@@ -17,10 +17,8 @@
  */
 package io.github.malonetalk.config;
 
-import io.github.malonetalk.entity.SysUser;
-import io.github.malonetalk.mapper.SysUserMapper;
-import io.github.malonetalk.utils.PasswordUtil;
-import java.time.LocalDateTime;
+import io.github.malonetalk.model.bo.SysUserBo;
+import io.github.malonetalk.service.SysUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,12 +26,12 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 /**
- * 启动引导：sys_user 为空时创建初始 admin 账号。
+ * 启动引导：无用户时创建初始 admin 账号，构造与保存委托给 {@link SysUserService}。
  *
  * <p>初始密码取自环境变量（{@code ADMIN_INIT_PASSWORD}，经 {@code admin.init-password} 注入），
  * 不写死进代码/SQL，避免进 git 历史。登录后应立即用改密码接口换掉。
  *
- * <p>未配置初始密码时启动失败（fail-closed）——避免无密码 admin 账号被静默创建。
+ * <p>未配置初始密码且无用户时启动失败（fail-closed）——避免无密码 admin 账号被静默创建。
  * role_id 暂为 0：本轮无任何权限检查，admin 仅作为首个登录账号；
  * 「不受权限限制」语义随权限轮次 sys_role(id=1) + @AdminOnly 一起生效。
  */
@@ -42,37 +40,19 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AdminBootstrapRunner implements CommandLineRunner {
 
-    private final SysUserMapper sysUserMapper;
+    private final SysUserService sysUserService;
 
     @Value("${admin.init-password:}")
     private String adminInitPassword;
 
     @Override
     public void run(String... args) {
-        if (sysUserMapper.existUser()) {
-            return;
+        SysUserBo admin = sysUserService.bootstrapInitialAdmin(adminInitPassword);
+        if (admin != null) {
+            log.info(
+                    "Bootstrapped initial super admin account (id={}, username=admin). Change its"
+                            + " password ASAP.",
+                    admin.getId());
         }
-        if (adminInitPassword == null || adminInitPassword.isBlank()) {
-            throw new IllegalStateException(
-                    "No user exists and admin.init-password (env ADMIN_INIT_PASSWORD) is not set. "
-                            + "Configure it before first startup to bootstrap the admin account.");
-        }
-        LocalDateTime now = LocalDateTime.now();
-        SysUser admin = new SysUser();
-        admin.setUsername("admin");
-        admin.setPasswordHash(PasswordUtil.hash(adminInitPassword));
-        admin.setDisplayName("超级管理员");
-        admin.setRoleId(0);
-        admin.setSuperAdmin(true);
-        admin.setIdpType("LOCAL");
-        admin.setIdpUserId(null);
-        admin.setStatus(1);
-        admin.setCreateTime(now);
-        admin.setUpdateTime(now);
-        sysUserMapper.insert(admin);
-        log.info(
-                "Bootstrapped initial super admin account (id={}, username=admin). Change its"
-                        + " password ASAP.",
-                admin.getId());
     }
 }

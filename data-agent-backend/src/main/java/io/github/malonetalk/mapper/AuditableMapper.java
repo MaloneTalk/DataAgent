@@ -15,27 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.model.bo;
+package io.github.malonetalk.mapper;
 
-import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import io.github.malonetalk.model.po.BasePo;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class SysUserBo {
-    private Integer id;
-    private String username;
-    private String passwordHash;
-    private String displayName;
-    private Integer roleId;
-    private Boolean superAdmin;
-    private String idpType;
-    private String idpUserId;
-    private Integer status;
-    private LocalDateTime createTime;
-}
+public interface AuditableMapper<T extends BasePo>
+        extends com.baomidou.mybatisplus.core.mapper.BaseMapper<T> {}

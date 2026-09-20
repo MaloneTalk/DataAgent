@@ -15,13 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record ChangePasswordRequest(
-        @NotBlank(message = "oldPassword 不能为空") String oldPassword,
+/** 管理员重置用户密码（不需旧密码）；区别于 {@link ChangePasswordDto}（用户自己改，需验旧密码）。 */
+public record ResetPasswordDto(
         @NotBlank(message = "newPassword 不能为空")
                 @Size(min = 6, max = 64, message = "newPassword 长度需在 6-64 之间")
                 String newPassword) {}

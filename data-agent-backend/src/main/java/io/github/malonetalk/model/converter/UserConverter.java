@@ -17,7 +17,26 @@
  */
 package io.github.malonetalk.model.converter;
 
+import io.github.malonetalk.model.bo.SysUserBo;
+import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.model.vo.UserInfoVo;
+import io.github.malonetalk.model.vo.UserVo;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
-public interface UserConverter {}
+public interface UserConverter {
+
+    SysUserBo toBo(SysUserPo po);
+
+    @Mapping(target = "userId", source = "id")
+    UserContextBo toContextBo(SysUserPo po);
+
+    UserVo toVo(SysUserBo bo);
+
+    @Mapping(target = "userId", source = "id")
+    UserInfoVo toInfoVo(SysUserBo bo);
+
+    UserInfoVo toInfoVoFromContext(UserContextBo context);
+}

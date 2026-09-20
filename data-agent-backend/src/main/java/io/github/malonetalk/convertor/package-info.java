@@ -15,17 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Size;
-
-public record UserCreateRequest(
-        @NotBlank(message = "username 不能为空") String username,
-        @NotBlank(message = "password 不能为空")
-                @Size(min = 6, max = 64, message = "password 长度需在 6-64 之间")
-                String password,
-        @NotBlank(message = "displayName 不能为空") String displayName,
-        @NotNull @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}
+/**
+ * 逐渐迁移到 `io.github.malonetalk.model.converter`
+ */
+@Deprecated
+package io.github.malonetalk.convertor;

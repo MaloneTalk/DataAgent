@@ -15,7 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
-/** 当前用户信息；角色/是否管理员字段随权限轮次补充。 */
-public record UserInfoResponse(Integer userId, String username, String displayName) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ChangePasswordDto(
+        @NotBlank(message = "oldPassword 不能为空") String oldPassword,
+        @NotBlank(message = "newPassword 不能为空")
+                @Size(min = 6, max = 64, message = "newPassword 长度需在 6-64 之间")
+                String newPassword) {}

@@ -15,30 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.vo;
 
-import java.time.LocalDateTime;
-import lombok.Data;
-
-/** 系统用户。身份源抽象字段（idp_type/idp_user_id）本轮登录仅用 LOCAL，外部身份源对接后置。 */
-@Data
-public class SysUser {
-
-    private Integer id;
-    private String username;
-
-    /** PBKDF2 哈希，格式 pbkdf2$iter$salt$hash；外部身份源用户为空。 */
-    private String passwordHash;
-
-    private String displayName;
-    private Integer roleId;
-    private Boolean superAdmin;
-    private String idpType;
-    private String idpUserId;
-
-    /** 1=启用 0=禁用。 */
-    private Integer status;
-
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+/** 当前用户信息；角色/是否管理员字段随权限轮次补充。 */
+public record UserInfoVo(Integer userId, String username, String displayName) implements BaseVo {}

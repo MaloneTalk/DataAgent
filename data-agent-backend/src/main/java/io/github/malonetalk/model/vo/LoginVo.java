@@ -15,12 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PositiveOrZero;
-
-/** 更新用户。roleId 为 null 表示不修改角色。 */
-public record UserUpdateRequest(
-        @NotBlank(message = "displayName 不能为空") String displayName,
-        @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}
+/** 登录成功响应：token + 用户信息（一次往返，前端无需再调 me）。 */
+public record LoginVo(String token, UserInfoVo user) implements BaseVo {}

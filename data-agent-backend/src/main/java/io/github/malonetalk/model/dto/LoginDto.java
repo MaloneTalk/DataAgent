@@ -15,27 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.model.bo;
+package io.github.malonetalk.model.dto;
 
-import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotBlank;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class SysUserBo {
-    private Integer id;
-    private String username;
-    private String passwordHash;
-    private String displayName;
-    private Integer roleId;
-    private Boolean superAdmin;
-    private String idpType;
-    private String idpUserId;
-    private Integer status;
-    private LocalDateTime createTime;
-}
+public record LoginDto(
+        @NotBlank(message = "username 不能为空") String username,
+        @NotBlank(message = "password 不能为空") String password) {}

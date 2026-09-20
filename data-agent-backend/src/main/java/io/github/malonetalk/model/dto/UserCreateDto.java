@@ -15,7 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
-/** 登录成功响应：token + 用户信息（一次往返，前端无需再调 me）。 */
-public record LoginResponse(String token, UserInfoResponse user) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
+
+public record UserCreateDto(
+        @NotBlank(message = "username 不能为空") String username,
+        @NotBlank(message = "password 不能为空")
+                @Size(min = 6, max = 64, message = "password 长度需在 6-64 之间")
+                String password,
+        @NotBlank(message = "displayName 不能为空") String displayName,
+        @NotNull @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}

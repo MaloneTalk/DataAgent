@@ -15,27 +15,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.model.bo;
+package io.github.malonetalk.model.dto;
 
-import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
+/**
+ * 可直接作为请求入参，也可以被其他BatchDto继承
+ */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class SysUserBo {
-    private Integer id;
-    private String username;
-    private String passwordHash;
-    private String displayName;
-    private Integer roleId;
-    private Boolean superAdmin;
-    private String idpType;
-    private String idpUserId;
-    private Integer status;
-    private LocalDateTime createTime;
+public class BaseBatchQueryDto {
+    @Min(1)
+    Integer page;
+
+    @Min(1)
+    Integer pageSize;
+
+    @Pattern(regexp = "^(?i)(asc|desc)$", message = "sortOrder must be asc or desc.")
+    String sortOrder;
 }

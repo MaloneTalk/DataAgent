@@ -15,27 +15,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.model.bo;
+package io.github.malonetalk.model.vo;
 
-import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class SysUserBo {
-    private Integer id;
-    private String username;
-    private String passwordHash;
-    private String displayName;
-    private Integer roleId;
-    private Boolean superAdmin;
-    private String idpType;
-    private String idpUserId;
-    private Integer status;
-    private LocalDateTime createTime;
+public record BatchQueryVo<T>(
+        int page,
+        int pageSize,
+        long total,
+        int totalPages,
+        boolean hasPrevious,
+        boolean hasNext,
+        List<T> items)
+        implements BaseVo {
+
+    private static final int DEFAULT_PAGE = 1;
+    private static final int DEFAULT_PAGE_SIZE = 20;
 }
