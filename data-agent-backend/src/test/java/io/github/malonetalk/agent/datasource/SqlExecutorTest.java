@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
-import io.github.malonetalk.common.ErrorCode;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
