@@ -25,6 +25,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -33,8 +35,10 @@ import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.SetOperationList;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -101,13 +105,40 @@ public class SqlExecutor {
                             + sql);
         }
 
-        // Block SELECT ... INTO (MySQL OUTFILE / DUMPFILE / table)
-        PlainSelect ps = select.getPlainSelect();
-        if (ps != null && ps.getIntoTables() != null) {
-            throw BusinessException.of(ErrorCode.SQL_NOT_ALLOWED, "SELECT INTO is not allowed.");
-        }
-
+        validateSelectBody(select);
         return select;
+    }
+
+    /**
+     * Block SELECT ... INTO (MySQL OUTFILE / DUMPFILE / table)
+     *
+     * @param select the SELECT statement to validate
+     * @throws BusinessException if the SELECT statement contains disallowed clauses
+     */
+    private void validateSelectBody(Select select) {
+        Deque<Select> pending = new ArrayDeque<>();
+        pending.push(select);
+        while (!pending.isEmpty()) {
+            Select current = pending.pop();
+            if (current.getWithItemsList() != null) {
+                current.getWithItemsList().forEach(pending::push);
+            }
+
+            if (current instanceof PlainSelect plainSelect) {
+                if (plainSelect.getIntoTables() != null || plainSelect.getIntoTempTable() != null) {
+                    throw BusinessException.of(
+                            ErrorCode.SQL_NOT_ALLOWED, "SELECT INTO is not allowed.");
+                }
+            } else if (current instanceof SetOperationList setOperationList) {
+                setOperationList.getSelects().forEach(pending::push);
+            } else if (current instanceof ParenthesedSelect parenthesedSelect) {
+                pending.push(parenthesedSelect.getSelect());
+            } else {
+                throw BusinessException.of(
+                        ErrorCode.SQL_NOT_ALLOWED,
+                        "Unsupported SELECT type: " + current.getClass().getSimpleName());
+            }
+        }
     }
 
     private String trimTrailingSemicolon(String sql) {
