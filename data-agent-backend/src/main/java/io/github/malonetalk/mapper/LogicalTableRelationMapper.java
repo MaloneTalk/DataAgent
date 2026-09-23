@@ -50,18 +50,18 @@ public interface LogicalTableRelationMapper {
     int updateEnabled(
             @Param("id") Integer id,
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName,
+            @Param("sourceTableId") Integer sourceTableId,
             @Param("isEnabled") Boolean isEnabled,
             @Param("updateTime") LocalDateTime updateTime);
 
     int deleteById(
             @Param("id") Integer id,
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName);
+            @Param("sourceTableId") Integer sourceTableId);
 
     int deleteByIdsAndSourceTable(
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName,
+            @Param("sourceTableId") Integer sourceTableId,
             @Param("ids") List<Integer> ids);
 
     int deleteByIds(@Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);

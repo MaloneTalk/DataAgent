@@ -182,7 +182,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Table semantic metadata does not exist.");
         }
-        tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
+        tableInfoMapper.resetSemanticFieldsByIds(datasourceId, List.of(existing.getId()));
     }
 
     @Override
@@ -222,7 +222,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                             + datasourceId
                             + ".");
         }
-        return tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        return tableInfoMapper.resetSemanticFieldsByIds(datasourceId, matchedIds);
     }
 
     private void requireDatasource(Integer datasourceId) {

@@ -28,8 +28,10 @@ import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -45,6 +47,7 @@ import org.springframework.stereotype.Service;
 public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
+    private final TableInfoMapper tableInfoMapper;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final SemanticMergeService semanticMergeService;
     private final SemanticConverter semanticConverter;
@@ -92,9 +95,17 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
         if (existing == null) {
+            TableInfo tableInfo =
+                    tableInfoMapper.selectByDatasourceIdAndTableName(
+                            request.datasourceId(), normalizedTableName);
+            if (tableInfo == null) {
+                throw BusinessException.of(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Table semantic metadata does not exist: " + normalizedTableName);
+            }
             ColumnInfo columnInfo = new ColumnInfo();
             columnInfo.setDatasourceId(request.datasourceId());
-            columnInfo.setTableName(normalizedTableName);
+            columnInfo.setTableId(tableInfo.getId());
             columnInfo.setColumnName(normalizedColumnName);
             columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setSemanticType(request.semanticType());
@@ -105,7 +116,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnSemanticInfoMapper.insert(columnInfo);
             return;
         }
-        existing.setTableName(normalizedTableName);
         existing.setColumnName(normalizedColumnName);
         existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setSemanticType(request.semanticType());
@@ -131,8 +141,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Column semantic metadata does not exist.");
         }
-        columnSemanticInfoMapper.deleteByDatasourceIdAndIds(
-                datasourceId, List.of(existing.getId()));
+        columnSemanticInfoMapper.resetSemanticFieldsByIds(datasourceId, List.of(existing.getId()));
     }
 
     @Override
@@ -178,7 +187,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                             + normalizedTableName
                             + ".");
         }
-        return columnSemanticInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        return columnSemanticInfoMapper.resetSemanticFieldsByIds(datasourceId, matchedIds);
     }
 
     private void requireDatasource(Integer datasourceId) {

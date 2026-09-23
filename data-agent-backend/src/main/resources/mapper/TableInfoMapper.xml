@@ -174,13 +174,18 @@
         WHERE LOWER(domain) = LOWER(#{domain})
     </select>
 
-    <delete id="deleteByDatasourceIdAndIds">
-        DELETE FROM table_info
+    <update id="resetSemanticFieldsByIds">
+        UPDATE table_info
+        SET table_description = physical_table_description,
+            data_granularity = NULL,
+            domain = 'default',
+            is_visible = 1,
+            update_time = NOW()
         WHERE datasource_id = #{datasourceId}
           AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+    </update>
 
 </mapper>

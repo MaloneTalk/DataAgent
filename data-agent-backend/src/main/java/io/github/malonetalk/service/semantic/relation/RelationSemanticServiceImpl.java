@@ -211,7 +211,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         return logicalTableRelationMapper.updateEnabled(
                         request.relationId(),
                         request.datasourceId(),
-                        relation.getSourceTableName(),
+                        relation.getSourceTableId(),
                         request.enabled(),
                         LocalDateTime.now())
                 > 0;
@@ -224,7 +224,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         requireDatasource(datasourceId);
         LogicalTableRelation relation = requireRelation(datasourceId, tableName, relationId);
         return logicalTableRelationMapper.deleteById(
-                        relationId, datasourceId, relation.getSourceTableName())
+                        relationId, datasourceId, relation.getSourceTableId())
                 > 0;
     }
 
@@ -238,6 +238,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         if (relationIds == null || relationIds.isEmpty()) {
             return 0;
         }
+        TableInfo sourceTable = requireTable(datasourceId, normalizedTableName, "sourceTable");
         List<Integer> matchedIds =
                 logicalTableRelationMapper
                         .selectByDatasourceIdAndSourceTable(datasourceId, normalizedTableName)
@@ -254,7 +255,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                             + ".");
         }
         return logicalTableRelationMapper.deleteByIdsAndSourceTable(
-                datasourceId, normalizedTableName, relationIds);
+                datasourceId, sourceTable.getId(), relationIds);
     }
 
     private void requireDatasource(Integer datasourceId) {
@@ -301,10 +302,14 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private void ensureRelationEndpointsOperable(LogicalTableRelation relation) {
-        ensureTableOperable(
-                relation.getDatasourceId(), relation.getSourceTableName(), "sourceTable");
-        ensureTableOperable(
-                relation.getDatasourceId(), relation.getTargetTableName(), "targetTable");
+        TableInfo sourceTable =
+                ensureTableOperable(
+                        relation.getDatasourceId(), relation.getSourceTableName(), "sourceTable");
+        TableInfo targetTable =
+                ensureTableOperable(
+                        relation.getDatasourceId(), relation.getTargetTableName(), "targetTable");
+        relation.setSourceTableId(sourceTable.getId());
+        relation.setTargetTableId(targetTable.getId());
         List<String> sourceColumns =
                 logicalTableRelationHelper.fromJson(
                         relation.getSourceColumnNamesJson(), "sourceColumnNames");
@@ -323,16 +328,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 "targetColumnNames");
     }
 
-    private void ensureTableOperable(Integer datasourceId, String tableName, String fieldName) {
-        TableInfo tableInfo =
-                tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
-        if (tableInfo == null) {
-            throw BusinessException.of(
-                    ErrorCode.RESOURCE_NOT_FOUND,
-                    fieldName + " " + tableName + " semantic metadata does not exist.");
-        }
+    private TableInfo ensureTableOperable(
+            Integer datasourceId, String tableName, String fieldName) {
+        TableInfo tableInfo = requireTable(datasourceId, tableName, fieldName);
         if (SemanticAvailabilityHelper.isTableAvailable(tableInfo, UsageLevelEnum.USER_OPERATION)) {
-            return;
+            return tableInfo;
         }
         throw BusinessException.of(
                 ErrorCode.DATA_CONFLICT,
@@ -341,6 +341,17 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         tableName,
                         SemanticAvailabilityHelper.tableInvalidReason(
                                 tableInfo, UsageLevelEnum.USER_OPERATION)));
+    }
+
+    private TableInfo requireTable(Integer datasourceId, String tableName, String fieldName) {
+        TableInfo tableInfo =
+                tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
+        if (tableInfo == null) {
+            throw BusinessException.of(
+                    ErrorCode.RESOURCE_NOT_FOUND,
+                    fieldName + " " + tableName + " semantic metadata does not exist.");
+        }
+        return tableInfo;
     }
 
     private void ensureColumnsOperable(
@@ -406,12 +417,14 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId, String tableName, Integer relationId) {
         RequestAssert.requireNonNull(relationId, "relationId cannot be null.");
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
+        TableInfo sourceTable =
+                requireTable(
+                        datasourceId,
+                        logicalTableRelationHelper.normalizeTableName(tableName, "tableName"),
+                        "sourceTable");
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
-                || !relation.getSourceTableName()
-                        .equals(
-                                logicalTableRelationHelper.normalizeTableName(
-                                        tableName, "tableName"))) {
+                || !sourceTable.getId().equals(relation.getSourceTableId())) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Logical relation does not exist.");
         }

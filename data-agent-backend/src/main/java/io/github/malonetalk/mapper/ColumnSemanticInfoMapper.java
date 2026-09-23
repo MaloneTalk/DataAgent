@@ -53,13 +53,8 @@ public interface ColumnSemanticInfoMapper {
 
     int updatePhysicalCacheFields(ColumnInfo columnInfo);
 
-    int markPhysicalMissingByIds(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("ids") List<Integer> ids,
-            @Param("now") LocalDateTime now);
+    int markPhysicalMissingByIds(@Param("ids") List<Integer> ids, @Param("now") LocalDateTime now);
 
-    int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
-
-    int deleteByDatasourceIdAndIds(
+    int resetSemanticFieldsByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 }

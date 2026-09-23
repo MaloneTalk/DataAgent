@@ -5,6 +5,7 @@
     <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.ColumnInfo">
         <id column="id" property="id"/>
         <result column="datasource_id" property="datasourceId"/>
+        <result column="table_id" property="tableId"/>
         <result column="table_name" property="tableName"/>
         <result column="column_name" property="columnName"/>
         <result column="physical_column_description" property="physicalColumnDescription"/>
@@ -20,24 +21,24 @@
     </resultMap>
 
     <sql id="DeduplicatedColumns">
-        SELECT t.*
-        FROM column_info t
-        WHERE t.id = (
-            SELECT t2.id
-            FROM column_info t2
-            WHERE t2.datasource_id = t.datasource_id
-                AND LOWER(t2.table_name) = LOWER(t.table_name)
-                AND LOWER(t2.column_name) = LOWER(t.column_name)
+        SELECT c.*, table_meta.table_name
+        FROM column_info c
+        INNER JOIN table_info table_meta ON table_meta.id = c.table_id
+        WHERE c.id = (
+            SELECT c2.id
+            FROM column_info c2
+            WHERE c2.table_id = c.table_id
+                AND LOWER(c2.column_name) = LOWER(c.column_name)
             ORDER BY
                 CASE
-                    WHEN t2.column_description IS NOT NULL AND t2.column_description &lt;&gt; '' THEN 0
-                    WHEN t2.semantic_type IS NOT NULL AND t2.semantic_type &lt;&gt; '' THEN 0
-                    WHEN t2.is_visible = 0 THEN 0
+                    WHEN c2.column_description IS NOT NULL AND c2.column_description &lt;&gt; '' THEN 0
+                    WHEN c2.semantic_type IS NOT NULL AND c2.semantic_type &lt;&gt; '' THEN 0
+                    WHEN c2.is_visible = 0 THEN 0
                     ELSE 1
                 END ASC,
-                t2.update_time DESC,
-                t2.create_time DESC,
-                t2.id DESC
+                c2.update_time DESC,
+                c2.create_time DESC,
+                c2.id DESC
             LIMIT 1
         )
     </sql>
@@ -102,11 +103,11 @@
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.ColumnInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO column_info (
-            datasource_id, table_name, column_name, physical_column_description, type_name,
+            datasource_id, table_id, column_name, physical_column_description, type_name,
             primary_key, index_info, column_description, semantic_type, is_visible, physical_status,
             create_time, update_time
         ) VALUES (
-            #{datasourceId}, #{tableName}, #{columnName}, #{physicalColumnDescription},
+            #{datasourceId}, #{tableId}, #{columnName}, #{physicalColumnDescription},
             #{typeName}, COALESCE(#{primaryKey}, 0), #{indexInfo}, #{columnDescription},
             #{semanticType}, COALESCE(#{isVisible}, 1), COALESCE(#{physicalStatus}, 1),
             COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
@@ -115,13 +116,13 @@
 
     <insert id="batchUpsertPhysicalCache">
         INSERT INTO column_info (
-            datasource_id, table_name, column_name, physical_column_description, type_name,
+            datasource_id, table_id, column_name, physical_column_description, type_name,
             primary_key, index_info, column_description, is_visible, physical_status,
             create_time, update_time
         ) VALUES
         <foreach collection="columns" item="column" separator=",">
             (
-                #{column.datasourceId}, #{column.tableName}, #{column.columnName},
+                #{column.datasourceId}, #{column.tableId}, #{column.columnName},
                 #{column.physicalColumnDescription}, #{column.typeName},
                 COALESCE(#{column.primaryKey}, 0), #{column.indexInfo},
                 #{column.columnDescription},
@@ -142,7 +143,6 @@
     <update id="updateSemanticFields" parameterType="io.github.malonetalk.entity.ColumnInfo">
         UPDATE column_info
         <set>
-            <if test="tableName != null">table_name = #{tableName},</if>
             <if test="columnName != null">column_name = #{columnName},</if>
             column_description = #{columnDescription},
             semantic_type = #{semanticType},
@@ -155,7 +155,6 @@
     <update id="updatePhysicalCacheFields" parameterType="io.github.malonetalk.entity.ColumnInfo">
         UPDATE column_info
         <set>
-            <if test="tableName != null">table_name = #{tableName},</if>
             <if test="columnName != null">column_name = #{columnName},</if>
             physical_column_description = #{physicalColumnDescription},
             column_description = COALESCE(NULLIF(column_description, ''), #{columnDescription}),
@@ -172,24 +171,24 @@
         UPDATE column_info
         SET physical_status = 0,
             update_time = #{now}
-        WHERE datasource_id = #{datasourceId}
-          AND id IN
+        WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
           AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>
 
-    <delete id="deleteByDatasourceId">
-        DELETE FROM column_info WHERE datasource_id = #{datasourceId}
-    </delete>
-
-    <delete id="deleteByDatasourceIdAndIds">
-        DELETE FROM column_info
-        WHERE datasource_id = #{datasourceId}
-          AND id IN
+    <update id="resetSemanticFieldsByIds">
+        UPDATE column_info c
+        INNER JOIN table_info t ON t.id = c.table_id
+        SET c.column_description = c.physical_column_description,
+            c.semantic_type = NULL,
+            c.is_visible = 1,
+            c.update_time = NOW()
+        WHERE t.datasource_id = #{datasourceId}
+          AND c.id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+    </update>
 </mapper>

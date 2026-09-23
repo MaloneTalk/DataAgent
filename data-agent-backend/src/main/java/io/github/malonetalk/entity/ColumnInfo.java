@@ -26,6 +26,7 @@ public class ColumnInfo {
 
     private Integer id;
     private Integer datasourceId;
+    private Integer tableId;
     private String tableName;
     private String columnName;
     private String physicalColumnDescription;
