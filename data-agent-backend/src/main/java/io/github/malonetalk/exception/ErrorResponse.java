@@ -17,8 +17,6 @@
  */
 package io.github.malonetalk.exception;
 
-import io.github.malonetalk.common.ErrorCode;
-
 public record ErrorResponse(ErrorCode errorCode, String message) {
 
     public boolean isServerError() {

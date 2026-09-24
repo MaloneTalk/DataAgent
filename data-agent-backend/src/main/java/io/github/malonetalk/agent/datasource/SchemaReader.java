@@ -17,11 +17,11 @@
  */
 package io.github.malonetalk.agent.datasource;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;

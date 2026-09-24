@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.dto.pagination;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import java.util.Collections;
 import java.util.List;
 

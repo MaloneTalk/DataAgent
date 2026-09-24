@@ -15,13 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.bo;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import lombok.Builder;
 
-public record ChangePasswordRequest(
-        @NotBlank(message = "oldPassword 不能为空") String oldPassword,
-        @NotBlank(message = "newPassword 不能为空")
-                @Size(min = 6, max = 64, message = "newPassword 长度需在 6-64 之间")
-                String newPassword) {}
+@Builder
+public record UserContextBo(
+        Integer userId, String username, String displayName, Integer roleId, Boolean superAdmin) {}

@@ -17,7 +17,6 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.RoleConverter;
 import io.github.malonetalk.dto.ColumnPermissionResponse;
 import io.github.malonetalk.dto.RoleRequest;
@@ -29,6 +28,7 @@ import io.github.malonetalk.entity.RoleHiddenColumn;
 import io.github.malonetalk.entity.RoleTablePermission;
 import io.github.malonetalk.entity.SysRole;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.mapper.SysRoleMapper;

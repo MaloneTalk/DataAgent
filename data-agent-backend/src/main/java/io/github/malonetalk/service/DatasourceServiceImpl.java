@@ -17,11 +17,11 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.SessionDatasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import java.time.LocalDateTime;

@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.utils;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import java.util.Collection;
 
 /** 请求边界断言工具：参数不满足前置条件时统一抛出 BAD_REQUEST 业务异常。 */

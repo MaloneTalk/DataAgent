@@ -15,7 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-/** 登录成功响应：token + 用户信息（一次往返，前端无需再调 me）。 */
-public record LoginResponse(String token, UserInfoResponse user) {}
+/**
+ * 出参 VO 的根标记：Controller 直接返回它的实现，由 {@link io.github.malonetalk.aop.BaseVoResponseAdvice}
+ * 统一包装为 {@link ResultVo}。
+ */
+public interface BaseVo {}

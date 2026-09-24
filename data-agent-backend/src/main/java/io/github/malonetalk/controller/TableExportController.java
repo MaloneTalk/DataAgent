@@ -18,11 +18,11 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.service.TableExportService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -42,18 +42,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class TableExportController {
 
     private final TableExportService tableExportService;
+    private final UserContextHolder userContextHolder;
 
     @GetMapping
     public Result<PageResponse<TableExportResponse>> findExports(
             @Valid TableExportPageQuery query) {
         return Result.success(
-                tableExportService.getExportPage(query, UserContext.requireScopedUserId()));
+                tableExportService.getExportPage(query, userContextHolder.requireScopedUserId()));
     }
 
     @GetMapping("/{id}/download")
     public ResponseEntity<byte[]> download(@PathVariable String id) {
         TableExportResource file =
-                tableExportService.findDownload(id, UserContext.requireScopedUserId());
+                tableExportService.findDownload(id, userContextHolder.requireScopedUserId());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
                 .header(
@@ -67,7 +68,7 @@ public class TableExportController {
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable String id) {
-        tableExportService.deleteById(id, UserContext.requireScopedUserId());
+        tableExportService.deleteById(id, userContextHolder.requireScopedUserId());
         return Result.success(true);
     }
 }

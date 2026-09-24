@@ -15,15 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import java.time.LocalDateTime;
-
-public record UserResponse(
-        Integer id,
-        String username,
-        String displayName,
-        Integer roleId,
-        Boolean superAdmin,
-        Integer status,
-        LocalDateTime createTime) {}
+/** 当前用户信息；角色/是否管理员字段随权限轮次补充。 */
+public record UserInfoVo(Integer userId, String username, String displayName) implements BaseVo {}
