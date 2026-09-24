@@ -24,23 +24,6 @@
         SELECT c.*, table_meta.table_name
         FROM column_info c
         INNER JOIN table_info table_meta ON table_meta.id = c.table_id
-        WHERE c.id = (
-            SELECT c2.id
-            FROM column_info c2
-            WHERE c2.table_id = c.table_id
-                AND LOWER(c2.column_name) = LOWER(c.column_name)
-            ORDER BY
-                CASE
-                    WHEN c2.column_description IS NOT NULL AND c2.column_description &lt;&gt; '' THEN 0
-                    WHEN c2.semantic_type IS NOT NULL AND c2.semantic_type &lt;&gt; '' THEN 0
-                    WHEN c2.is_visible = 0 THEN 0
-                    ELSE 1
-                END ASC,
-                c2.update_time DESC,
-                c2.create_time DESC,
-                c2.id DESC
-            LIMIT 1
-        )
     </sql>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
@@ -190,5 +173,18 @@
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+          AND (c.physical_status IS NULL OR c.physical_status &lt;&gt; 0)
     </update>
+
+    <delete id="deletePhysicalMissingByIds">
+        DELETE c
+        FROM column_info c
+        INNER JOIN table_info t ON t.id = c.table_id
+        WHERE t.datasource_id = #{datasourceId}
+          AND c.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND c.physical_status = 0
+    </delete>
 </mapper>

@@ -36,11 +36,13 @@ import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -132,6 +134,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     }
 
     @Override
+    @Transactional
     public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
         requireDatasource(datasourceId);
         ColumnInfo existing =
@@ -141,10 +144,11 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Column semantic metadata does not exist.");
         }
-        columnSemanticInfoMapper.resetSemanticFieldsByIds(datasourceId, List.of(existing.getId()));
+        resetColumnRecords(datasourceId, List.of(existing));
     }
 
     @Override
+    @Transactional
     public int resetColumnSemantics(
             Integer datasourceId, String tableName, List<String> columnNames) {
         requireDatasource(datasourceId);
@@ -163,7 +167,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                 "Missing columnName for batch column semantic"
                                                         + " reset."))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        List<Integer> matchedIds =
+        List<ColumnInfo> matchedColumns =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableName(datasourceId, normalizedTableName)
                         .stream()
@@ -174,20 +178,35 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                         column.getColumnName(),
                                                         "Missing columnName while matching column"
                                                                 + " semantic reset.")))
-                        .map(ColumnInfo::getId)
-                        .distinct()
                         .toList();
-        if (matchedIds.isEmpty()) {
+        if (matchedColumns.isEmpty()) {
             return 0;
         }
-        if (matchedIds.size() != normalizedColumnNames.size()) {
+        if (matchedColumns.size() != normalizedColumnNames.size()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND,
                     "Some column semantic metadata does not exist for table "
                             + normalizedTableName
                             + ".");
         }
-        return columnSemanticInfoMapper.resetSemanticFieldsByIds(datasourceId, matchedIds);
+        return resetColumnRecords(datasourceId, matchedColumns);
+    }
+
+    private int resetColumnRecords(Integer datasourceId, List<ColumnInfo> columns) {
+        List<Integer> resetIds = new ArrayList<>();
+        List<Integer> deleteIds = new ArrayList<>();
+        for (ColumnInfo column : columns) {
+            (Boolean.FALSE.equals(column.getPhysicalStatus()) ? deleteIds : resetIds)
+                    .add(column.getId());
+        }
+        int affected = 0;
+        if (!deleteIds.isEmpty()) {
+            affected += columnSemanticInfoMapper.deletePhysicalMissingByIds(datasourceId, deleteIds);
+        }
+        if (!resetIds.isEmpty()) {
+            affected += columnSemanticInfoMapper.resetSemanticFieldsByIds(datasourceId, resetIds);
+        }
+        return affected;
     }
 
     private void requireDatasource(Integer datasourceId) {

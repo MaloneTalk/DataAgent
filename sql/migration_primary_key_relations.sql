@@ -22,7 +22,7 @@ ALTER TABLE `column_info`
     ADD KEY `idx_table_visible_column` (`table_id`, `is_visible`, `column_name`),
     ADD CONSTRAINT `fk_column_info_table`
         FOREIGN KEY (`table_id`) REFERENCES `table_info` (`id`)
-        ON DELETE RESTRICT ON UPDATE RESTRICT,
+        ON DELETE CASCADE ON UPDATE RESTRICT,
     DROP COLUMN `table_name`;
 
 ALTER TABLE `logical_table_relation`
@@ -59,9 +59,9 @@ ALTER TABLE `logical_table_relation`
         (`datasource_id`, `source_table_id`, `target_table_id`, `id`),
     ADD CONSTRAINT `fk_relation_source_table`
         FOREIGN KEY (`source_table_id`) REFERENCES `table_info` (`id`)
-        ON DELETE RESTRICT ON UPDATE RESTRICT,
+        ON DELETE CASCADE ON UPDATE RESTRICT,
     ADD CONSTRAINT `fk_relation_target_table`
         FOREIGN KEY (`target_table_id`) REFERENCES `table_info` (`id`)
-        ON DELETE RESTRICT ON UPDATE RESTRICT,
+        ON DELETE CASCADE ON UPDATE RESTRICT,
     DROP COLUMN `source_table_name`,
     DROP COLUMN `target_table_name`;

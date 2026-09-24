@@ -186,6 +186,17 @@
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>
+
+    <delete id="deletePhysicalMissingByIds">
+        DELETE FROM table_info
+        WHERE datasource_id = #{datasourceId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND physical_status = 0
+    </delete>
 
 </mapper>

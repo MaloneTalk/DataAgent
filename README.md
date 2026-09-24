@@ -91,6 +91,12 @@ cd data-agent-frontend
 pnpm install && pnpm dev
 ```
 
+已有数据库升级到主键关联版本时，先备份数据库并在启动新版后端前执行：
+
+```bash
+mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
+```
+
 浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，先在「数据源管理」接入业务库，在「语义管理」同步表结构并维护表/列/指标口径，再到聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"* 用户与角色入口在「系统管理」。
 
 ## 📚 文档

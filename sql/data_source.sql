@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     KEY `idx_table_visible` (`table_id`, `is_visible`),
     KEY `idx_table_visible_column` (`table_id`, `is_visible`, `column_name`),
     CONSTRAINT `fk_column_info_table`
-        FOREIGN KEY (`table_id`) REFERENCES `table_info` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+        FOREIGN KEY (`table_id`) REFERENCES `table_info` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='列信息表';
 
 CREATE TABLE IF NOT EXISTS `logical_table_relation` (
@@ -84,9 +84,9 @@ CREATE TABLE IF NOT EXISTS `logical_table_relation` (
     KEY `idx_relation_source_target_id`
         (`datasource_id`, `source_table_id`, `target_table_id`, `id`),
     CONSTRAINT `fk_relation_source_table`
-        FOREIGN KEY (`source_table_id`) REFERENCES `table_info` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+        FOREIGN KEY (`source_table_id`) REFERENCES `table_info` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
     CONSTRAINT `fk_relation_target_table`
-        FOREIGN KEY (`target_table_id`) REFERENCES `table_info` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+        FOREIGN KEY (`target_table_id`) REFERENCES `table_info` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表';
 
 CREATE TABLE IF NOT EXISTS `domain_info` (

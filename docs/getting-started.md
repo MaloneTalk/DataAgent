@@ -94,6 +94,15 @@ mysql -u root -p data_agent < sql/data_source.sql
 
 > `sql/data_source.sql` 包含全部元数据库初始化表结构，导入这一份即可。
 
+已有数据库升级到主键关联版本时，不要重复初始化；请先备份数据库，再执行一次迁移脚本：
+
+```bash
+mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
+```
+
+迁移必须在启动新版后端前完成。脚本会将列和逻辑关系中的表名引用转换为
+`table_info.id` 外键；存在无法匹配的旧数据时会失败，需修复数据后再继续升级。
+
 ### 3. 配置并启动后端
 
 后端默认端口 `8080`，应用名 `data-agent-management`。启动前需要告诉它：元数据库在哪、用哪个 LLM。

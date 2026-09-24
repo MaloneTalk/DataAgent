@@ -34,11 +34,13 @@ import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -171,6 +173,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     @Override
+    @Transactional
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
         String normalizedTableName =
@@ -182,10 +185,11 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Table semantic metadata does not exist.");
         }
-        tableInfoMapper.resetSemanticFieldsByIds(datasourceId, List.of(existing.getId()));
+        resetTableRecords(datasourceId, List.of(existing));
     }
 
     @Override
+    @Transactional
     public int resetTableSemantics(Integer datasourceId, List<String> tableNames) {
         requireDatasource(datasourceId);
         if (tableNames == null || tableNames.isEmpty()) {
@@ -200,7 +204,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                                 "Missing tableName for batch table semantic"
                                                         + " reset."))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        List<Integer> matchedIds =
+        List<TableInfo> matchedTables =
                 tableInfoMapper.selectByDatasourceId(datasourceId).stream()
                         .filter(
                                 table ->
@@ -209,20 +213,35 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                                         table.getTableName(),
                                                         "Missing tableName while matching table"
                                                                 + " semantic reset.")))
-                        .map(TableInfo::getId)
-                        .distinct()
                         .toList();
-        if (matchedIds.isEmpty()) {
+        if (matchedTables.isEmpty()) {
             return 0;
         }
-        if (matchedIds.size() != normalizedNames.size()) {
+        if (matchedTables.size() != normalizedNames.size()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND,
                     "Some table semantic metadata does not exist for datasource "
                             + datasourceId
                             + ".");
         }
-        return tableInfoMapper.resetSemanticFieldsByIds(datasourceId, matchedIds);
+        return resetTableRecords(datasourceId, matchedTables);
+    }
+
+    private int resetTableRecords(Integer datasourceId, List<TableInfo> tables) {
+        List<Integer> resetIds = new ArrayList<>();
+        List<Integer> deleteIds = new ArrayList<>();
+        for (TableInfo table : tables) {
+            (Boolean.FALSE.equals(table.getPhysicalStatus()) ? deleteIds : resetIds)
+                    .add(table.getId());
+        }
+        int affected = 0;
+        if (!deleteIds.isEmpty()) {
+            affected += tableInfoMapper.deletePhysicalMissingByIds(datasourceId, deleteIds);
+        }
+        if (!resetIds.isEmpty()) {
+            affected += tableInfoMapper.resetSemanticFieldsByIds(datasourceId, resetIds);
+        }
+        return affected;
     }
 
     private void requireDatasource(Integer datasourceId) {

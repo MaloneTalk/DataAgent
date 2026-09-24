@@ -57,4 +57,7 @@ public interface ColumnSemanticInfoMapper {
 
     int resetSemanticFieldsByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
+
+    int deletePhysicalMissingByIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 }

@@ -13,7 +13,8 @@
 | `spring.datasource.password` | `root` | 支持 `${DB_PASSWORD:...}` |
 | `spring.datasource.driver-class-name` | `com.mysql.cj.jdbc.Driver` | MySQL 驱动 |
 
-建表脚本见 `sql/data_source.sql`。
+新库建表脚本见 `sql/data_source.sql`。已有数据库升级到主键关联版本时，需在启动新版后端前执行
+`sql/migration_primary_key_relations.sql`。
 
 ## 2. LLM 提供商
 

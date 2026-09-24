@@ -36,6 +36,9 @@ public interface TableInfoMapper {
     int resetSemanticFieldsByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
+    int deletePhysicalMissingByIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
+
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
     List<TableInfo> selectPageByDatasourceId(
