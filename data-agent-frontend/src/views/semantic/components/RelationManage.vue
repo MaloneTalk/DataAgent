@@ -68,7 +68,6 @@
 
   const selectedDatasourceId = ref<number>();
   const relationLoading = ref(false);
-  const relationNodeLoading = ref(false);
   const relationError = ref('');
   const relationNodes = ref<TableNodeLayout[]>([]);
   const relationRecords = ref<LogicalTableRelationResponse[]>([]);
@@ -101,8 +100,6 @@
   const relationTargetColumns = ref<RelationColumnNode[]>([]);
   const suppressRelationTableWatch = ref(false);
   const suppressDatasourceWatch = ref(false);
-
-  const canQuery = computed(() => typeof selectedDatasourceId.value === 'number');
 
   const draftRelation = computed(() => {
     if (
@@ -219,7 +216,6 @@
   }
 
   async function loadRelationWorkspace(datasourceId: number, loadToken: number) {
-    relationNodeLoading.value = true;
     relationLoading.value = true;
     relationError.value = '';
     try {
@@ -262,14 +258,13 @@
       relationRecords.value = [];
     } finally {
       if (loadToken === relationLoadToken.value) {
-        relationNodeLoading.value = false;
         relationLoading.value = false;
       }
     }
   }
 
   async function loadRelationData() {
-    if (!canQuery.value || typeof selectedDatasourceId.value !== 'number') {
+    if (typeof selectedDatasourceId.value !== 'number') {
       relationNodes.value = [];
       relationRecords.value = [];
       relationError.value = '';
@@ -280,18 +275,7 @@
     const loadToken = relationLoadToken.value + 1;
     relationLoadToken.value = loadToken;
 
-    try {
-      await loadRelationWorkspace(datasourceId, loadToken);
-    } catch (error) {
-      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
-        return;
-      }
-      relationError.value = (error as Error).message;
-      relationNodes.value = [];
-      relationRecords.value = [];
-      relationNodeLoading.value = false;
-      relationLoading.value = false;
-    }
+    await loadRelationWorkspace(datasourceId, loadToken);
   }
 
   async function handleWorkspacePageChange(page: number) {
@@ -617,7 +601,6 @@
       <RelationWorkspace
         ref="relationWorkspaceRef"
         :loading="relationLoading"
-        :node-loading="relationNodeLoading"
         :relation-error="relationError"
         :datasource-id="selectedDatasourceId"
         :nodes="relationNodes"

@@ -32,7 +32,6 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
-import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
@@ -256,9 +255,7 @@ public class SemanticMergeService {
 
         private boolean isUnavailable(String tableName) {
             TableInfo tableInfo = get(tableName);
-            return tableInfo == null
-                    || !SemanticAvailabilityHelper.isTableAvailable(
-                            tableInfo, UsageLevelEnum.AI_PROMPT);
+            return tableInfo == null || !SemanticAvailabilityHelper.isTableAvailable(tableInfo);
         }
     }
 
@@ -299,8 +296,7 @@ public class SemanticMergeService {
             for (String columnName : columnNames) {
                 ColumnInfo columnInfo = get(tableName, columnName);
                 if (columnInfo == null
-                        || !SemanticAvailabilityHelper.isColumnAvailable(
-                                columnInfo, UsageLevelEnum.AI_PROMPT)) {
+                        || !SemanticAvailabilityHelper.isColumnAvailable(columnInfo)) {
                     return true;
                 }
             }

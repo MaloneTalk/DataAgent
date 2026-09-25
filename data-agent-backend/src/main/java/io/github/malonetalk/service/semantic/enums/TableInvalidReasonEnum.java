@@ -24,8 +24,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum TableInvalidReasonEnum {
     PHYSICAL_TABLE_NOT_FOUND("物理表不存在"),
-    TABLE_HIDDEN("表已隐藏"),
-    TABLE_UNAVAILABLE("表不可用");
+    TABLE_HIDDEN("表已隐藏");
 
     private final String reason;
 }

@@ -28,7 +28,6 @@ import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.LogicalTableRelationType;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
-import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
@@ -54,9 +53,7 @@ public class SemanticConverter {
                 .dataGranularity(SemanticUtils.trimToNull(tableInfo.getDataGranularity()))
                 .isVisible(isVisible)
                 .hasPhysicalTable(hasPhysicalTable)
-                .invalidReason(
-                        SemanticAvailabilityHelper.tableInvalidReason(
-                                tableInfo, UsageLevelEnum.USER_OPERATION))
+                .invalidReason(SemanticAvailabilityHelper.tableInvalidReason(tableInfo))
                 .updateTime(tableInfo.getUpdateTime())
                 .build();
     }
@@ -75,12 +72,8 @@ public class SemanticConverter {
                 .indexInfo(SemanticUtils.trimToNull(columnInfo.getIndexInfo()))
                 .isVisible(columnInfo.getIsVisible())
                 .hasPhysicalColumn(hasPhysicalColumn)
-                .effective(
-                        SemanticAvailabilityHelper.isColumnAvailable(
-                                columnInfo, UsageLevelEnum.USER_OPERATION))
-                .invalidReason(
-                        SemanticAvailabilityHelper.columnInvalidReason(
-                                columnInfo, UsageLevelEnum.USER_OPERATION))
+                .effective(SemanticAvailabilityHelper.isColumnAvailable(columnInfo))
+                .invalidReason(SemanticAvailabilityHelper.columnInvalidReason(columnInfo))
                 .updateTime(columnInfo.getUpdateTime())
                 .build();
     }
@@ -124,12 +117,8 @@ public class SemanticConverter {
                         SemanticUtils.firstNonBlank(
                                 tableInfo.getTableDescription(),
                                 tableInfo.getPhysicalTableDescription()))
-                .operable(
-                        SemanticAvailabilityHelper.isTableAvailable(
-                                tableInfo, UsageLevelEnum.USER_OPERATION))
-                .invalidReason(
-                        SemanticAvailabilityHelper.tableInvalidReason(
-                                tableInfo, UsageLevelEnum.USER_OPERATION))
+                .operable(SemanticAvailabilityHelper.isTableAvailable(tableInfo))
+                .invalidReason(SemanticAvailabilityHelper.tableInvalidReason(tableInfo))
                 .columns(columns.stream().map(this::toWorkspaceColumn).toList())
                 .build();
     }
@@ -143,12 +132,8 @@ public class SemanticConverter {
                                 columnInfo.getPhysicalColumnDescription()))
                 .typeName(SemanticUtils.trimToNull(columnInfo.getTypeName()))
                 .primaryKey(columnInfo.getPrimaryKey())
-                .operable(
-                        SemanticAvailabilityHelper.isColumnAvailable(
-                                columnInfo, UsageLevelEnum.USER_OPERATION))
-                .invalidReason(
-                        SemanticAvailabilityHelper.columnInvalidReason(
-                                columnInfo, UsageLevelEnum.USER_OPERATION))
+                .operable(SemanticAvailabilityHelper.isColumnAvailable(columnInfo))
+                .invalidReason(SemanticAvailabilityHelper.columnInvalidReason(columnInfo))
                 .build();
     }
 }

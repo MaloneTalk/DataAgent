@@ -140,16 +140,6 @@ export interface TableSemanticPageQuery {
 }
 
 export type ColumnSemanticPageQuery = TableSemanticPageQuery;
-export interface LogicalRelationQuery {
-  datasourceId: number;
-  tableName: string;
-  page?: number;
-  pageSize?: number;
-  keyword?: string;
-  enabled?: boolean;
-  sortOrder?: 'asc' | 'desc';
-}
-
 export interface TableSemanticUpdateRequest {
   datasourceId: number;
   tableName: string;
@@ -268,14 +258,6 @@ export function resetColumnSemantic(datasourceId: number, tableName: string, col
   return request.delete<ApiResponse<boolean>>(
     `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
     { params: { datasourceId, columnName } },
-  );
-}
-
-export function getLogicalRelationPage(params: LogicalRelationQuery) {
-  const { tableName, ...query } = params;
-  return request.get<ApiResponse<PageResponse<LogicalTableRelationResponse>>>(
-    `/semantic/tables/relations/${encodeURIComponent(tableName)}`,
-    { params: query },
   );
 }
 
