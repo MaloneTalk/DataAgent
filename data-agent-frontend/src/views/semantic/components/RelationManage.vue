@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, onMounted, reactive, ref, watch } from 'vue';
+  import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useDatasource } from '@/composables/useDatasource';
@@ -24,7 +24,6 @@
   import {
     createLogicalRelation,
     deleteLogicalRelation,
-    getColumnSemanticPage,
     getRelationWorkspace,
     updateLogicalRelation,
     updateLogicalRelationEnabled,
@@ -68,7 +67,6 @@
 
   const selectedDatasourceId = ref<number>();
   const relationLoading = ref(false);
-  const relationNodeLoading = ref(false);
   const relationError = ref('');
   const relationNodes = ref<TableNodeLayout[]>([]);
   const relationRecords = ref<LogicalTableRelationResponse[]>([]);
@@ -101,8 +99,6 @@
   const relationTargetColumns = ref<RelationColumnNode[]>([]);
   const suppressRelationTableWatch = ref(false);
   const suppressDatasourceWatch = ref(false);
-
-  const canQuery = computed(() => typeof selectedDatasourceId.value === 'number');
 
   const draftRelation = computed(() => {
     if (
@@ -190,36 +186,11 @@
     }
   }
 
-  async function fetchRelationColumns(tableName: string) {
-    if (typeof selectedDatasourceId.value !== 'number') {
-      return [];
-    }
-    const localNode = relationNodes.value.find(node => node.tableName === tableName);
-    if (localNode) {
-      return localNode.columns;
-    }
-    const response = await getColumnSemanticPage(tableName, {
-      datasourceId: selectedDatasourceId.value,
-      page: 1,
-      pageSize: 100,
-      sortOrder: 'asc',
-    });
-    const items = response.data.data.items;
-
-    return items.map(
-      (item): RelationColumnNode => ({
-        columnName: item.columnName,
-        description: item.columnDescription,
-        typeName: item.typeName,
-        primaryKey: item.primaryKey,
-        operable: item.effective,
-        invalidReason: item.invalidReason,
-      }),
-    );
+  function findRelationColumns(tableName: string): RelationColumnNode[] {
+    return relationNodes.value.find(node => node.tableName === tableName)?.columns ?? [];
   }
 
   async function loadRelationWorkspace(datasourceId: number, loadToken: number) {
-    relationNodeLoading.value = true;
     relationLoading.value = true;
     relationError.value = '';
     try {
@@ -262,14 +233,13 @@
       relationRecords.value = [];
     } finally {
       if (loadToken === relationLoadToken.value) {
-        relationNodeLoading.value = false;
         relationLoading.value = false;
       }
     }
   }
 
   async function loadRelationData() {
-    if (!canQuery.value || typeof selectedDatasourceId.value !== 'number') {
+    if (typeof selectedDatasourceId.value !== 'number') {
       relationNodes.value = [];
       relationRecords.value = [];
       relationError.value = '';
@@ -280,18 +250,7 @@
     const loadToken = relationLoadToken.value + 1;
     relationLoadToken.value = loadToken;
 
-    try {
-      await loadRelationWorkspace(datasourceId, loadToken);
-    } catch (error) {
-      if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
-        return;
-      }
-      relationError.value = (error as Error).message;
-      relationNodes.value = [];
-      relationRecords.value = [];
-      relationNodeLoading.value = false;
-      relationLoading.value = false;
-    }
+    await loadRelationWorkspace(datasourceId, loadToken);
   }
 
   async function handleWorkspacePageChange(page: number) {
@@ -349,20 +308,20 @@
     }
   }
 
-  async function handleSourceTableChange(tableName: string) {
+  function handleSourceTableChange(tableName: string) {
     if (suppressRelationTableWatch.value) {
       return;
     }
     relationForm.sourceColumnNames = [];
-    relationSourceColumns.value = tableName ? await fetchRelationColumns(tableName) : [];
+    relationSourceColumns.value = findRelationColumns(tableName);
   }
 
-  async function handleTargetTableChange(tableName: string) {
+  function handleTargetTableChange(tableName: string) {
     if (suppressRelationTableWatch.value) {
       return;
     }
     relationForm.targetColumnNames = [];
-    relationTargetColumns.value = tableName ? await fetchRelationColumns(tableName) : [];
+    relationTargetColumns.value = findRelationColumns(tableName);
   }
 
   async function handleDragCreateRelation(payload: RelationDragCreatePayload) {
@@ -384,15 +343,11 @@
         enabled: true,
       });
 
-      const [sourceColumns, targetColumns] = await Promise.all([
-        fetchRelationColumns(payload.sourceTableName),
-        fetchRelationColumns(payload.targetTableName),
-      ]);
-
-      relationSourceColumns.value = sourceColumns;
-      relationTargetColumns.value = targetColumns;
+      relationSourceColumns.value = findRelationColumns(payload.sourceTableName);
+      relationTargetColumns.value = findRelationColumns(payload.targetTableName);
       selectedRelation.value = null;
       relationDialogVisible.value = true;
+      await nextTick();
     } finally {
       suppressRelationTableWatch.value = false;
     }
@@ -424,13 +379,9 @@
         enabled: relation.enabled,
       });
 
-      const [sourceColumns, targetColumns] = await Promise.all([
-        fetchRelationColumns(relation.sourceTableName),
-        fetchRelationColumns(relation.targetTableName),
-      ]);
-
-      relationSourceColumns.value = sourceColumns;
-      relationTargetColumns.value = targetColumns;
+      relationSourceColumns.value = findRelationColumns(relation.sourceTableName);
+      relationTargetColumns.value = findRelationColumns(relation.targetTableName);
+      await nextTick();
     } finally {
       suppressRelationTableWatch.value = false;
     }
@@ -617,7 +568,6 @@
       <RelationWorkspace
         ref="relationWorkspaceRef"
         :loading="relationLoading"
-        :node-loading="relationNodeLoading"
         :relation-error="relationError"
         :datasource-id="selectedDatasourceId"
         :nodes="relationNodes"

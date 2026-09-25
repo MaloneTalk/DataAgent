@@ -23,7 +23,6 @@ import io.github.malonetalk.dto.prompt.TableRelationPromptResponse;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
-import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 
@@ -33,7 +32,7 @@ public final class PromptConverter {
     private PromptConverter() {}
 
     public static ColumnPromptResponse mapColumnPrompt(ColumnInfo column) {
-        if (!SemanticAvailabilityHelper.isColumnAvailable(column, UsageLevelEnum.AI_PROMPT)) {
+        if (!SemanticAvailabilityHelper.isColumnAvailable(column)) {
             return null;
         }
         return ColumnPromptResponse.builder()
@@ -48,7 +47,7 @@ public final class PromptConverter {
 
     public static TablePromptResponse mapTablePrompt(
             TableInfo table, List<TableRelationPromptResponse> resolvedRelations) {
-        if (!SemanticAvailabilityHelper.isTableAvailable(table, UsageLevelEnum.AI_PROMPT)) {
+        if (!SemanticAvailabilityHelper.isTableAvailable(table)) {
             return null;
         }
         return TablePromptResponse.builder()

@@ -69,9 +69,18 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         if (SemanticUtils.isDescendingSort(query.sortOrder())) {
             comparator = comparator.reversed();
         }
+        List<TableInfo> semanticTables = tableInfoMapper.selectByDatasourceId(datasource.getId());
+        Set<String> syncedTableNames =
+                semanticTables.stream()
+                        .map(
+                                table ->
+                                        SemanticUtils.normalizeObjectName(
+                                                table.getTableName(),
+                                                "Missing semantic tableName."))
+                        .collect(Collectors.toSet());
         // SchemaReader 一次性读取物理表，筛选、排序和分页统一在内存中完成。
         List<PhysicalTableInfo> filteredTables =
-                loadCandidateTables(datasource).stream()
+                loadCandidateTables(datasource, semanticTables).stream()
                         .filter(
                                 table ->
                                         keyword == null
@@ -84,7 +93,6 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         int fromIndex = Math.min((pageNumber - 1) * pageSize, filteredTables.size());
         int toIndex = Math.min(fromIndex + pageSize, filteredTables.size());
         List<PhysicalTableInfo> pageTables = filteredTables.subList(fromIndex, toIndex);
-        Set<String> syncedTableNames = loadSyncedTableNames(query.datasourceId(), pageTables);
         List<PhysicalTableCandidateResponse> responses =
                 pageTables.stream()
                         .map(
@@ -100,7 +108,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return PageResponse.of(responses, filteredTables.size(), pageNumber, pageSize);
     }
 
-    private List<PhysicalTableInfo> loadCandidateTables(Datasource datasource) {
+    private List<PhysicalTableInfo> loadCandidateTables(
+            Datasource datasource, List<TableInfo> semanticTables) {
         Map<String, PhysicalTableInfo> candidates = new LinkedHashMap<>();
         for (PhysicalTableInfo table : schemaReader.getTables(datasource)) {
             candidates.putIfAbsent(
@@ -108,7 +117,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                             table.tableName(), "Missing physical tableName."),
                     table);
         }
-        for (TableInfo table : tableInfoMapper.selectByDatasourceId(datasource.getId())) {
+        for (TableInfo table : semanticTables) {
             String tableName =
                     SemanticUtils.requireTrimmed(
                             table.getTableName(), "Missing semantic tableName.");
@@ -176,22 +185,6 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
             result.putIfAbsent(tableName, table);
         }
         return result;
-    }
-
-    private Set<String> loadSyncedTableNames(
-            Integer datasourceId, List<PhysicalTableInfo> pageTables) {
-        // 只查询当前页表的同步状态，避免加载数据源下全部语义表。
-        if (pageTables.isEmpty()) {
-            return Set.of();
-        }
-        List<String> tableNames =
-                pageTables.stream().map(PhysicalTableInfo::tableName).distinct().toList();
-        return tableInfoMapper.selectByDatasourceIdAndTableNames(datasourceId, tableNames).stream()
-                .map(
-                        table ->
-                                SemanticUtils.normalizeObjectName(
-                                        table.getTableName(), "Missing physical tableName."))
-                .collect(Collectors.toSet());
     }
 
     private TableSyncSource readTableSyncSource(

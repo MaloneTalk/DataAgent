@@ -116,9 +116,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     @Override
     public List<ColumnPromptResponse> getMergedTableSchema(Integer datasourceId, String tableName) {
-        requireDatasource(datasourceId);
-        Datasource datasource = datasourceService.findById(datasourceId);
-        return semanticMergeService.getTableSchema(datasource, tableName);
+        return semanticMergeService.getTableSchema(requireDatasource(datasourceId), tableName);
     }
 
     @Override
@@ -181,11 +179,13 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         return columnSemanticInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
     }
 
-    private void requireDatasource(Integer datasourceId) {
+    private Datasource requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        Datasource datasource = datasourceService.findById(datasourceId);
+        if (datasource == null) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
+        return datasource;
     }
 }

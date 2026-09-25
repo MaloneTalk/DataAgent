@@ -59,8 +59,5 @@ public interface TableInfoMapper {
             @Param("tableNames") List<String> tableNames,
             @Param("now") LocalDateTime now);
 
-    List<TableInfo> selectByDatasourceIdAndDomains(
-            @Param("datasourceId") Integer datasourceId, @Param("domains") List<String> domains);
-
     int countByDomain(@Param("domain") String domain);
 }
