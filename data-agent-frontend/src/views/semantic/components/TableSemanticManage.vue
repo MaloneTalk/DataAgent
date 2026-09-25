@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, nextTick } from 'vue';
+  import { onMounted, reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
@@ -192,13 +192,13 @@
   };
 
   const handleManageColumns = async (row: TableSemanticInfo) => {
+    if (await ensureDatasourceId() === null) return;
     selectedTableForColumns.value = row.tableName;
     columnDrawerVisible.value = true;
-    // 等待 drawer 打开
-    await nextTick();
-    if (columnManageRef.value) {
-      await columnManageRef.value.handleTableChange(row.tableName);
-    }
+  };
+
+  const handleColumnsDrawerOpened = () => {
+    void columnManageRef.value?.handleTableChange(selectedTableForColumns.value);
   };
 
   const handleOpenSync = async () => {
@@ -407,12 +407,13 @@
       :title="`列语义管理 - ${selectedTableForColumns}`"
       direction="rtl"
       size="90%"
+      @opened="handleColumnsDrawerOpened"
     >
       <ColumnSemanticManage
         ref="columnManageRef"
+        :datasource-id="datasourceId"
         :keyword="''"
         :sort-order="'asc'"
-        :table-name="selectedTableForColumns"
       />
     </el-drawer>
 

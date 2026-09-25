@@ -68,6 +68,11 @@ public class SemanticMergeService {
                         logicalTableRelationMapper.selectByDatasourceId(datasource.getId()));
 
         return tableIndex.asList().stream()
+                .filter(
+                        table ->
+                                domainMatches(
+                                        SemanticUtils.normalizeDomain(table.getDomain()),
+                                        normalizedDomains))
                 .map(
                         table ->
                                 PromptConverter.mapTablePrompt(
@@ -78,7 +83,6 @@ public class SemanticMergeService {
                                                 columnIndex,
                                                 relationIndex)))
                 .filter(Objects::nonNull)
-                .filter(table -> domainMatches(table.domain(), normalizedDomains))
                 .toList();
     }
 
