@@ -77,7 +77,7 @@ public class SysUserServiceImpl implements SysUserService {
 
     @Override
     public SysUserBo findByUsername(String username) {
-        return userConverter.toBo(sysUserMapper.selectLocalByUsername(username));
+        return userConverter.toBo(selectLocalByUsername(username));
     }
 
     @Override
@@ -94,7 +94,7 @@ public class SysUserServiceImpl implements SysUserService {
 
     @Override
     public SysUserBo create(UserCreateDto dto) {
-        if (sysUserMapper.selectLocalByUsername(dto.username()) != null) {
+        if (selectLocalByUsername(dto.username()) != null) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "用户名 '" + dto.username() + "' 已存在");
         }
         requireRoleIfAssigned(dto.roleId());
@@ -128,7 +128,7 @@ public class SysUserServiceImpl implements SysUserService {
                 || !PasswordUtil.verify(oldPassword, user.getPasswordHash())) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "旧密码不正确");
         }
-        sysUserMapper.updatePassword(userId, PasswordUtil.hash(newPassword));
+        updatePassword(userId, newPassword);
     }
 
     @Override
@@ -137,7 +137,7 @@ public class SysUserServiceImpl implements SysUserService {
         if (user.getPasswordHash() == null) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "外部身份源用户无法重置密码");
         }
-        sysUserMapper.updatePassword(id, PasswordUtil.hash(newPassword));
+        updatePassword(id, newPassword);
     }
 
     @Override
@@ -147,6 +147,20 @@ public class SysUserServiceImpl implements SysUserService {
         patch.setId(id);
         patch.setStatus(status);
         sysUserMapper.updateById(patch);
+    }
+
+    private void updatePassword(Integer id, String newPassword) {
+        SysUserPo patch = new SysUserPo();
+        patch.setId(id);
+        patch.setPasswordHash(PasswordUtil.hash(newPassword));
+        sysUserMapper.updateById(patch);
+    }
+
+    private SysUserPo selectLocalByUsername(String username) {
+        return sysUserMapper.selectOne(
+                Wrappers.<SysUserPo>lambdaQuery()
+                        .eq(SysUserPo::getUsername, username)
+                        .eq(SysUserPo::getIdpType, "LOCAL"));
     }
 
     private SysUserPo requireUser(Integer id) {

@@ -24,10 +24,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.core.toolkit.Constants;
 import com.baomidou.mybatisplus.core.toolkit.ReflectionKit;
 import io.github.malonetalk.model.po.BasePo;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.reflection.SystemMetaObject;
 
 /**
  * 项目基础 Mapper：约束实体为 {@link BasePo} 子类，从而复用其审计字段与逻辑删除配置。
@@ -43,23 +40,6 @@ public interface AuditableMapper<T extends BasePo> extends BaseMapper<T> {
     @Override
     default int update(@Param(Constants.WRAPPER) Wrapper<T> updateWrapper) {
         return update(tableInfo().newInstance(), updateWrapper);
-    }
-
-    @Override
-    default int delete(@Param(Constants.WRAPPER) Wrapper<T> queryWrapper) {
-        List<T> matched = selectList(queryWrapper);
-        if (matched.isEmpty()) {
-            return 0;
-        }
-        String keyProperty = tableInfo().getKeyProperty();
-        List<Object> ids = new ArrayList<>(matched.size());
-        for (T row : matched) {
-            Object id = SystemMetaObject.forObject(row).getValue(keyProperty);
-            if (id != null) {
-                ids.add(id);
-            }
-        }
-        return ids.isEmpty() ? 0 : deleteByIds(ids);
     }
 
     private TableInfo tableInfo() {

@@ -33,6 +33,9 @@ public interface TableInfoMapper {
 
     int updatePhysicalCacheFields(TableInfo tableInfo);
 
+    int fillSemanticDescriptionIfBlank(
+            @Param("id") Integer id, @Param("description") String description);
+
     int deleteByDatasourceIdAndIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
