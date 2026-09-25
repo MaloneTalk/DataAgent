@@ -158,7 +158,6 @@
             <if test="tableName != null">table_name = #{tableName},</if>
             <if test="columnName != null">column_name = #{columnName},</if>
             physical_column_description = #{physicalColumnDescription},
-            column_description = COALESCE(NULLIF(column_description, ''), #{columnDescription}),
             type_name = #{typeName},
             primary_key = #{primaryKey},
             index_info = #{indexInfo},
@@ -166,6 +165,13 @@
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
+    </update>
+
+    <update id="fillSemanticDescriptionIfBlank">
+        UPDATE column_info
+        SET column_description = #{description}
+        WHERE id = #{id}
+          AND (column_description IS NULL OR column_description = '')
     </update>
 
     <update id="markPhysicalMissingByIds">
