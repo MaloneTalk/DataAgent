@@ -7,7 +7,7 @@
 | 组件 | 技术 | 职责 |
 | --- | --- | --- |
 | 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源管理、语义管理、资产管理、系统管理 |
-| 后端 | Spring Boot 4（Java 17+） | Agent 推理、工具执行、语义层、数据源、会话、MCP 管理 |
+| 后端 | Spring Boot 4（Java 25+） | Agent 推理、工具执行、语义层、数据源、会话、MCP 管理 |
 | Skill 系统 | 多源加载（文件系统 / Git / Nacos / classpath） | 加载"已验证查询模式"作为可复用流程 |
 | 元数据库 | MySQL | 存语义层、数据源、会话、MCP 配置、报表、用户、角色与权限等 |
 | 查询数据源 | 任意 JDBC 兼容关系型数据库 | 用户真正要查的业务库，由 Agent 动态连接；默认内置 MySQL 驱动，其他数据库需按需加入驱动 |

@@ -6,7 +6,7 @@
 
 ### 后端
 
-- JDK 17+（推荐 21），Maven 3.9+
+- JDK 25+，Maven 3.9+
 - 导入 `data-agent-backend`（标准 Maven 项目，Spring Boot）
 - 配置元数据库与 LLM（见 [configuration.md](configuration.md)），本地起 `mvn spring-boot:run`
 - 代码规范总纲见仓库根目录 `AGENTS.md`（**必读**）

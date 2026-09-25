@@ -66,7 +66,7 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 
 > 完整、带截图的步骤见 [docs/getting-started.md](docs/getting-started.md)。
 
-**前置依赖**：JDK 17+、Maven 3.9+、Node 18+、pnpm 8+、MySQL 8+、Python 3+（需安装 pandas、numpy、scipy）。
+**前置依赖**：JDK 25+、Maven 3.9+、Node 18+、pnpm 8+、MySQL 8+、Python 3+（需安装 pandas、numpy、scipy）。
 
 ```bash
 # 1. 建元数据库并初始化表结构

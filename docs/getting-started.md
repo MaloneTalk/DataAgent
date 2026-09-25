@@ -74,7 +74,7 @@ docker-compose up -d --build
 
 | 依赖 | 版本要求 | 说明 |
 | --- | --- | --- |
-| JDK | 17 或更高（推荐 21） | 后端基于 Spring Boot 4 |
+| JDK | 25 或更高 | 后端基于 Spring Boot 4 |
 | Maven | 3.9+ | 构建与运行后端 |
 | Node.js | 18+ | 前端运行环境 |
 | pnpm | 8+ | 前端包管理 |
