@@ -188,7 +188,6 @@
     loadPage,
     handleTableChange,
   });
-
 </script>
 
 <template>

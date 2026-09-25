@@ -192,7 +192,7 @@
   };
 
   const handleManageColumns = async (row: TableSemanticInfo) => {
-    if (await ensureDatasourceId() === null) return;
+    if ((await ensureDatasourceId()) === null) return;
     selectedTableForColumns.value = row.tableName;
     columnDrawerVisible.value = true;
   };
