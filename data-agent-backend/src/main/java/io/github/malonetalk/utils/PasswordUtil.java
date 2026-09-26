@@ -17,94 +17,28 @@
  */
 package io.github.malonetalk.utils;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Base64;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * 密码哈希：JDK 标准库 PBKDF2WithHmacSHA256，零新依赖。
- *
- * <p>存储格式 {@code pbkdf2$<iter>$<base64Salt>$<base64Hash>}；迭代次数与盐长度固定，校验时从串中解析。
- * OWASP 2023 推荐 PBKDF2-SHA256 迭代 ≥ 600000，此处取 210000（兼顾百人内网规模与登录耗时），
- * ponytail: 如安全规范要求更高强度或换 Argon2，调迭代数或换算法即可，存储格式兼容。
+ * 密码哈希：spring-security-crypto 的 {@link BCryptPasswordEncoder}（BCrypt，盐与代价因子编码在结果串中）。
  */
 public final class PasswordUtil {
 
-    private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
-    private static final int ITERATIONS = 210000;
-    private static final int SALT_BYTES = 16;
-    private static final int HASH_BITS = 256;
-    private static final String PREFIX = "pbkdf2";
-    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
 
     private PasswordUtil() {}
 
-    /**
-     * 生成 {@code pbkdf2$iter$salt$hash} 串。
-     */
+    /** 生成 BCrypt 哈希串。 */
     public static String hash(String password) {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("Password must not be blank.");
         }
-        byte[] salt = new byte[SALT_BYTES];
-        RANDOM.nextBytes(salt);
-        byte[] hash = derive(password, salt, ITERATIONS);
-        return PREFIX + "$" + ITERATIONS + "$" + base64(salt) + "$" + base64(hash);
+        return ENCODER.encode(password);
     }
 
-    /**
-     * 校验明文与已存储的哈希串是否匹配；存储串格式非法或为 null 一律返回 false。
-     */
+    /** 校验明文与已存储的哈希串；存储串为 null 或非 BCrypt 格式一律返回 false。 */
     public static boolean verify(String password, String stored) {
-        if (password == null || stored == null) {
-            return false;
-        }
-        String[] parts = stored.split("\\$");
-        if (parts.length != 4 || !PREFIX.equals(parts[0])) {
-            return false;
-        }
-        try {
-            int iterations = Integer.parseInt(parts[1]);
-            byte[] salt = Base64.getDecoder().decode(parts[2]);
-            byte[] expected = Base64.getDecoder().decode(parts[3]);
-            byte[] actual = derive(password, salt, iterations);
-            return constantTimeEquals(expected, actual);
-        } catch (IllegalArgumentException e) {
-            // NumberFormatException 是 IllegalArgumentException 子类，已一并覆盖。
-            return false;
-        }
-    }
-
-    private static byte[] derive(String password, byte[] salt, int iterations) {
-        try {
-            SecretKeyFactory factory = SecretKeyFactory.getInstance(ALGORITHM);
-            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, iterations, HASH_BITS);
-            SecretKey key = factory.generateSecret(spec);
-            return key.getEncoded();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("PBKDF2WithHmacSHA256 unavailable", e);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to derive password hash", e);
-        }
-    }
-
-    private static String base64(byte[] bytes) {
-        return Base64.getEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private static boolean constantTimeEquals(byte[] a, byte[] b) {
-        if (a.length != b.length) {
-            return false;
-        }
-        int diff = 0;
-        for (int i = 0; i < a.length; i++) {
-            diff |= a[i] ^ b[i];
-        }
-        return diff == 0;
+        return ENCODER.matches(password, stored);
     }
 }
