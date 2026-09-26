@@ -53,8 +53,6 @@ ALTER TABLE `column_info`
     DROP INDEX `idx_datasource_table_visible_column`,
     ADD UNIQUE KEY `uk_table_column` (`table_id`, `column_name`),
     ADD KEY `idx_datasource_id` (`datasource_id`),
-    ADD KEY `idx_table_visible` (`table_id`, `is_visible`),
-    ADD KEY `idx_table_visible_column` (`table_id`, `is_visible`, `column_name`),
     ADD CONSTRAINT `fk_column_info_table`
         FOREIGN KEY (`table_id`) REFERENCES `table_info` (`id`)
         ON DELETE CASCADE ON UPDATE RESTRICT,
@@ -63,7 +61,7 @@ ALTER TABLE `column_info`
 ALTER TABLE `logical_table_relation`
     ADD COLUMN `source_table_id` INT NULL COMMENT '源表信息ID' AFTER `datasource_id`,
     ADD COLUMN `target_table_id` INT NULL COMMENT '目标表信息ID'
-        AFTER `source_column_signature`;
+        AFTER `source_column_names_json`;
 
 UPDATE `logical_table_relation` relation_meta
 INNER JOIN `table_info` source_table
@@ -83,15 +81,10 @@ ALTER TABLE `logical_table_relation`
     DROP INDEX `idx_relation_source_enabled`,
     DROP INDEX `idx_relation_source_enabled_id`,
     DROP INDEX `idx_relation_source_target_id`,
-    ADD KEY `idx_relation_source_signature`
-        (`datasource_id`, `source_table_id`, `source_column_signature`),
-    ADD KEY `idx_relation_source_table` (`datasource_id`, `source_table_id`),
-    ADD KEY `idx_relation_source_enabled`
-        (`datasource_id`, `source_table_id`, `is_enabled`),
+    ADD KEY `idx_relation_source_table` (`source_table_id`),
+    ADD KEY `idx_relation_target_table` (`target_table_id`),
     ADD KEY `idx_relation_source_enabled_id`
         (`datasource_id`, `source_table_id`, `is_enabled`, `id`),
-    ADD KEY `idx_relation_source_target_id`
-        (`datasource_id`, `source_table_id`, `target_table_id`, `id`),
     ADD CONSTRAINT `fk_relation_source_table`
         FOREIGN KEY (`source_table_id`) REFERENCES `table_info` (`id`)
         ON DELETE CASCADE ON UPDATE RESTRICT,
@@ -99,4 +92,6 @@ ALTER TABLE `logical_table_relation`
         FOREIGN KEY (`target_table_id`) REFERENCES `table_info` (`id`)
         ON DELETE CASCADE ON UPDATE RESTRICT,
     DROP COLUMN `source_table_name`,
-    DROP COLUMN `target_table_name`;
+    DROP COLUMN `target_table_name`,
+    DROP COLUMN `source_column_signature`,
+    DROP COLUMN `target_column_signature`;

@@ -28,11 +28,9 @@ public class LogicalTableRelation {
     private Integer sourceTableId;
     private String sourceTableName;
     private String sourceColumnNamesJson;
-    private String sourceColumnSignature;
     private Integer targetTableId;
     private String targetTableName;
     private String targetColumnNamesJson;
-    private String targetColumnSignature;
     private String relationType;
     private String description;
     private Boolean isEnabled;

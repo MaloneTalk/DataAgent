@@ -391,8 +391,6 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         sourceColumnNames, "sourceColumnNames");
         relation.setSourceColumnNamesJson(
                 logicalTableRelationHelper.toJson(normalizedSourceColumns));
-        relation.setSourceColumnSignature(
-                logicalTableRelationHelper.buildColumnSignature(normalizedSourceColumns));
         relation.setTargetTableName(
                 logicalTableRelationHelper.normalizeTableName(targetTableName, "targetTableName"));
         List<String> normalizedTargetColumns =
@@ -400,8 +398,6 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         targetColumnNames, "targetColumnNames");
         relation.setTargetColumnNamesJson(
                 logicalTableRelationHelper.toJson(normalizedTargetColumns));
-        relation.setTargetColumnSignature(
-                logicalTableRelationHelper.buildColumnSignature(normalizedTargetColumns));
         LogicalTableRelationType resolvedRelationType =
                 relationType == null ? LogicalTableRelationType.FOREIGN_KEY : relationType;
         relation.setRelationType(resolvedRelationType.getCode());

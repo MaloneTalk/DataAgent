@@ -20,67 +20,57 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <sql id="DeduplicatedColumns">
+    <sql id="ColumnsWithTableName">
         SELECT c.*, table_meta.table_name
         FROM column_info c
         INNER JOIN table_info table_meta ON table_meta.id = c.table_id
     </sql>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedColumns"/>
-        ) column_info
-        WHERE datasource_id = #{datasourceId}
-        ORDER BY table_name ASC, column_name ASC, id ASC
+        <include refid="ColumnsWithTableName"/>
+        WHERE c.datasource_id = #{datasourceId}
+        ORDER BY table_meta.table_name ASC, c.column_name ASC, c.id ASC
     </select>
 
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedColumns"/>
-        ) column_info
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(table_name) = LOWER(#{tableName})
-        ORDER BY column_name ASC, id ASC
+        <include refid="ColumnsWithTableName"/>
+        WHERE c.datasource_id = #{datasourceId}
+          AND LOWER(table_meta.table_name) = LOWER(#{tableName})
+        ORDER BY c.column_name ASC, c.id ASC
     </select>
 
     <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedColumns"/>
-        ) column_info
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(table_name) IN
+        <include refid="ColumnsWithTableName"/>
+        WHERE c.datasource_id = #{datasourceId}
+          AND LOWER(table_meta.table_name) IN
         <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
             LOWER(#{tableName})
         </foreach>
-        ORDER BY table_name ASC, column_name ASC, id ASC
+        ORDER BY table_meta.table_name ASC, c.column_name ASC, c.id ASC
     </select>
 
     <select id="selectPageByDatasourceIdAndTableName" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedColumns"/>
-        ) column_info
-        WHERE datasource_id = #{query.datasourceId}
-          AND LOWER(table_name) = LOWER(#{query.tableName})
+        <include refid="ColumnsWithTableName"/>
+        WHERE c.datasource_id = #{query.datasourceId}
+          AND LOWER(table_meta.table_name) = LOWER(#{query.tableName})
         <if test="query.keyword != null and query.keyword != ''">
-            AND LOWER(column_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
+            AND LOWER(c.column_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
         </if>
         <choose>
             <when test="sortDescending">
-                ORDER BY column_name DESC, id DESC
+                ORDER BY c.column_name DESC, c.id DESC
             </when>
             <otherwise>
-                ORDER BY column_name ASC, id ASC
+                ORDER BY c.column_name ASC, c.id ASC
             </otherwise>
         </choose>
     </select>
 
     <select id="selectByDatasourceIdAndTableNameAndColumnName" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedColumns"/>
-        ) column_info
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(table_name) = LOWER(#{tableName})
-          AND LOWER(column_name) = LOWER(#{columnName})
+        <include refid="ColumnsWithTableName"/>
+        WHERE c.datasource_id = #{datasourceId}
+          AND LOWER(table_meta.table_name) = LOWER(#{tableName})
+          AND LOWER(c.column_name) = LOWER(#{columnName})
         LIMIT 1
     </select>
 
