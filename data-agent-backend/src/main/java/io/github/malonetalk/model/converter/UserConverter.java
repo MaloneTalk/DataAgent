@@ -15,17 +15,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.converter;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Size;
+import io.github.malonetalk.model.bo.SysUserBo;
+import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.model.vo.UserInfoVo;
+import io.github.malonetalk.model.vo.UserVo;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-public record UserCreateRequest(
-        @NotBlank(message = "username 不能为空") String username,
-        @NotBlank(message = "password 不能为空")
-                @Size(min = 6, max = 64, message = "password 长度需在 6-64 之间")
-                String password,
-        @NotBlank(message = "displayName 不能为空") String displayName,
-        @NotNull @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}
+@Mapper(componentModel = "spring")
+public interface UserConverter {
+
+    SysUserBo toBo(SysUserPo po);
+
+    @Mapping(target = "userId", source = "id")
+    UserContextBo toContextBo(SysUserPo po);
+
+    UserVo toVo(SysUserBo bo);
+
+    @Mapping(target = "userId", source = "id")
+    UserInfoVo toInfoVo(SysUserBo bo);
+
+    UserInfoVo toInfoVoFromContext(UserContextBo context);
+}

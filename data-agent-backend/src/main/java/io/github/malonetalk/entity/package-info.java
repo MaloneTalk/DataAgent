@@ -15,15 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
 
-import java.time.LocalDateTime;
-
-public record UserResponse(
-        Integer id,
-        String username,
-        String displayName,
-        Integer roleId,
-        Boolean superAdmin,
-        Integer status,
-        LocalDateTime createTime) {}
+/**
+ * 逐渐迁移到 `io.github.malonetalk.model.po`
+ */
+@Deprecated
+package io.github.malonetalk.entity;

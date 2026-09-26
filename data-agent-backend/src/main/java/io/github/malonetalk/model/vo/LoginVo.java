@@ -15,10 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import jakarta.validation.constraints.NotBlank;
-
-public record LoginRequest(
-        @NotBlank(message = "username 不能为空") String username,
-        @NotBlank(message = "password 不能为空") String password) {}
+/** 登录成功响应：token + 用户信息（一次往返，前端无需再调 me）。 */
+public record LoginVo(String token, UserInfoVo user) implements BaseVo {}

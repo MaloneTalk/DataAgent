@@ -136,11 +136,17 @@
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
             physical_table_description = #{physicalTableDescription},
-            table_description = COALESCE(NULLIF(table_description, ''), #{tableDescription}),
             <if test="physicalStatus != null">physical_status = #{physicalStatus},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
+    </update>
+
+    <update id="fillSemanticDescriptionIfBlank">
+        UPDATE table_info
+        SET table_description = #{description}
+        WHERE id = #{id}
+          AND (table_description IS NULL OR table_description = '')
     </update>
 
     <update id="markPhysicalMissingByDatasourceIdAndTableNames">
@@ -154,18 +160,6 @@
         </foreach>
           AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>
-
-    <select id="selectByDatasourceIdAndDomains" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
-        WHERE datasource_id = #{datasourceId}
-          AND domain IN
-        <foreach collection="domains" item="domain" open="(" separator="," close=")">
-            #{domain}
-        </foreach>
-        ORDER BY table_name ASC, id ASC
-    </select>
 
     <select id="countByDomain" resultType="int">
         SELECT COUNT(1) FROM (

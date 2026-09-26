@@ -19,13 +19,13 @@ package io.github.malonetalk.service;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.ReportConverter;
 import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.dto.ReportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.Report;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ReportMapper;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;

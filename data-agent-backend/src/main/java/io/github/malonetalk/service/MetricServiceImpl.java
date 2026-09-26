@@ -149,24 +149,7 @@ public class MetricServiceImpl implements MetricService {
         if (existing != null) {
             // 已逻辑删除的同 key 记录:直接复活并按提交内容更新,避免只能去库里改字段才能复用 key。
             if (Boolean.TRUE.equals(existing.getIsDeleted())) {
-                if (SemanticUtils.trimToNull(metricInfo.getName()) != null) {
-                    existing.setName(metricInfo.getName());
-                }
-                if (metricInfo.getAliases() != null) {
-                    existing.setAliases(metricInfo.getAliases());
-                }
-                if (metricInfo.getMeasureExpr() != null) {
-                    existing.setMeasureExpr(metricInfo.getMeasureExpr());
-                }
-                if (metricInfo.getFilters() != null) {
-                    existing.setFilters(metricInfo.getFilters());
-                }
-                if (metricInfo.getTimeField() != null) {
-                    existing.setTimeField(metricInfo.getTimeField());
-                }
-                if (metricInfo.getDescription() != null) {
-                    existing.setDescription(metricInfo.getDescription());
-                }
+                applyEditableFields(existing, metricInfo);
                 existing.setIsDeleted(false);
                 existing.setUpdateTime(LocalDateTime.now());
                 metricInfoMapper.restoreById(existing);
@@ -188,6 +171,13 @@ public class MetricServiceImpl implements MetricService {
             throw new IllegalArgumentException("id 不能为空");
         }
         MetricInfo existing = getById(id);
+        applyEditableFields(existing, metricInfo);
+        existing.setUpdateTime(LocalDateTime.now());
+        metricInfoMapper.update(existing);
+        return existing;
+    }
+
+    private void applyEditableFields(MetricInfo existing, MetricInfo metricInfo) {
         if (SemanticUtils.trimToNull(metricInfo.getName()) != null) {
             existing.setName(metricInfo.getName());
         }
@@ -206,9 +196,6 @@ public class MetricServiceImpl implements MetricService {
         if (metricInfo.getDescription() != null) {
             existing.setDescription(metricInfo.getDescription());
         }
-        existing.setUpdateTime(LocalDateTime.now());
-        metricInfoMapper.update(existing);
-        return existing;
     }
 
     @Override

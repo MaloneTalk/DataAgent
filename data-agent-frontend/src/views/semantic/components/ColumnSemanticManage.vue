@@ -16,12 +16,11 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, watch } from 'vue';
+  import { reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
-    getActiveDatasourceId,
     getColumnSemanticPage,
     resetColumnSemantic,
     updateColumnSemantic,
@@ -50,15 +49,14 @@
     semanticTypeOptions.find(option => option.value === value)?.label ?? '-';
 
   const props = defineProps<{
+    datasourceId: number | null;
     keyword: string;
     sortOrder: 'asc' | 'desc';
-    tableName?: string;
   }>();
 
   const loading = ref(false);
   const error = ref('');
   const rows = ref<ColumnSemanticInfo[]>([]);
-  const datasourceId = ref<number | null>(null);
   const page = reactive({
     page: 1,
     pageSize: 10,
@@ -82,30 +80,6 @@
     columnName: [{ required: true, message: '列名不能为空', trigger: 'blur' }],
   };
 
-  // 监听 props.tableName 变化
-  watch(
-    () => props.tableName,
-    newTableName => {
-      if (newTableName) {
-        selectedTableName.value = newTableName;
-      }
-    },
-    { immediate: true },
-  );
-
-  const ensureDatasourceId = async () => {
-    if (datasourceId.value !== null) {
-      return datasourceId.value;
-    }
-    datasourceId.value = await getActiveDatasourceId();
-    if (datasourceId.value === null) {
-      error.value = '请先激活一个数据源';
-      rows.value = [];
-      page.total = 0;
-    }
-    return datasourceId.value;
-  };
-
   const loadPage = async () => {
     if (!selectedTableName.value) {
       rows.value = [];
@@ -115,12 +89,14 @@
     loading.value = true;
     error.value = '';
     try {
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) {
+      if (props.datasourceId === null) {
+        error.value = '请先激活一个数据源';
+        rows.value = [];
+        page.total = 0;
         return;
       }
       const response = await getColumnSemanticPage(selectedTableName.value, {
-        datasourceId: activeDatasourceId,
+        datasourceId: props.datasourceId,
         page: page.page,
         pageSize: page.pageSize,
         keyword: props.keyword.trim() || undefined,
@@ -172,12 +148,11 @@
     clearFieldErrors();
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) return;
+    if (props.datasourceId === null) return;
     submitLoading.value = true;
     try {
       await updateColumnSemantic(selectedTableName.value, {
-        datasourceId: activeDatasourceId,
+        datasourceId: props.datasourceId,
         columnName: form.columnName,
         columnDescription: form.columnDescription.trim() || undefined,
         semanticType: form.semanticType || undefined,
@@ -198,9 +173,8 @@
       await ElMessageBox.confirm(`确认重置列 ${row.columnName} 的语义信息吗？`, '确认重置', {
         type: 'warning',
       });
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) return;
-      await resetColumnSemantic(activeDatasourceId, selectedTableName.value, row.columnName);
+      if (props.datasourceId === null) return;
+      await resetColumnSemantic(props.datasourceId, selectedTableName.value, row.columnName);
       ElMessage.success('重置成功');
       await loadPage();
     } catch (err) {
@@ -213,12 +187,6 @@
   defineExpose({
     loadPage,
     handleTableChange,
-  });
-
-  onMounted(async () => {
-    if (selectedTableName.value) {
-      await loadPage();
-    }
   });
 </script>
 

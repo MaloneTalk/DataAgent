@@ -53,6 +53,9 @@ public interface ColumnSemanticInfoMapper {
 
     int updatePhysicalCacheFields(ColumnInfo columnInfo);
 
+    int fillSemanticDescriptionIfBlank(
+            @Param("id") Integer id, @Param("description") String description);
+
     int markPhysicalMissingByIds(
             @Param("datasourceId") Integer datasourceId,
             @Param("ids") List<Integer> ids,

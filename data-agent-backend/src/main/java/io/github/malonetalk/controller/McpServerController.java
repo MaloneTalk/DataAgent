@@ -18,7 +18,6 @@
 package io.github.malonetalk.controller;
 
 import io.github.malonetalk.annotation.RequirePermission;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.convertor.McpServerConverter;
 import io.github.malonetalk.dto.McpServerRequest;
@@ -26,6 +25,7 @@ import io.github.malonetalk.dto.McpServerResponse;
 import io.github.malonetalk.entity.McpServer;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.service.McpServerService;
 import jakarta.validation.Valid;
 import java.util.List;

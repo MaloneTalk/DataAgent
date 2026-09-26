@@ -22,11 +22,11 @@ import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.common.UserContext;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -50,12 +50,13 @@ public class AgentController {
 
     private final AgentService agentService;
     private final SessionService sessionService;
+    private final UserContextHolder userContextHolder;
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
             @Valid @RequestBody ChatRequest request) {
         // Read userId before Reactor switches threads.
-        int userId = UserContext.require().userId();
+        int userId = userContextHolder.checkAndGet().userId();
         log.info("SSE chat stream started: sessionId={}, userId={}", request.sessionId(), userId);
         return agentService
                 .chatStream(
@@ -74,28 +75,28 @@ public class AgentController {
 
     @GetMapping("/session/{sessionId}/debug")
     public Result<List<Msg>> getSessionDebug(@PathVariable String sessionId) {
-        Integer userId = UserContext.requireScopedUserId();
+        Integer userId = userContextHolder.requireScopedUserId();
         List<Msg> messages = sessionService.getSessionDebug(sessionId, userId);
         return Result.success(messages);
     }
 
     @GetMapping("/session/{sessionId}/history")
     public Result<List<TurnItem>> getSessionHistory(@PathVariable String sessionId) {
-        Integer userId = UserContext.requireScopedUserId();
+        Integer userId = userContextHolder.requireScopedUserId();
         List<TurnItem> history = sessionService.getSessionHistory(sessionId, userId);
         return Result.success(history);
     }
 
     @DeleteMapping("/session/{sessionId}")
     public Result<Boolean> clearSession(@PathVariable String sessionId) {
-        Integer userId = UserContext.requireScopedUserId();
+        Integer userId = userContextHolder.requireScopedUserId();
         sessionService.clearSession(sessionId, userId);
         return Result.success(true);
     }
 
     @GetMapping("/sessions")
     public Result<List<SessionInfo>> listSessions() {
-        Integer userId = UserContext.requireScopedUserId();
+        Integer userId = userContextHolder.requireScopedUserId();
         List<SessionInfo> sessions = sessionService.listSessions(userId);
         return Result.success(sessions);
     }

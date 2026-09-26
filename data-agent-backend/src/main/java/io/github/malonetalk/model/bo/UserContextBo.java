@@ -15,10 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.service.semantic.enums;
+package io.github.malonetalk.model.bo;
 
-public enum UsageLevelEnum {
-    AI_PROMPT,
-    FRONTEND_DISPLAY,
-    USER_OPERATION
-}
+import lombok.Builder;
+
+@Builder
+public record UserContextBo(
+        Integer userId, String username, String displayName, Integer roleId, Boolean superAdmin) {}

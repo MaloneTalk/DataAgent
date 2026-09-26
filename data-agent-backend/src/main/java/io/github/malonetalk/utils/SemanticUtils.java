@@ -18,10 +18,10 @@
 package io.github.malonetalk.utils;
 
 import io.github.malonetalk.common.Constants;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import java.util.List;
 import java.util.Locale;
 

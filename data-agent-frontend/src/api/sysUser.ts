@@ -17,6 +17,7 @@
  */
 
 import request from './request';
+import type { BooleanVo, PageResponse } from './types';
 
 export interface UserResponse {
   id: number;
@@ -40,10 +41,19 @@ export interface UserUpdateRequest {
   roleId: number | null;
 }
 
+/** 对应后端 BaseBatchQueryDto。 */
+export interface UserQueryParams {
+  page?: number;
+  pageSize?: number;
+  sortOrder?: 'asc' | 'desc';
+}
+
 type ApiResult<T> = { code: number; message: string; data: T };
 
-export function listUsers() {
-  return request.get<ApiResult<UserResponse[]>>('/sys/user').then(res => res.data.data);
+export function listUsers(params?: UserQueryParams) {
+  return request
+    .get<ApiResult<PageResponse<UserResponse>>>('/sys/user', { params })
+    .then(res => res.data.data);
 }
 
 export function createUser(payload: UserCreateRequest) {
@@ -58,13 +68,13 @@ export function updateUser(id: number, payload: UserUpdateRequest) {
 
 export function resetPassword(id: number, newPassword: string) {
   return request
-    .put<ApiResult<boolean>>(`/sys/user/${id}/password`, { newPassword })
+    .put<ApiResult<BooleanVo>>(`/sys/user/${id}/password`, { newPassword })
     .then(res => res.data.data);
 }
 
 export function updateStatus(id: number, status: number) {
   return request
-    .put<ApiResult<boolean>>(`/sys/user/${id}/status`, null, {
+    .put<ApiResult<BooleanVo>>(`/sys/user/${id}/status`, null, {
       params: { status },
     })
     .then(res => res.data.data);
