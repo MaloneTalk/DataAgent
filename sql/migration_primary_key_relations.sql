@@ -1,6 +1,41 @@
 -- One-time MySQL 5.7 migration for primary-key-based semantic table references.
--- Back up the database first. The NOT NULL steps intentionally fail when legacy names
--- cannot be resolved, so inconsistent metadata is not silently discarded.
+-- Back up the database first. Validate all references before altering application tables,
+-- so fixing unmatched legacy names and rerunning does not hit an already-added column.
+
+DROP PROCEDURE IF EXISTS `check_primary_key_relation_migration`;
+DELIMITER $$
+CREATE PROCEDURE `check_primary_key_relation_migration`()
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM `column_info` c
+        LEFT JOIN `table_info` t
+            ON t.`datasource_id` = c.`datasource_id`
+           AND LOWER(t.`table_name`) = LOWER(c.`table_name`)
+        WHERE t.`id` IS NULL
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'column_info has table names missing from table_info';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM `logical_table_relation` r
+        LEFT JOIN `table_info` source_table
+            ON source_table.`datasource_id` = r.`datasource_id`
+           AND LOWER(source_table.`table_name`) = LOWER(r.`source_table_name`)
+        LEFT JOIN `table_info` target_table
+            ON target_table.`datasource_id` = r.`datasource_id`
+           AND LOWER(target_table.`table_name`) = LOWER(r.`target_table_name`)
+        WHERE source_table.`id` IS NULL OR target_table.`id` IS NULL
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'logical_table_relation has table names missing from table_info';
+    END IF;
+END$$
+DELIMITER ;
+CALL `check_primary_key_relation_migration`();
+DROP PROCEDURE `check_primary_key_relation_migration`;
 
 ALTER TABLE `column_info`
     ADD COLUMN `table_id` INT NULL COMMENT '关联表信息ID' AFTER `datasource_id`;

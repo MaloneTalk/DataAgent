@@ -101,7 +101,8 @@ mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
 ```
 
 迁移必须在启动新版后端前完成。脚本会将列和逻辑关系中的表名引用转换为
-`table_info.id` 外键；存在无法匹配的旧数据时会失败，需修复数据后再继续升级。
+`table_info.id` 外键；脚本会在修改业务表结构前检查无法匹配的旧数据。若检查失败，
+修复数据后重新执行整份脚本即可。
 
 ### 3. 配置并启动后端
 
