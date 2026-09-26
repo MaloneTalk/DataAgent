@@ -184,15 +184,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                                         + " reset."))
                         .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         List<TableInfo> matchedTables =
-                tableInfoMapper.selectByDatasourceId(datasourceId).stream()
-                        .filter(
-                                table ->
-                                        normalizedNames.contains(
-                                                SemanticUtils.normalizeObjectName(
-                                                        table.getTableName(),
-                                                        "Missing tableName while matching table"
-                                                                + " semantic reset.")))
-                        .toList();
+                tableInfoMapper.selectByDatasourceIdAndTableNames(
+                        datasourceId, List.copyOf(normalizedNames));
         if (matchedTables.isEmpty()) {
             return 0;
         }
@@ -209,6 +202,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     private int resetTableRecords(Integer datasourceId, List<TableInfo> tables) {
         List<Integer> resetIds = new ArrayList<>();
         List<Integer> deleteIds = new ArrayList<>();
+        // 仅删除明确标记为物理缺失的表；其他记录保留并重置语义字段。
         for (TableInfo table : tables) {
             (Boolean.FALSE.equals(table.getPhysicalStatus()) ? deleteIds : resetIds)
                     .add(table.getId());

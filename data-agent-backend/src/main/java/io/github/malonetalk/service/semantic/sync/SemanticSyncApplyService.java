@@ -105,8 +105,7 @@ public class SemanticSyncApplyService {
         if (semanticTables.isEmpty()) {
             return List.of();
         }
-        List<String> tableNames =
-                semanticTables.stream().map(TableInfo::getTableName).distinct().toList();
+        List<String> tableNames = semanticTables.stream().map(TableInfo::getTableName).toList();
         Map<String, List<ColumnInfo>> columnsByTableName =
                 loadSemanticColumnsByTable(datasourceId, tableNames);
         List<String> tableNamesToMarkMissing = new ArrayList<>();
@@ -182,6 +181,7 @@ public class SemanticSyncApplyService {
             tableInfoMapper.batchUpsertPhysicalCache(newTables);
         }
 
+        // 新表的主键由数据库生成，写入列之前需重新取得 table_id。
         List<String> presentTableNames =
                 presentTables.stream().map(TableSyncSource::tableName).toList();
         Map<String, TableInfo> persistedTableIndex =

@@ -110,13 +110,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
 
     private List<PhysicalTableInfo> loadCandidateTables(
             Datasource datasource, List<TableInfo> semanticTables) {
-        Map<String, PhysicalTableInfo> candidates = new LinkedHashMap<>();
-        for (PhysicalTableInfo table : schemaReader.getTables(datasource)) {
-            candidates.putIfAbsent(
-                    SemanticUtils.normalizeObjectName(
-                            table.tableName(), "Missing physical tableName."),
-                    table);
-        }
+        Map<String, PhysicalTableInfo> candidates = loadPhysicalTableIndex(datasource);
+        // 保留语义缓存中的表，供用户发现已从物理数据源消失的表。
         for (TableInfo table : semanticTables) {
             String tableName =
                     SemanticUtils.requireTrimmed(

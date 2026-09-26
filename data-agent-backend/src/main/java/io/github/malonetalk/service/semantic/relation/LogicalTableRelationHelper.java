@@ -28,9 +28,12 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -44,22 +47,16 @@ public class LogicalTableRelationHelper {
         this.objectMapper = objectMapper;
     }
 
-    public String normalizeTableName(String tableName, String missingMessage) {
-        return SemanticUtils.normalizeObjectName(tableName, missingMessage);
-    }
-
     public List<String> normalizeColumnNames(List<String> columnNames, String fieldName) {
         RequestAssert.requireNotEmpty(columnNames, fieldName + " cannot be empty.");
-        Set<String> uniqueKeys = new LinkedHashSet<>();
-        Set<String> normalizedColumns = new LinkedHashSet<>();
+        Set<String> uniqueKeys = new HashSet<>();
+        List<String> normalizedColumns = new ArrayList<>(columnNames.size());
+        // 按不区分大小写的名称判重，序列化时保留列名原有大小写。
         for (String columnName : columnNames) {
             String normalizedColumnName =
                     RequestAssert.requireNotBlank(
                             columnName, fieldName + " contains a blank column name.");
-            String uniqueKey =
-                    SemanticUtils.normalizeObjectName(
-                            normalizedColumnName,
-                            "Missing columnName while normalizing logical relation columns.");
+            String uniqueKey = normalizedColumnName.toLowerCase(Locale.ROOT);
             if (!uniqueKeys.add(uniqueKey)) {
                 throw BusinessException.of(
                         ErrorCode.BAD_REQUEST,
@@ -67,18 +64,13 @@ public class LogicalTableRelationHelper {
             }
             normalizedColumns.add(normalizedColumnName);
         }
-        return normalizedColumns.stream().toList();
+        return List.copyOf(normalizedColumns);
     }
 
-    public String buildColumnSignature(List<String> columnNames) {
+    private String buildColumnSignature(List<String> columnNames) {
         return normalizeColumnNames(columnNames, "columnNames").stream()
-                .map(
-                        columnName ->
-                                SemanticUtils.normalizeObjectName(
-                                        columnName,
-                                        "Missing columnName while building column signature."))
-                .reduce((left, right) -> left + RELATION_KEY_SEPARATOR + right)
-                .orElse("");
+                .map(columnName -> columnName.toLowerCase(Locale.ROOT))
+                .collect(Collectors.joining(RELATION_KEY_SEPARATOR));
     }
 
     public String buildRelationKey(
@@ -97,10 +89,9 @@ public class LogicalTableRelationHelper {
                 + buildColumnSignature(targetColumnNames);
     }
 
-    public String toJson(List<String> columnNames) {
+    public String toJson(List<String> columnNames, String fieldName) {
         try {
-            return objectMapper.writeValueAsString(
-                    normalizeColumnNames(columnNames, "columnNames"));
+            return objectMapper.writeValueAsString(normalizeColumnNames(columnNames, fieldName));
         } catch (JsonProcessingException e) {
             throw BusinessException.of(
                     ErrorCode.OPERATION_FAILED, "Failed to serialize relation columns.", e);

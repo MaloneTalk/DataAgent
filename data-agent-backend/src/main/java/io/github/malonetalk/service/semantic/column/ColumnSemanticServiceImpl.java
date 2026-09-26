@@ -193,13 +193,15 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     private int resetColumnRecords(Integer datasourceId, List<ColumnInfo> columns) {
         List<Integer> resetIds = new ArrayList<>();
         List<Integer> deleteIds = new ArrayList<>();
+        // 仅删除明确标记为物理缺失的列；其他记录保留并重置语义字段。
         for (ColumnInfo column : columns) {
             (Boolean.FALSE.equals(column.getPhysicalStatus()) ? deleteIds : resetIds)
                     .add(column.getId());
         }
         int affected = 0;
         if (!deleteIds.isEmpty()) {
-            affected += columnSemanticInfoMapper.deletePhysicalMissingByIds(datasourceId, deleteIds);
+            affected +=
+                    columnSemanticInfoMapper.deletePhysicalMissingByIds(datasourceId, deleteIds);
         }
         if (!resetIds.isEmpty()) {
             affected += columnSemanticInfoMapper.resetSemanticFieldsByIds(datasourceId, resetIds);

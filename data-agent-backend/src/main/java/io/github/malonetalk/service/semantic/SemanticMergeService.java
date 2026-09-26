@@ -58,8 +58,9 @@ public class SemanticMergeService {
     public List<TablePromptResponse> listVisibleTablesByDomains(
             Datasource datasource, List<String> domains) {
         List<String> normalizedDomains = normalizeDomains(domains);
-        TableNameIndex tableIndex =
-                TableNameIndex.of(tableInfoMapper.selectByDatasourceId(datasource.getId()));
+        // 关系和列按 table_id 对齐；表名只用于最终提示词和关系去重。
+        TableIdIndex tableIndex =
+                TableIdIndex.of(tableInfoMapper.selectByDatasourceId(datasource.getId()));
         TableColumnIndex columnIndex =
                 TableColumnIndex.of(
                         columnSemanticInfoMapper.selectByDatasourceId(datasource.getId()));
@@ -78,7 +79,7 @@ public class SemanticMergeService {
                                 PromptConverter.mapTablePrompt(
                                         table,
                                         resolveVisibleRelations(
-                                                table.getTableName(),
+                                                table.getId(),
                                                 tableIndex,
                                                 columnIndex,
                                                 relationIndex)))
@@ -122,27 +123,27 @@ public class SemanticMergeService {
     }
 
     private List<TableRelationPromptResponse> resolveVisibleRelations(
-            String sourceTableName,
-            TableNameIndex tableIndex,
+            Integer sourceTableId,
+            TableIdIndex tableIndex,
             TableColumnIndex columnIndex,
             RelationSourceIndex relationIndex) {
         List<ResolvedLogicalRelation> visibleRelations =
                 filterVisibleLogicalRelations(
-                        relationIndex.get(sourceTableName), tableIndex, columnIndex);
+                        relationIndex.get(sourceTableId), tableIndex, columnIndex);
         return deduplicateRelations(visibleRelations);
     }
 
     private List<ResolvedLogicalRelation> filterVisibleLogicalRelations(
             List<LogicalTableRelation> logicalRelations,
-            TableNameIndex tableIndex,
+            TableIdIndex tableIndex,
             TableColumnIndex columnIndex) {
         List<ResolvedLogicalRelation> visibleRelations = new ArrayList<>();
         for (LogicalTableRelation relation : logicalRelations) {
             if (!Boolean.TRUE.equals(relation.getIsEnabled())) {
                 continue;
             }
-            if (tableIndex.isUnavailable(relation.getSourceTableName())
-                    || tableIndex.isUnavailable(relation.getTargetTableName())) {
+            if (tableIndex.isUnavailable(relation.getSourceTableId())
+                    || tableIndex.isUnavailable(relation.getTargetTableId())) {
                 continue;
             }
             List<String> sourceColumns = parseRelationColumns(relation, true);
@@ -150,9 +151,9 @@ public class SemanticMergeService {
             if (sourceColumns == null || targetColumns == null) {
                 continue;
             }
-            if (columnIndex.hasUnavailableColumn(relation.getSourceTableName(), sourceColumns)
+            if (columnIndex.hasUnavailableColumn(relation.getSourceTableId(), sourceColumns)
                     || columnIndex.hasUnavailableColumn(
-                            relation.getTargetTableName(), targetColumns)) {
+                            relation.getTargetTableId(), targetColumns)) {
                 continue;
             }
             visibleRelations.add(
@@ -233,46 +234,32 @@ public class SemanticMergeService {
         }
     }
 
-    private record TableNameIndex(Map<String, TableInfo> index) {
+    private record TableIdIndex(Map<Integer, TableInfo> index) {
 
-        private static TableNameIndex of(List<TableInfo> tables) {
-            Map<String, TableInfo> map = new LinkedHashMap<>();
+        private static TableIdIndex of(List<TableInfo> tables) {
+            Map<Integer, TableInfo> map = new LinkedHashMap<>();
             for (TableInfo table : tables) {
-                map.put(
-                        SemanticUtils.normalizeObjectName(
-                                table.getTableName(),
-                                "Missing tableName while building semantic table index."),
-                        table);
+                map.put(table.getId(), table);
             }
-            return new TableNameIndex(map);
+            return new TableIdIndex(map);
         }
 
         private List<TableInfo> asList() {
             return List.copyOf(index.values());
         }
 
-        private TableInfo get(String tableName) {
-            return index.get(
-                    SemanticUtils.normalizeObjectName(
-                            tableName, "Missing tableName while reading semantic table index."));
-        }
-
-        private boolean isUnavailable(String tableName) {
-            TableInfo tableInfo = get(tableName);
+        private boolean isUnavailable(Integer tableId) {
+            TableInfo tableInfo = index.get(tableId);
             return tableInfo == null || !SemanticAvailabilityHelper.isTableAvailable(tableInfo);
         }
     }
 
-    private record TableColumnIndex(Map<String, Map<String, ColumnInfo>> index) {
+    private record TableColumnIndex(Map<Integer, Map<String, ColumnInfo>> index) {
 
         private static TableColumnIndex of(List<ColumnInfo> columns) {
-            Map<String, Map<String, ColumnInfo>> map = new HashMap<>();
+            Map<Integer, Map<String, ColumnInfo>> map = new HashMap<>();
             for (ColumnInfo column : columns) {
-                map.computeIfAbsent(
-                                SemanticUtils.normalizeObjectName(
-                                        column.getTableName(),
-                                        "Missing tableName while building semantic column index."),
-                                key -> new HashMap<>())
+                map.computeIfAbsent(column.getTableId(), key -> new HashMap<>())
                         .put(
                                 SemanticUtils.normalizeObjectName(
                                         column.getColumnName(),
@@ -282,12 +269,8 @@ public class SemanticMergeService {
             return new TableColumnIndex(map);
         }
 
-        private ColumnInfo get(String tableName, String columnName) {
-            Map<String, ColumnInfo> columns =
-                    index.get(
-                            SemanticUtils.normalizeObjectName(
-                                    tableName,
-                                    "Missing tableName while reading semantic column index."));
+        private ColumnInfo get(Integer tableId, String columnName) {
+            Map<String, ColumnInfo> columns = index.get(tableId);
             return columns == null
                     ? null
                     : columns.get(
@@ -296,9 +279,9 @@ public class SemanticMergeService {
                                     "Missing columnName while reading semantic column index."));
         }
 
-        private boolean hasUnavailableColumn(String tableName, List<String> columnNames) {
+        private boolean hasUnavailableColumn(Integer tableId, List<String> columnNames) {
             for (String columnName : columnNames) {
-                ColumnInfo columnInfo = get(tableName, columnName);
+                ColumnInfo columnInfo = get(tableId, columnName);
                 if (columnInfo == null
                         || !SemanticAvailabilityHelper.isColumnAvailable(columnInfo)) {
                     return true;
@@ -308,27 +291,19 @@ public class SemanticMergeService {
         }
     }
 
-    private record RelationSourceIndex(Map<String, List<LogicalTableRelation>> index) {
+    private record RelationSourceIndex(Map<Integer, List<LogicalTableRelation>> index) {
 
         private static RelationSourceIndex of(List<LogicalTableRelation> relations) {
-            Map<String, List<LogicalTableRelation>> map = new HashMap<>();
+            Map<Integer, List<LogicalTableRelation>> map = new HashMap<>();
             for (LogicalTableRelation relation : relations) {
-                map.computeIfAbsent(
-                                SemanticUtils.normalizeObjectName(
-                                        relation.getSourceTableName(),
-                                        "Missing sourceTableName while building relation index."),
-                                key -> new ArrayList<>())
+                map.computeIfAbsent(relation.getSourceTableId(), key -> new ArrayList<>())
                         .add(relation);
             }
             return new RelationSourceIndex(map);
         }
 
-        private List<LogicalTableRelation> get(String sourceTableName) {
-            return index.getOrDefault(
-                    SemanticUtils.normalizeObjectName(
-                            sourceTableName,
-                            "Missing sourceTableName while reading relation index."),
-                    Collections.emptyList());
+        private List<LogicalTableRelation> get(Integer sourceTableId) {
+            return index.getOrDefault(sourceTableId, Collections.emptyList());
         }
     }
 }

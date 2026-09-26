@@ -44,7 +44,6 @@ import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -69,7 +68,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             RelationSemanticPageQuery query) {
         requireDatasource(query.datasourceId());
         String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(query.tableName(), "tableName");
+                SemanticUtils.normalizeObjectName(query.tableName(), "tableName");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
@@ -117,55 +116,32 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                     PageResponse.empty(pageNumber, pageSize), List.of());
         }
 
-        List<String> tableNames = page.stream().map(TableInfo::getTableName).distinct().toList();
-        Set<String> currentPageTableNames =
-                tableNames.stream()
-                        .map(
-                                tableName ->
-                                        SemanticUtils.normalizeObjectName(
-                                                tableName,
-                                                "Missing tableName while building relation"
-                                                        + " workspace page."))
-                        .collect(Collectors.toSet());
-        Map<String, List<ColumnInfo>> columnsByTableName =
+        List<String> tableNames = page.stream().map(TableInfo::getTableName).toList();
+        Set<Integer> currentPageTableIds =
+                page.stream().map(TableInfo::getId).collect(Collectors.toSet());
+        // 列记录已持有 table_id，按主键分组可直接关联当前页的表。
+        Map<Integer, List<ColumnInfo>> columnsByTableId =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableNames(query.datasourceId(), tableNames)
                         .stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        column ->
-                                                SemanticUtils.normalizeObjectName(
-                                                        column.getTableName(),
-                                                        "Missing tableName while grouping relation"
-                                                                + " workspace columns."),
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+                        .collect(Collectors.groupingBy(ColumnInfo::getTableId));
         List<RelationWorkspaceTableResponse> nodes =
                 page.stream()
                         .map(
                                 table ->
                                         semanticConverter.toWorkspaceTable(
                                                 table,
-                                                columnsByTableName.getOrDefault(
-                                                        SemanticUtils.normalizeObjectName(
-                                                                table.getTableName(),
-                                                                "Missing tableName while mapping"
-                                                                        + " relation workspace"
-                                                                        + " table."),
-                                                        List.of())))
+                                                columnsByTableId.getOrDefault(
+                                                        table.getId(), List.of())))
                         .toList();
+        // 来源表来自当前页查询，目标表也必须属于当前页。
         List<LogicalTableRelationResponse> relations =
                 logicalTableRelationMapper
                         .selectByDatasourceIdAndSourceTables(query.datasourceId(), tableNames)
                         .stream()
                         .filter(
                                 relation ->
-                                        currentPageTableNames.contains(
-                                                SemanticUtils.normalizeObjectName(
-                                                        relation.getTargetTableName(),
-                                                        "Missing targetTableName while filtering"
-                                                                + " relation workspace"
-                                                                + " relations.")))
+                                        currentPageTableIds.contains(relation.getTargetTableId()))
                         .map(semanticConverter::toResponse)
                         .toList();
 
@@ -232,8 +208,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public int deleteRelationSemantics(
             Integer datasourceId, String tableName, List<Integer> relationIds) {
         requireDatasource(datasourceId);
-        String normalizedTableName =
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName");
+        String normalizedTableName = SemanticUtils.normalizeObjectName(tableName, "tableName");
         if (relationIds == null || relationIds.isEmpty()) {
             return 0;
         }
@@ -384,20 +359,13 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             LogicalTableRelationType relationType,
             String description,
             Boolean enabled) {
-        relation.setSourceTableName(
-                logicalTableRelationHelper.normalizeTableName(tableName, "tableName"));
-        List<String> normalizedSourceColumns =
-                logicalTableRelationHelper.normalizeColumnNames(
-                        sourceColumnNames, "sourceColumnNames");
+        relation.setSourceTableName(SemanticUtils.normalizeObjectName(tableName, "tableName"));
         relation.setSourceColumnNamesJson(
-                logicalTableRelationHelper.toJson(normalizedSourceColumns));
+                logicalTableRelationHelper.toJson(sourceColumnNames, "sourceColumnNames"));
         relation.setTargetTableName(
-                logicalTableRelationHelper.normalizeTableName(targetTableName, "targetTableName"));
-        List<String> normalizedTargetColumns =
-                logicalTableRelationHelper.normalizeColumnNames(
-                        targetColumnNames, "targetColumnNames");
+                SemanticUtils.normalizeObjectName(targetTableName, "targetTableName"));
         relation.setTargetColumnNamesJson(
-                logicalTableRelationHelper.toJson(normalizedTargetColumns));
+                logicalTableRelationHelper.toJson(targetColumnNames, "targetColumnNames"));
         LogicalTableRelationType resolvedRelationType =
                 relationType == null ? LogicalTableRelationType.FOREIGN_KEY : relationType;
         relation.setRelationType(resolvedRelationType.getCode());
@@ -408,15 +376,14 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private LogicalTableRelation requireRelation(
             Integer datasourceId, String tableName, Integer relationId) {
         RequestAssert.requireNonNull(relationId, "relationId cannot be null.");
+        String normalizedTableName = SemanticUtils.normalizeObjectName(tableName, "tableName");
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
-        TableInfo sourceTable =
-                requireTable(
-                        datasourceId,
-                        logicalTableRelationHelper.normalizeTableName(tableName, "tableName"),
-                        "sourceTable");
+        // selectById 已关联 table_info，直接用当前来源表名验证归属。
         if (relation == null
                 || !datasourceId.equals(relation.getDatasourceId())
-                || !sourceTable.getId().equals(relation.getSourceTableId())) {
+                || !normalizedTableName.equals(
+                        SemanticUtils.normalizeObjectName(
+                                relation.getSourceTableName(), "sourceTableName"))) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Logical relation does not exist.");
         }
