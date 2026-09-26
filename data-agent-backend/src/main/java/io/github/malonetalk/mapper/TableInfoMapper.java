@@ -36,7 +36,10 @@ public interface TableInfoMapper {
     int fillSemanticDescriptionIfBlank(
             @Param("id") Integer id, @Param("description") String description);
 
-    int deleteByDatasourceIdAndIds(
+    int resetSemanticFieldsByIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
+
+    int deletePhysicalMissingByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);

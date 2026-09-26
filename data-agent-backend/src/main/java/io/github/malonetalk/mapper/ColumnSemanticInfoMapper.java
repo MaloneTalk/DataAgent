@@ -56,13 +56,11 @@ public interface ColumnSemanticInfoMapper {
     int fillSemanticDescriptionIfBlank(
             @Param("id") Integer id, @Param("description") String description);
 
-    int markPhysicalMissingByIds(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("ids") List<Integer> ids,
-            @Param("now") LocalDateTime now);
+    int markPhysicalMissingByIds(@Param("ids") List<Integer> ids, @Param("now") LocalDateTime now);
 
-    int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
+    int resetSemanticFieldsByIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
-    int deleteByDatasourceIdAndIds(
+    int deletePhysicalMissingByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 }

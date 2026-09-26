@@ -5,12 +5,12 @@
     <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.LogicalTableRelation">
         <id column="id" property="id"/>
         <result column="datasource_id" property="datasourceId"/>
+        <result column="source_table_id" property="sourceTableId"/>
         <result column="source_table_name" property="sourceTableName"/>
         <result column="source_column_names_json" property="sourceColumnNamesJson"/>
-        <result column="source_column_signature" property="sourceColumnSignature"/>
+        <result column="target_table_id" property="targetTableId"/>
         <result column="target_table_name" property="targetTableName"/>
         <result column="target_column_names_json" property="targetColumnNamesJson"/>
-        <result column="target_column_signature" property="targetColumnSignature"/>
         <result column="relation_type" property="relationType"/>
         <result column="description" property="description"/>
         <result column="is_enabled" property="isEnabled"/>
@@ -18,61 +18,70 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <sql id="RelationSelect">
+        SELECT relation.*, source_table.table_name AS source_table_name,
+               target_table.table_name AS target_table_name
+        FROM logical_table_relation relation
+        INNER JOIN table_info source_table ON source_table.id = relation.source_table_id
+        INNER JOIN table_info target_table ON target_table.id = relation.target_table_id
+    </sql>
+
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation WHERE id = #{id}
+        <include refid="RelationSelect"/>
+        WHERE relation.id = #{id}
     </select>
 
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
-        WHERE datasource_id = #{datasourceId}
-        ORDER BY create_time DESC, id DESC
+        <include refid="RelationSelect"/>
+        WHERE relation.datasource_id = #{datasourceId}
+        ORDER BY relation.create_time DESC, relation.id DESC
     </select>
 
     <select id="selectByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
-        ORDER BY id DESC
+        <include refid="RelationSelect"/>
+        WHERE relation.datasource_id = #{datasourceId}
+          AND LOWER(source_table.table_name) = LOWER(#{sourceTableName})
+        ORDER BY relation.id DESC
     </select>
 
     <select id="selectByDatasourceIdAndSourceTables" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
-        WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) IN
+        <include refid="RelationSelect"/>
+        WHERE relation.datasource_id = #{datasourceId}
+          AND LOWER(source_table.table_name) IN
         <foreach collection="sourceTableNames" item="sourceTableName" open="(" separator="," close=")">
             LOWER(#{sourceTableName})
         </foreach>
-        ORDER BY id DESC
+        ORDER BY relation.id DESC
     </select>
 
     <select id="selectPageByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
-        SELECT * FROM logical_table_relation
-        WHERE datasource_id = #{query.datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{query.tableName})
+        <include refid="RelationSelect"/>
+        WHERE relation.datasource_id = #{query.datasourceId}
+          AND LOWER(source_table.table_name) = LOWER(#{query.tableName})
         <if test="query.keyword != null and query.keyword != ''">
-            AND LOWER(target_table_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
+            AND LOWER(target_table.table_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
         </if>
         <if test="query.enabled != null">
-            AND is_enabled = #{query.enabled}
+            AND relation.is_enabled = #{query.enabled}
         </if>
         <choose>
             <when test="sortDescending">
-                ORDER BY id DESC
+                ORDER BY relation.id DESC
             </when>
             <otherwise>
-                ORDER BY id ASC
+                ORDER BY relation.id ASC
             </otherwise>
         </choose>
     </select>
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.LogicalTableRelation" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO logical_table_relation (
-            datasource_id, source_table_name, source_column_names_json, source_column_signature,
-            target_table_name, target_column_names_json, target_column_signature, relation_type,
+            datasource_id, source_table_id, source_column_names_json,
+            target_table_id, target_column_names_json, relation_type,
             description, is_enabled, create_time, update_time
         ) VALUES (
-            #{datasourceId}, #{sourceTableName}, #{sourceColumnNamesJson}, #{sourceColumnSignature},
-            #{targetTableName}, #{targetColumnNamesJson}, #{targetColumnSignature}, #{relationType},
+            #{datasourceId}, #{sourceTableId}, #{sourceColumnNamesJson},
+            #{targetTableId}, #{targetColumnNamesJson}, #{relationType},
             #{description}, #{isEnabled}, #{createTime}, #{updateTime}
         )
     </insert>
@@ -80,12 +89,10 @@
     <update id="update" parameterType="io.github.malonetalk.entity.LogicalTableRelation">
         UPDATE logical_table_relation
         <set>
-            <if test="sourceTableName != null">source_table_name = #{sourceTableName},</if>
+            <if test="sourceTableId != null">source_table_id = #{sourceTableId},</if>
             <if test="sourceColumnNamesJson != null">source_column_names_json = #{sourceColumnNamesJson},</if>
-            <if test="sourceColumnSignature != null">source_column_signature = #{sourceColumnSignature},</if>
-            <if test="targetTableName != null">target_table_name = #{targetTableName},</if>
+            <if test="targetTableId != null">target_table_id = #{targetTableId},</if>
             <if test="targetColumnNamesJson != null">target_column_names_json = #{targetColumnNamesJson},</if>
-            <if test="targetColumnSignature != null">target_column_signature = #{targetColumnSignature},</if>
             <if test="relationType != null">relation_type = #{relationType},</if>
             description = #{description},
             <if test="isEnabled != null">is_enabled = #{isEnabled},</if>
@@ -100,20 +107,20 @@
             update_time = #{updateTime}
         WHERE id = #{id}
           AND datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_id = #{sourceTableId}
     </update>
 
     <delete id="deleteById">
         DELETE FROM logical_table_relation
         WHERE id = #{id}
           AND datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_id = #{sourceTableId}
     </delete>
 
     <delete id="deleteByIdsAndSourceTable">
         DELETE FROM logical_table_relation
         WHERE datasource_id = #{datasourceId}
-          AND LOWER(source_table_name) = LOWER(#{sourceTableName})
+          AND source_table_id = #{sourceTableId}
           AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
