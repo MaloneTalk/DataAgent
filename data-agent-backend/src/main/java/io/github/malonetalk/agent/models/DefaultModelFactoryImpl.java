@@ -18,8 +18,8 @@
 package io.github.malonetalk.agent.models;
 
 import io.agentscope.core.model.Model;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;

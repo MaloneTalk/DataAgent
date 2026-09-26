@@ -17,6 +17,7 @@
  */
 
 import request from './request';
+import type { BooleanVo } from './types';
 
 export interface UserInfoResponse {
   userId: number;
@@ -52,6 +53,6 @@ export function fetchMe() {
 
 export function changePassword(payload: ChangePasswordRequest) {
   return request
-    .post<ApiResult<boolean>>('/auth/change-password', payload)
+    .post<ApiResult<BooleanVo>>('/auth/change-password', payload)
     .then(res => res.data.data);
 }

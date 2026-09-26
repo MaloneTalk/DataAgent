@@ -17,9 +17,9 @@
  */
 package io.github.malonetalk.agent.datasource;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,6 +29,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import javax.sql.DataSource;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SetOperationList;
+import net.sf.jsqlparser.statement.select.WithItem;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -121,7 +123,10 @@ public class SqlExecutor {
         while (!pending.isEmpty()) {
             Select current = pending.pop();
             if (current.getWithItemsList() != null) {
-                current.getWithItemsList().forEach(pending::push);
+                current.getWithItemsList().stream()
+                        .map(WithItem::getSelect)
+                        .filter(Objects::nonNull)
+                        .forEach(pending::push);
             }
 
             if (current instanceof PlainSelect plainSelect) {

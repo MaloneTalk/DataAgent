@@ -24,8 +24,8 @@ import static io.github.malonetalk.common.SemanticConstants.RELATION_TABLE_COLUM
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.LinkedHashSet;

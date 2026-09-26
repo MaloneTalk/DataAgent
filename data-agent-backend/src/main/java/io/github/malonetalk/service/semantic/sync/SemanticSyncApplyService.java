@@ -171,6 +171,11 @@ public class SemanticSyncApplyService {
             } else {
                 tableInfo.setId(existingTable.getId());
                 tableInfoMapper.updatePhysicalCacheFields(tableInfo);
+                if (shouldFillDescription(
+                        existingTable.getTableDescription(), table.description())) {
+                    tableInfoMapper.fillSemanticDescriptionIfBlank(
+                            existingTable.getId(), table.description());
+                }
             }
         }
         if (!newTables.isEmpty()) {
@@ -196,12 +201,21 @@ public class SemanticSyncApplyService {
                 } else {
                     columnInfo.setId(existingColumn.getId());
                     columnSemanticInfoMapper.updatePhysicalCacheFields(columnInfo);
+                    if (shouldFillDescription(
+                            existingColumn.getColumnDescription(), column.description())) {
+                        columnSemanticInfoMapper.fillSemanticDescriptionIfBlank(
+                                existingColumn.getId(), column.description());
+                    }
                 }
             }
         }
         if (!newColumns.isEmpty()) {
             columnSemanticInfoMapper.batchUpsertPhysicalCache(newColumns);
         }
+    }
+
+    private boolean shouldFillDescription(String current, String physical) {
+        return (current == null || current.isEmpty()) && physical != null && !physical.isEmpty();
     }
 
     private void markMissingTables(

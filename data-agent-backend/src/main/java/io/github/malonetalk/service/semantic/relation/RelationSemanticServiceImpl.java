@@ -19,7 +19,6 @@ package io.github.malonetalk.service.semantic.relation;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
@@ -36,12 +35,12 @@ import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.enums.LogicalTableRelationType;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
-import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
@@ -331,7 +330,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private TableInfo ensureTableOperable(
             Integer datasourceId, String tableName, String fieldName) {
         TableInfo tableInfo = requireTable(datasourceId, tableName, fieldName);
-        if (SemanticAvailabilityHelper.isTableAvailable(tableInfo, UsageLevelEnum.USER_OPERATION)) {
+        if (SemanticAvailabilityHelper.isTableAvailable(tableInfo)) {
             return tableInfo;
         }
         throw BusinessException.of(
@@ -339,8 +338,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 SemanticAvailabilityHelper.unavailableMessage(
                         fieldName,
                         tableName,
-                        SemanticAvailabilityHelper.tableInvalidReason(
-                                tableInfo, UsageLevelEnum.USER_OPERATION)));
+                        SemanticAvailabilityHelper.tableInvalidReason(tableInfo)));
     }
 
     private TableInfo requireTable(Integer datasourceId, String tableName, String fieldName) {
@@ -365,8 +363,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         ErrorCode.RESOURCE_NOT_FOUND,
                         fieldName + " " + columnName + " semantic metadata does not exist.");
             }
-            if (SemanticAvailabilityHelper.isColumnAvailable(
-                    columnInfo, UsageLevelEnum.USER_OPERATION)) {
+            if (SemanticAvailabilityHelper.isColumnAvailable(columnInfo)) {
                 continue;
             }
             throw BusinessException.of(
@@ -374,8 +371,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                     SemanticAvailabilityHelper.unavailableMessage(
                             fieldName,
                             columnName,
-                            SemanticAvailabilityHelper.columnInvalidReason(
-                                    columnInfo, UsageLevelEnum.USER_OPERATION)));
+                            SemanticAvailabilityHelper.columnInvalidReason(columnInfo)));
         }
     }
 

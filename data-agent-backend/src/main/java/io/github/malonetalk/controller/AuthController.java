@@ -17,20 +17,20 @@
  */
 package io.github.malonetalk.controller;
 
-import io.github.malonetalk.common.ErrorCode;
-import io.github.malonetalk.common.Result;
-import io.github.malonetalk.common.UserContext;
-import io.github.malonetalk.dto.ChangePasswordRequest;
-import io.github.malonetalk.dto.LoginRequest;
-import io.github.malonetalk.dto.LoginResponse;
-import io.github.malonetalk.dto.UserInfoResponse;
-import io.github.malonetalk.entity.SysUser;
 import io.github.malonetalk.exception.BusinessException;
-import io.github.malonetalk.mapper.SysUserMapper;
+import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.bo.SysUserBo;
+import io.github.malonetalk.model.converter.UserConverter;
+import io.github.malonetalk.model.dto.ChangePasswordDto;
+import io.github.malonetalk.model.dto.LoginDto;
+import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.vo.BooleanVo;
+import io.github.malonetalk.model.vo.LoginVo;
+import io.github.malonetalk.model.vo.UserInfoVo;
+import io.github.malonetalk.service.SysUserService;
 import io.github.malonetalk.utils.JwtUtil;
 import io.github.malonetalk.utils.PasswordUtil;
 import jakarta.validation.Valid;
-import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,47 +50,36 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private static final String BAD_CREDENTIALS = "用户名或密码错误";
-
-    private final SysUserMapper sysUserMapper;
+    private final SysUserService sysUserService;
     private final JwtUtil jwtUtil;
+    private final UserContextHolder userContextHolder;
+    private final UserConverter userConverter;
 
     @PostMapping("/login")
-    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        SysUser user = sysUserMapper.selectByUsername(request.username());
+    public LoginVo login(@Valid @RequestBody LoginDto dto) {
+        SysUserBo user = sysUserService.findByUsername(dto.username());
         // 用户不存在、外部身份源（password_hash 为空）、密码不匹配：统一文案，避免枚举用户名。
         if (user == null
                 || user.getPasswordHash() == null
-                || !PasswordUtil.verify(request.password(), user.getPasswordHash())) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, BAD_CREDENTIALS);
+                || !PasswordUtil.verify(dto.password(), user.getPasswordHash())) {
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
         if (user.getStatus() == null || user.getStatus() != 1) {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "账号已禁用，请联系管理员");
         }
         String token = jwtUtil.generate(user.getId());
-        UserInfoResponse info =
-                new UserInfoResponse(user.getId(), user.getUsername(), user.getDisplayName());
-        return Result.success(new LoginResponse(token, info));
+        return new LoginVo(token, userConverter.toInfoVo(user));
     }
 
     @GetMapping("/me")
-    public Result<UserInfoResponse> me() {
-        UserContext context = UserContext.require();
-        return Result.success(
-                new UserInfoResponse(context.userId(), context.username(), context.displayName()));
+    public UserInfoVo me() {
+        return userConverter.toInfoVoFromContext(userContextHolder.checkAndGet());
     }
 
     @PostMapping("/change-password")
-    public Result<Boolean> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-        Integer userId = UserContext.require().userId();
-        SysUser user = sysUserMapper.selectById(userId);
-        if (user == null
-                || user.getPasswordHash() == null
-                || !PasswordUtil.verify(request.oldPassword(), user.getPasswordHash())) {
-            throw BusinessException.of(ErrorCode.BAD_REQUEST, "旧密码不正确");
-        }
-        sysUserMapper.updatePassword(
-                userId, PasswordUtil.hash(request.newPassword()), LocalDateTime.now());
-        return Result.success(true);
+    public BooleanVo changePassword(@Valid @RequestBody ChangePasswordDto dto) {
+        Integer userId = userContextHolder.checkAndGet().userId();
+        sysUserService.changePassword(userId, dto.oldPassword(), dto.newPassword());
+        return BooleanVo.TRUE;
     }
 }

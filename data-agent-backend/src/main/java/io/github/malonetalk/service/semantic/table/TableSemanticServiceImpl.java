@@ -19,7 +19,6 @@ package io.github.malonetalk.service.semantic.table;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
@@ -29,6 +28,7 @@ import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
@@ -106,27 +106,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                 .distinct()
                 .sorted(String::compareToIgnoreCase)
                 .toList();
-    }
-
-    @Override
-    public List<TableInfo> listTableInfosByDatasourceId(Integer datasourceId) {
-        SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
-            return List.of();
-        }
-        return tableInfoMapper.selectByDatasourceId(datasourceId);
-    }
-
-    @Override
-    public List<TableInfo> listTableInfosByDomains(Integer datasourceId, List<String> domains) {
-        SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
-            return List.of();
-        }
-        if (domains == null || domains.isEmpty()) {
-            return listTableInfosByDatasourceId(datasourceId);
-        }
-        return tableInfoMapper.selectByDatasourceIdAndDomains(datasourceId, domains);
     }
 
     @Override

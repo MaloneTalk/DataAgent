@@ -15,13 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.PositiveOrZero;
 
-/** 管理员重置用户密码（不需旧密码）；区别于 {@link ChangePasswordRequest}（用户自己改，需验旧密码）。 */
-public record ResetPasswordRequest(
-        @NotBlank(message = "newPassword 不能为空")
-                @Size(min = 6, max = 64, message = "newPassword 长度需在 6-64 之间")
-                String newPassword) {}
+/** 更新用户。roleId 为 null 表示不修改角色。 */
+public record UserUpdateDto(
+        @NotBlank(message = "displayName 不能为空") String displayName,
+        @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}

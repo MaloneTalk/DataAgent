@@ -72,13 +72,24 @@
         <agentscope.version>1.0.11</agentscope.version>
         <spotless.version>3.4.0</spotless.version>
         <google-java-format.version>1.28.0</google-java-format.version>
-        <mybatis-springboot-starter.version>4.0.1</mybatis-springboot-starter.version>
-        <pagehelper-spring-boot.version>2.1.1</pagehelper-spring-boot.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <pagehelper.version>6.1.1</pagehelper.version>
         <lombok.version>1.18.42</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
-        <jsqlparser.version>5.0</jsqlparser.version>
+        <jsqlparser.version>5.2</jsqlparser.version>
         <jsonwebtoken.version>0.12.6</jsonwebtoken.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- PageHelper 与 MyBatis-Plus 都依赖 jsqlparser，classpath 只能保留一个版本，统一钉死为 MP 提供的 5.2。 -->
+            <dependency>
+                <groupId>com.github.jsqlparser</groupId>
+                <artifactId>jsqlparser</artifactId>
+                <version>${jsqlparser.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -103,15 +114,16 @@
         </dependency>
 
         <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>${mybatis-springboot-starter.version}</version>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
         </dependency>
 
+        <!-- 过渡期分页：仅引核心包并手动注册 PageInterceptor，避免 starter 传递依赖 mybatis-spring-boot-starter。 -->
         <dependency>
             <groupId>com.github.pagehelper</groupId>
-            <artifactId>pagehelper-spring-boot-starter</artifactId>
-            <version>${pagehelper-spring-boot.version}</version>
+            <artifactId>pagehelper</artifactId>
+            <version>${pagehelper.version}</version>
         </dependency>
 
         <dependency>
@@ -145,10 +157,11 @@
             <version>${mapstruct.version}</version>
         </dependency>
 
+        <!-- jsqlparser 由 MP 模块统一提供（版本经 dependencyManagement 钉为 5.2），SqlExecutor 复用其 API。 -->
         <dependency>
-            <groupId>com.github.jsqlparser</groupId>
-            <artifactId>jsqlparser</artifactId>
-            <version>${jsqlparser.version}</version>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <version>${mybatis-plus.version}</version>
         </dependency>
 
         <!-- JWT 签发/校验（HS256）；唯一为登录引入的依赖，密码哈希走 JDK 标准库无新依赖 -->

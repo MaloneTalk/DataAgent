@@ -15,7 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-/** 当前用户信息；角色/是否管理员字段随权限轮次补充。 */
-public record UserInfoResponse(Integer userId, String username, String displayName) {}
+public record BooleanVo(boolean value) implements BaseVo {
+    public static final BooleanVo TRUE = new BooleanVo(true);
+    public static final BooleanVo FALSE = new BooleanVo(false);
+}

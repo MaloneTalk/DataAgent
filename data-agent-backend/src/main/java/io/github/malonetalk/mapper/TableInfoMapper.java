@@ -33,6 +33,9 @@ public interface TableInfoMapper {
 
     int updatePhysicalCacheFields(TableInfo tableInfo);
 
+    int fillSemanticDescriptionIfBlank(
+            @Param("id") Integer id, @Param("description") String description);
+
     int resetSemanticFieldsByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
@@ -58,9 +61,6 @@ public interface TableInfoMapper {
             @Param("datasourceId") Integer datasourceId,
             @Param("tableNames") List<String> tableNames,
             @Param("now") LocalDateTime now);
-
-    List<TableInfo> selectByDatasourceIdAndDomains(
-            @Param("datasourceId") Integer datasourceId, @Param("domains") List<String> domains);
 
     int countByDomain(@Param("domain") String domain);
 }

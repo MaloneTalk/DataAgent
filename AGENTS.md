@@ -10,6 +10,8 @@
 3. Already-installed dependencies (check pom.xml first)
 4. Only then: write custom code
 
+**Prefer official Spring Boot starters over hand-rolled infrastructure.** If a problem can be solved by adding an official Spring starter plus a small amount of glue code, use the starter instead of building custom infrastructure.
+
 **Use chaining and fluent style where natural, but don't force one-liners.** Break long expressions into multiple lines if that improves readability — especially when dealing with Optional chains, complex ternaries, or multi-step transformations.
 
 **Avoid over-encapsulation: don't abstract before duplication appears.** A helper method used only once is just indirection, not cleanliness. Extract when the same pattern appears in ≥2 places — not earlier. **But one-off private methods that clarify intent are not "duplication" — they're organization.**
@@ -21,3 +23,5 @@
 **Write code for the next reader, not for the compiler.** The compiler can parse anything. A human shouldn't have to. Choose names that reveal intent, structure code in small logical steps, and prefer clarity over cleverness. If a line makes you pause — it will make someone else pause too.
 
 **Write MySQL 5.7 compatible SQL — no window functions (`ROW_NUMBER()`, `RANK()`, etc.), no CTE (`WITH ... AS`), no other MySQL 8.0+ syntax.**
+
+**New data entities belong in `io.github.malonetalk.model`.** Place new PO/DTO/VO/BO under `io.github.malonetalk.model.{po,dto,vo,bo}`. Do not add new classes to the deprecated `io.github.malonetalk.dto` and `io.github.malonetalk.entity` packages.

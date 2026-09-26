@@ -19,7 +19,6 @@ package io.github.malonetalk.service.semantic.column;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
@@ -30,6 +29,7 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DatasourceService;
@@ -128,9 +128,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     @Override
     public List<ColumnPromptResponse> getMergedTableSchema(Integer datasourceId, String tableName) {
-        requireDatasource(datasourceId);
-        Datasource datasource = datasourceService.findById(datasourceId);
-        return semanticMergeService.getTableSchema(datasource, tableName);
+        return semanticMergeService.getTableSchema(requireDatasource(datasourceId), tableName);
     }
 
     @Override
@@ -209,11 +207,13 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         return affected;
     }
 
-    private void requireDatasource(Integer datasourceId) {
+    private Datasource requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        Datasource datasource = datasourceService.findById(datasourceId);
+        if (datasource == null) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
+        return datasource;
     }
 }

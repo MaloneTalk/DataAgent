@@ -73,7 +73,6 @@
 
   const props = defineProps<{
     loading: boolean;
-    nodeLoading: boolean;
     relationError: string;
     datasourceId: number | undefined;
     nodes: TableNodeLayout[];
@@ -676,7 +675,7 @@
         @pointerup="handleCanvasPointerUp"
         @pointerleave="handleCanvasPointerUp"
       >
-        <div v-if="nodeLoading" class="canvas-empty">正在加载表结构...</div>
+        <div v-if="loading" class="canvas-empty">正在加载表结构...</div>
         <div
           v-else
           class="relation-canvas"

@@ -17,9 +17,10 @@
  */
 package io.github.malonetalk.exception;
 
-import io.github.malonetalk.common.ErrorCode;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.FieldValidationError;
+import io.github.malonetalk.model.vo.BaseVo;
+import io.github.malonetalk.model.vo.ResultVo;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,11 +38,18 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-/** HTTP 全局异常处理入口，负责把异常转换成带 errorCode 的统一 Result 响应。 */
+/**
+ * HTTP 全局异常处理入口，负责把异常转换成带 errorCode 的统一响应。
+ *
+ * <p>灰度期说明：字段校验失败仍返回旧版 {@link Result}——前端依赖 {@code data} 中的字段错误数组；
+ * 其余异常已迁移到 {@link ResultVo}。待前端适配字段校验结构后，校验分支再一并迁移。
+ */
 @RestControllerAdvice
 @Slf4j
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private static final String INVALID_REQUEST_PARAMETERS = "Invalid request parameters.";
 
     private final ExceptionResponseMapper exceptionResponseMapper;
 
@@ -51,11 +59,11 @@ public class GlobalExceptionHandler {
         ServletRequestBindingException.class,
         HttpMessageNotReadableException.class
     })
-    public ResponseEntity<Result<Object>> handleBadRequest(Exception exception) {
+    public ResponseEntity<ResultVo<BaseVo>> handleBadRequest(Exception exception) {
         return response(ErrorCode.BAD_REQUEST, resolveBadRequestMessage(exception));
     }
 
-    /** Bean Validation 的字段错误返回 VALIDATION_FAILED，并把字段错误放入 data。 */
+    /** Bean Validation 的字段错误返回 VALIDATION_FAILED，并把字段错误放入 data（灰度期沿用旧结构）。 */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Result<Object>> handleMethodArgumentNotValid(
             MethodArgumentNotValidException exception) {
@@ -85,7 +93,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Result<Object>> handleException(Exception exception) {
+    public ResponseEntity<ResultVo<BaseVo>> handleException(Exception exception) {
         ErrorResponse errorResponse = exceptionResponseMapper.resolve(exception);
         exceptionResponseMapper.logMapped(log, exception, errorResponse);
         return response(errorResponse);
@@ -99,9 +107,7 @@ public class GlobalExceptionHandler {
             // 转换异常消息含内部类型名（如 java.lang.Long），对外只暴露参数名。
             return "Invalid value for parameter '" + typeMismatch.getName() + "'.";
         }
-        return exception.getMessage() == null
-                ? "Invalid request parameters."
-                : exception.getMessage();
+        return exception.getMessage() == null ? INVALID_REQUEST_PARAMETERS : exception.getMessage();
     }
 
     /** 字段校验响应使用第一条错误作为主 message，完整字段错误列表放在 data。 */
@@ -110,7 +116,7 @@ public class GlobalExceptionHandler {
                 errors.stream()
                         .findFirst()
                         .map(FieldValidationError::message)
-                        .orElse("Invalid request parameters.");
+                        .orElse(INVALID_REQUEST_PARAMETERS);
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getHttpStatus())
                 .body(Result.error(ErrorCode.VALIDATION_FAILED, message, errors));
     }
@@ -128,7 +134,7 @@ public class GlobalExceptionHandler {
                         : error.getObjectName();
         String message =
                 error.getDefaultMessage() == null
-                        ? "Invalid request parameters."
+                        ? INVALID_REQUEST_PARAMETERS
                         : error.getDefaultMessage();
         return new FieldValidationError(field, message);
     }
@@ -144,14 +150,14 @@ public class GlobalExceptionHandler {
     }
 
     /** 按错误码和指定文案组装 HTTP 响应。 */
-    private ResponseEntity<Result<Object>> response(ErrorCode errorCode, String message) {
+    private ResponseEntity<ResultVo<BaseVo>> response(ErrorCode errorCode, String message) {
         return response(exceptionResponseMapper.of(errorCode, message));
     }
 
     /** 最终响应出口：HTTP 状态码、业务 errorCode 和 message 在这里对齐。 */
-    private ResponseEntity<Result<Object>> response(ErrorResponse errorResponse) {
+    private ResponseEntity<ResultVo<BaseVo>> response(ErrorResponse errorResponse) {
         ErrorCode errorCode = errorResponse.errorCode();
         return ResponseEntity.status(errorCode.getHttpStatus())
-                .body(Result.error(errorCode, errorResponse.message(), null));
+                .body(ResultVo.<BaseVo>error(errorCode, errorResponse.message()));
     }
 }

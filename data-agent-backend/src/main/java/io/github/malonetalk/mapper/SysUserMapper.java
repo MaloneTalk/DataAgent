@@ -17,32 +17,8 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.SysUser;
-import java.time.LocalDateTime;
-import java.util.List;
+import io.github.malonetalk.model.po.SysUserPo;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 @Mapper
-public interface SysUserMapper {
-
-    /** 登录校验：按用户名查 LOCAL 账号（含 password_hash）。 */
-    SysUser selectByUsername(@Param("username") String username);
-
-    SysUser selectById(@Param("id") Integer id);
-
-    int insert(SysUser user);
-
-    int updatePassword(
-            @Param("id") Integer id,
-            @Param("passwordHash") String passwordHash,
-            @Param("updateTime") LocalDateTime updateTime);
-
-    boolean existUser();
-
-    List<SysUser> selectAll();
-
-    int update(SysUser user);
-
-    int updateStatus(@Param("id") Integer id, @Param("status") Integer status);
-}
+public interface SysUserMapper extends AuditableMapper<SysUserPo> {}
