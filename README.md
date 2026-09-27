@@ -110,6 +110,8 @@ mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
 | [docs/semantic-layer.md](docs/semantic-layer.md) | 语义层概念与管理 |
 | [docs/contributing.md](docs/contributing.md) | 开发环境与贡献流程 |
 
+> 从旧版本升级时密码哈希已由 PBKDF2 改为 BCrypt，存量用户需按 [configuration.md](docs/configuration.md#密码哈希与旧数据迁移) 的指引重置密码。
+
 ## 🤝 贡献
 
 由于时间关系，项目仍在持续完善中，开发者深知其中尚有诸多不完善之处，会继续努力迭代。同时也真诚欢迎社区的参与：提交 Issue 反馈问题与建议、补充文档、修复 Bug、实现新特性……任何形式的贡献都欢迎。开发规范与提交流程见 [docs/contributing.md](docs/contributing.md)。

@@ -153,6 +153,16 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 - `AuthInterceptor` 拦截除 `/api/auth/login` 外的所有接口（含 SSE 流式端点），校验 token 签名与时效。
 - 登录后可访问基础功能；带 `@RequirePermission` 的管理接口要求用户具备相应权限，超级管理员（`is_super_admin=1`）直接放行。按角色、按业务类型的细粒度授权仍在实现中（Issue #150），当前非超级管理员访问受保护接口会被拒绝。后续可在「系统管理」中创建用户、维护角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
 
+### 密码哈希与旧数据迁移
+
+- 若从更早的 PBKDF2 版本升级、库里仍是 `pbkdf2$...` 旧哈希，这些用户无法登录（BCrypt 校验不识别旧格式），需要逐个重置密码。
+- 迁移使用内置自检工具 `SysUserPasswordMigration`（`src/test/java/io/github/malonetalk/`）：分页列出全部用户，逐个提示重置**非 BCrypt** 的密码，已是 BCrypt 的自动跳过。
+
+```bash
+# 元数据库连接沿用 DB_URL / DB_USERNAME / DB_PASSWORD
+SELF_CHECK=true mvn -f data-agent-backend/pom.xml clean test -Dtest=SysUserPasswordMigration -DforkCount=0
+```
+
 ## 8. 安全提示
 
 - 不要把 `IO_GITHUB_MALONETALK_MODEL_API_KEY`、`JWT_SECRET`、`ADMIN_INIT_PASSWORD` 写入仓库。

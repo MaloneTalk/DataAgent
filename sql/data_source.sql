@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS `role_hidden_column` (
 CREATE TABLE IF NOT EXISTS `sys_user` (
     `id`            INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `username`      VARCHAR(64)  NOT NULL COMMENT '登录名；外部身份源用户=身份源昵称（可重名，靠 idp_user_id 区分）',
-    `password_hash` VARCHAR(255) NULL COMMENT 'PBKDF2 哈希，仅 LOCAL 身份源使用；外部身份源用户为空',
+    `password_hash` VARCHAR(255) NULL COMMENT 'BCrypt 哈希，仅 LOCAL 身份源使用；外部身份源用户为空',
     `display_name`  VARCHAR(64)  NOT NULL COMMENT '显示名',
     `role_id`       INT NOT NULL DEFAULT 0 COMMENT '角色ID；0=未分配角色（无任何表权限）',
     `is_super_admin` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否超级管理员:0否,1是',
