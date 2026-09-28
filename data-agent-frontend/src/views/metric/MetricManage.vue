@@ -134,11 +134,11 @@
       const payload: MetricUpsertRequest = {
         metricKey: metricForm.metricKey.trim(),
         name: metricForm.name.trim(),
-        aliases: metricForm.aliases.trim() || undefined,
-        measureExpr: metricForm.measureExpr.trim() || undefined,
-        filters: metricForm.filters.trim() || undefined,
-        timeField: metricForm.timeField.trim() || undefined,
-        description: metricForm.description.trim() || undefined,
+        aliases: metricForm.aliases.trim(),
+        measureExpr: metricForm.measureExpr.trim(),
+        filters: metricForm.filters.trim(),
+        timeField: metricForm.timeField.trim(),
+        description: metricForm.description.trim(),
       };
 
       if (selectedMetric.value) {
