@@ -142,6 +142,8 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 
 > 各配置键的完整说明见 [configuration.md](configuration.md#7-认证配置)。
 
+> 密码以 BCrypt 存储；若从旧版 PBKDF2 升级，存量用户的旧哈希无法登录，按 [configuration.md 的「密码哈希与旧数据迁移」](configuration.md#密码哈希与旧数据迁移) 重置。
+
 ### 3.4 启动
 
 ```bash

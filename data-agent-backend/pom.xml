@@ -164,7 +164,7 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
-        <!-- JWT 签发/校验（HS256）；唯一为登录引入的依赖，密码哈希走 JDK 标准库无新依赖 -->
+        <!-- JWT 签发/校验（HS256）；唯一为登录引入的依赖 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -181,6 +181,12 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>${jsonwebtoken.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring 密码哈希库-->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
         </dependency>
     </dependencies>
 
