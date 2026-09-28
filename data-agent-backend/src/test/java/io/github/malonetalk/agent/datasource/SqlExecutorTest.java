@@ -118,6 +118,15 @@ class SqlExecutorTest {
         assertEquals(ErrorCode.SQL_NOT_ALLOWED, error.getErrorCode());
     }
 
+    @Test
+    void truncateFallsBackOnBlankAndCapsLongMessages() {
+        assertEquals("unknown database error", SqlExecutor.truncate(null));
+        assertEquals("unknown database error", SqlExecutor.truncate("  "));
+        assertEquals("duplicate key value", SqlExecutor.truncate("duplicate key value"));
+        assertEquals(203, SqlExecutor.truncate("x".repeat(400)).length());
+        assertEquals("x".repeat(200) + "...", SqlExecutor.truncate("x".repeat(400)));
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void validatesDeeplyNestedAstWithoutOverflow(boolean selectInto) throws Exception {
