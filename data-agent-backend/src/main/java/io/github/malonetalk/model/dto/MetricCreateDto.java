@@ -23,8 +23,7 @@ import jakarta.validation.constraints.NotNull;
 
 /** 创建指标口径。只暴露客户端可编辑字段,id/时间/逻辑删除由系统控制。 */
 public record MetricCreateDto(
-        @NotNull(message = "datasourceId 不能为空")
-                @Min(value = 1, message = "datasourceId 必须为正数")
+        @NotNull(message = "datasourceId 不能为空") @Min(value = 1, message = "datasourceId 必须为正数")
                 Integer datasourceId,
         @NotBlank(message = "metricKey 不能为空") String metricKey,
         @NotBlank(message = "name 不能为空") String name,

@@ -20,9 +20,9 @@ package io.github.malonetalk.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import io.github.malonetalk.mapper.MetricInfoMapper;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.mapper.MetricInfoMapper;
 import io.github.malonetalk.model.bo.MetricInfoBo;
 import io.github.malonetalk.model.converter.MetricConverter;
 import io.github.malonetalk.model.dto.MetricCreateDto;
@@ -163,7 +163,7 @@ public class MetricServiceImpl implements MetricService {
         }
         MetricInfoPo po = requireById(id);
         metricConverter.toPoForUpdate(dto, po);
-        if(!StringUtils.hasText(dto.name())) {
+        if (!StringUtils.hasText(dto.name())) {
             po.setName(null);
         }
         metricInfoMapper.updateById(po);
@@ -203,8 +203,7 @@ public class MetricServiceImpl implements MetricService {
 
     private Integer requireDatasource(Integer datasourceId) {
         if (datasourceService.findById(datasourceId) == null) {
-            throw BusinessException.of(
-                    ErrorCode.BAD_REQUEST, "数据源不存在: " + datasourceId);
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "数据源不存在: " + datasourceId);
         }
         return datasourceId;
     }
