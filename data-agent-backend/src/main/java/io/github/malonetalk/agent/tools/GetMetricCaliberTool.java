@@ -19,6 +19,8 @@ package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.MetricService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Component;
 public class GetMetricCaliberTool implements MarkAgentTool {
 
     private final MetricService metricService;
+    private final DatasourceService datasourceService;
 
     @Tool(
             name = "get_metric_caliber",
@@ -49,9 +52,11 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                             description =
                                     "A metric name, or the user's question verbatim, e.g. 流水 /"
                                             + " 销售额 / 上个月的GMV是多少")
-                    String hint) {
+                    String hint,
+            ToolCallContext ctx) {
         try {
-            return metricService.getCaliberByHint(hint);
+            Integer dsId = datasourceService.getDatasourceForSession(ctx.sessionId()).getId();
+            return metricService.getCaliberByHint(dsId, hint);
         } catch (Exception e) {
             log.error("Failed to get metric caliber: " + hint, e);
             return "Failed to get metric caliber: " + e.getMessage();

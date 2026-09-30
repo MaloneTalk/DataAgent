@@ -21,8 +21,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.model.converter.BatchQueryConverter;
 import io.github.malonetalk.model.converter.MetricConverter;
-import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.MetricCreateDto;
+import io.github.malonetalk.model.dto.MetricQueryDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
 import io.github.malonetalk.model.vo.BatchQueryVo;
 import io.github.malonetalk.model.vo.BooleanVo;
@@ -77,7 +77,7 @@ public class MetricController {
     }
 
     @GetMapping
-    public BatchQueryVo<MetricInfoVo> list(@Valid BaseBatchQueryDto dto) {
+    public BatchQueryVo<MetricInfoVo> list(@Valid MetricQueryDto dto) {
         IPage<MetricInfoVo> page = metricService.page(dto).convert(metricConverter::toVo);
         return BatchQueryConverter.toVo(page);
     }

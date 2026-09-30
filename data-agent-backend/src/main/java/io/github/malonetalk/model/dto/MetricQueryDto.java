@@ -18,18 +18,16 @@
 package io.github.malonetalk.model.dto;
 
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-/** 创建指标口径。只暴露客户端可编辑字段,id/时间/逻辑删除由系统控制。 */
-public record MetricCreateDto(
-        @NotNull(message = "datasourceId 不能为空")
-                @Min(value = 1, message = "datasourceId 必须为正数")
-                Integer datasourceId,
-        @NotBlank(message = "metricKey 不能为空") String metricKey,
-        @NotBlank(message = "name 不能为空") String name,
-        String aliases,
-        String measureExpr,
-        String filters,
-        String timeField,
-        String description) {}
+/** 指标口径分页查询:按数据源隔离。 */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class MetricQueryDto extends BaseBatchQueryDto {
+
+    @NotNull(message = "datasourceId 不能为空")
+    @Min(value = 1, message = "datasourceId 必须为正数")
+    private Integer datasourceId;
+}

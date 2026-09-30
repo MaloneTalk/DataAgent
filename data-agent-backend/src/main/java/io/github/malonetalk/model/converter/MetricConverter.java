@@ -37,6 +37,7 @@ public interface MetricConverter {
     MetricInfoVo toVo(MetricInfoBo bo);
 
     /** insert 用：只映射客户端可编辑字段，datasourceId/metricKey 由 Service 归一化后设置。 */
+    @Mapping(target = "datasourceId", ignore = true)
     @Mapping(target = "metricKey", ignore = true)
     MetricInfoPo toPoForInsert(MetricCreateDto dto);
 

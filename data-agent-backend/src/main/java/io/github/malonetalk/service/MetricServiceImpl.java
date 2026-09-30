@@ -21,10 +21,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.mapper.MetricInfoMapper;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.MetricInfoBo;
 import io.github.malonetalk.model.converter.MetricConverter;
-import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.MetricCreateDto;
+import io.github.malonetalk.model.dto.MetricQueryDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
 import io.github.malonetalk.model.po.MetricInfoPo;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -52,24 +54,16 @@ public class MetricServiceImpl implements MetricService {
     private final MetricConverter metricConverter;
     private final DatasourceService datasourceService;
 
-    private Integer activeDatasourceId() {
-        return datasourceService
-                .getActiveDatasource()
-                .orElseThrow(() -> new IllegalStateException("没有可用的数据源"))
-                .getId();
-    }
-
     @Override
-    public String getCaliberByHint(String hint) {
-        Integer dsId = activeDatasourceId();
+    public String getCaliberByHint(Integer datasourceId, String hint) {
         String query = SemanticUtils.trimToNull(hint);
         if (query == null) {
             return "缺少指标描述,无法查询口径。";
         }
         List<MetricInfoBo> candidates =
-                match(toBoList(metricInfoMapper.selectByDatasource(dsId)), query);
+                match(toBoList(metricInfoMapper.selectByDatasource(datasourceId)), query);
         if (candidates.isEmpty()) {
-            List<MetricInfoBo> suggestions = toBoList(metricInfoMapper.suggest(dsId));
+            List<MetricInfoBo> suggestions = toBoList(metricInfoMapper.suggest(datasourceId));
             log.warn("指标口径未命中: hint={}", query);
             return formatNotFound(query, suggestions);
         }
@@ -150,7 +144,7 @@ public class MetricServiceImpl implements MetricService {
 
     @Override
     public MetricInfoBo create(MetricCreateDto dto) {
-        Integer dsId = activeDatasourceId();
+        Integer dsId = requireDatasource(dto.datasourceId());
         String key = SemanticUtils.normalizeObjectName(dto.metricKey(), "指标 key 不能为空");
         if (metricInfoMapper.selectByKey(dsId, key) != null) {
             throw new IllegalArgumentException("指标 key 已存在: " + key);
@@ -195,17 +189,24 @@ public class MetricServiceImpl implements MetricService {
     }
 
     @Override
-    public IPage<MetricInfoBo> page(BaseBatchQueryDto dto) {
+    public IPage<MetricInfoBo> page(MetricQueryDto dto) {
         long current = dto.getPage() == null ? 1L : dto.getPage();
         long size = dto.getPageSize() == null ? 20L : dto.getPageSize();
-        Integer dsId = activeDatasourceId();
         Page<MetricInfoPo> page =
                 metricInfoMapper.selectPage(
                         new Page<>(current, size),
                         Wrappers.<MetricInfoPo>lambdaQuery()
-                                .eq(MetricInfoPo::getDatasourceId, dsId)
+                                .eq(MetricInfoPo::getDatasourceId, dto.getDatasourceId())
                                 .orderByAsc(MetricInfoPo::getName, MetricInfoPo::getId));
         return page.convert(metricConverter::toBo);
+    }
+
+    private Integer requireDatasource(Integer datasourceId) {
+        if (datasourceService.findById(datasourceId) == null) {
+            throw BusinessException.of(
+                    ErrorCode.BAD_REQUEST, "数据源不存在: " + datasourceId);
+        }
+        return datasourceId;
     }
 
     private MetricInfoPo requireById(Integer id) {

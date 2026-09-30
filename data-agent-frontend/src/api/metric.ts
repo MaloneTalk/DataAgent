@@ -34,6 +34,7 @@ export interface MetricInfo {
 }
 
 export interface MetricCreateRequest {
+  datasourceId: number;
   metricKey: string;
   name: string;
   aliases?: string;
@@ -53,8 +54,9 @@ export interface MetricUpdateRequest {
   description?: string;
 }
 
-/** 对应后端 BaseBatchQueryDto。 */
+/** 对应后端 MetricQueryDto。 */
 export interface MetricQueryParams {
+  datasourceId: number;
   page?: number;
   pageSize?: number;
   sortOrder?: 'asc' | 'desc';
@@ -75,7 +77,5 @@ export function updateMetric(id: number, data: MetricUpdateRequest) {
 }
 
 export function deleteMetric(id: number) {
-  return request
-    .delete<ApiResponse<BooleanVo>>(`/metric/${id}`)
-    .then(res => res.data.data);
+  return request.delete<ApiResponse<BooleanVo>>(`/metric/${id}`).then(res => res.data.data);
 }

@@ -20,6 +20,7 @@
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
+  import { useDatasource } from '@/composables/useDatasource';
   import {
     listMetrics,
     createMetric,
@@ -48,6 +49,15 @@
   const page = ref(1);
   const pageSize = ref(10);
   const total = ref(0);
+
+  const {
+    list: datasourceList,
+    loading: datasourceLoading,
+    error: datasourceError,
+    fetchList: fetchDatasourceList,
+  } = useDatasource();
+  const selectedDatasourceId = ref<number>();
+  const datasourceEmpty = ref(false);
 
   const metricDialogVisible = ref(false);
   const metricSubmitLoading = ref(false);
@@ -82,10 +92,19 @@
   });
 
   const loadMetrics = async () => {
+    if (selectedDatasourceId.value === undefined) {
+      metricRows.value = [];
+      total.value = 0;
+      return;
+    }
     metricLoading.value = true;
     metricError.value = '';
     try {
-      const result = await listMetrics({ page: page.value, pageSize: pageSize.value });
+      const result = await listMetrics({
+        datasourceId: selectedDatasourceId.value,
+        page: page.value,
+        pageSize: pageSize.value,
+      });
       metricRows.value = result.items;
       total.value = result.total;
     } catch (error) {
@@ -95,6 +114,11 @@
     } finally {
       metricLoading.value = false;
     }
+  };
+
+  const handleDatasourceChange = () => {
+    page.value = 1;
+    void loadMetrics();
   };
 
   const handlePageChange = (newPage: number) => {
@@ -162,7 +186,12 @@
         await updateMetric(selectedMetric.value.id, payload);
         ElMessage.success('指标口径已更新');
       } else {
+        if (selectedDatasourceId.value === undefined) {
+          ElMessage.warning('请先选择数据源');
+          return;
+        }
         const payload: MetricCreateRequest = {
+          datasourceId: selectedDatasourceId.value,
           metricKey: metricForm.metricKey.trim(),
           ...fields,
         };
@@ -195,8 +224,22 @@
     }
   };
 
+  const initialize = async () => {
+    await fetchDatasourceList();
+    if (datasourceList.value.length === 0) {
+      datasourceEmpty.value = true;
+      metricRows.value = [];
+      total.value = 0;
+      return;
+    }
+    datasourceEmpty.value = false;
+    const firstActive = datasourceList.value.find(item => item.status === 'ACTIVE');
+    selectedDatasourceId.value = firstActive?.id ?? datasourceList.value[0]?.id;
+    await loadMetrics();
+  };
+
   onMounted(() => {
-    void loadMetrics();
+    void initialize();
   });
 </script>
 
@@ -216,71 +259,99 @@
     <section>
       <div class="section-header">
         <div class="section-header-actions">
+          <el-select
+            v-model="selectedDatasourceId"
+            class="datasource-field"
+            filterable
+            placeholder="选择数据源"
+            :loading="datasourceLoading"
+            @change="handleDatasourceChange"
+          >
+            <el-option
+              v-for="item in datasourceList"
+              :key="item.id"
+              :label="`${item.name} (${item.type})`"
+              :value="item.id"
+            />
+          </el-select>
           <el-input
             v-model="keyword"
             class="keyword-field"
             clearable
             placeholder="按名称 / key / 同义词搜索"
           />
-          <el-button type="primary" @click="handleOpenCreate">新增指标</el-button>
-          <el-tag type="primary" effect="plain">共 {{ total }} 个指标</el-tag>
+          <el-button v-if="!datasourceEmpty" type="primary" @click="handleOpenCreate">
+            新增指标
+          </el-button>
+          <el-tag v-if="!datasourceEmpty" type="primary" effect="plain">
+            共 {{ total }} 个指标
+          </el-tag>
         </div>
       </div>
 
-      <el-table v-loading="metricLoading" :data="filteredRows" class="semantic-table">
-        <el-table-column prop="metricKey" label="指标 Key" min-width="160" />
-        <el-table-column prop="name" label="指标名称" min-width="160" />
-        <el-table-column prop="aliases" label="同义词" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.aliases || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="measureExpr" label="度量" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.measureExpr || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="filters" label="过滤" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.filters || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="timeField" label="时间字段" min-width="140" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.timeField || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="说明" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.description || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="更新时间" width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.updateTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleOpenEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div v-if="total > 0" class="pagination-wrap">
-        <el-pagination
-          v-model:current-page="page"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="handlePageChange"
-          @size-change="handleSizeChange"
-        />
+      <div v-if="datasourceError" class="error-tip">
+        数据源加载失败：{{ datasourceError.message }}
+      </div>
+      <div v-else-if="datasourceEmpty" class="error-tip">
+        暂无数据源，请先在「数据源管理」中添加数据源
       </div>
 
-      <div v-if="metricError" class="error-tip">指标口径加载失败：{{ metricError }}</div>
+      <template v-else>
+        <el-table v-loading="metricLoading" :data="filteredRows" class="semantic-table">
+          <el-table-column prop="metricKey" label="指标 Key" min-width="160" />
+          <el-table-column prop="name" label="指标名称" min-width="160" />
+          <el-table-column prop="aliases" label="同义词" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.aliases || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="measureExpr" label="度量" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.measureExpr || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="filters" label="过滤" min-width="200" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.filters || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="timeField" label="时间字段" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.timeField || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="description" label="说明" min-width="220" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.description || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="更新时间" width="180">
+            <template #default="{ row }">
+              {{ formatDateTime(row.updateTime) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="160" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="handleOpenEdit(row)">编辑</el-button>
+              <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-if="total > 0" class="pagination-wrap">
+          <el-pagination
+            v-model:current-page="page"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50]"
+            layout="total, sizes, prev, pager, next"
+            @current-change="handlePageChange"
+            @size-change="handleSizeChange"
+          />
+        </div>
+
+        <div v-if="metricError" class="error-tip">指标口径加载失败：{{ metricError }}</div>
+      </template>
     </section>
 
     <el-dialog
@@ -352,6 +423,10 @@
 
   .keyword-field {
     width: 220px;
+  }
+
+  .datasource-field {
+    width: 200px;
   }
 
   .semantic-table {

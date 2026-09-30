@@ -19,15 +19,15 @@ package io.github.malonetalk.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.model.bo.MetricInfoBo;
-import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.MetricCreateDto;
+import io.github.malonetalk.model.dto.MetricQueryDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
 
 /** 指标口径业务：以 {@link MetricInfoBo} 作为领域对象。 */
 public interface MetricService {
 
     /** 供 agent 工具调用:按自然语言提示返回指标口径文本(含命中/多候选/未命中三种结果)。 */
-    String getCaliberByHint(String hint);
+    String getCaliberByHint(Integer datasourceId, String hint);
 
     MetricInfoBo create(MetricCreateDto dto);
 
@@ -37,5 +37,5 @@ public interface MetricService {
 
     MetricInfoBo getById(Integer id);
 
-    IPage<MetricInfoBo> page(BaseBatchQueryDto dto);
+    IPage<MetricInfoBo> page(MetricQueryDto dto);
 }
