@@ -64,9 +64,16 @@ public class SqlExecutor {
             log.error("SQL execution failed: {}", e.getMessage(), e);
             throw BusinessException.of(
                     ErrorCode.SQL_EXECUTION_FAILED,
-                    ErrorCode.SQL_EXECUTION_FAILED.getDefaultMessage(),
+                    "SQL execution failed: " + truncate(e.getMessage()),
                     e);
         }
+    }
+
+    static String truncate(String message) {
+        if (message == null || message.isBlank()) {
+            return "unknown database error";
+        }
+        return message.length() > 200 ? message.substring(0, 200) + "..." : message;
     }
 
     public String validateSelectSql(String sql) {
