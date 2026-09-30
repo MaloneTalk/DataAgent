@@ -20,7 +20,7 @@ package io.github.malonetalk.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.malonetalk.entity.MetricInfo;
+import io.github.malonetalk.model.bo.MetricInfoBo;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -28,54 +28,54 @@ class MetricServiceImplTest {
 
     @Test
     void matchesMetricWhenHintIsTheFullQuestion() {
-        List<MetricInfo> metrics = List.of(metric("销售额", "流水,GMV,营收"));
+        List<MetricInfoBo> metrics = List.of(metric("销售额", "流水,GMV,营收"));
 
         assertEquals(List.of("销售额"), names(MetricServiceImpl.match(metrics, "上个月的GMV是多少")));
     }
 
     @Test
     void matchesCaseInsensitive() {
-        List<MetricInfo> metrics = List.of(metric("销售额", "GMV"));
+        List<MetricInfoBo> metrics = List.of(metric("销售额", "GMV"));
 
         assertEquals(List.of("销售额"), names(MetricServiceImpl.match(metrics, "上个月的gmv多少")));
     }
 
     @Test
     void ignoresSingleCharacterAliases() {
-        List<MetricInfo> metrics = List.of(metric("销售额", "额"));
+        List<MetricInfoBo> metrics = List.of(metric("销售额", "额"));
 
         assertTrue(MetricServiceImpl.match(metrics, "账户余额还剩多少").isEmpty());
     }
 
     @Test
     void ranksLongerMatchFirst() {
-        List<MetricInfo> metrics = List.of(metric("销售", null), metric("销售额", null));
+        List<MetricInfoBo> metrics = List.of(metric("销售", null), metric("销售额", null));
 
         assertEquals(List.of("销售额", "销售"), names(MetricServiceImpl.match(metrics, "查一下销售额")));
     }
 
     @Test
     void returnsEmptyWhenNoTermAppears() {
-        List<MetricInfo> metrics = List.of(metric("销售额", "GMV"));
+        List<MetricInfoBo> metrics = List.of(metric("销售额", "GMV"));
 
         assertTrue(MetricServiceImpl.match(metrics, "华东区有多少家门店").isEmpty());
     }
 
     @Test
     void toleratesNullNameAndAliases() {
-        List<MetricInfo> metrics = List.of(new MetricInfo());
+        List<MetricInfoBo> metrics = List.of(new MetricInfoBo());
 
         assertTrue(MetricServiceImpl.match(metrics, "销售额").isEmpty());
     }
 
-    private static MetricInfo metric(String name, String aliases) {
-        MetricInfo metric = new MetricInfo();
+    private static MetricInfoBo metric(String name, String aliases) {
+        MetricInfoBo metric = new MetricInfoBo();
         metric.setName(name);
         metric.setAliases(aliases);
         return metric;
     }
 
-    private static List<String> names(List<MetricInfo> metrics) {
-        return metrics.stream().map(MetricInfo::getName).toList();
+    private static List<String> names(List<MetricInfoBo> metrics) {
+        return metrics.stream().map(MetricInfoBo::getName).toList();
     }
 }

@@ -15,16 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-/**
- * 指标口径的入参边界类。只暴露客户端可编辑的字段,不暴露 id/时间/逻辑删除等由系统控制的列,
- * 避免实体直收请求体导致的越权赋值(over-posting)。
- */
-public record MetricRequest(
-        @NotBlank(message = "metricKey 不能为空") String metricKey,
+/** 更新指标口径。不包含 metricKey,即不允许修改稳定标识。 */
+public record MetricUpdateDto(
         @NotBlank(message = "name 不能为空") String name,
         String aliases,
         String measureExpr,

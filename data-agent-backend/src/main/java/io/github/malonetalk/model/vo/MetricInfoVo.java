@@ -15,14 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
 import java.time.LocalDateTime;
 
-/**
- * 指标口径的出参边界类。与持久化实体解耦,不向调用方泄露 isDeleted 等内部状态。
- */
-public record MetricResponse(
+/** 指标口径出参。与持久化对象解耦,不泄露 isDeleted 等内部状态。 */
+public record MetricInfoVo(
         Integer id,
         Integer datasourceId,
         String metricKey,
@@ -33,4 +31,5 @@ public record MetricResponse(
         String timeField,
         String description,
         LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+        LocalDateTime updateTime)
+        implements BaseVo {}

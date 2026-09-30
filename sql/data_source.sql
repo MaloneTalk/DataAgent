@@ -150,11 +150,13 @@ CREATE TABLE IF NOT EXISTS `metric_info` (
     `filters` TEXT DEFAULT NULL COMMENT '过滤条件,如 status=''paid'' AND is_test=0',
     `time_field` VARCHAR(255) DEFAULT NULL COMMENT '时间维度字段,如 settle_time',
     `description` TEXT DEFAULT NULL COMMENT '业务口径说明/规则',
+    `creator_id` BIGINT DEFAULT NULL COMMENT '创建人ID',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater_id` BIGINT DEFAULT NULL COMMENT '修改人ID',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_datasource_metric_key` (`datasource_id`, `metric_key`),
+    KEY `idx_datasource_metric_key` (`datasource_id`, `metric_key`),
     KEY `idx_datasource_name` (`datasource_id`, `name`),
     KEY `idx_datasource_aliases` (`datasource_id`, `aliases`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='指标口径表';

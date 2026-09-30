@@ -144,3 +144,60 @@ SET @migration_sql = IF(
 PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
+
+-- metric_info 审计字段：creator_id / updater_id
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'creator_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `creator_id` BIGINT DEFAULT NULL COMMENT ''创建人ID'' AFTER `description`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'updater_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `updater_id` BIGINT DEFAULT NULL COMMENT ''修改人ID'' AFTER `create_time`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- 逻辑删除后保留行以便审计：同 key 软删后允许重新创建，唯一键改为普通索引
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'metric_info'
+          AND INDEX_NAME = 'uk_datasource_metric_key'
+    ),
+    'ALTER TABLE `metric_info` DROP INDEX `uk_datasource_metric_key`, ADD KEY `idx_datasource_metric_key` (`datasource_id`, `metric_key`)',
+    IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'metric_info'
+              AND INDEX_NAME = 'idx_datasource_metric_key'
+        ),
+        'SELECT 1',
+        'ALTER TABLE `metric_info` ADD KEY `idx_datasource_metric_key` (`datasource_id`, `metric_key`)'
+    )
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;

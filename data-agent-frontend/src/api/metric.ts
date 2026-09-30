@@ -12,11 +12,12 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 import request from './request';
 import type { ApiResponse } from './request';
+import type { BooleanVo, PageResponse } from './types';
 
 export interface MetricInfo {
   id: number;
@@ -32,7 +33,8 @@ export interface MetricInfo {
   updateTime: string;
 }
 
-export interface MetricUpsertRequest {
+export interface MetricCreateRequest {
+  datasourceId: number;
   metricKey: string;
   name: string;
   aliases?: string;
@@ -42,18 +44,38 @@ export interface MetricUpsertRequest {
   description?: string;
 }
 
-export function listMetrics() {
-  return request.get<ApiResponse<MetricInfo[]>>('/metric');
+/** 更新不允许修改 metricKey。 */
+export interface MetricUpdateRequest {
+  name: string;
+  aliases?: string;
+  measureExpr?: string;
+  filters?: string;
+  timeField?: string;
+  description?: string;
 }
 
-export function createMetric(data: MetricUpsertRequest) {
-  return request.post<ApiResponse<MetricInfo>>('/metric', data);
+/** 对应后端 MetricQueryDto。 */
+export interface MetricQueryParams {
+  datasourceId: number;
+  page?: number;
+  pageSize?: number;
+  sortOrder?: 'asc' | 'desc';
 }
 
-export function updateMetric(id: number, data: MetricUpsertRequest) {
-  return request.put<ApiResponse<MetricInfo>>(`/metric/${id}`, data);
+export function listMetrics(params?: MetricQueryParams) {
+  return request
+    .get<ApiResponse<PageResponse<MetricInfo>>>('/metric', { params })
+    .then(res => res.data.data);
+}
+
+export function createMetric(data: MetricCreateRequest) {
+  return request.post<ApiResponse<MetricInfo>>('/metric', data).then(res => res.data.data);
+}
+
+export function updateMetric(id: number, data: MetricUpdateRequest) {
+  return request.put<ApiResponse<MetricInfo>>(`/metric/${id}`, data).then(res => res.data.data);
 }
 
 export function deleteMetric(id: number) {
-  return request.delete<ApiResponse<boolean>>(`/metric/${id}`);
+  return request.delete<ApiResponse<BooleanVo>>(`/metric/${id}`).then(res => res.data.data);
 }
