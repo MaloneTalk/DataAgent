@@ -17,32 +17,34 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.MetricInfo;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import io.github.malonetalk.model.po.MetricInfoPo;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
+/** 指标口径 Mapper：单表查询走 LambdaQueryWrapper，逻辑删除由 {@code @TableLogic} 自动过滤。 */
 @Mapper
-public interface MetricInfoMapper {
+public interface MetricInfoMapper extends AuditableMapper<MetricInfoPo> {
 
-    int insert(MetricInfo metricInfo);
+    default MetricInfoPo selectByKey(Integer datasourceId, String metricKey) {
+        return selectOne(
+                Wrappers.<MetricInfoPo>lambdaQuery()
+                        .eq(MetricInfoPo::getDatasourceId, datasourceId)
+                        .apply("LOWER(metric_key) = LOWER({0})", metricKey));
+    }
 
-    int update(MetricInfo metricInfo);
+    default List<MetricInfoPo> selectByDatasource(Integer datasourceId) {
+        return selectList(
+                Wrappers.<MetricInfoPo>lambdaQuery()
+                        .eq(MetricInfoPo::getDatasourceId, datasourceId)
+                        .orderByAsc(MetricInfoPo::getName, MetricInfoPo::getId));
+    }
 
-    int deleteByIds(@Param("ids") List<Integer> ids);
-
-    int restoreById(MetricInfo metricInfo);
-
-    MetricInfo selectById(@Param("id") Integer id);
-
-    MetricInfo selectByKey(
-            @Param("datasourceId") Integer datasourceId, @Param("metricKey") String metricKey);
-
-    MetricInfo selectAnyByKey(
-            @Param("datasourceId") Integer datasourceId, @Param("metricKey") String metricKey);
-
-    List<MetricInfo> selectAllByDatasource(@Param("datasourceId") Integer datasourceId);
-
-    List<MetricInfo> suggest(
-            @Param("datasourceId") Integer datasourceId, @Param("limit") int limit);
+    default List<MetricInfoPo> suggest(Integer datasourceId) {
+        return selectList(
+                Wrappers.<MetricInfoPo>lambdaQuery()
+                        .eq(MetricInfoPo::getDatasourceId, datasourceId)
+                        .orderByAsc(MetricInfoPo::getName, MetricInfoPo::getId)
+                        .last("LIMIT 5"));
+    }
 }

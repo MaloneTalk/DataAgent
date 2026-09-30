@@ -15,16 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.dto;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
 
-/** 用户-会话归属映射。 */
-@Data
-public class UserSession {
-
-    private Integer userId;
-    private String sessionId;
-    private LocalDateTime createTime;
-}
+/** 创建指标口径。只暴露客户端可编辑字段,id/时间/逻辑删除由系统控制。 */
+public record MetricCreateDto(
+        @NotBlank(message = "metricKey 不能为空") String metricKey,
+        @NotBlank(message = "name 不能为空") String name,
+        String aliases,
+        String measureExpr,
+        String filters,
+        String timeField,
+        String description) {}

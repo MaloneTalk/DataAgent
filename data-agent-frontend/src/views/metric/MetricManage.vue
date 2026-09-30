@@ -26,7 +26,8 @@
     updateMetric,
     deleteMetric,
     type MetricInfo,
-    type MetricUpsertRequest,
+    type MetricCreateRequest,
+    type MetricUpdateRequest,
   } from '@/api/metric';
   import { formatDateTime } from '@/views/semantic/utils';
 
@@ -44,6 +45,9 @@
   const metricError = ref('');
   const metricRows = ref<MetricInfo[]>([]);
   const keyword = ref('');
+  const page = ref(1);
+  const pageSize = ref(10);
+  const total = ref(0);
 
   const metricDialogVisible = ref(false);
   const metricSubmitLoading = ref(false);
@@ -81,14 +85,27 @@
     metricLoading.value = true;
     metricError.value = '';
     try {
-      const response = await listMetrics();
-      metricRows.value = response.data.data ?? [];
+      const result = await listMetrics({ page: page.value, pageSize: pageSize.value });
+      metricRows.value = result.items;
+      total.value = result.total;
     } catch (error) {
       metricError.value = (error as Error).message;
       metricRows.value = [];
+      total.value = 0;
     } finally {
       metricLoading.value = false;
     }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    page.value = newPage;
+    void loadMetrics();
+  };
+
+  const handleSizeChange = (newSize: number) => {
+    pageSize.value = newSize;
+    page.value = 1;
+    void loadMetrics();
   };
 
   const handleOpenCreate = () => {
@@ -131,8 +148,7 @@
 
     metricSubmitLoading.value = true;
     try {
-      const payload: MetricUpsertRequest = {
-        metricKey: metricForm.metricKey.trim(),
+      const fields = {
         name: metricForm.name.trim(),
         aliases: metricForm.aliases.trim(),
         measureExpr: metricForm.measureExpr.trim(),
@@ -142,9 +158,14 @@
       };
 
       if (selectedMetric.value) {
+        const payload: MetricUpdateRequest = fields;
         await updateMetric(selectedMetric.value.id, payload);
         ElMessage.success('指标口径已更新');
       } else {
+        const payload: MetricCreateRequest = {
+          metricKey: metricForm.metricKey.trim(),
+          ...fields,
+        };
         await createMetric(payload);
         ElMessage.success('指标口径已创建');
       }
@@ -165,6 +186,9 @@
       });
       await deleteMetric(row.id);
       ElMessage.success('指标口径已删除');
+      if (metricRows.value.length === 1 && page.value > 1) {
+        page.value -= 1;
+      }
       await loadMetrics();
     } catch {
       // ignore cancel
@@ -199,7 +223,7 @@
             placeholder="按名称 / key / 同义词搜索"
           />
           <el-button type="primary" @click="handleOpenCreate">新增指标</el-button>
-          <el-tag type="primary" effect="plain">共 {{ metricRows.length }} 个指标</el-tag>
+          <el-tag type="primary" effect="plain">共 {{ total }} 个指标</el-tag>
         </div>
       </div>
 
@@ -243,6 +267,18 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <div v-if="total > 0" class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
 
       <div v-if="metricError" class="error-tip">指标口径加载失败：{{ metricError }}</div>
     </section>
@@ -320,6 +356,12 @@
 
   .semantic-table {
     width: 100%;
+  }
+
+  .pagination-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
   }
 
   .error-tip {

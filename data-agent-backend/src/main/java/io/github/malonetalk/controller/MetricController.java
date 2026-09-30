@@ -17,18 +17,20 @@
  */
 package io.github.malonetalk.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.annotation.RequirePermission;
-import io.github.malonetalk.common.Result;
-import io.github.malonetalk.convertor.MetricConverter;
-import io.github.malonetalk.dto.MetricRequest;
-import io.github.malonetalk.dto.MetricResponse;
-import io.github.malonetalk.entity.MetricInfo;
+import io.github.malonetalk.model.converter.BatchQueryConverter;
+import io.github.malonetalk.model.converter.MetricConverter;
+import io.github.malonetalk.model.dto.BaseBatchQueryDto;
+import io.github.malonetalk.model.dto.MetricCreateDto;
+import io.github.malonetalk.model.dto.MetricUpdateDto;
+import io.github.malonetalk.model.vo.BatchQueryVo;
+import io.github.malonetalk.model.vo.BooleanVo;
+import io.github.malonetalk.model.vo.MetricInfoVo;
 import io.github.malonetalk.service.MetricService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
-import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Slf4j
 @RestController
 @AllArgsConstructor
 @Validated
@@ -51,41 +52,33 @@ public class MetricController {
 
     @RequirePermission
     @PostMapping
-    public Result<MetricResponse> create(@Valid @RequestBody MetricRequest request) {
-        MetricInfo entity = metricConverter.toEntity(request);
-        return Result.success(metricConverter.toResponse(metricService.create(entity)));
+    public MetricInfoVo create(@Valid @RequestBody MetricCreateDto dto) {
+        return metricConverter.toVo(metricService.create(dto));
     }
 
     @RequirePermission
     @PutMapping("/{id}")
-    public Result<MetricResponse> update(
+    public MetricInfoVo update(
             @PathVariable @Positive(message = "id 必须为正数") Integer id,
-            @Valid @RequestBody MetricRequest request) {
-        MetricInfo entity = metricConverter.toEntity(request);
-        return Result.success(metricConverter.toResponse(metricService.update(id, entity)));
+            @Valid @RequestBody MetricUpdateDto dto) {
+        return metricConverter.toVo(metricService.update(id, dto));
     }
 
     @RequirePermission
     @DeleteMapping("/{id}")
-    public Result<Boolean> delete(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
+    public BooleanVo delete(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
         metricService.delete(id);
-        return Result.success(true);
+        return BooleanVo.TRUE;
     }
 
     @GetMapping("/{id}")
-    public Result<MetricResponse> getById(
-            @PathVariable @Positive(message = "id 必须为正数") Integer id) {
-        return Result.success(metricConverter.toResponse(metricService.getById(id)));
-    }
-
-    @GetMapping("/key/{metricKey}")
-    public Result<MetricResponse> getByKey(@PathVariable String metricKey) {
-        return Result.success(metricConverter.toResponse(metricService.getByKey(metricKey)));
+    public MetricInfoVo getById(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
+        return metricConverter.toVo(metricService.getById(id));
     }
 
     @GetMapping
-    public Result<List<MetricResponse>> listAll() {
-        return Result.success(
-                metricService.listAll().stream().map(metricConverter::toResponse).toList());
+    public BatchQueryVo<MetricInfoVo> list(@Valid BaseBatchQueryDto dto) {
+        IPage<MetricInfoVo> page = metricService.page(dto).convert(metricConverter::toVo);
+        return BatchQueryConverter.toVo(page);
     }
 }

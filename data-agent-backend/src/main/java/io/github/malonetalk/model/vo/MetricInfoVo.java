@@ -15,19 +15,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDateTime;
 
-/**
- * 指标口径的入参边界类。只暴露客户端可编辑的字段,不暴露 id/时间/逻辑删除等由系统控制的列,
- * 避免实体直收请求体导致的越权赋值(over-posting)。
- */
-public record MetricRequest(
-        @NotBlank(message = "metricKey 不能为空") String metricKey,
-        @NotBlank(message = "name 不能为空") String name,
+/** 指标口径出参。与持久化对象解耦,不泄露 isDeleted 等内部状态。 */
+public record MetricInfoVo(
+        Integer id,
+        Integer datasourceId,
+        String metricKey,
+        String name,
         String aliases,
         String measureExpr,
         String filters,
         String timeField,
-        String description) {}
+        String description,
+        LocalDateTime createTime,
+        LocalDateTime updateTime)
+        implements BaseVo {}
