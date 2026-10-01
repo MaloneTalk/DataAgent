@@ -16,39 +16,14 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <sql id="DeduplicatedTables">
-        SELECT t.*
-        FROM table_info t
-        WHERE t.id = (
-            SELECT t2.id
-            FROM table_info t2
-            WHERE t2.datasource_id = t.datasource_id
-                AND LOWER(t2.table_name) = LOWER(t.table_name)
-            ORDER BY
-                CASE
-                    WHEN t2.table_description IS NOT NULL AND t2.table_description &lt;&gt; '' THEN 0
-                    WHEN t2.is_visible = 0 THEN 0
-                    ELSE 1
-                END ASC,
-                t2.update_time DESC,
-                t2.create_time DESC,
-                t2.id DESC
-            LIMIT 1
-        )
-    </sql>
-
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}
         ORDER BY table_name ASC, id ASC
     </select>
 
     <select id="selectPageByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{query.datasourceId}
         <if test="query.keyword != null and query.keyword != ''">
             AND LOWER(table_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
@@ -64,18 +39,14 @@
     </select>
 
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) = LOWER(#{tableName})
         LIMIT 1
     </select>
 
     <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) IN
         <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
@@ -162,19 +133,33 @@
     </update>
 
     <select id="countByDomain" resultType="int">
-        SELECT COUNT(1) FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT COUNT(1) FROM table_info
         WHERE LOWER(domain) = LOWER(#{domain})
     </select>
 
-    <delete id="deleteByDatasourceIdAndIds">
+    <update id="resetSemanticFieldsByIds">
+        UPDATE table_info
+        SET table_description = physical_table_description,
+            data_granularity = NULL,
+            domain = 'default',
+            is_visible = 1,
+            update_time = NOW()
+        WHERE datasource_id = #{datasourceId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
+    </update>
+
+    <delete id="deletePhysicalMissingByIds">
         DELETE FROM table_info
         WHERE datasource_id = #{datasourceId}
           AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+          AND physical_status = 0
     </delete>
 
 </mapper>

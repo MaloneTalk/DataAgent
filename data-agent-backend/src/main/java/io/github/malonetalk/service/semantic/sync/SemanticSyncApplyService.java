@@ -91,7 +91,7 @@ public class SemanticSyncApplyService {
         }
 
         markMissingTables(datasourceId, missingTableNames, now);
-        markMissingColumns(datasourceId, missingColumnIds, now);
+        markMissingColumns(missingColumnIds, now);
         return results;
     }
 
@@ -105,8 +105,7 @@ public class SemanticSyncApplyService {
         if (semanticTables.isEmpty()) {
             return List.of();
         }
-        List<String> tableNames =
-                semanticTables.stream().map(TableInfo::getTableName).distinct().toList();
+        List<String> tableNames = semanticTables.stream().map(TableInfo::getTableName).toList();
         Map<String, List<ColumnInfo>> columnsByTableName =
                 loadSemanticColumnsByTable(datasourceId, tableNames);
         List<String> tableNamesToMarkMissing = new ArrayList<>();
@@ -148,7 +147,7 @@ public class SemanticSyncApplyService {
 
         LocalDateTime now = LocalDateTime.now();
         markMissingTables(datasourceId, tableNamesToMarkMissing, now);
-        markMissingColumns(datasourceId, columnIdsToMarkMissing, now);
+        markMissingColumns(columnIdsToMarkMissing, now);
         return results;
     }
 
@@ -162,7 +161,6 @@ public class SemanticSyncApplyService {
         }
 
         List<TableInfo> newTables = new ArrayList<>();
-        List<ColumnInfo> newColumns = new ArrayList<>();
         for (TableSyncSource table : presentTables) {
             String tableKey = tableKey(table.tableName());
             TableInfo tableInfo = buildPhysicalTableInfo(datasourceId, table);
@@ -178,12 +176,25 @@ public class SemanticSyncApplyService {
                             existingTable.getId(), table.description());
                 }
             }
+        }
+        if (!newTables.isEmpty()) {
+            tableInfoMapper.batchUpsertPhysicalCache(newTables);
+        }
 
+        // 新表的主键由数据库生成，写入列之前需重新取得 table_id。
+        List<String> presentTableNames =
+                presentTables.stream().map(TableSyncSource::tableName).toList();
+        Map<String, TableInfo> persistedTableIndex =
+                loadSemanticTableIndex(datasourceId, presentTableNames);
+        List<ColumnInfo> newColumns = new ArrayList<>();
+        for (TableSyncSource table : presentTables) {
+            String tableKey = tableKey(table.tableName());
+            TableInfo persistedTable = persistedTableIndex.get(tableKey);
             Map<String, ColumnInfo> existingColumnIndex =
                     loadColumnIndex(columnsByTableName.getOrDefault(tableKey, List.of()));
             for (ColumnSyncSource column : table.columns()) {
                 ColumnInfo columnInfo =
-                        buildPhysicalColumnInfo(datasourceId, table.tableName(), column);
+                        buildPhysicalColumnInfo(datasourceId, persistedTable.getId(), column);
                 ColumnInfo existingColumn = existingColumnIndex.get(columnKey(column.columnName()));
                 if (existingColumn == null) {
                     newColumns.add(columnInfo);
@@ -197,9 +208,6 @@ public class SemanticSyncApplyService {
                     }
                 }
             }
-        }
-        if (!newTables.isEmpty()) {
-            tableInfoMapper.batchUpsertPhysicalCache(newTables);
         }
         if (!newColumns.isEmpty()) {
             columnSemanticInfoMapper.batchUpsertPhysicalCache(newColumns);
@@ -218,10 +226,9 @@ public class SemanticSyncApplyService {
         }
     }
 
-    private void markMissingColumns(
-            Integer datasourceId, List<Integer> missingColumnIds, LocalDateTime now) {
+    private void markMissingColumns(List<Integer> missingColumnIds, LocalDateTime now) {
         if (!missingColumnIds.isEmpty()) {
-            columnSemanticInfoMapper.markPhysicalMissingByIds(datasourceId, missingColumnIds, now);
+            columnSemanticInfoMapper.markPhysicalMissingByIds(missingColumnIds, now);
         }
     }
 
@@ -376,10 +383,10 @@ public class SemanticSyncApplyService {
     }
 
     private ColumnInfo buildPhysicalColumnInfo(
-            Integer datasourceId, String tableName, ColumnSyncSource column) {
+            Integer datasourceId, Integer tableId, ColumnSyncSource column) {
         ColumnInfo columnInfo = new ColumnInfo();
         columnInfo.setDatasourceId(datasourceId);
-        columnInfo.setTableName(tableName);
+        columnInfo.setTableId(tableId);
         columnInfo.setColumnName(column.columnName());
         columnInfo.setPhysicalColumnDescription(column.description());
         columnInfo.setColumnDescription(column.description());

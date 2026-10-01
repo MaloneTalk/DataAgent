@@ -29,7 +29,7 @@
 
   interface RelationEdge {
     id: string;
-    relationId: string;
+    relationId: number;
     path: string;
     label: string;
     labelX: number;
@@ -104,7 +104,7 @@
   const localNodes = ref<TableNodeLayout[]>([]);
   const dragRelation = ref<DragState | null>(null);
   const hoveredDropColumn = ref<{ tableName: string; columnName: string } | null>(null);
-  const selectedRelationId = ref<string | null>(null);
+  const selectedRelationId = ref<number | null>(null);
   const canvasPan = ref<PanState | null>(null);
   const nodeDrag = ref<NodeDragState | null>(null);
   const viewport = reactive<RelationViewportState>({
@@ -163,8 +163,8 @@
 
       return [
         {
-          id: `relation-${relation.relationKey}`,
-          relationId: relation.relationKey,
+          id: `relation-${relation.id}`,
+          relationId: relation.id,
           path: buildRelationPath(sourceAnchor.x, sourceAnchor.y, targetAnchor.x, targetAnchor.y),
           label,
           labelX: (sourceAnchor.x + targetAnchor.x) / 2,
@@ -461,7 +461,7 @@
     zoomAtCenter(1 / 1.2);
   }
 
-  function selectRelation(relationId: string) {
+  function selectRelation(relationId: number) {
     selectedRelationId.value = relationId;
   }
 
@@ -647,7 +647,7 @@
     };
   }
 
-  function isSelected(relationId: string) {
+  function isSelected(relationId: number) {
     return selectedRelationId.value === relationId;
   }
 
@@ -845,10 +845,10 @@
           </div>
           <article
             v-for="relation in relations"
-            :key="relation.relationKey"
+            :key="relation.id"
             class="relation-list-item"
-            :class="{ 'is-selected': isSelected(relation.relationKey) }"
-            @click="selectRelation(relation.relationKey)"
+            :class="{ 'is-selected': isSelected(relation.id) }"
+            @click="selectRelation(relation.id)"
           >
             <div class="relation-list-head">
               <div class="relation-name">

@@ -176,9 +176,13 @@
 
   const handleReset = async (row: TableSemanticInfo) => {
     try {
-      await ElMessageBox.confirm(`确认重置表 ${row.tableName} 的语义信息吗？`, '确认重置', {
-        type: 'warning',
-      });
+      await ElMessageBox.confirm(
+        `确认重置表 ${row.tableName} 的语义信息吗？若该表当前已标记为物理缺失，还会删除该表及其列的语义记录和所有关联到该表的逻辑关系；重新同步不会恢复这些关系。`,
+        '确认重置',
+        {
+          type: 'warning',
+        },
+      );
       const activeDatasourceId = await ensureDatasourceId();
       if (activeDatasourceId === null) return;
       await resetTableSemantic(activeDatasourceId, row.tableName);

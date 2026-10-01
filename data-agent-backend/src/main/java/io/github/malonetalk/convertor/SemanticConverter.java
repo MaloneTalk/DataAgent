@@ -85,15 +85,8 @@ public class SemanticConverter {
         List<String> targetColumns =
                 logicalTableRelationHelper.fromJson(
                         relation.getTargetColumnNamesJson(), "targetColumnNames");
-        String relationKey =
-                logicalTableRelationHelper.buildRelationKey(
-                        relation.getSourceTableName(),
-                        sourceColumns,
-                        relation.getTargetTableName(),
-                        targetColumns);
         return LogicalTableRelationResponse.builder()
                 .id(relation.getId())
-                .relationKey(relationKey)
                 .datasourceId(relation.getDatasourceId())
                 .source(SemanticConstants.RELATION_SOURCE_LOGICAL)
                 .sourceTableName(relation.getSourceTableName())
