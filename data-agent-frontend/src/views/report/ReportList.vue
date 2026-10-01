@@ -40,7 +40,6 @@
   const previewVisible = ref(false);
   const previewTitle = ref('');
   const previewContent = ref('');
-  const previewDialogRef = ref<InstanceType<typeof ReportPreviewDialog>>();
 
   async function fetchReports() {
     loading.value = true;
@@ -185,7 +184,6 @@
     </div>
 
     <ReportPreviewDialog
-      ref="previewDialogRef"
       v-model:visible="previewVisible"
       :title="previewTitle"
       :content="previewContent"

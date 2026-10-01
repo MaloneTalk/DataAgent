@@ -185,7 +185,6 @@
   };
 
   defineExpose({
-    loadPage,
     handleTableChange,
   });
 </script>
@@ -342,11 +341,7 @@
 
 <style scoped>
   .section-header {
-    display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
   }
 
   .section-header h3 {
@@ -361,8 +356,6 @@
   }
 
   .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20px;
   }
 </style>

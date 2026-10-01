@@ -248,10 +248,6 @@
     }
   };
 
-  defineExpose({
-    loadPage,
-  });
-
   onMounted(() => {
     loadPage();
   });
@@ -271,7 +267,7 @@
     </div>
 
     <div class="section-header">
-      <div class="header-actions">
+      <div class="section-header-actions">
         <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
         <el-button :loading="refreshingPhysicalStatus" @click="handleRefreshPhysicalStatus">
           刷新物理状态
@@ -430,27 +426,11 @@
 </template>
 
 <style scoped>
-  .section-header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
   .error-banner {
     margin-bottom: 16px;
   }
 
   .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20px;
   }
 </style>

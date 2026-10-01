@@ -332,10 +332,4 @@
     gap: 12px;
     margin-bottom: 20px;
   }
-
-  .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 16px;
-  }
 </style>

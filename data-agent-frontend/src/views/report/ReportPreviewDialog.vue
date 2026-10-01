@@ -43,8 +43,6 @@
     downloadHtml(`${props.title || 'report'}.html`, html);
     ElMessage.success('导出成功');
   }
-
-  defineExpose({});
 </script>
 
 <template>
