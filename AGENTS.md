@@ -22,6 +22,8 @@
 
 **Write code for the next reader, not for the compiler.** The compiler can parse anything. A human shouldn't have to. Choose names that reveal intent, structure code in small logical steps, and prefer clarity over cleverness. If a line makes you pause — it will make someone else pause too.
 
+**Use `Optional` for nullable values passed between internal Java layers (e.g., Service).** When an internal method may return or accept a null value, wrap it in `Optional` to make the possibility explicit and avoid null-check boilerplate. Only fall back to a plain null reference at the boundary where the object leaves the service (controllers, external APIs, serialization). The goal is to keep `if (x != null)` boilerplate out of the service layer.
+
 **Write MySQL 5.7 compatible SQL — no window functions (`ROW_NUMBER()`, `RANK()`, etc.), no CTE (`WITH ... AS`), no other MySQL 8.0+ syntax.**
 
 **New data entities belong in `io.github.malonetalk.model`.** Place new PO/DTO/VO/BO under `io.github.malonetalk.model.{po,dto,vo,bo}`. Do not add new classes to the deprecated `io.github.malonetalk.dto` and `io.github.malonetalk.entity` packages.

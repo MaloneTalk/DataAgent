@@ -15,13 +15,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.bo;
 
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+/** 指标口径领域对象。 */
 @Data
-public class MetricInfo {
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class MetricInfoBo {
 
     private Integer id;
     private Integer datasourceId;
@@ -34,11 +41,10 @@ public class MetricInfo {
     private String description;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
-    private Boolean isDeleted;
 
     /**
      * 渲染指标口径文本,供大模型在合成 SQL 时消费。
-     * 仅依赖实体自身字段,无外部依赖,因此放在实体内部而非 Service。
+     * 仅依赖自身字段,无外部依赖,因此放在领域对象内部而非 Service。
      */
     public String toCaliberText() {
         StringBuilder sb = new StringBuilder();

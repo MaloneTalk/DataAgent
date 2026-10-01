@@ -15,17 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.convertor;
+package io.github.malonetalk.model.dto;
 
-import io.github.malonetalk.dto.MetricRequest;
-import io.github.malonetalk.dto.MetricResponse;
-import io.github.malonetalk.entity.MetricInfo;
-import org.mapstruct.Mapper;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-@Mapper(componentModel = "spring")
-public interface MetricConverter {
+/** 指标口径分页查询:按数据源隔离。 */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class MetricQueryDto extends BaseBatchQueryDto {
 
-    MetricInfo toEntity(MetricRequest request);
-
-    MetricResponse toResponse(MetricInfo metricInfo);
+    @NotNull(message = "datasourceId 不能为空")
+    @Min(value = 1, message = "datasourceId 必须为正数")
+    private Integer datasourceId;
 }
