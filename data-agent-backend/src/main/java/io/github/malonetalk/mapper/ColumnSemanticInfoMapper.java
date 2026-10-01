@@ -21,6 +21,7 @@ import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.entity.ColumnInfo;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -35,6 +36,9 @@ public interface ColumnSemanticInfoMapper {
     List<ColumnInfo> selectByDatasourceIdAndTableNames(
             @Param("datasourceId") Integer datasourceId,
             @Param("tableNames") List<String> tableNames);
+
+    List<ColumnInfo> selectByDatasourceIdAndTableIds(
+            @Param("datasourceId") Integer datasourceId, @Param("tableIds") Set<Integer> tableIds);
 
     List<ColumnInfo> selectPageByDatasourceIdAndTableName(
             @Param("query") ColumnSemanticPageQuery query,

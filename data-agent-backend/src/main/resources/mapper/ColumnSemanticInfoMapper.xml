@@ -49,6 +49,16 @@
         ORDER BY table_meta.table_name ASC, c.column_name ASC, c.id ASC
     </select>
 
+    <select id="selectByDatasourceIdAndTableIds" resultMap="BaseResultMap">
+        <include refid="ColumnsWithTableName"/>
+        WHERE c.datasource_id = #{datasourceId}
+          AND c.table_id IN
+        <foreach collection="tableIds" item="tableId" open="(" separator="," close=")">
+            #{tableId}
+        </foreach>
+        ORDER BY table_meta.table_name ASC, c.column_name ASC, c.id ASC
+    </select>
+
     <select id="selectPageByDatasourceIdAndTableName" resultMap="BaseResultMap">
         <include refid="ColumnsWithTableName"/>
         WHERE c.datasource_id = #{query.datasourceId}

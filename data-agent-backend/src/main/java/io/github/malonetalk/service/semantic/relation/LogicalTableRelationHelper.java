@@ -17,23 +17,17 @@
  */
 package io.github.malonetalk.service.semantic.relation;
 
-import static io.github.malonetalk.common.SemanticConstants.RELATION_GROUP_SEPARATOR;
-import static io.github.malonetalk.common.SemanticConstants.RELATION_KEY_SEPARATOR;
-import static io.github.malonetalk.common.SemanticConstants.RELATION_TABLE_COLUMN_SEPARATOR;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.utils.RequestAssert;
-import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -65,28 +59,6 @@ public class LogicalTableRelationHelper {
             normalizedColumns.add(normalizedColumnName);
         }
         return List.copyOf(normalizedColumns);
-    }
-
-    private String buildColumnSignature(List<String> columnNames) {
-        return normalizeColumnNames(columnNames, "columnNames").stream()
-                .map(columnName -> columnName.toLowerCase(Locale.ROOT))
-                .collect(Collectors.joining(RELATION_KEY_SEPARATOR));
-    }
-
-    public String buildRelationKey(
-            String sourceTableName,
-            List<String> sourceColumnNames,
-            String targetTableName,
-            List<String> targetColumnNames) {
-        return SemanticUtils.normalizeObjectName(
-                        sourceTableName, "Missing sourceTableName for logical relation key.")
-                + RELATION_TABLE_COLUMN_SEPARATOR
-                + buildColumnSignature(sourceColumnNames)
-                + RELATION_GROUP_SEPARATOR
-                + SemanticUtils.normalizeObjectName(
-                        targetTableName, "Missing targetTableName for logical relation key.")
-                + RELATION_TABLE_COLUMN_SEPARATOR
-                + buildColumnSignature(targetColumnNames);
     }
 
     public String toJson(List<String> columnNames, String fieldName) {

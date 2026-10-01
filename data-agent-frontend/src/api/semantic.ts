@@ -92,8 +92,7 @@ export interface SyncTableSemanticsResponse {
 }
 
 export interface LogicalTableRelationResponse {
-  id: number | null;
-  relationKey: string;
+  id: number;
   datasourceId: number;
   source: 'physical' | 'logical';
   sourceTableName: string;

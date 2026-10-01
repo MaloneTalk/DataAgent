@@ -1,11 +1,31 @@
 -- One-time MySQL 5.7 migration for primary-key-based semantic table references.
 -- Back up the database first. Validate all references before altering application tables,
--- so fixing unmatched legacy names and rerunning does not hit an already-added column.
+-- so fixing invalid legacy data and rerunning does not hit an already-added column.
 
 DROP PROCEDURE IF EXISTS `check_primary_key_relation_migration`;
 DELIMITER $$
 CREATE PROCEDURE `check_primary_key_relation_migration`()
 BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM `table_info`
+        GROUP BY `datasource_id`, LOWER(`table_name`)
+        HAVING COUNT(*) > 1
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'table_info has duplicate datasource/table names';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM `column_info`
+        GROUP BY `datasource_id`, LOWER(`table_name`), LOWER(`column_name`)
+        HAVING COUNT(*) > 1
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'column_info has duplicate datasource/table/column names';
+    END IF;
+
     IF EXISTS (
         SELECT 1
         FROM `column_info` c

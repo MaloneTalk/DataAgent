@@ -37,19 +37,12 @@
         ORDER BY relation.create_time DESC, relation.id DESC
     </select>
 
-    <select id="selectByDatasourceIdAndSourceTable" resultMap="BaseResultMap">
+    <select id="selectByDatasourceIdAndSourceTableIds" resultMap="BaseResultMap">
         <include refid="RelationSelect"/>
         WHERE relation.datasource_id = #{datasourceId}
-          AND LOWER(source_table.table_name) = LOWER(#{sourceTableName})
-        ORDER BY relation.id DESC
-    </select>
-
-    <select id="selectByDatasourceIdAndSourceTables" resultMap="BaseResultMap">
-        <include refid="RelationSelect"/>
-        WHERE relation.datasource_id = #{datasourceId}
-          AND LOWER(source_table.table_name) IN
-        <foreach collection="sourceTableNames" item="sourceTableName" open="(" separator="," close=")">
-            LOWER(#{sourceTableName})
+          AND relation.source_table_id IN
+        <foreach collection="sourceTableIds" item="sourceTableId" open="(" separator="," close=")">
+            #{sourceTableId}
         </foreach>
         ORDER BY relation.id DESC
     </select>
@@ -127,16 +120,4 @@
         </foreach>
     </delete>
 
-    <delete id="deleteByIds">
-        DELETE FROM logical_table_relation
-        WHERE datasource_id = #{datasourceId}
-          AND id IN
-        <foreach collection="ids" item="id" open="(" separator="," close=")">
-            #{id}
-        </foreach>
-    </delete>
-
-    <delete id="deleteByDatasourceId">
-        DELETE FROM logical_table_relation WHERE datasource_id = #{datasourceId}
-    </delete>
 </mapper>

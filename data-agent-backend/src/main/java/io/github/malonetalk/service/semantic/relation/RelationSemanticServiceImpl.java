@@ -116,13 +116,12 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                     PageResponse.empty(pageNumber, pageSize), List.of());
         }
 
-        List<String> tableNames = page.stream().map(TableInfo::getTableName).toList();
         Set<Integer> currentPageTableIds =
                 page.stream().map(TableInfo::getId).collect(Collectors.toSet());
         // 列记录已持有 table_id，按主键分组可直接关联当前页的表。
         Map<Integer, List<ColumnInfo>> columnsByTableId =
                 columnSemanticInfoMapper
-                        .selectByDatasourceIdAndTableNames(query.datasourceId(), tableNames)
+                        .selectByDatasourceIdAndTableIds(query.datasourceId(), currentPageTableIds)
                         .stream()
                         .collect(Collectors.groupingBy(ColumnInfo::getTableId));
         List<RelationWorkspaceTableResponse> nodes =
@@ -137,7 +136,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         // 来源表来自当前页查询，目标表也必须属于当前页。
         List<LogicalTableRelationResponse> relations =
                 logicalTableRelationMapper
-                        .selectByDatasourceIdAndSourceTables(query.datasourceId(), tableNames)
+                        .selectByDatasourceIdAndSourceTableIds(
+                                query.datasourceId(), currentPageTableIds)
                         .stream()
                         .filter(
                                 relation ->
@@ -213,23 +213,17 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             return 0;
         }
         TableInfo sourceTable = requireTable(datasourceId, normalizedTableName, "sourceTable");
-        List<Integer> matchedIds =
-                logicalTableRelationMapper
-                        .selectByDatasourceIdAndSourceTable(datasourceId, normalizedTableName)
-                        .stream()
-                        .map(LogicalTableRelation::getId)
-                        .filter(relationIds::contains)
-                        .distinct()
-                        .toList();
-        if (matchedIds.size() != relationIds.size()) {
+        int deleted =
+                logicalTableRelationMapper.deleteByIdsAndSourceTable(
+                        datasourceId, sourceTable.getId(), relationIds);
+        if (deleted != relationIds.size()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND,
                     "Some logical relations do not exist or do not belong to source table "
                             + normalizedTableName
                             + ".");
         }
-        return logicalTableRelationMapper.deleteByIdsAndSourceTable(
-                datasourceId, sourceTable.getId(), relationIds);
+        return deleted;
     }
 
     private void requireDatasource(Integer datasourceId) {
