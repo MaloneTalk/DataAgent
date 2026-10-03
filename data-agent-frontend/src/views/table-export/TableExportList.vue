@@ -98,7 +98,7 @@
 </script>
 
 <template>
-  <div class="table-export-list">
+  <div>
     <div class="page-header">
       <h2 class="page-title">表格导出</h2>
     </div>

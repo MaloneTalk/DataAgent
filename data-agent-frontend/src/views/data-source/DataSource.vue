@@ -192,7 +192,7 @@
 </script>
 
 <template>
-  <div class="data-source">
+  <div>
     <div class="page-header">
       <h2 class="page-title">数据源管理</h2>
       <el-button type="primary" @click="handleAdd">新增数据源</el-button>
@@ -326,10 +326,6 @@
 </template>
 
 <style scoped>
-  .data-source {
-    padding: 0;
-  }
-
   .error-tip {
     text-align: center;
     padding: 16px 0;

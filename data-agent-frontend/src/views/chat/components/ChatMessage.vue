@@ -23,8 +23,6 @@
   import ChatFileDownload from './ChatFileDownload.vue';
   import TracePanel from './TracePanel.vue';
 
-  marked.use({ gfm: true, breaks: true });
-
   const props = defineProps<{
     message: ChatMessageType;
   }>();
@@ -62,8 +60,12 @@
   }
 
   const textContent = computed(() => extractDownloads(contentParts.value.text));
-  const renderedText = computed(() => marked.parse(textContent.value.text) as string);
-  const renderedSummary = computed(() => marked.parse(contentParts.value.summary) as string);
+  const renderedText = computed(() =>
+    marked.parse(textContent.value.text, { gfm: true, breaks: true, async: false }),
+  );
+  const renderedSummary = computed(() =>
+    marked.parse(contentParts.value.summary, { gfm: true, breaks: true, async: false }),
+  );
 
   const copied = ref(false);
   let resetTimer: ReturnType<typeof setTimeout> | null = null;

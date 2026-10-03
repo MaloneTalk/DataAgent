@@ -182,7 +182,7 @@
 </script>
 
 <template>
-  <div class="user-manage-page">
+  <div>
     <div class="page-header">
       <h2 class="page-title">用户管理</h2>
     </div>
@@ -319,9 +319,3 @@
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-  .user-manage-page {
-    width: 100%;
-  }
-</style>

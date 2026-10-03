@@ -214,7 +214,7 @@
 </script>
 
 <template>
-  <div class="role-manage-page">
+  <div>
     <div class="page-header">
       <h2 class="page-title">角色管理</h2>
     </div>
@@ -360,9 +360,3 @@
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-  .role-manage-page {
-    width: 100%;
-  }
-</style>

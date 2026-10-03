@@ -90,8 +90,6 @@
     clearFieldErrors: clearRelationFieldErrors,
     applyFieldErrors: applyRelationFieldErrors,
   } = useFieldErrors(relationForm);
-  const relationSourceColumns = ref<RelationWorkspaceColumnResponse[]>([]);
-  const relationTargetColumns = ref<RelationWorkspaceColumnResponse[]>([]);
   const suppressDatasourceWatch = ref(false);
 
   const draftRelation = computed(() => {
@@ -119,13 +117,11 @@
     const preparedNodes = tables.map((table, index) => {
       const rowIndex = Math.floor(index / COLUMNS_PER_ROW);
       const columnIndex = index % COLUMNS_PER_ROW;
-      const columns = table.columns;
-      const height = HEADER_HEIGHT + Math.max(columns.length, 1) * COLUMN_HEIGHT + 20;
+      const height = HEADER_HEIGHT + Math.max(table.columns.length, 1) * COLUMN_HEIGHT + 20;
       rowHeights[rowIndex] = Math.max(rowHeights[rowIndex] ?? 0, height);
 
       return {
         table,
-        columns,
         rowIndex,
         columnIndex,
         height,
@@ -139,7 +135,6 @@
 
       return {
         ...node.table,
-        columns: node.columns,
         x: node.columnIndex * (NODE_WIDTH + GAP_X) + 32,
         y: rowOffset + 32,
         width: NODE_WIDTH,
@@ -179,6 +174,9 @@
   function findRelationColumns(tableName: string): RelationWorkspaceColumnResponse[] {
     return relationNodes.value.find(node => node.tableName === tableName)?.columns ?? [];
   }
+
+  const relationSourceColumns = computed(() => findRelationColumns(relationForm.sourceTableName));
+  const relationTargetColumns = computed(() => findRelationColumns(relationForm.targetTableName));
 
   async function loadRelationWorkspace(datasourceId: number, loadToken: number) {
     relationLoading.value = true;
@@ -254,8 +252,6 @@
       description: '',
       enabled: true,
     });
-    relationSourceColumns.value = [];
-    relationTargetColumns.value = [];
     selectedRelation.value = null;
   }
 
@@ -283,14 +279,12 @@
     }
   }
 
-  function handleSourceTableChange(tableName: string) {
+  function handleSourceTableChange() {
     relationForm.sourceColumnNames = [];
-    relationSourceColumns.value = findRelationColumns(tableName);
   }
 
-  function handleTargetTableChange(tableName: string) {
+  function handleTargetTableChange() {
     relationForm.targetColumnNames = [];
-    relationTargetColumns.value = findRelationColumns(tableName);
   }
 
   function handleDragCreateRelation(payload: RelationDragCreatePayload) {
@@ -310,8 +304,6 @@
       enabled: true,
     });
 
-    relationSourceColumns.value = findRelationColumns(payload.sourceTableName);
-    relationTargetColumns.value = findRelationColumns(payload.targetTableName);
     selectedRelation.value = null;
     relationDialogVisible.value = true;
   }
@@ -338,8 +330,6 @@
       enabled: relation.enabled,
     });
 
-    relationSourceColumns.value = findRelationColumns(relation.sourceTableName);
-    relationTargetColumns.value = findRelationColumns(relation.targetTableName);
     relationDialogVisible.value = true;
   }
 

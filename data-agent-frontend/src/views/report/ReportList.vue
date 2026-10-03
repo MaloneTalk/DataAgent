@@ -121,7 +121,7 @@
 </script>
 
 <template>
-  <div class="report-list">
+  <div>
     <div v-if="!embedded" class="page-header">
       <h2 class="page-title">报告管理</h2>
     </div>

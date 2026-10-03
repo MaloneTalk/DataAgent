@@ -34,24 +34,21 @@
     isExpanded.value = !isExpanded.value;
   }
 
-  const stepCounts = computed(() => {
-    const counts: Record<string, number> = {};
-    for (const step of props.message.traceSteps) {
-      counts[step.type] = (counts[step.type] || 0) + 1;
-    }
-    return counts;
-  });
-
-  const toolCallCount = computed(() => stepCounts.value.tool_call || 0);
-  const toolResultCount = computed(() => stepCounts.value.tool_result || 0);
-
   const summaryLabel = computed(() => {
-    const parts: string[] = [];
-    const total = toolCallCount.value + toolResultCount.value;
-    if (total > 0) {
-      parts.push(`${total} 次工具调用`);
+    let toolStepCount = 0;
+    let thinkCount = 0;
+    for (const step of props.message.traceSteps) {
+      if (step.type === 'tool_call' || step.type === 'tool_result') {
+        toolStepCount += 1;
+      } else if (step.type === 'thinking') {
+        thinkCount += 1;
+      }
     }
-    const thinkCount = stepCounts.value.thinking || 0;
+
+    const parts: string[] = [];
+    if (toolStepCount > 0) {
+      parts.push(`${toolStepCount} 次工具调用`);
+    }
     if (thinkCount > 0) {
       parts.push(`${thinkCount} 条思考`);
     }
