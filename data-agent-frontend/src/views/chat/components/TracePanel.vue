@@ -17,7 +17,6 @@
 
 <script setup lang="ts">
   import { computed, ref } from 'vue';
-  import type { ChatStreamEventType } from '@/api/agent';
   import type { ChatMessage, TraceStep } from '@/composables/useAgentChat';
   import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
@@ -59,22 +58,14 @@
     return parts.join(' | ') || `${props.message.traceSteps.length} 个步骤`;
   });
 
-  interface StepRenderer {
-    label: string;
-  }
-
-  const stepRenderers: Record<string, StepRenderer> = {
-    thinking: { label: '思考' },
-    tool_call: { label: '动作' },
-    tool_result: { label: '观察' },
-    question: { label: '问题' },
-    report: { label: '报告' },
-    error: { label: '错误' },
+  const stepLabels: Record<string, string> = {
+    thinking: '思考',
+    tool_call: '动作',
+    tool_result: '观察',
+    question: '问题',
+    report: '报告',
+    error: '错误',
   };
-
-  function getStepRenderer(type: ChatStreamEventType): StepRenderer {
-    return stepRenderers[type] ?? { label: type };
-  }
 
   function stepLabel(step: TraceStep): string {
     if (step.type === 'tool_call' && isInteractiveTool(step.toolCall?.name)) {
@@ -83,7 +74,7 @@
     if (step.type === 'tool_result' && isInteractiveTool(step.toolResult?.name)) {
       return `[${INTERACTIVE_TOOLS[step.toolResult!.name].resultLabel}]`;
     }
-    return `[${getStepRenderer(step.type).label}]`;
+    return `[${stepLabels[step.type] ?? step.type}]`;
   }
 
   function stepContent(step: TraceStep): string {

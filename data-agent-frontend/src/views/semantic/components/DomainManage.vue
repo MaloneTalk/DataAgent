@@ -28,7 +28,7 @@
     deleteDomain,
     type DomainInfo,
   } from '@/api/domain';
-  import { formatDateTime } from '../utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   interface DomainEditForm {
     name: string;

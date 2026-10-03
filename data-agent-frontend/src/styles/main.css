@@ -83,6 +83,14 @@ textarea {
   margin-bottom: 20px;
 }
 
+.table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
 .section-header {
   display: flex;
   justify-content: flex-end;

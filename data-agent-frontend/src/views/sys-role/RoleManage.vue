@@ -23,7 +23,7 @@
   import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
   import type { RoleResponse } from '@/api/sysRole';
   import request from '@/api/request';
-  import { formatDateTime } from '@/views/semantic/utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   const loading = ref(false);
   const roles = ref<RoleResponse[]>([]);
@@ -364,12 +364,5 @@
 <style scoped>
   .role-manage-page {
     width: 100%;
-  }
-  .table-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-bottom: 20px;
   }
 </style>

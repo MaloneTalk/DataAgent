@@ -30,7 +30,7 @@
     type MetricCreateRequest,
     type MetricUpdateRequest,
   } from '@/api/metric';
-  import { formatDateTime } from '@/views/semantic/utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   interface MetricEditForm {
     metricKey: string;

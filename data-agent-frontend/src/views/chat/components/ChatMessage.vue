@@ -18,6 +18,7 @@
 <script setup lang="ts">
   import { computed, ref, onUnmounted } from 'vue';
   import { marked } from 'marked';
+  import { Check, CopyDocument } from '@element-plus/icons-vue';
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
   import ChatFileDownload from './ChatFileDownload.vue';
   import TracePanel from './TracePanel.vue';

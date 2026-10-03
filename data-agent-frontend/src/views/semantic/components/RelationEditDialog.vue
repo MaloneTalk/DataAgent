@@ -18,9 +18,12 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
-  import type { LogicalTableRelationResponse } from '@/api/semantic';
+  import type {
+    LogicalTableRelationResponse,
+    RelationWorkspaceColumnResponse,
+  } from '@/api/semantic';
   import { logicalRelationTypeOptions } from '../utils';
-  import type { RelationColumnNode, RelationForm, TableNodeLayout } from '../types';
+  import type { RelationForm, TableNodeLayout } from '../types';
 
   const props = defineProps<{
     visible: boolean;
@@ -28,8 +31,8 @@
     relation: LogicalTableRelationResponse | null;
     form: RelationForm;
     nodes: TableNodeLayout[];
-    sourceColumns: RelationColumnNode[];
-    targetColumns: RelationColumnNode[];
+    sourceColumns: RelationWorkspaceColumnResponse[];
+    targetColumns: RelationWorkspaceColumnResponse[];
     fieldErrors: Record<string, string>;
   }>();
 

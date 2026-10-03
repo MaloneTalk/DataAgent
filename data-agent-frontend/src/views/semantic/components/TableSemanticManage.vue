@@ -21,6 +21,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useFieldErrors } from '@/composables/useFieldErrors';
+  import { formatDateTime } from '@/utils/dateTime';
   import { getDomainNames } from '@/api/domain';
   import {
     getActiveDatasourceId,
@@ -32,7 +33,7 @@
   } from '@/api/semantic';
   import ColumnSemanticManage from './ColumnSemanticManage.vue';
   import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
-  import { buildSyncSummary, formatDateTime, physicalStatusSyncSummaryFields } from '../utils';
+  import { buildSyncSummary, physicalStatusSyncSummaryFields } from '../utils';
 
   interface TableEditForm {
     tableName: string;
@@ -409,12 +410,7 @@
       size="90%"
       @opened="handleColumnsDrawerOpened"
     >
-      <ColumnSemanticManage
-        ref="columnManageRef"
-        :datasource-id="datasourceId"
-        :keyword="''"
-        :sort-order="'asc'"
-      />
+      <ColumnSemanticManage ref="columnManageRef" :datasource-id="datasourceId" />
     </el-drawer>
 
     <SyncPhysicalTableDialog

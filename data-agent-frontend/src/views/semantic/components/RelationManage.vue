@@ -29,17 +29,13 @@
     updateLogicalRelationEnabled,
     type BindLogicalTableRelationRequest,
     type LogicalTableRelationResponse,
+    type RelationWorkspaceColumnResponse,
     type RelationWorkspaceTableResponse,
     type UpdateLogicalTableRelationRequest,
   } from '@/api/semantic';
   import RelationEditDialog from './RelationEditDialog.vue';
   import RelationWorkspace from './RelationWorkspace.vue';
-  import type {
-    RelationColumnNode,
-    RelationDragCreatePayload,
-    RelationForm,
-    TableNodeLayout,
-  } from '../types';
+  import type { RelationDragCreatePayload, RelationForm, TableNodeLayout } from '../types';
 
   const NODE_WIDTH = 280;
   const HEADER_HEIGHT = 58;
@@ -55,7 +51,6 @@
     datasourceId?: number;
     page?: number;
     pageSize?: number;
-    updatedAt: string;
   }
 
   const {
@@ -95,8 +90,8 @@
     clearFieldErrors: clearRelationFieldErrors,
     applyFieldErrors: applyRelationFieldErrors,
   } = useFieldErrors(relationForm);
-  const relationSourceColumns = ref<RelationColumnNode[]>([]);
-  const relationTargetColumns = ref<RelationColumnNode[]>([]);
+  const relationSourceColumns = ref<RelationWorkspaceColumnResponse[]>([]);
+  const relationTargetColumns = ref<RelationWorkspaceColumnResponse[]>([]);
   const suppressDatasourceWatch = ref(false);
 
   const draftRelation = computed(() => {
@@ -172,7 +167,6 @@
       datasourceId: selectedDatasourceId.value,
       page: workspacePage.page,
       pageSize: workspacePage.pageSize,
-      updatedAt: new Date().toISOString(),
     };
 
     try {
@@ -182,7 +176,7 @@
     }
   }
 
-  function findRelationColumns(tableName: string): RelationColumnNode[] {
+  function findRelationColumns(tableName: string): RelationWorkspaceColumnResponse[] {
     return relationNodes.value.find(node => node.tableName === tableName)?.columns ?? [];
   }
 
