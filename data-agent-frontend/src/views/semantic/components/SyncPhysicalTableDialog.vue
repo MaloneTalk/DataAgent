@@ -180,7 +180,7 @@
       </el-table-column>
     </el-table>
 
-    <div class="pagination-wrap sync-pagination">
+    <div class="pagination-wrap">
       <el-pagination
         background
         layout="total, sizes, prev, pager, next"
@@ -206,15 +206,5 @@
     grid-template-columns: minmax(240px, 1fr) auto;
     gap: 12px;
     margin-bottom: 16px;
-  }
-
-  .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 20px;
-  }
-
-  .sync-pagination {
-    margin-top: 16px;
   }
 </style>

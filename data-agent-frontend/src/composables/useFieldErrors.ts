@@ -18,7 +18,7 @@
 import { reactive, watch } from 'vue';
 import { getFieldErrorMap, type FieldErrorMap } from '@/api/request';
 
-export function useFieldErrors<T extends object>(form?: T) {
+export function useFieldErrors<T extends object>(form: T) {
   const fieldErrors = reactive<FieldErrorMap>({});
 
   function clearFieldErrors() {
@@ -30,9 +30,7 @@ export function useFieldErrors<T extends object>(form?: T) {
     Object.assign(fieldErrors, getFieldErrorMap(error));
   }
 
-  if (form) {
-    watch(form, clearFieldErrors, { deep: true });
-  }
+  watch(form, clearFieldErrors, { deep: true });
 
   return {
     fieldErrors,

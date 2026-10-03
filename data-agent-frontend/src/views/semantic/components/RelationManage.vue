@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+  import { computed, onMounted, reactive, ref, watch } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useDatasource } from '@/composables/useDatasource';
@@ -29,17 +29,13 @@
     updateLogicalRelationEnabled,
     type BindLogicalTableRelationRequest,
     type LogicalTableRelationResponse,
+    type RelationWorkspaceColumnResponse,
+    type RelationWorkspaceTableResponse,
     type UpdateLogicalTableRelationRequest,
   } from '@/api/semantic';
   import RelationEditDialog from './RelationEditDialog.vue';
   import RelationWorkspace from './RelationWorkspace.vue';
-  import type {
-    RelationColumnNode,
-    RelationDragCreatePayload,
-    RelationForm,
-    RelationTableNode,
-    TableNodeLayout,
-  } from '../types';
+  import type { RelationDragCreatePayload, RelationForm, TableNodeLayout } from '../types';
 
   const NODE_WIDTH = 280;
   const HEADER_HEIGHT = 58;
@@ -55,7 +51,6 @@
     datasourceId?: number;
     page?: number;
     pageSize?: number;
-    updatedAt: string;
   }
 
   const {
@@ -95,9 +90,6 @@
     clearFieldErrors: clearRelationFieldErrors,
     applyFieldErrors: applyRelationFieldErrors,
   } = useFieldErrors(relationForm);
-  const relationSourceColumns = ref<RelationColumnNode[]>([]);
-  const relationTargetColumns = ref<RelationColumnNode[]>([]);
-  const suppressRelationTableWatch = ref(false);
   const suppressDatasourceWatch = ref(false);
 
   const draftRelation = computed(() => {
@@ -119,22 +111,17 @@
     };
   });
 
-  function buildRelationLayouts(
-    tables: RelationTableNode[],
-    columnsMap: Map<string, RelationColumnNode[]>,
-  ) {
+  function buildRelationLayouts(tables: RelationWorkspaceTableResponse[]) {
     const rowHeights: number[] = [];
 
     const preparedNodes = tables.map((table, index) => {
       const rowIndex = Math.floor(index / COLUMNS_PER_ROW);
       const columnIndex = index % COLUMNS_PER_ROW;
-      const columns = columnsMap.get(table.tableName) ?? [];
-      const height = HEADER_HEIGHT + Math.max(columns.length, 1) * COLUMN_HEIGHT + 20;
+      const height = HEADER_HEIGHT + Math.max(table.columns.length, 1) * COLUMN_HEIGHT + 20;
       rowHeights[rowIndex] = Math.max(rowHeights[rowIndex] ?? 0, height);
 
       return {
         table,
-        columns,
         rowIndex,
         columnIndex,
         height,
@@ -148,7 +135,6 @@
 
       return {
         ...node.table,
-        columns: node.columns,
         x: node.columnIndex * (NODE_WIDTH + GAP_X) + 32,
         y: rowOffset + 32,
         width: NODE_WIDTH,
@@ -176,7 +162,6 @@
       datasourceId: selectedDatasourceId.value,
       page: workspacePage.page,
       pageSize: workspacePage.pageSize,
-      updatedAt: new Date().toISOString(),
     };
 
     try {
@@ -186,9 +171,12 @@
     }
   }
 
-  function findRelationColumns(tableName: string): RelationColumnNode[] {
+  function findRelationColumns(tableName: string): RelationWorkspaceColumnResponse[] {
     return relationNodes.value.find(node => node.tableName === tableName)?.columns ?? [];
   }
+
+  const relationSourceColumns = computed(() => findRelationColumns(relationForm.sourceTableName));
+  const relationTargetColumns = computed(() => findRelationColumns(relationForm.targetTableName));
 
   async function loadRelationWorkspace(datasourceId: number, loadToken: number) {
     relationLoading.value = true;
@@ -201,22 +189,7 @@
         sortOrder: 'asc',
       });
       const workspace = response.data.data;
-      const tables = workspace.nodes.items.map(
-        (item): RelationTableNode => ({
-          tableName: item.tableName,
-          domain: item.domain,
-          description: item.description,
-          operable: item.operable,
-          invalidReason: item.invalidReason,
-        }),
-      );
-
-      const columnsMap = new Map<string, RelationColumnNode[]>();
-      workspace.nodes.items.forEach(table => {
-        columnsMap.set(table.tableName, table.columns);
-      });
-
-      const nextNodes = buildRelationLayouts(tables, columnsMap);
+      const nextNodes = buildRelationLayouts(workspace.nodes.items);
       if (loadToken !== relationLoadToken.value || datasourceId !== selectedDatasourceId.value) {
         return;
       }
@@ -279,8 +252,6 @@
       description: '',
       enabled: true,
     });
-    relationSourceColumns.value = [];
-    relationTargetColumns.value = [];
     selectedRelation.value = null;
   }
 
@@ -308,52 +279,36 @@
     }
   }
 
-  function handleSourceTableChange(tableName: string) {
-    if (suppressRelationTableWatch.value) {
-      return;
-    }
+  function handleSourceTableChange() {
     relationForm.sourceColumnNames = [];
-    relationSourceColumns.value = findRelationColumns(tableName);
   }
 
-  function handleTargetTableChange(tableName: string) {
-    if (suppressRelationTableWatch.value) {
-      return;
-    }
+  function handleTargetTableChange() {
     relationForm.targetColumnNames = [];
-    relationTargetColumns.value = findRelationColumns(tableName);
   }
 
-  async function handleDragCreateRelation(payload: RelationDragCreatePayload) {
+  function handleDragCreateRelation(payload: RelationDragCreatePayload) {
     clearRelationFieldErrors();
     if (payload.sourceTableName === payload.targetTableName) {
       ElMessage.warning('不能把关系拖回同一张表');
       return;
     }
 
-    suppressRelationTableWatch.value = true;
-    try {
-      Object.assign(relationForm, {
-        sourceTableName: payload.sourceTableName,
-        sourceColumnNames: [payload.sourceColumnName],
-        targetTableName: payload.targetTableName,
-        targetColumnNames: [payload.targetColumnName],
-        relationType: '',
-        description: '',
-        enabled: true,
-      });
+    Object.assign(relationForm, {
+      sourceTableName: payload.sourceTableName,
+      sourceColumnNames: [payload.sourceColumnName],
+      targetTableName: payload.targetTableName,
+      targetColumnNames: [payload.targetColumnName],
+      relationType: '',
+      description: '',
+      enabled: true,
+    });
 
-      relationSourceColumns.value = findRelationColumns(payload.sourceTableName);
-      relationTargetColumns.value = findRelationColumns(payload.targetTableName);
-      selectedRelation.value = null;
-      relationDialogVisible.value = true;
-      await nextTick();
-    } finally {
-      suppressRelationTableWatch.value = false;
-    }
+    selectedRelation.value = null;
+    relationDialogVisible.value = true;
   }
 
-  async function handleEditRelation(relation: LogicalTableRelationResponse) {
+  function handleEditRelation(relation: LogicalTableRelationResponse) {
     clearRelationFieldErrors();
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键仅展示，不支持直接编辑');
@@ -365,26 +320,17 @@
     }
 
     selectedRelation.value = relation;
+    Object.assign(relationForm, {
+      sourceTableName: relation.sourceTableName,
+      sourceColumnNames: [...relation.sourceColumnNames],
+      targetTableName: relation.targetTableName,
+      targetColumnNames: [...relation.targetColumnNames],
+      relationType: relation.relationType === 'foreign_key' ? '' : relation.relationType,
+      description: relation.description ?? '',
+      enabled: relation.enabled,
+    });
+
     relationDialogVisible.value = true;
-    suppressRelationTableWatch.value = true;
-
-    try {
-      Object.assign(relationForm, {
-        sourceTableName: relation.sourceTableName,
-        sourceColumnNames: [...relation.sourceColumnNames],
-        targetTableName: relation.targetTableName,
-        targetColumnNames: [...relation.targetColumnNames],
-        relationType: relation.relationType === 'foreign_key' ? '' : relation.relationType,
-        description: relation.description ?? '',
-        enabled: relation.enabled,
-      });
-
-      relationSourceColumns.value = findRelationColumns(relation.sourceTableName);
-      relationTargetColumns.value = findRelationColumns(relation.targetTableName);
-      await nextTick();
-    } finally {
-      suppressRelationTableWatch.value = false;
-    }
   }
 
   async function handleSubmitRelation() {
@@ -559,7 +505,7 @@
           <el-button @click="handleResetViewport">重置视图</el-button>
         </div>
       </div>
-      <div v-if="datasourceError" class="error-tip">
+      <div v-if="datasourceError" class="semantic-error-tip">
         数据源加载失败：{{ datasourceError.message }}
       </div>
     </section>
@@ -648,11 +594,6 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 18px;
-  }
-
-  .error-tip {
-    margin-top: 14px;
-    color: var(--app-accent);
   }
 
   @media (max-width: 1024px) {

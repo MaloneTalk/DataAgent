@@ -30,7 +30,7 @@
     type MetricCreateRequest,
     type MetricUpdateRequest,
   } from '@/api/metric';
-  import { formatDateTime } from '@/views/semantic/utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   interface MetricEditForm {
     metricKey: string;
@@ -289,10 +289,10 @@
         </div>
       </div>
 
-      <div v-if="datasourceError" class="error-tip">
+      <div v-if="datasourceError" class="semantic-error-tip">
         数据源加载失败：{{ datasourceError.message }}
       </div>
-      <div v-else-if="datasourceEmpty" class="error-tip">
+      <div v-else-if="datasourceEmpty" class="semantic-error-tip">
         暂无数据源，请先在「数据源管理」中添加数据源
       </div>
 
@@ -350,7 +350,7 @@
           />
         </div>
 
-        <div v-if="metricError" class="error-tip">指标口径加载失败：{{ metricError }}</div>
+        <div v-if="metricError" class="semantic-error-tip">指标口径加载失败：{{ metricError }}</div>
       </template>
     </section>
 
@@ -407,40 +407,11 @@
     flex-direction: column;
   }
 
-  .section-header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .section-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
   .keyword-field {
     width: 220px;
   }
 
   .datasource-field {
     width: 200px;
-  }
-
-  .semantic-table {
-    width: 100%;
-  }
-
-  .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 16px;
-  }
-
-  .error-tip {
-    margin-top: 14px;
-    color: var(--app-accent);
   }
 </style>

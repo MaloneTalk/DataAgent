@@ -28,7 +28,6 @@
   } from '../types';
 
   interface RelationEdge {
-    id: string;
     relationId: number;
     path: string;
     label: string;
@@ -137,38 +136,41 @@
     return map;
   });
 
+  function getRelationGeometry(relation: RelationDraftPreview) {
+    const sourceNode = nodeMap.value.get(relation.sourceTableName);
+    const targetNode = nodeMap.value.get(relation.targetTableName);
+    if (!sourceNode || !targetNode) {
+      return null;
+    }
+
+    const sourceSide = targetNode.x >= sourceNode.x ? 'right' : 'left';
+    const targetSide = sourceSide === 'right' ? 'left' : 'right';
+    const sourceAnchor = resolveColumnAnchor(sourceNode, relation.sourceColumnNames[0], sourceSide);
+    const targetAnchor = resolveColumnAnchor(targetNode, relation.targetColumnNames[0], targetSide);
+
+    return {
+      path: buildRelationPath(sourceAnchor.x, sourceAnchor.y, targetAnchor.x, targetAnchor.y),
+      labelX: (sourceAnchor.x + targetAnchor.x) / 2,
+      labelY: (sourceAnchor.y + targetAnchor.y) / 2 - 10,
+    };
+  }
+
   const relationEdges = computed<RelationEdge[]>(() =>
     props.relations.flatMap(relation => {
-      const sourceNode = nodeMap.value.get(relation.sourceTableName);
-      const targetNode = nodeMap.value.get(relation.targetTableName);
-      if (!sourceNode || !targetNode) {
+      const geometry = getRelationGeometry(relation);
+      if (!geometry) {
         return [];
       }
 
-      const sourceSide = targetNode.x >= sourceNode.x ? 'right' : 'left';
-      const targetSide = sourceSide === 'right' ? 'left' : 'right';
-      const sourceAnchor = resolveColumnAnchor(
-        sourceNode,
-        relation.sourceColumnNames[0],
-        sourceSide,
-      );
-      const targetAnchor = resolveColumnAnchor(
-        targetNode,
-        relation.targetColumnNames[0],
-        targetSide,
-      );
       const relationTypeLabel = formatLogicalRelationType(relation.relationType);
       const label =
         relation.sourceColumnNames.length > 1 ? `多列${relationTypeLabel}` : relationTypeLabel;
 
       return [
         {
-          id: `relation-${relation.id}`,
           relationId: relation.id,
-          path: buildRelationPath(sourceAnchor.x, sourceAnchor.y, targetAnchor.x, targetAnchor.y),
+          ...geometry,
           label,
-          labelX: (sourceAnchor.x + targetAnchor.x) / 2,
-          labelY: (sourceAnchor.y + targetAnchor.y) / 2 - 10,
           labelWidth: Math.max(96, label.length * 18 + 22),
           enabled: relation.enabled,
         },
@@ -177,34 +179,7 @@
   );
 
   const draftEdge = computed(() => {
-    if (!props.draftRelation) {
-      return null;
-    }
-
-    const sourceNode = nodeMap.value.get(props.draftRelation.sourceTableName);
-    const targetNode = nodeMap.value.get(props.draftRelation.targetTableName);
-    if (!sourceNode || !targetNode) {
-      return null;
-    }
-
-    const sourceSide = targetNode.x >= sourceNode.x ? 'right' : 'left';
-    const targetSide = sourceSide === 'right' ? 'left' : 'right';
-    const sourceAnchor = resolveColumnAnchor(
-      sourceNode,
-      props.draftRelation.sourceColumnNames[0],
-      sourceSide,
-    );
-    const targetAnchor = resolveColumnAnchor(
-      targetNode,
-      props.draftRelation.targetColumnNames[0],
-      targetSide,
-    );
-
-    return {
-      path: buildRelationPath(sourceAnchor.x, sourceAnchor.y, targetAnchor.x, targetAnchor.y),
-      labelX: (sourceAnchor.x + targetAnchor.x) / 2,
-      labelY: (sourceAnchor.y + targetAnchor.y) / 2 - 10,
-    };
+    return props.draftRelation ? getRelationGeometry(props.draftRelation) : null;
   });
 
   const dragPreview = computed(() => {
@@ -326,7 +301,6 @@
         offsetX: viewport.offsetX,
         offsetY: viewport.offsetY,
       },
-      updatedAt: new Date().toISOString(),
     };
 
     try {
@@ -651,13 +625,6 @@
     return selectedRelationId.value === relationId;
   }
 
-  function relationStateTagType(relation: LogicalTableRelationResponse) {
-    if (!relation.enabled) {
-      return 'info';
-    }
-    return 'success';
-  }
-
   defineExpose({
     resetViewport,
   });
@@ -705,7 +672,7 @@
               </marker>
             </defs>
 
-            <g v-for="edge in relationEdges" :key="edge.id">
+            <g v-for="edge in relationEdges" :key="edge.relationId">
               <path
                 class="relation-edge-hit"
                 :d="edge.path"
@@ -856,7 +823,7 @@
                 <span>→</span>
                 <strong>{{ relation.targetTableName }}</strong>
               </div>
-              <el-tag :type="relationStateTagType(relation)">
+              <el-tag :type="relation.enabled ? 'success' : 'info'">
                 {{ !relation.enabled ? '已禁用' : '生效中' }}
               </el-tag>
             </div>

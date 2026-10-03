@@ -77,14 +77,7 @@
     inputText.value = '';
   }
 
-  function handleKeydown(e: {
-    key: string;
-    shiftKey: boolean;
-    ctrlKey: boolean;
-    altKey: boolean;
-    metaKey: boolean;
-    preventDefault: () => void;
-  }) {
+  function handleKeydown(e: globalThis.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (props.isStreaming) {
@@ -133,7 +126,6 @@
       e.preventDefault();
       inputText.value = historyFull.value;
       historyIndex.value = -1;
-      nextTick(autoResize);
       return;
     }
 

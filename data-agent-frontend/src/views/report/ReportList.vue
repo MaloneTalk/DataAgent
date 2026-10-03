@@ -40,7 +40,6 @@
   const previewVisible = ref(false);
   const previewTitle = ref('');
   const previewContent = ref('');
-  const previewDialogRef = ref<InstanceType<typeof ReportPreviewDialog>>();
 
   async function fetchReports() {
     loading.value = true;
@@ -122,7 +121,7 @@
 </script>
 
 <template>
-  <div class="report-list">
+  <div>
     <div v-if="!embedded" class="page-header">
       <h2 class="page-title">报告管理</h2>
     </div>
@@ -185,7 +184,6 @@
     </div>
 
     <ReportPreviewDialog
-      ref="previewDialogRef"
       v-model:visible="previewVisible"
       :title="previewTitle"
       :content="previewContent"

@@ -16,11 +16,10 @@
  -->
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
-  import { useRoute, useRouter } from 'vue-router';
+  import { ref } from 'vue';
+  import { useRoute } from 'vue-router';
 
   const route = useRoute();
-  const router = useRouter();
 
   const isCollapse = ref(false);
 
@@ -55,12 +54,6 @@
     },
   ];
 
-  const activeMenu = computed(() => route.path);
-
-  const handleMenuSelect = (path: string) => {
-    router.push(path);
-  };
-
   const toggleSidebar = () => {
     isCollapse.value = !isCollapse.value;
   };
@@ -68,7 +61,7 @@
 
 <template>
   <aside class="app-sidebar" :class="{ collapsed: isCollapse }">
-    <el-menu :default-active="activeMenu" :collapse="isCollapse" router @select="handleMenuSelect">
+    <el-menu :default-active="route.path" :collapse="isCollapse" router>
       <template v-for="item in menuItems" :key="item.path">
         <el-sub-menu v-if="item.children" :index="item.path">
           <template #title>
