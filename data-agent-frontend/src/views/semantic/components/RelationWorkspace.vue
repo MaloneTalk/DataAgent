@@ -28,7 +28,6 @@
   } from '../types';
 
   interface RelationEdge {
-    id: string;
     relationId: number;
     path: string;
     label: string;
@@ -169,7 +168,6 @@
 
       return [
         {
-          id: `relation-${relation.id}`,
           relationId: relation.id,
           ...geometry,
           label,
@@ -627,13 +625,6 @@
     return selectedRelationId.value === relationId;
   }
 
-  function relationStateTagType(relation: LogicalTableRelationResponse) {
-    if (!relation.enabled) {
-      return 'info';
-    }
-    return 'success';
-  }
-
   defineExpose({
     resetViewport,
   });
@@ -681,7 +672,7 @@
               </marker>
             </defs>
 
-            <g v-for="edge in relationEdges" :key="edge.id">
+            <g v-for="edge in relationEdges" :key="edge.relationId">
               <path
                 class="relation-edge-hit"
                 :d="edge.path"
@@ -832,7 +823,7 @@
                 <span>→</span>
                 <strong>{{ relation.targetTableName }}</strong>
               </div>
-              <el-tag :type="relationStateTagType(relation)">
+              <el-tag :type="relation.enabled ? 'success' : 'info'">
                 {{ !relation.enabled ? '已禁用' : '生效中' }}
               </el-tag>
             </div>
