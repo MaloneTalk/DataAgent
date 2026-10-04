@@ -225,13 +225,9 @@ export function useAgentChat(initialSessionId?: string) {
     abortController.value?.abort();
   }
 
-  function clearMessages() {
-    messages.value = [];
-  }
-
   function newSession() {
     stopStreaming();
-    clearMessages();
+    messages.value = [];
     sessionId.value = generateSessionId();
     datasourceId.value = null;
   }
@@ -246,7 +242,6 @@ export function useAgentChat(initialSessionId?: string) {
     loadHistory,
     sendMessage,
     stopStreaming,
-    clearMessages,
     newSession,
   };
 }

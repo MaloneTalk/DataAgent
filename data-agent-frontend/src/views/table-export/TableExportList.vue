@@ -36,12 +36,11 @@
   async function fetchExports() {
     loading.value = true;
     try {
-      const res = await getTableExports({
+      const pageData = await getTableExports({
         sessionId: sessionId.value.trim() || undefined,
         page: page.value,
         pageSize: pageSize.value,
       });
-      const pageData = res.data.data;
       exports.value = pageData.items;
       total.value = pageData.total;
     } catch {

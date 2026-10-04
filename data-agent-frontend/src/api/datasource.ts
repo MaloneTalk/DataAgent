@@ -16,6 +16,7 @@
  */
 
 import request from './request';
+import type { ApiResponse } from './request';
 
 export interface DatasourceRequest {
   id?: number;
@@ -45,36 +46,33 @@ export interface DatasourceResponse {
 }
 
 export function getDatasourceList() {
-  return request.get<{
-    code: number;
-    message: string;
-    data: DatasourceResponse[];
-  }>('/datasource');
+  return request.get<ApiResponse<DatasourceResponse[]>>('/datasource').then(res => res.data.data);
+}
+
+export function getDatasourceTables(id: number) {
+  return request.get<ApiResponse<string[]>>(`/datasource/${id}/tables`).then(res => res.data.data);
 }
 
 export function createDatasource(data: DatasourceRequest) {
-  return request.post<{ code: number; message: string; data: boolean }>('/datasource', data);
+  return request.post<ApiResponse<boolean>>('/datasource', data).then(res => res.data.data);
 }
 
 export function updateDatasource(data: DatasourceRequest) {
-  return request.put<{ code: number; message: string; data: boolean }>(
-    `/datasource/${data.id}`,
-    data,
-  );
+  return request
+    .put<ApiResponse<boolean>>(`/datasource/${data.id}`, data)
+    .then(res => res.data.data);
 }
 
 export function deleteDatasource(id: number) {
-  return request.delete<{ code: number; message: string; data: boolean }>(`/datasource/${id}`);
+  return request.delete<ApiResponse<boolean>>(`/datasource/${id}`).then(res => res.data.data);
 }
 
 export function activateDatasource(id: number) {
-  return request.put<{ code: number; message: string; data: boolean }>(
-    `/datasource/${id}/activate`,
-  );
+  return request.put<ApiResponse<boolean>>(`/datasource/${id}/activate`).then(res => res.data.data);
 }
 
 export function deactivateDatasource(id: number) {
-  return request.put<{ code: number; message: string; data: boolean }>(
-    `/datasource/${id}/deactivate`,
-  );
+  return request
+    .put<ApiResponse<boolean>>(`/datasource/${id}/deactivate`)
+    .then(res => res.data.data);
 }

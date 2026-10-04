@@ -80,14 +80,13 @@
     }
     loading.value = true;
     try {
-      const response = await getPhysicalTableCandidatePage({
+      const pageData = await getPhysicalTableCandidatePage({
         datasourceId: props.datasourceId,
         page: page.page,
         pageSize: page.pageSize,
         keyword: keyword.value.trim() || undefined,
         sortOrder: 'asc',
       });
-      const pageData = response.data.data;
       rows.value = pageData.items;
       page.total = pageData.total;
       await syncCurrentPageSelection();
@@ -128,8 +127,8 @@
     submitting.value = true;
     try {
       const selectedTableNames = Array.from(selectedTableNameSet.value);
-      const response = await syncTableSemantics(props.datasourceId, selectedTableNames);
-      ElMessage.success(buildSyncSummary(response.data.data));
+      const result = await syncTableSemantics(props.datasourceId, selectedTableNames);
+      ElMessage.success(buildSyncSummary(result));
       emit('synced', selectedTableNames);
       visible.value = false;
     } catch (err) {

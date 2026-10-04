@@ -35,13 +35,15 @@ export interface TableExportPageQuery {
 }
 
 export function getTableExports(query: TableExportPageQuery) {
-  return request.get<ApiResponse<PageResponse<TableExportResponse>>>('/table-exports', {
-    params: query,
-  });
+  return request
+    .get<ApiResponse<PageResponse<TableExportResponse>>>('/table-exports', {
+      params: query,
+    })
+    .then(res => res.data.data);
 }
 
 export function deleteTableExport(id: string) {
-  return request.delete<ApiResponse<boolean>>(`/table-exports/${id}`);
+  return request.delete<ApiResponse<boolean>>(`/table-exports/${id}`).then(res => res.data.data);
 }
 
 export async function downloadTableExport(id: string) {

@@ -67,11 +67,10 @@
     domainLoading.value = true;
     domainError.value = '';
     try {
-      const response = await getDomainPage({
+      const pageData = await getDomainPage({
         page: domainPage.page,
         pageSize: domainPage.pageSize,
       });
-      const pageData = response.data.data;
       domainRows.value = pageData.items;
       domainPage.total = pageData.total;
     } catch (error) {

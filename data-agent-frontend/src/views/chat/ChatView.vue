@@ -82,8 +82,7 @@
 
   async function loadDatasources() {
     try {
-      const res = await getDatasourceList();
-      datasources.value = res.data.data ?? [];
+      datasources.value = (await getDatasourceList()) ?? [];
     } catch {
       datasources.value = [];
     }

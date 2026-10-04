@@ -93,13 +93,12 @@
         page.total = 0;
         return;
       }
-      const response = await getColumnSemanticPage(selectedTableName.value, {
+      const pageData = await getColumnSemanticPage(selectedTableName.value, {
         datasourceId: props.datasourceId,
         page: page.page,
         pageSize: page.pageSize,
         sortOrder: 'asc',
       });
-      const pageData = response.data.data;
       rows.value = pageData.items;
       page.total = pageData.total;
     } catch (err) {

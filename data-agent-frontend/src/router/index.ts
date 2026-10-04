@@ -136,18 +136,15 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(to => {
   document.title = `${to.meta.title || 'Data Agent'}`;
   const userStore = useUserStore();
   if (!userStore.isLoggedIn && to.path !== '/login') {
-    next('/login');
-    return;
+    return '/login';
   }
   if (userStore.isLoggedIn && to.path === '/login') {
-    next('/chat');
-    return;
+    return '/chat';
   }
-  next();
 });
 
 export default router;

@@ -91,8 +91,7 @@
 
   const loadDomainOptions = async () => {
     try {
-      const response = await getDomainNames();
-      domainOptions.value = response.data.data;
+      domainOptions.value = await getDomainNames();
     } catch {
       domainOptions.value = [];
     }
@@ -106,12 +105,11 @@
       if (activeDatasourceId === null) {
         return;
       }
-      const response = await getTableSemanticPage({
+      const pageData = await getTableSemanticPage({
         datasourceId: activeDatasourceId,
         page: page.page,
         pageSize: page.pageSize,
       });
-      const pageData = response.data.data;
       rows.value = pageData.items;
       page.total = pageData.total;
     } catch (err) {
@@ -221,8 +219,8 @@
     }
     refreshingPhysicalStatus.value = true;
     try {
-      const response = await refreshPhysicalStatus(activeDatasourceId);
-      ElMessage.success(buildSyncSummary(response.data.data, physicalStatusSyncSummaryFields));
+      const result = await refreshPhysicalStatus(activeDatasourceId);
+      ElMessage.success(buildSyncSummary(result, physicalStatusSyncSummaryFields));
       await loadPage();
       if (columnDrawerVisible.value && selectedTableForColumns.value && columnManageRef.value) {
         await columnManageRef.value.handleTableChange(selectedTableForColumns.value);

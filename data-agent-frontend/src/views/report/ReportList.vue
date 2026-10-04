@@ -44,14 +44,13 @@
   async function fetchReports() {
     loading.value = true;
     try {
-      const res = await getReports({
+      const pageData = await getReports({
         sessionId: props.fixedSessionId || sessionId.value.trim() || undefined,
         keyword: keyword.value.trim() || undefined,
         page: page.value,
         pageSize: pageSize.value,
         sortOrder: sortOrder.value,
       });
-      const pageData = res.data.data;
       reports.value = pageData.items;
       total.value = pageData.total;
     } catch {

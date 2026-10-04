@@ -20,20 +20,17 @@
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
-  import type { DatasourceResponse } from '@/api/datasource';
+  import {
+    createDatasource,
+    updateDatasource,
+    deleteDatasource,
+    activateDatasource,
+    deactivateDatasource,
+    type DatasourceResponse,
+  } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
 
-  const {
-    list: dataSourceList,
-    loading,
-    error,
-    fetchList,
-    addDatasource,
-    editDatasource,
-    removeDatasource,
-    activate,
-    deactivate,
-  } = useDatasource();
+  const { list: dataSourceList, loading, error, fetchList } = useDatasource();
 
   const dialogVisible = ref(false);
   const submitLoading = ref(false);
@@ -138,7 +135,8 @@
         cancelButtonText: '取消',
         type: 'warning',
       });
-      await removeDatasource(row.id);
+      await deleteDatasource(row.id);
+      await fetchList();
       ElMessage.success('删除成功');
     } catch {
       // 用户取消或错误已由拦截器处理
@@ -147,7 +145,8 @@
 
   const handleActivate = async (row: DatasourceResponse) => {
     try {
-      await activate(row.id);
+      await activateDatasource(row.id);
+      await fetchList();
       ElMessage.success('激活成功');
     } catch {
       // 错误已由 request 拦截器统一处理
@@ -156,7 +155,8 @@
 
   const handleDeactivate = async (row: DatasourceResponse) => {
     try {
-      await deactivate(row.id);
+      await deactivateDatasource(row.id);
+      await fetchList();
       ElMessage.success('禁用成功');
     } catch {
       // 错误已由 request 拦截器统一处理
@@ -172,10 +172,12 @@
     submitLoading.value = true;
     try {
       if (isEdit.value) {
-        await editDatasource(form);
+        await updateDatasource(form);
+        await fetchList();
         ElMessage.success('编辑成功');
       } else {
-        await addDatasource(form);
+        await createDatasource(form);
+        await fetchList();
         ElMessage.success('新增成功');
       }
       dialogVisible.value = false;
