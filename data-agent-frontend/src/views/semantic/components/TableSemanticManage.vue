@@ -21,6 +21,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useFieldErrors } from '@/composables/useFieldErrors';
+  import { formatDateTime } from '@/utils/dateTime';
   import { getDomainNames } from '@/api/domain';
   import {
     getActiveDatasourceId,
@@ -32,7 +33,7 @@
   } from '@/api/semantic';
   import ColumnSemanticManage from './ColumnSemanticManage.vue';
   import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
-  import { buildSyncSummary, formatDateTime, physicalStatusSyncSummaryFields } from '../utils';
+  import { buildSyncSummary, physicalStatusSyncSummaryFields } from '../utils';
 
   interface TableEditForm {
     tableName: string;
@@ -90,8 +91,7 @@
 
   const loadDomainOptions = async () => {
     try {
-      const response = await getDomainNames();
-      domainOptions.value = response.data.data;
+      domainOptions.value = await getDomainNames();
     } catch {
       domainOptions.value = [];
     }
@@ -105,12 +105,11 @@
       if (activeDatasourceId === null) {
         return;
       }
-      const response = await getTableSemanticPage({
+      const pageData = await getTableSemanticPage({
         datasourceId: activeDatasourceId,
         page: page.page,
         pageSize: page.pageSize,
       });
-      const pageData = response.data.data;
       rows.value = pageData.items;
       page.total = pageData.total;
     } catch (err) {
@@ -220,8 +219,8 @@
     }
     refreshingPhysicalStatus.value = true;
     try {
-      const response = await refreshPhysicalStatus(activeDatasourceId);
-      ElMessage.success(buildSyncSummary(response.data.data, physicalStatusSyncSummaryFields));
+      const result = await refreshPhysicalStatus(activeDatasourceId);
+      ElMessage.success(buildSyncSummary(result, physicalStatusSyncSummaryFields));
       await loadPage();
       if (columnDrawerVisible.value && selectedTableForColumns.value && columnManageRef.value) {
         await columnManageRef.value.handleTableChange(selectedTableForColumns.value);
@@ -248,10 +247,6 @@
     }
   };
 
-  defineExpose({
-    loadPage,
-  });
-
   onMounted(() => {
     loadPage();
   });
@@ -271,7 +266,7 @@
     </div>
 
     <div class="section-header">
-      <div class="header-actions">
+      <div class="section-header-actions">
         <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
         <el-button :loading="refreshingPhysicalStatus" @click="handleRefreshPhysicalStatus">
           刷新物理状态
@@ -413,12 +408,7 @@
       size="90%"
       @opened="handleColumnsDrawerOpened"
     >
-      <ColumnSemanticManage
-        ref="columnManageRef"
-        :datasource-id="datasourceId"
-        :keyword="''"
-        :sort-order="'asc'"
-      />
+      <ColumnSemanticManage ref="columnManageRef" :datasource-id="datasourceId" />
     </el-drawer>
 
     <SyncPhysicalTableDialog
@@ -430,27 +420,11 @@
 </template>
 
 <style scoped>
-  .section-header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
   .error-banner {
     margin-bottom: 16px;
   }
 
   .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20px;
   }
 </style>

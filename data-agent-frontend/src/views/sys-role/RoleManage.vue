@@ -20,10 +20,13 @@
   import { ref, reactive, onMounted, watch } from 'vue';
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
   import * as sysRoleApi from '@/api/sysRole';
-  import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
+  import {
+    getDatasourceList,
+    getDatasourceTables,
+    type DatasourceResponse,
+  } from '@/api/datasource';
   import type { RoleResponse } from '@/api/sysRole';
-  import request from '@/api/request';
-  import { formatDateTime } from '@/views/semantic/utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   const loading = ref(false);
   const roles = ref<RoleResponse[]>([]);
@@ -129,8 +132,7 @@
     tableColumns.value = {};
     blacklistedColumns.value = {};
     try {
-      const list = await getDatasourceList();
-      datasources.value = list.data.data;
+      datasources.value = await getDatasourceList();
     } catch {
       datasources.value = [];
     }
@@ -148,9 +150,7 @@
     permLoading.value = true;
     try {
       const [tables, perms, colPerms] = await Promise.all([
-        request
-          .get<{ code: number; message: string; data: string[] }>(`/datasource/${dsId}/tables`)
-          .then(r => r.data.data),
+        getDatasourceTables(dsId),
         sysRoleApi.getPermissions(permRoleId.value!),
         sysRoleApi.getColumnPermissions(permRoleId.value!, dsId),
       ]);
@@ -214,7 +214,7 @@
 </script>
 
 <template>
-  <div class="role-manage-page">
+  <div>
     <div class="page-header">
       <h2 class="page-title">角色管理</h2>
     </div>
@@ -360,16 +360,3 @@
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-  .role-manage-page {
-    width: 100%;
-  }
-  .table-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-</style>

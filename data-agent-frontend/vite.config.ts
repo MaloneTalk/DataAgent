@@ -17,7 +17,6 @@
 
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import eslint from 'vite-plugin-eslint';
 import { fileURLToPath, URL } from 'node:url';
 
 /**
@@ -27,7 +26,7 @@ import { fileURLToPath, URL } from 'node:url';
  */
 export default defineConfig({
   // Enable Vue 3 support
-  plugins: [vue(), eslint()],
+  plugins: [vue()],
   // Path alias configuration: '@' -> 'src' directory
   // Allows importing like: import xxx from '@/components/xxx'
   resolve: {

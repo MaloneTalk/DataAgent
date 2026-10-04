@@ -16,6 +16,8 @@
  -->
 
 <script setup lang="ts">
+  import { computed } from 'vue';
+  import { BulbFilled, BulbOutlined } from '@ant-design/icons-vue';
   import { useRouter } from 'vue-router';
   import { useThemeStore } from '@/stores/theme';
   import { useUserStore } from '@/stores/user';
@@ -23,6 +25,9 @@
   const themeStore = useThemeStore();
   const userStore = useUserStore();
   const router = useRouter();
+  const themeToggleLabel = computed(() =>
+    themeStore.mode === 'light' ? '切换到深色模式' : '切换到浅色模式',
+  );
 
   function onLogout() {
     userStore.logout();
@@ -40,11 +45,13 @@
     <div class="header-right">
       <button
         class="theme-toggle"
-        :title="themeStore.mode === 'light' ? '切换到深色模式' : '切换到浅色模式'"
+        type="button"
+        :title="themeToggleLabel"
+        :aria-label="themeToggleLabel"
         @click="themeStore.toggle()"
       >
-        <span v-if="themeStore.mode === 'light'">🌙</span>
-        <span v-else>☀️</span>
+        <BulbOutlined v-if="themeStore.mode === 'light'" />
+        <BulbFilled v-else />
       </button>
       <span v-if="userStore.userInfo" class="user-name">
         {{ userStore.userInfo.displayName }}
@@ -99,7 +106,8 @@
     border: 1px solid var(--app-border);
     border-radius: 6px;
     background: var(--app-bg-card);
-    font-size: 14px;
+    color: var(--app-text-primary);
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;

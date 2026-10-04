@@ -22,7 +22,7 @@
   import * as sysUserApi from '@/api/sysUser';
   import { listRoles, type RoleResponse } from '@/api/sysRole';
   import type { UserResponse } from '@/api/sysUser';
-  import { formatDateTime } from '@/views/semantic/utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   const loading = ref(false);
   const users = ref<UserResponse[]>([]);
@@ -182,7 +182,7 @@
 </script>
 
 <template>
-  <div class="user-manage-page">
+  <div>
     <div class="page-header">
       <h2 class="page-title">用户管理</h2>
     </div>
@@ -319,23 +319,3 @@
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-  .user-manage-page {
-    width: 100%;
-  }
-
-  .table-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 16px;
-  }
-</style>

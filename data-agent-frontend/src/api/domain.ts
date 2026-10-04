@@ -45,25 +45,27 @@ export interface DomainUpdateRequest {
 }
 
 export function getDomainPage(query: DomainPageQuery) {
-  return request.get<ApiResponse<PageResponse<DomainInfo>>>('/domains', { params: query });
+  return request
+    .get<ApiResponse<PageResponse<DomainInfo>>>('/domains', { params: query })
+    .then(res => res.data.data);
 }
 
 export function getDomainNames() {
-  return request.get<ApiResponse<string[]>>('/domains/names');
+  return request.get<ApiResponse<string[]>>('/domains/names').then(res => res.data.data);
 }
 
 export function getDomainById(id: number) {
-  return request.get<ApiResponse<DomainInfo>>(`/domains/${id}`);
+  return request.get<ApiResponse<DomainInfo>>(`/domains/${id}`).then(res => res.data.data);
 }
 
 export function createDomain(data: DomainCreateRequest) {
-  return request.post<ApiResponse<DomainInfo>>('/domains', data);
+  return request.post<ApiResponse<DomainInfo>>('/domains', data).then(res => res.data.data);
 }
 
 export function updateDomain(id: number, data: DomainUpdateRequest) {
-  return request.put<ApiResponse<DomainInfo>>(`/domains/${id}`, data);
+  return request.put<ApiResponse<DomainInfo>>(`/domains/${id}`, data).then(res => res.data.data);
 }
 
 export function deleteDomain(id: number) {
-  return request.delete<ApiResponse<boolean>>(`/domains/${id}`);
+  return request.delete<ApiResponse<boolean>>(`/domains/${id}`).then(res => res.data.data);
 }

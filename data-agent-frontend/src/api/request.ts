@@ -56,19 +56,14 @@ const service: AxiosInstance = axios.create({
   timeout: 30000,
 });
 
-service.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    // 直接读 localStorage 避免与 user store 循环依赖；store 写入时同步写 localStorage。
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  error => {
-    return Promise.reject(error);
-  },
-);
+service.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // 直接读 localStorage 避免与 user store 循环依赖；store 写入时同步写 localStorage。
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 function clearAuthAndRedirectLogin() {
   localStorage.removeItem('token');

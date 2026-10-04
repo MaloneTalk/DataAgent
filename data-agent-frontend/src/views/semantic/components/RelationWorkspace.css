@@ -1,0 +1,318 @@
+/*
+ * Copyright (C) 2026 github.com/MaloneTalk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+.relation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.relation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+}
+
+.relation-canvas-wrap {
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(128, 128, 128, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(128, 128, 128, 0.06) 1px, transparent 1px), var(--app-bg-page);
+  background-size: 24px 24px;
+  overflow: hidden;
+  min-height: 720px;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.relation-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.relation-svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.relation-edge-hit {
+  cursor: pointer;
+}
+
+.edge-label {
+  font-size: 11px;
+  fill: var(--app-text-secondary);
+  font-weight: 500;
+}
+
+[data-theme='light'] .draft-label {
+  fill: #92400e;
+}
+
+[data-theme='dark'] .draft-label {
+  fill: #fbbf24;
+}
+
+[data-theme='light'] .drag-label {
+  fill: #0f172a;
+}
+
+[data-theme='dark'] .drag-label {
+  fill: #e2e8f0;
+}
+
+.relation-node {
+  position: absolute;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-bg-card);
+  box-shadow: var(--app-shadow);
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.relation-node.is-node-dragging {
+  border-color: var(--app-text-secondary);
+  box-shadow: var(--app-shadow-lg);
+  cursor: grabbing;
+}
+
+.relation-node-header h4 {
+  margin: 0 0 2px;
+  color: var(--app-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.relation-node-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.relation-node-header p {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.relation-node-desc {
+  margin: 10px 0;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 32px;
+}
+
+.relation-node-columns {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+}
+
+.relation-column-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--app-bg-page);
+  border: 1px solid transparent;
+  cursor: crosshair;
+  font-size: 12px;
+  transition: background-color 0.15s;
+}
+
+.relation-column-item.is-drag-source {
+  border-color: var(--app-text-secondary);
+  background: var(--app-bg-hover);
+}
+
+.relation-column-item.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.relation-column-item.is-drag-target {
+  border-color: #16a34a;
+  background: #ecfdf5;
+}
+
+[data-theme='dark'] .relation-column-item.is-drag-target {
+  background: #052e16;
+}
+
+.column-name {
+  font-weight: 500;
+}
+
+.column-type {
+  color: var(--app-text-muted);
+  font-size: 11px;
+}
+
+.relation-side-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-bg-card);
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.relation-side-card h4 {
+  margin: 0;
+  color: var(--app-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.relation-list-item {
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--app-bg-page);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+.relation-list-item.is-selected {
+  border-color: var(--app-text-primary);
+  background: var(--app-bg-hover);
+}
+
+.relation-list-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.relation-name {
+  color: var(--app-text-primary);
+}
+
+.relation-columns-line {
+  color: var(--app-text-primary);
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.relation-type-line {
+  color: var(--app-text-muted);
+  margin-bottom: 6px;
+}
+
+.relation-description {
+  color: var(--app-text-secondary);
+  margin-bottom: 6px;
+}
+
+.relation-invalid,
+.error-tip {
+  color: var(--app-accent);
+}
+
+.relation-list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.relation-action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.canvas-empty {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.canvas-controls {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--app-bg-card);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 4px 6px;
+  box-shadow: var(--app-shadow);
+  z-index: 10;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.canvas-ctrl-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--app-text-primary);
+  cursor: pointer;
+}
+
+.canvas-ctrl-btn:hover {
+  background: var(--app-bg-hover);
+}
+
+.canvas-ctrl-label {
+  min-width: 36px;
+  text-align: center;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 1280px) {
+  .relation-layout {
+    grid-template-columns: 1fr;
+  }
+}

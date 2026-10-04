@@ -40,19 +40,17 @@
   const previewVisible = ref(false);
   const previewTitle = ref('');
   const previewContent = ref('');
-  const previewDialogRef = ref<InstanceType<typeof ReportPreviewDialog>>();
 
   async function fetchReports() {
     loading.value = true;
     try {
-      const res = await getReports({
+      const pageData = await getReports({
         sessionId: props.fixedSessionId || sessionId.value.trim() || undefined,
         keyword: keyword.value.trim() || undefined,
         page: page.value,
         pageSize: pageSize.value,
         sortOrder: sortOrder.value,
       });
-      const pageData = res.data.data;
       reports.value = pageData.items;
       total.value = pageData.total;
     } catch {
@@ -122,7 +120,7 @@
 </script>
 
 <template>
-  <div class="report-list">
+  <div>
     <div v-if="!embedded" class="page-header">
       <h2 class="page-title">报告管理</h2>
     </div>
@@ -185,7 +183,6 @@
     </div>
 
     <ReportPreviewDialog
-      ref="previewDialogRef"
       v-model:visible="previewVisible"
       :title="previewTitle"
       :content="previewContent"

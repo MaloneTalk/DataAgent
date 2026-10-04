@@ -37,9 +37,11 @@ export interface ReportPageQuery {
 }
 
 export function getReports(query: ReportPageQuery) {
-  return request.get<ApiResponse<PageResponse<ReportResponse>>>('/reports', { params: query });
+  return request
+    .get<ApiResponse<PageResponse<ReportResponse>>>('/reports', { params: query })
+    .then(res => res.data.data);
 }
 
 export function deleteReport(id: number) {
-  return request.delete<ApiResponse<boolean>>(`/reports/${id}`);
+  return request.delete<ApiResponse<boolean>>(`/reports/${id}`).then(res => res.data.data);
 }

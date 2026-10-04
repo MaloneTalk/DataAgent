@@ -177,106 +177,116 @@ export interface UpdateLogicalTableRelationEnabledRequest {
 }
 
 export async function getActiveDatasourceId() {
-  const response = await getDatasourceList();
-  return response.data.data.find(datasource => datasource.status === 'ACTIVE')?.id ?? null;
+  const datasources = await getDatasourceList();
+  return datasources.find(datasource => datasource.status === 'ACTIVE')?.id ?? null;
 }
 
 export function getTableSemanticPage(query: TableSemanticPageQuery) {
-  return request.get<ApiResponse<PageResponse<TableSemanticInfo>>>('/semantic/tables', {
-    params: query,
-  });
+  return request
+    .get<ApiResponse<PageResponse<TableSemanticInfo>>>('/semantic/tables', {
+      params: query,
+    })
+    .then(res => res.data.data);
 }
 
 export function getPhysicalTableCandidatePage(query: TableSemanticPageQuery) {
-  return request.get<ApiResponse<PageResponse<PhysicalTableCandidateResponse>>>(
-    '/semantic/tables/sync/candidates',
-    {
-      params: query,
-    },
-  );
+  return request
+    .get<
+      ApiResponse<PageResponse<PhysicalTableCandidateResponse>>
+    >('/semantic/tables/sync/candidates', { params: query })
+    .then(res => res.data.data);
 }
 
 export function updateTableSemantic(data: TableSemanticUpdateRequest) {
-  return request.put<ApiResponse<boolean>>('/semantic/tables', data);
+  return request.put<ApiResponse<boolean>>('/semantic/tables', data).then(res => res.data.data);
 }
 
 export function resetTableSemantic(datasourceId: number, tableName: string) {
-  return request.delete<ApiResponse<boolean>>('/semantic/tables', {
-    params: { datasourceId, tableName },
-  });
+  return request
+    .delete<ApiResponse<boolean>>('/semantic/tables', {
+      params: { datasourceId, tableName },
+    })
+    .then(res => res.data.data);
 }
 
 export function syncTableSemantics(datasourceId: number, tableNames: string[]) {
-  return request.post<ApiResponse<SyncTableSemanticsResponse>>('/semantic/tables/sync', {
-    datasourceId,
-    tableNames,
-  });
+  return request
+    .post<ApiResponse<SyncTableSemanticsResponse>>('/semantic/tables/sync', {
+      datasourceId,
+      tableNames,
+    })
+    .then(res => res.data.data);
 }
 
 export function refreshPhysicalStatus(datasourceId: number) {
-  return request.post<ApiResponse<SyncTableSemanticsResponse>>(
-    '/semantic/tables/sync/physical-status',
-    { datasourceId },
-  );
+  return request
+    .post<ApiResponse<SyncTableSemanticsResponse>>('/semantic/tables/sync/physical-status', {
+      datasourceId,
+    })
+    .then(res => res.data.data);
 }
 
 export function getRelationWorkspace(query: TableSemanticPageQuery) {
-  return request.get<ApiResponse<RelationWorkspaceResponse>>(
-    '/semantic/tables/relations/workspace',
-    { params: query },
-  );
+  return request
+    .get<ApiResponse<RelationWorkspaceResponse>>('/semantic/tables/relations/workspace', {
+      params: query,
+    })
+    .then(res => res.data.data);
 }
 
 export function getColumnSemanticPage(tableName: string, query: ColumnSemanticPageQuery) {
-  return request.get<ApiResponse<PageResponse<ColumnSemanticInfo>>>(
-    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
-    { params: query },
-  );
+  return request
+    .get<
+      ApiResponse<PageResponse<ColumnSemanticInfo>>
+    >(`/semantic/tables/columns/${encodeURIComponent(tableName)}`, { params: query })
+    .then(res => res.data.data);
 }
 
 export function updateColumnSemantic(tableName: string, data: ColumnSemanticUpdateRequest) {
-  return request.put<ApiResponse<boolean>>(
-    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
-    data,
-  );
+  return request
+    .put<ApiResponse<boolean>>(`/semantic/tables/columns/${encodeURIComponent(tableName)}`, data)
+    .then(res => res.data.data);
 }
 
 export function resetColumnSemantic(datasourceId: number, tableName: string, columnName: string) {
-  return request.delete<ApiResponse<boolean>>(
-    `/semantic/tables/columns/${encodeURIComponent(tableName)}`,
-    { params: { datasourceId, columnName } },
-  );
+  return request
+    .delete<ApiResponse<boolean>>(`/semantic/tables/columns/${encodeURIComponent(tableName)}`, {
+      params: { datasourceId, columnName },
+    })
+    .then(res => res.data.data);
 }
 
 export function createLogicalRelation(tableName: string, data: BindLogicalTableRelationRequest) {
-  return request.post<ApiResponse<LogicalTableRelationResponse>>(
-    `/semantic/tables/relations/${encodeURIComponent(tableName)}`,
-    data,
-  );
+  return request
+    .post<
+      ApiResponse<LogicalTableRelationResponse>
+    >(`/semantic/tables/relations/${encodeURIComponent(tableName)}`, data)
+    .then(res => res.data.data);
 }
 
 export function updateLogicalRelation(tableName: string, data: UpdateLogicalTableRelationRequest) {
-  return request.put<ApiResponse<LogicalTableRelationResponse>>(
-    `/semantic/tables/relations/${encodeURIComponent(tableName)}`,
-    data,
-  );
+  return request
+    .put<
+      ApiResponse<LogicalTableRelationResponse>
+    >(`/semantic/tables/relations/${encodeURIComponent(tableName)}`, data)
+    .then(res => res.data.data);
 }
 
 export function updateLogicalRelationEnabled(
   tableName: string,
   data: UpdateLogicalTableRelationEnabledRequest,
 ) {
-  return request.put<ApiResponse<boolean>>(
-    `/semantic/tables/relations/${encodeURIComponent(tableName)}/enabled`,
-    data,
-  );
+  return request
+    .put<
+      ApiResponse<boolean>
+    >(`/semantic/tables/relations/${encodeURIComponent(tableName)}/enabled`, data)
+    .then(res => res.data.data);
 }
 
 export function deleteLogicalRelation(datasourceId: number, tableName: string, relationId: number) {
-  return request.delete<ApiResponse<boolean>>(
-    `/semantic/tables/relations/${encodeURIComponent(tableName)}/${relationId}`,
-    {
-      params: { datasourceId },
-    },
-  );
+  return request
+    .delete<
+      ApiResponse<boolean>
+    >(`/semantic/tables/relations/${encodeURIComponent(tableName)}/${relationId}`, { params: { datasourceId } })
+    .then(res => res.data.data);
 }

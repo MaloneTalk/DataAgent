@@ -27,7 +27,7 @@
     type ColumnSemanticInfo,
     type ColumnSemanticType,
   } from '@/api/semantic';
-  import { formatDateTime } from '../utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   interface ColumnEditForm {
     tableName: string;
@@ -50,8 +50,6 @@
 
   const props = defineProps<{
     datasourceId: number | null;
-    keyword: string;
-    sortOrder: 'asc' | 'desc';
   }>();
 
   const loading = ref(false);
@@ -95,14 +93,12 @@
         page.total = 0;
         return;
       }
-      const response = await getColumnSemanticPage(selectedTableName.value, {
+      const pageData = await getColumnSemanticPage(selectedTableName.value, {
         datasourceId: props.datasourceId,
         page: page.page,
         pageSize: page.pageSize,
-        keyword: props.keyword.trim() || undefined,
-        sortOrder: props.sortOrder,
+        sortOrder: 'asc',
       });
-      const pageData = response.data.data;
       rows.value = pageData.items;
       page.total = pageData.total;
     } catch (err) {
@@ -185,7 +181,6 @@
   };
 
   defineExpose({
-    loadPage,
     handleTableChange,
   });
 </script>
@@ -342,11 +337,7 @@
 
 <style scoped>
   .section-header {
-    display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
   }
 
   .section-header h3 {
@@ -361,8 +352,6 @@
   }
 
   .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20px;
   }
 </style>

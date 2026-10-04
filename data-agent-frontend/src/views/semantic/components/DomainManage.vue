@@ -28,7 +28,7 @@
     deleteDomain,
     type DomainInfo,
   } from '@/api/domain';
-  import { formatDateTime } from '../utils';
+  import { formatDateTime } from '@/utils/dateTime';
 
   interface DomainEditForm {
     name: string;
@@ -67,11 +67,10 @@
     domainLoading.value = true;
     domainError.value = '';
     try {
-      const response = await getDomainPage({
+      const pageData = await getDomainPage({
         page: domainPage.page,
         pageSize: domainPage.pageSize,
       });
-      const pageData = response.data.data;
       domainRows.value = pageData.items;
       domainPage.total = pageData.total;
     } catch (error) {
@@ -164,10 +163,6 @@
     }
   };
 
-  defineExpose({
-    loadDomainPage,
-  });
-
   onMounted(() => {
     void loadDomainPage();
   });
@@ -218,7 +213,7 @@
       </el-table-column>
     </el-table>
 
-    <div v-if="domainError" class="error-tip">领域加载失败：{{ domainError }}</div>
+    <div v-if="domainError" class="semantic-error-tip">领域加载失败：{{ domainError }}</div>
 
     <div class="pagination-wrap">
       <el-pagination
@@ -262,32 +257,7 @@
 </template>
 
 <style scoped>
-  .section-header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .section-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .semantic-table {
-    width: 100%;
-  }
-
   .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20px;
-  }
-
-  .error-tip {
-    margin-top: 14px;
-    color: var(--app-accent);
   }
 </style>

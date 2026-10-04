@@ -16,16 +16,7 @@
  */
 
 import { ref } from 'vue';
-import {
-  getDatasourceList,
-  createDatasource,
-  updateDatasource,
-  deleteDatasource,
-  activateDatasource,
-  deactivateDatasource,
-  type DatasourceRequest,
-  type DatasourceResponse,
-} from '@/api/datasource';
+import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
 
 export function useDatasource() {
   const list = ref<DatasourceResponse[]>([]);
@@ -36,8 +27,7 @@ export function useDatasource() {
     loading.value = true;
     error.value = null;
     try {
-      const res = await getDatasourceList();
-      list.value = res.data.data;
+      list.value = await getDatasourceList();
     } catch (e) {
       error.value = e as Error;
     } finally {
@@ -45,40 +35,10 @@ export function useDatasource() {
     }
   };
 
-  const addDatasource = async (data: DatasourceRequest) => {
-    await createDatasource(data);
-    await fetchList();
-  };
-
-  const editDatasource = async (data: DatasourceRequest) => {
-    await updateDatasource(data);
-    await fetchList();
-  };
-
-  const removeDatasource = async (id: number) => {
-    await deleteDatasource(id);
-    await fetchList();
-  };
-
-  const activate = async (id: number) => {
-    await activateDatasource(id);
-    await fetchList();
-  };
-
-  const deactivate = async (id: number) => {
-    await deactivateDatasource(id);
-    await fetchList();
-  };
-
   return {
     list,
     loading,
     error,
     fetchList,
-    addDatasource,
-    editDatasource,
-    removeDatasource,
-    activate,
-    deactivate,
   };
 }

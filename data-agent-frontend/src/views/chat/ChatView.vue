@@ -47,7 +47,6 @@
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
   const showSessionList = ref(false);
   const reportDialogVisible = ref(false);
-  const reportListKey = ref(0);
   const previewVisible = ref(false);
   const previewContent = ref('');
   const datasources = ref<DatasourceResponse[]>([]);
@@ -83,8 +82,7 @@
 
   async function loadDatasources() {
     try {
-      const res = await getDatasourceList();
-      datasources.value = res.data.data ?? [];
+      datasources.value = (await getDatasourceList()) ?? [];
     } catch {
       datasources.value = [];
     }
@@ -208,15 +206,7 @@
               :value="datasourceId"
             />
           </el-select>
-          <el-button
-            text
-            @click="
-              reportDialogVisible = true;
-              reportListKey++;
-            "
-          >
-            会话报告
-          </el-button>
+          <el-button text @click="reportDialogVisible = true">会话报告</el-button>
           <el-button text @click="handleNewSession">新建会话</el-button>
         </div>
       </div>
@@ -274,7 +264,7 @@
         top="30px"
         destroy-on-close
       >
-        <ReportList :key="reportListKey" :fixed-session-id="sessionId" embedded />
+        <ReportList :fixed-session-id="sessionId" embedded />
       </el-dialog>
     </div>
   </div>
