@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.relation;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
@@ -72,24 +72,23 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-        PageHelper.startPage(pageNumber, pageSize);
-        Page<LogicalTableRelation> page =
-                (Page<LogicalTableRelation>)
-                        logicalTableRelationMapper.selectPageByDatasourceIdAndSourceTable(
-                                new RelationSemanticPageQuery(
-                                        query.datasourceId(),
-                                        normalizedTableName,
-                                        pageNumber,
-                                        pageSize,
-                                        SemanticUtils.trimToNull(query.keyword()),
-                                        query.enabled(),
-                                        query.sortOrder()),
-                                sortDescending);
+        IPage<LogicalTableRelation> page =
+                logicalTableRelationMapper.selectPageByDatasourceIdAndSourceTable(
+                        new Page<>(pageNumber, pageSize),
+                        new RelationSemanticPageQuery(
+                                query.datasourceId(),
+                                normalizedTableName,
+                                pageNumber,
+                                pageSize,
+                                SemanticUtils.trimToNull(query.keyword()),
+                                query.enabled(),
+                                query.sortOrder()),
+                        sortDescending);
         if (page.getTotal() == 0L) {
             return PageResponse.empty(pageNumber, pageSize);
         }
         List<LogicalTableRelationResponse> items =
-                page.stream().map(semanticConverter::toResponse).toList();
+                page.getRecords().stream().map(semanticConverter::toResponse).toList();
         return PageResponse.of(items, page.getTotal(), pageNumber, pageSize);
     }
 
@@ -100,24 +99,23 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
 
-        PageHelper.startPage(pageNumber, pageSize);
-        Page<TableInfo> page =
-                (Page<TableInfo>)
-                        tableInfoMapper.selectPageByDatasourceId(
-                                new TableSemanticPageQuery(
-                                        query.datasourceId(),
-                                        pageNumber,
-                                        pageSize,
-                                        SemanticUtils.trimToNull(query.keyword()),
-                                        query.sortOrder()),
-                                sortDescending);
-        if (page.isEmpty()) {
+        IPage<TableInfo> page =
+                tableInfoMapper.selectPageByDatasourceId(
+                        new Page<>(pageNumber, pageSize),
+                        new TableSemanticPageQuery(
+                                query.datasourceId(),
+                                pageNumber,
+                                pageSize,
+                                SemanticUtils.trimToNull(query.keyword()),
+                                query.sortOrder()),
+                        sortDescending);
+        if (page.getRecords().isEmpty()) {
             return new RelationWorkspaceResponse(
-                    PageResponse.empty(pageNumber, pageSize), List.of());
+                    PageResponse.of(List.of(), page.getTotal(), pageNumber, pageSize), List.of());
         }
 
         Set<Integer> currentPageTableIds =
-                page.stream().map(TableInfo::getId).collect(Collectors.toSet());
+                page.getRecords().stream().map(TableInfo::getId).collect(Collectors.toSet());
         // 列记录已持有 table_id，按主键分组可直接关联当前页的表。
         Map<Integer, List<ColumnInfo>> columnsByTableId =
                 columnSemanticInfoMapper
@@ -125,7 +123,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .stream()
                         .collect(Collectors.groupingBy(ColumnInfo::getTableId));
         List<RelationWorkspaceTableResponse> nodes =
-                page.stream()
+                page.getRecords().stream()
                         .map(
                                 table ->
                                         semanticConverter.toWorkspaceTable(

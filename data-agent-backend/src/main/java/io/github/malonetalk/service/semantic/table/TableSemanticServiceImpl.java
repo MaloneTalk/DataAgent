@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.table;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
@@ -61,21 +61,19 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             return PageResponse.empty(pageNumber, pageSize);
         }
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-        PageHelper.startPage(pageNumber, pageSize);
-        Page<TableInfo> page =
-                (Page<TableInfo>)
-                        tableInfoMapper.selectPageByDatasourceId(
-                                new TableSemanticPageQuery(
-                                        query.datasourceId(),
-                                        pageNumber,
-                                        pageSize,
-                                        SemanticUtils.trimToNull(query.keyword()),
-                                        query.sortOrder()),
-                                sortDescending);
+        IPage<TableInfo> page =
+                tableInfoMapper.selectPageByDatasourceId(
+                        new Page<>(pageNumber, pageSize),
+                        new TableSemanticPageQuery(
+                                query.datasourceId(),
+                                pageNumber,
+                                pageSize,
+                                SemanticUtils.trimToNull(query.keyword()),
+                                query.sortOrder()),
+                        sortDescending);
         List<TableSemanticResponse> responses =
-                page.stream().map(semanticConverter::toResponse).toList();
-        long total = page.getTotal();
-        return PageResponse.of(responses, total, pageNumber, pageSize);
+                page.getRecords().stream().map(semanticConverter::toResponse).toList();
+        return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override

@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service.semantic;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.common.SemanticConstants;
 import io.github.malonetalk.dto.DomainCreateRequest;
 import io.github.malonetalk.dto.DomainPageQuery;
@@ -49,20 +49,16 @@ public class DomainServiceImpl implements DomainService {
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-        PageHelper.startPage(pageNumber, pageSize);
-        @SuppressWarnings("unchecked")
-        Page<DomainInfo> page =
-                (Page<DomainInfo>)
-                        domainInfoMapper.selectPage(
-                                new DomainPageQuery(
-                                        pageNumber,
-                                        pageSize,
-                                        SemanticUtils.trimToNull(query.keyword()),
-                                        query.sortOrder()),
-                                sortDescending);
-        List<DomainInfo> items = page.getResult();
-        long total = page.getTotal();
-        return PageResponse.of(items, total, pageNumber, pageSize);
+        IPage<DomainInfo> page =
+                domainInfoMapper.selectPage(
+                        new Page<>(pageNumber, pageSize),
+                        new DomainPageQuery(
+                                pageNumber,
+                                pageSize,
+                                SemanticUtils.trimToNull(query.keyword()),
+                                query.sortOrder()),
+                        sortDescending);
+        return PageResponse.of(page.getRecords(), page.getTotal(), pageNumber, pageSize);
     }
 
     @Override

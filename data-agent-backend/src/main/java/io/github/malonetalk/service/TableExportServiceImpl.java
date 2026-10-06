@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.agent.SessionService;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
@@ -100,16 +100,11 @@ public class TableExportServiceImpl implements TableExportService {
         }
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        Page<Object> startedPage = PageHelper.startPage(pageNumber, pageSize);
-        try {
-            Page<TableExport> page =
-                    (Page<TableExport>) tableExportMapper.selectPage(sessionId, userId);
-            List<TableExportResponse> responses =
-                    page.getResult().stream().map(this::toResponse).toList();
-            return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
-        } finally {
-            startedPage.close();
-        }
+        IPage<TableExport> page =
+                tableExportMapper.selectPage(new Page<>(pageNumber, pageSize), sessionId, userId);
+        List<TableExportResponse> responses =
+                page.getRecords().stream().map(this::toResponse).toList();
+        return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override
