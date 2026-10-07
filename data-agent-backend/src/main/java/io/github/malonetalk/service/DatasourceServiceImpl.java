@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.service;
 
+import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.SessionDatasource;
 import io.github.malonetalk.enums.Status;
@@ -38,6 +39,7 @@ public class DatasourceServiceImpl implements DatasourceService {
 
     private final DatasourceMapper dataSourceMapper;
     private final SessionDatasourceMapper sessionDatasourceMapper;
+    private final DynamicDataSourceManager dynamicDataSourceManager;
 
     @Override
     public List<Datasource> findAll() {
@@ -59,12 +61,20 @@ public class DatasourceServiceImpl implements DatasourceService {
     @Override
     public boolean update(Datasource dataSource) {
         dataSource.setUpdateTime(LocalDateTime.now());
-        return dataSourceMapper.update(dataSource) > 0;
+        boolean updated = dataSourceMapper.update(dataSource) > 0;
+        if (updated) {
+            dynamicDataSourceManager.removeDataSource(dataSource.getId());
+        }
+        return updated;
     }
 
     @Override
     public boolean deleteById(Integer id) {
-        return dataSourceMapper.deleteById(id) > 0;
+        boolean deleted = dataSourceMapper.deleteById(id) > 0;
+        if (deleted) {
+            dynamicDataSourceManager.removeDataSource(id);
+        }
+        return deleted;
     }
 
     @Override
