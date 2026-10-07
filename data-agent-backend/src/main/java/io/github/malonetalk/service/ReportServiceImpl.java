@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.convertor.ReportConverter;
 import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.dto.ReportResponse;
@@ -64,20 +64,18 @@ public class ReportServiceImpl implements ReportService {
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-        Page<Object> startedPage = PageHelper.startPage(pageNumber, pageSize);
-        Page<Report> page =
-                (Page<Report>)
-                        reportMapper.selectPage(
-                                new ReportPageQuery(
-                                        SemanticUtils.trimToNull(query.sessionId()),
-                                        pageNumber,
-                                        pageSize,
-                                        SemanticUtils.trimToNull(query.keyword()),
-                                        query.sortOrder()),
-                                sortDescending);
+        IPage<Report> page =
+                reportMapper.selectPage(
+                        new Page<>(pageNumber, pageSize),
+                        new ReportPageQuery(
+                                SemanticUtils.trimToNull(query.sessionId()),
+                                pageNumber,
+                                pageSize,
+                                SemanticUtils.trimToNull(query.keyword()),
+                                query.sortOrder()),
+                        sortDescending);
         List<ReportResponse> responses =
-                page.getResult().stream().map(reportConverter::toResponse).toList();
-        startedPage.close();
+                page.getRecords().stream().map(reportConverter::toResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 

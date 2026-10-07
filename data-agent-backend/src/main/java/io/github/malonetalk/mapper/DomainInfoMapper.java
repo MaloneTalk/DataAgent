@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.dto.DomainPageQuery;
 import io.github.malonetalk.entity.DomainInfo;
 import java.util.List;
@@ -34,8 +35,10 @@ public interface DomainInfoMapper {
 
     List<DomainInfo> selectAll();
 
-    List<DomainInfo> selectPage(
-            @Param("query") DomainPageQuery query, @Param("sortDescending") boolean sortDescending);
+    IPage<DomainInfo> selectPage(
+            IPage<DomainInfo> page,
+            @Param("query") DomainPageQuery query,
+            @Param("sortDescending") boolean sortDescending);
 
     DomainInfo selectById(@Param("id") Integer id);
 

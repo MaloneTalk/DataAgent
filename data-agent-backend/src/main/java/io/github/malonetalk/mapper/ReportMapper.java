@@ -17,9 +17,9 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.entity.Report;
-import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -28,8 +28,10 @@ public interface ReportMapper {
 
     int insert(Report report);
 
-    List<Report> selectPage(
-            @Param("query") ReportPageQuery query, @Param("sortDescending") boolean sortDescending);
+    IPage<Report> selectPage(
+            IPage<Report> page,
+            @Param("query") ReportPageQuery query,
+            @Param("sortDescending") boolean sortDescending);
 
     int deleteById(@Param("id") Integer id);
 

@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import java.time.LocalDateTime;
@@ -36,7 +37,8 @@ public interface LogicalTableRelationMapper {
             @Param("datasourceId") Integer datasourceId,
             @Param("sourceTableIds") Set<Integer> sourceTableIds);
 
-    List<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
+    IPage<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
+            IPage<LogicalTableRelation> page,
             @Param("query") RelationSemanticPageQuery query,
             @Param("sortDescending") boolean sortDescending);
 
