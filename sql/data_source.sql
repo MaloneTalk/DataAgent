@@ -138,6 +138,16 @@ CREATE TABLE IF NOT EXISTS `session_datasource` (
     KEY `idx_datasource_id` (`datasource_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话与数据源绑定表';
 
+CREATE TABLE IF NOT EXISTS `answer_provenance` (
+    `answer_id` VARCHAR(255) NOT NULL COMMENT '初始用户消息ID',
+    `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `provenance_json` LONGTEXT NOT NULL COMMENT '本次回答的数据来源快照',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`answer_id`),
+    KEY `idx_answer_provenance_session` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='回答数据来源';
+
 CREATE TABLE IF NOT EXISTS `metric_info` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `datasource_id` INT NOT NULL COMMENT '关联数据源ID',

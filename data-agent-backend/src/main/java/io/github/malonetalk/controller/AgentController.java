@@ -20,6 +20,7 @@ package io.github.malonetalk.controller;
 import io.agentscope.core.message.Msg;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
+import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ChatRequest;
@@ -27,8 +28,10 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -51,6 +54,7 @@ public class AgentController {
     private final AgentService agentService;
     private final SessionService sessionService;
     private final UserContextHolder userContextHolder;
+    private final AnswerProvenanceService answerProvenanceService;
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
@@ -85,6 +89,20 @@ public class AgentController {
         Integer userId = userContextHolder.requireScopedUserId();
         List<TurnItem> history = sessionService.getSessionHistory(sessionId, userId);
         return Result.success(history);
+    }
+
+    @GetMapping("/session/{sessionId}/answers/{answerId}/provenance")
+    public Result<AnswerProvenanceVo> getAnswerProvenance(
+            @PathVariable String sessionId, @PathVariable String answerId) {
+        sessionService.requireOwnership(userContextHolder.requireScopedUserId(), sessionId);
+        return Result.success(answerProvenanceService.find(sessionId, answerId));
+    }
+
+    @GetMapping("/session/{sessionId}/provenance")
+    public Result<Map<String, AnswerProvenanceVo>> listAnswerProvenance(
+            @PathVariable String sessionId) {
+        sessionService.requireOwnership(userContextHolder.requireScopedUserId(), sessionId);
+        return Result.success(answerProvenanceService.listBySession(sessionId));
     }
 
     @DeleteMapping("/session/{sessionId}")

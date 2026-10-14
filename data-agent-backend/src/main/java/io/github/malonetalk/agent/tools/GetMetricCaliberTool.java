@@ -17,11 +17,15 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.MetricService;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -46,7 +50,7 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                     You may pass the user's question verbatim: the matcher scans the question for \
                     known metric names and aliases, so there is no need to distill it to a keyword.\
                     """)
-    public String getMetricCaliber(
+    public ToolResultBlock getMetricCaliber(
             @ToolParam(
                             name = "hint",
                             description =
@@ -56,10 +60,22 @@ public class GetMetricCaliberTool implements MarkAgentTool {
             ToolCallContext ctx) {
         try {
             Integer dsId = datasourceService.getDatasourceForSession(ctx.sessionId()).getId();
-            return metricService.getCaliberByHint(dsId, hint);
+            MetricService.MetricLookup lookup = metricService.lookupCaliber(dsId, hint);
+            return ToolResultBlock.of(
+                    TextBlock.builder().text(lookup.text()).build(),
+                    Map.of(
+                            "metrics",
+                            lookup.candidates().isEmpty()
+                                    ? java.util.List.of()
+                                    : java.util.List.of(
+                                            new MetricUse(
+                                                    lookup.candidates().get(0).getMetricKey(),
+                                                    lookup.candidates().get(0).getName(),
+                                                    lookup.candidates().get(0).getMeasureExpr(),
+                                                    lookup.candidates().get(0).getFilters()))));
         } catch (Exception e) {
             log.error("Failed to get metric caliber: " + hint, e);
-            return "Failed to get metric caliber: " + e.getMessage();
+            return ToolResultBlock.text("Failed to get metric caliber: " + e.getMessage());
         }
     }
 }

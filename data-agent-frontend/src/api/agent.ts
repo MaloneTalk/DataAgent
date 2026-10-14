@@ -37,6 +37,50 @@ export interface ToolResultInfo {
   id: string;
   name: string;
   output: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AnswerProvenance {
+  answerId: string;
+  status: string;
+  traceIds: string[];
+  datasources: { id: number; name: string | null; databaseName: string | null }[];
+  sqlExecutions: {
+    callId: string;
+    sql: string;
+    executedSql: string | null;
+    status: string;
+    returnedRows: number | null;
+    truncated: boolean | null;
+  }[];
+  metricReferences: {
+    key: string;
+    name: string;
+    measureExpr: string | null;
+    filters: string | null;
+  }[];
+  pythonExecutions: {
+    callId: string;
+    code: string;
+    output: string | null;
+    status: string;
+    sourceSqlCallIds: string[];
+  }[];
+  tables: {
+    name: string;
+    domain: string | null;
+    description: string | null;
+    columns: { name: string; description: string | null }[];
+  }[];
+  relations: {
+    sourceTable: string;
+    sourceColumn: string;
+    targetTable: string;
+    targetColumn: string;
+    relationType: string | null;
+    description: string | null;
+  }[];
+  warnings: string[];
 }
 
 export interface ToolResultInput {
@@ -53,6 +97,7 @@ export interface ChatStreamEvent {
   toolCall: ToolCallInfo | null;
   toolResult: ToolResultInfo | null;
   errorCode: string | null;
+  answerId: string | null;
 }
 
 export interface SessionInfo {
@@ -74,6 +119,7 @@ export interface ChatRequest {
 export interface TurnItem {
   role: string;
   content: string;
+  answerId: string | null;
   traceSteps: ChatStreamEvent[];
 }
 
@@ -139,6 +185,25 @@ export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]
   return fetchJson<TurnItem[]>(
     `/api/agent/session/${encodeURIComponent(sessionId)}/history`,
     'Failed to fetch session history',
+  );
+}
+
+export async function fetchAnswerProvenance(
+  sessionId: string,
+  answerId: string,
+): Promise<AnswerProvenance | null> {
+  return fetchJson<AnswerProvenance | null>(
+    `/api/agent/session/${encodeURIComponent(sessionId)}/answers/${encodeURIComponent(answerId)}/provenance`,
+    'Failed to fetch answer provenance',
+  );
+}
+
+export async function fetchSessionProvenance(
+  sessionId: string,
+): Promise<Record<string, AnswerProvenance>> {
+  return fetchJson<Record<string, AnswerProvenance>>(
+    `/api/agent/session/${encodeURIComponent(sessionId)}/provenance`,
+    'Failed to fetch session provenance',
   );
 }
 

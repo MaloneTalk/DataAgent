@@ -22,6 +22,7 @@
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
   import ChatFileDownload from './ChatFileDownload.vue';
   import TracePanel from './TracePanel.vue';
+  import ProvenancePanel from './ProvenancePanel.vue';
 
   const props = defineProps<{
     message: ChatMessageType;
@@ -102,6 +103,10 @@
         v-if="message.role === 'agent'"
         :message="message"
         @preview-report="c => emit('previewReport', c)"
+      />
+      <ProvenancePanel
+        v-if="message.role === 'agent' && message.provenance"
+        :provenance="message.provenance"
       />
       <div v-if="textContent.text" class="chat-message__content" v-html="renderedText"></div>
       <div v-if="textContent.fileIds.length > 0" class="chat-message__downloads">

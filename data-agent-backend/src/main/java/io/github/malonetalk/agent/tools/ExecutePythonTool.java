@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import java.io.IOException;
@@ -24,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +53,7 @@ public class ExecutePythonTool implements MarkAgentTool {
                     Only use this when statistical computation \
                     (correlation, regression, distribution tests, etc.) cannot be done in SQL.\
                     """)
-    public String executePython(
+    public ToolResultBlock executePython(
             @ToolParam(
                             name = "code",
                             description =
@@ -57,21 +61,37 @@ public class ExecutePythonTool implements MarkAgentTool {
                                     Python code to execute for data analysis. \
                                     Must be self-contained and include any data inline.\
                                     """)
-                    String code) {
+                    String code,
+            @ToolParam(
+                            name = "source_sql_call_ids",
+                            description =
+                                    "Optional IDs of successful execute_sql calls whose results"
+                                            + " were used.",
+                            required = false)
+                    List<String> sourceSqlCallIds) {
 
         if (!semaphore.tryAcquire()) {
-            return String.format(
-                    "Error: too many concurrent Python executions (max %d), try again later.",
-                    MAX_CONCURRENT);
+            return result("Error: too many concurrent Python executions.", false, sourceSqlCallIds);
         }
         try {
-            return doExecute(code);
+            PythonRun run = doExecute(code);
+            return result(run.output(), run.success(), sourceSqlCallIds);
         } finally {
             semaphore.release();
         }
     }
 
-    private String doExecute(String code) {
+    private ToolResultBlock result(String output, boolean success, List<String> sourceSqlCallIds) {
+        return ToolResultBlock.of(
+                TextBlock.builder().text(output).build(),
+                Map.of(
+                        "success",
+                        success,
+                        "sourceSqlCallIds",
+                        sourceSqlCallIds == null ? List.of() : sourceSqlCallIds));
+    }
+
+    private PythonRun doExecute(String code) {
         Path tmpDir = null;
         try {
             tmpDir = Files.createTempDirectory("pyexec-");
@@ -88,22 +108,23 @@ public class ExecutePythonTool implements MarkAgentTool {
             if (!finished) {
                 process.destroyForcibly();
                 process.waitFor(5, TimeUnit.SECONDS);
-                return "Error: execution timed out after " + TIMEOUT_SECONDS + " seconds.";
+                return new PythonRun(
+                        "Error: execution timed out after " + TIMEOUT_SECONDS + " seconds.", false);
             }
 
             String output =
                     new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
             if (process.exitValue() != 0) {
-                return "Error (exit " + process.exitValue() + "):\n" + output;
+                return new PythonRun("Error (exit " + process.exitValue() + "):\n" + output, false);
             }
-            return output;
+            return new PythonRun(output, true);
         } catch (IOException e) {
             log.error("Python execution I/O error", e);
-            return "Error: " + e.getMessage();
+            return new PythonRun("Error: " + e.getMessage(), false);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return "Error: execution interrupted.";
+            return new PythonRun("Error: execution interrupted.", false);
         } finally {
             if (tmpDir != null) {
                 try (var walk = Files.walk(tmpDir)) {
@@ -122,4 +143,6 @@ public class ExecutePythonTool implements MarkAgentTool {
             }
         }
     }
+
+    private record PythonRun(String output, boolean success) {}
 }

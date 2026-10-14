@@ -23,7 +23,7 @@ import java.util.Map;
 import lombok.Builder;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Builder
+@Builder(toBuilder = true)
 public record ChatStreamEvent(
         ChatStreamEventType type,
         String messageId,
@@ -31,14 +31,24 @@ public record ChatStreamEvent(
         String content,
         ToolCallInfo toolCall,
         ToolResultInfo toolResult,
-        String errorCode) {
+        String errorCode,
+        String answerId) {
 
     public record ToolCallInfo(String id, String name, Map<String, Object> input) {}
 
-    public record ToolResultInfo(String id, String name, String output, boolean suspended) {
+    public record ToolResultInfo(
+            String id,
+            String name,
+            String output,
+            boolean suspended,
+            Map<String, Object> metadata) {
 
         public ToolResultInfo(String id, String name, String output) {
-            this(id, name, output, false);
+            this(id, name, output, false, Map.of());
+        }
+
+        public ToolResultInfo(String id, String name, String output, boolean suspended) {
+            this(id, name, output, suspended, Map.of());
         }
     }
 }

@@ -17,15 +17,19 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.TableExportService;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +40,7 @@ public class ExportTableTool implements MarkAgentTool {
     private final DatasourceService datasourceService;
     private final TableExportService tableExportService;
     private final ToolExceptionMapper toolExceptionMapper;
+    private final SqlExecutor sqlExecutor;
 
     @Tool(
             name = "export_table",
@@ -56,7 +61,15 @@ public class ExportTableTool implements MarkAgentTool {
                             datasourceService.getDatasourceForSession(ctx.sessionId());
                     TableExportResponse export =
                             tableExportService.create(ctx.sessionId(), datasource, title, sql);
-                    return ToolResultBlock.text(formatResult(export));
+                    Map<String, Object> metadata = new HashMap<>();
+                    metadata.put("datasourceId", datasource.getId());
+                    metadata.put("datasourceName", datasource.getName());
+                    metadata.put("databaseName", datasource.getDatabaseName());
+                    metadata.put("executedSql", sqlExecutor.validateSelectSql(sql));
+                    metadata.put("returnedRows", export.rowCount());
+                    metadata.put("truncated", false);
+                    return ToolResultBlock.of(
+                            TextBlock.builder().text(formatResult(export)).build(), metadata);
                 });
     }
 
