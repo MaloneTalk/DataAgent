@@ -18,12 +18,21 @@
   import type { AnswerProvenance } from '@/api/agent';
 
   defineProps<{ provenance: AnswerProvenance }>();
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Clipboard API may fail in insecure contexts; ignore.
+    }
+  }
 </script>
 
 <template>
   <details class="provenance-panel">
     <summary>
       数据来源 · {{ provenance.sqlExecutions.filter(s => s.status === 'SUCCESS').length }} 次查询
+      · {{ provenance.status === 'COMPLETE' ? '完整记录' : '部分记录' }}
     </summary>
     <div class="provenance-panel__body">
       <p v-if="provenance.traceIds.length" class="provenance-panel__muted">
@@ -66,6 +75,9 @@
             <span class="provenance-panel__muted">· {{ sql.callId }}</span>
             <span v-if="sql.returnedRows !== null">· 返回 {{ sql.returnedRows }} 行</span>
             <span v-if="sql.truncated">· 结果已截断</span>
+            <button type="button" class="provenance-panel__copy" @click="copy(sql.sql)">
+              复制 SQL
+            </button>
           </div>
           <pre>{{ sql.sql }}</pre>
           <div
@@ -73,6 +85,13 @@
             class="provenance-panel__muted"
           >
             实际执行：
+            <button
+              type="button"
+              class="provenance-panel__copy"
+              @click="copy(sql.executedSql || '')"
+            >
+              复制 SQL
+            </button>
             <pre>{{ sql.executedSql }}</pre>
           </div>
         </div>
@@ -96,7 +115,12 @@
           :key="python.callId"
           class="provenance-panel__item"
         >
-          <div>{{ python.status === 'SUCCESS' ? '成功' : '未成功' }}</div>
+          <div>
+            {{ python.status === 'SUCCESS' ? '成功' : '未成功' }}
+            <button type="button" class="provenance-panel__copy" @click="copy(python.code)">
+              复制 Python
+            </button>
+          </div>
           <div v-if="python.sourceSqlCallIds.length" class="provenance-panel__muted">
             声明的输入 SQL：{{ python.sourceSqlCallIds.join('、') }}
           </div>
@@ -168,5 +192,9 @@
   }
   .provenance-panel__warning {
     color: #b45309;
+  }
+  .provenance-panel__copy {
+    margin-left: 8px;
+    cursor: pointer;
   }
 </style>

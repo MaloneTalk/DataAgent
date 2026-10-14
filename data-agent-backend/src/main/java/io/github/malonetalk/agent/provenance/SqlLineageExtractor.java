@@ -78,7 +78,7 @@ public class SqlLineageExtractor {
             names.forEach(name -> usedColumns.put(name, new LinkedHashSet<>()));
             List<JoinUse> joins = new ArrayList<>();
             List<String> warnings = new ArrayList<>();
-            visitSelect(select, usedColumns, columnsByTable, joins, warnings);
+            visitSelect(select, usedColumns, columnsByTable, joins, warnings, Map.of());
             List<TableUse> tables = new ArrayList<>();
             usedColumns.forEach(
                     (name, fields) -> {
@@ -118,22 +118,39 @@ public class SqlLineageExtractor {
             Map<String, Set<String>> used,
             Map<String, Map<String, ColumnInfo>> known,
             List<JoinUse> joins,
-            List<String> warnings) {
+            List<String> warnings,
+            Map<String, String> inheritedAliases) {
         if (select instanceof ParenthesedSelect parenthesed) {
-            visitSelect(parenthesed.getSelect(), used, known, joins, warnings);
+            visitSelect(parenthesed.getSelect(), used, known, joins, warnings, inheritedAliases);
         } else if (select instanceof SetOperationList set) {
-            set.getSelects().forEach(s -> visitSelect(s, used, known, joins, warnings));
+            set.getSelects()
+                    .forEach(
+                            item ->
+                                    visitSelect(
+                                            item, used, known, joins, warnings, inheritedAliases));
         } else if (select instanceof PlainSelect plain) {
             Map<String, String> aliases = new LinkedHashMap<>();
-            addFromItem(plain.getFromItem(), aliases, used, known, joins, warnings);
+            addFromItem(
+                    plain.getFromItem(), aliases, inheritedAliases, used, known, joins, warnings);
             if (plain.getJoins() != null) {
                 for (Join join : plain.getJoins()) {
-                    addFromItem(join.getRightItem(), aliases, used, known, joins, warnings);
+                    addFromItem(
+                            join.getRightItem(),
+                            aliases,
+                            inheritedAliases,
+                            used,
+                            known,
+                            joins,
+                            warnings);
                     int relationCount = joins.size();
                     if (join.getOnExpressions() != null) {
                         for (Expression on : join.getOnExpressions()) {
-                            collect(on, aliases, used, known, warnings);
-                            collectJoin(on, aliases, joins, relationCount);
+                            collect(on, aliases, inheritedAliases, used, known, joins, warnings);
+                            collectJoin(
+                                    on,
+                                    visibleAliases(inheritedAliases, aliases),
+                                    joins,
+                                    relationCount);
                         }
                     }
                     if (joins.size() == relationCount) {
@@ -155,14 +172,26 @@ public class SqlLineageExtractor {
                                 } else if (selected instanceof AllTableColumns allTableColumns) {
                                     String table =
                                             aliases.get(key(allTableColumns.getTable().getName()));
+                                    if (table == null) {
+                                        table =
+                                                inheritedAliases.get(
+                                                        key(allTableColumns.getTable().getName()));
+                                    }
                                     if (table == null) warnings.add("无法识别通配符来源：" + selected);
                                     else expandStar(table, used, known, warnings);
                                 } else {
-                                    collect(selected, aliases, used, known, warnings);
+                                    collect(
+                                            selected,
+                                            aliases,
+                                            inheritedAliases,
+                                            used,
+                                            known,
+                                            joins,
+                                            warnings);
                                 }
                             });
-            collect(plain.getWhere(), aliases, used, known, warnings);
-            collect(plain.getHaving(), aliases, used, known, warnings);
+            collect(plain.getWhere(), aliases, inheritedAliases, used, known, joins, warnings);
+            collect(plain.getHaving(), aliases, inheritedAliases, used, known, joins, warnings);
             if (plain.getGroupBy() != null
                     && plain.getGroupBy().getGroupByExpressionList() != null) {
                 plain.getGroupBy()
@@ -172,8 +201,10 @@ public class SqlLineageExtractor {
                                         collect(
                                                 (Expression) expression,
                                                 aliases,
+                                                inheritedAliases,
                                                 used,
                                                 known,
+                                                joins,
                                                 warnings));
             }
             if (plain.getOrderByElements() != null) {
@@ -183,8 +214,10 @@ public class SqlLineageExtractor {
                                         collect(
                                                 order.getExpression(),
                                                 aliases,
+                                                inheritedAliases,
                                                 used,
                                                 known,
+                                                joins,
                                                 warnings));
             }
         }
@@ -210,6 +243,7 @@ public class SqlLineageExtractor {
     private void addFromItem(
             FromItem item,
             Map<String, String> aliases,
+            Map<String, String> inheritedAliases,
             Map<String, Set<String>> used,
             Map<String, Map<String, ColumnInfo>> known,
             List<JoinUse> joins,
@@ -222,7 +256,13 @@ public class SqlLineageExtractor {
                 aliases.put(key(table.getAlias().getName()), name);
             }
         } else if (item instanceof ParenthesedSelect nested) {
-            visitSelect(nested.getSelect(), used, known, joins, warnings);
+            visitSelect(
+                    nested.getSelect(),
+                    used,
+                    known,
+                    joins,
+                    warnings,
+                    visibleAliases(inheritedAliases, aliases));
             warnings.add("派生表字段未自动映射到物理字段");
         }
     }
@@ -230,15 +270,23 @@ public class SqlLineageExtractor {
     private void collect(
             Expression expression,
             Map<String, String> aliases,
+            Map<String, String> inheritedAliases,
             Map<String, Set<String>> used,
             Map<String, Map<String, ColumnInfo>> known,
+            List<JoinUse> joins,
             List<String> warnings) {
         if (expression == null) return;
         expression.accept(
                 new ExpressionVisitorAdapter<Void>() {
                     @Override
-                    public <S> Void visit(ParenthesedSelect nested, S context) {
-                        warnings.add("子查询字段未完全解析");
+                    public <S> Void visit(Select nested, S context) {
+                        visitSelect(
+                                nested,
+                                used,
+                                known,
+                                joins,
+                                warnings,
+                                visibleAliases(inheritedAliases, aliases));
                         return null;
                     }
 
@@ -249,7 +297,7 @@ public class SqlLineageExtractor {
                             warnings.add("SELECT * 的字段未展开");
                             return null;
                         }
-                        String table = resolve(column, aliases, known);
+                        String table = resolve(column, aliases, inheritedAliases, known);
                         if (table == null) {
                             warnings.add("字段无法唯一归属：" + column);
                         } else {
@@ -264,25 +312,38 @@ public class SqlLineageExtractor {
     private String resolve(
             Column column,
             Map<String, String> aliases,
+            Map<String, String> inheritedAliases,
             Map<String, Map<String, ColumnInfo>> known) {
         if (column.getTable() != null && column.getTable().getName() != null) {
-            return aliases.get(key(column.getTable().getName()));
+            String alias = key(column.getTable().getName());
+            String table = aliases.get(alias);
+            return table != null ? table : inheritedAliases.get(alias);
         }
-        List<String> physicalTables = aliases.values().stream().distinct().toList();
-        if (physicalTables.size() == 1) {
-            String table = physicalTables.get(0);
-            return known.getOrDefault(key(table), Map.of()).containsKey(key(column.getColumnName()))
-                    ? table
-                    : null;
-        }
-        List<String> matches =
-                physicalTables.stream()
-                        .filter(
-                                table ->
-                                        known.getOrDefault(key(table), Map.of())
-                                                .containsKey(key(column.getColumnName())))
-                        .toList();
-        return matches.size() == 1 ? matches.get(0) : null;
+        List<String> matches = matchingTables(column, aliases, known);
+        if (matches.size() == 1) return matches.get(0);
+        if (!matches.isEmpty()) return null;
+        List<String> inheritedMatches = matchingTables(column, inheritedAliases, known);
+        return inheritedMatches.size() == 1 ? inheritedMatches.get(0) : null;
+    }
+
+    private List<String> matchingTables(
+            Column column,
+            Map<String, String> aliases,
+            Map<String, Map<String, ColumnInfo>> known) {
+        return aliases.values().stream()
+                .distinct()
+                .filter(
+                        table ->
+                                known.getOrDefault(key(table), Map.of())
+                                        .containsKey(key(column.getColumnName())))
+                .toList();
+    }
+
+    private Map<String, String> visibleAliases(
+            Map<String, String> inheritedAliases, Map<String, String> aliases) {
+        Map<String, String> visible = new LinkedHashMap<>(inheritedAliases);
+        visible.putAll(aliases);
+        return visible;
     }
 
     private void collectJoin(

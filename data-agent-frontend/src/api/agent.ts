@@ -37,7 +37,6 @@ export interface ToolResultInfo {
   id: string;
   name: string;
   output: string;
-  metadata?: Record<string, unknown>;
 }
 
 export interface AnswerProvenance {

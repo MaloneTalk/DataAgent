@@ -27,9 +27,7 @@ import java.util.List;
 /** 指标口径业务：以 {@link MetricInfoBo} 作为领域对象。 */
 public interface MetricService {
 
-    /** 供 agent 工具调用:按自然语言提示返回指标口径文本(含命中/多候选/未命中三种结果)。 */
-    String getCaliberByHint(Integer datasourceId, String hint);
-
+    /** 供 agent 工具调用:按自然语言提示返回指标口径及候选项。 */
     MetricLookup lookupCaliber(Integer datasourceId, String hint);
 
     record MetricLookup(String text, List<MetricInfoBo> candidates) {}

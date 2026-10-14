@@ -116,7 +116,7 @@ export function useAgentChat(initialSessionId?: string) {
 
     const [turns, provenance] = await Promise.all([
       fetchSessionHistory(sid),
-      fetchSessionProvenance(sid),
+      fetchSessionProvenance(sid).catch((): Record<string, AnswerProvenance> => ({})),
     ]);
     messages.value = turns.map(turn => ({
       id: nextId(),

@@ -53,10 +53,6 @@ public class SqlExecutor {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
-    public QueryResult execute(Datasource datasource, String sql) {
-        return executeDetailed(datasource, sql).result();
-    }
-
     public SqlExecution executeDetailed(Datasource datasource, String sql) {
         String validatedSql = validateAndTransform(sql);
 

@@ -55,11 +55,6 @@ public class MetricServiceImpl implements MetricService {
     private final DatasourceService datasourceService;
 
     @Override
-    public String getCaliberByHint(Integer datasourceId, String hint) {
-        return lookupCaliber(datasourceId, hint).text();
-    }
-
-    @Override
     public MetricLookup lookupCaliber(Integer datasourceId, String hint) {
         String query = SemanticUtils.trimToNull(hint);
         if (query == null) {
