@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.github.malonetalk.mapper.AnswerProvenanceMapper">
+
+    <resultMap id="BaseResultMap" type="io.github.malonetalk.model.po.AnswerProvenancePo">
+        <id column="answer_id" property="answerId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="provenance_json" property="provenanceJson"/>
+    </resultMap>
+
+    <select id="selectBySessionIdAndAnswerId" resultMap="BaseResultMap">
+        SELECT answer_id, session_id, provenance_json
+        FROM answer_provenance
+        WHERE session_id = #{sessionId} AND answer_id = #{answerId}
+    </select>
+
+    <select id="selectBySessionId" resultMap="BaseResultMap">
+        SELECT answer_id, session_id, provenance_json
+        FROM answer_provenance
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="selectForUpdateBySessionIdAndAnswerId" resultMap="BaseResultMap">
+        SELECT answer_id, session_id, provenance_json
+        FROM answer_provenance
+        WHERE session_id = #{sessionId} AND answer_id = #{answerId}
+        FOR UPDATE
+    </select>
+
+    <insert id="insert" parameterType="io.github.malonetalk.model.po.AnswerProvenancePo">
+        INSERT INTO answer_provenance (answer_id, session_id, provenance_json)
+        VALUES (#{answerId}, #{sessionId}, #{provenanceJson})
+    </insert>
+
+    <update id="updateJsonBySessionIdAndAnswerId">
+        UPDATE answer_provenance
+        SET provenance_json = #{provenanceJson}
+        WHERE session_id = #{sessionId} AND answer_id = #{answerId}
+    </update>
+
+    <delete id="deleteBySessionId">
+        DELETE FROM answer_provenance WHERE session_id = #{sessionId}
+    </delete>
+
+</mapper>

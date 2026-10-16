@@ -22,7 +22,6 @@ import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
-import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.ToolExceptionMapper;
@@ -40,7 +39,6 @@ public class ExportTableTool implements MarkAgentTool {
     private final DatasourceService datasourceService;
     private final TableExportService tableExportService;
     private final ToolExceptionMapper toolExceptionMapper;
-    private final SqlExecutor sqlExecutor;
 
     @Tool(
             name = "export_table",
@@ -65,7 +63,7 @@ public class ExportTableTool implements MarkAgentTool {
                     metadata.put("datasourceId", datasource.getId());
                     metadata.put("datasourceName", datasource.getName());
                     metadata.put("databaseName", datasource.getDatabaseName());
-                    metadata.put("executedSql", sqlExecutor.validateSelectSql(sql));
+                    metadata.put("executedSql", sql);
                     metadata.put("returnedRows", export.rowCount());
                     metadata.put("truncated", false);
                     return ToolResultBlock.of(

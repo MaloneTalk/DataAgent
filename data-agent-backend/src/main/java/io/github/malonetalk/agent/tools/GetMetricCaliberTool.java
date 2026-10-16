@@ -65,14 +65,15 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                     TextBlock.builder().text(lookup.text()).build(),
                     Map.of(
                             "metrics",
-                            lookup.candidates().isEmpty()
-                                    ? java.util.List.of()
-                                    : java.util.List.of(
-                                            new MetricUse(
-                                                    lookup.candidates().get(0).getMetricKey(),
-                                                    lookup.candidates().get(0).getName(),
-                                                    lookup.candidates().get(0).getMeasureExpr(),
-                                                    lookup.candidates().get(0).getFilters()))));
+                            lookup.candidates().stream()
+                                    .map(
+                                            metric ->
+                                                    new MetricUse(
+                                                            metric.getMetricKey(),
+                                                            metric.getName(),
+                                                            metric.getMeasureExpr(),
+                                                            metric.getFilters()))
+                                    .toList()));
         } catch (Exception e) {
             log.error("Failed to get metric caliber: " + hint, e);
             return ToolResultBlock.text("Failed to get metric caliber: " + e.getMessage());

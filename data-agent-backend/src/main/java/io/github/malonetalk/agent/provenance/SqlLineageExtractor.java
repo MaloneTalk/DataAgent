@@ -18,9 +18,9 @@
 package io.github.malonetalk.agent.provenance;
 
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.ColumnUse;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.TableUse;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -28,15 +28,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
-import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
-import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
@@ -45,20 +41,12 @@ import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SetOperationList;
-import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class SqlLineageExtractor {
 
-    private final LogicalTableRelationHelper relationHelper;
-
-    public Lineage extract(
-            String sql,
-            List<TableInfo> tableInfo,
-            List<ColumnInfo> columnInfo,
-            List<LogicalTableRelation> configuredRelations) {
+    public Lineage extract(String sql, List<TableInfo> tableInfo, List<ColumnInfo> columnInfo) {
         try {
             Select select = (Select) CCJSqlParserUtil.parse(sql);
             Map<String, TableInfo> tablesByName = new LinkedHashMap<>();
@@ -71,14 +59,8 @@ public class SqlLineageExtractor {
                                             key(c.getTableName()), ignored -> new LinkedHashMap<>())
                                     .put(key(c.getColumnName()), c));
             Map<String, Set<String>> usedColumns = new LinkedHashMap<>();
-            Set<String> names = new LinkedHashSet<>();
-            new TablesNamesFinder<Void>()
-                    .getTableList((Statement) select)
-                    .forEach(name -> names.add(baseName(name)));
-            names.forEach(name -> usedColumns.put(name, new LinkedHashSet<>()));
-            List<JoinUse> joins = new ArrayList<>();
             List<String> warnings = new ArrayList<>();
-            visitSelect(select, usedColumns, columnsByTable, joins, warnings, Map.of());
+            visitSelect(select, usedColumns, columnsByTable, warnings, Map.of());
             List<TableUse> tables = new ArrayList<>();
             usedColumns.forEach(
                     (name, fields) -> {
@@ -105,11 +87,9 @@ public class SqlLineageExtractor {
                                         info == null ? null : info.getTableDescription(),
                                         columns));
                     });
-            List<RelationUse> relations =
-                    joins.stream().map(join -> match(join, joins, configuredRelations)).toList();
-            return new Lineage(tables, relations, warnings);
+            return new Lineage(tables, warnings);
         } catch (Exception e) {
-            return new Lineage(List.of(), List.of(), List.of("SQL 来源解析失败：" + e.getMessage()));
+            return new Lineage(List.of(), List.of("SQL 来源解析失败：" + e.getMessage()));
         }
     }
 
@@ -117,45 +97,39 @@ public class SqlLineageExtractor {
             Select select,
             Map<String, Set<String>> used,
             Map<String, Map<String, ColumnInfo>> known,
-            List<JoinUse> joins,
             List<String> warnings,
             Map<String, String> inheritedAliases) {
         if (select instanceof ParenthesedSelect parenthesed) {
-            visitSelect(parenthesed.getSelect(), used, known, joins, warnings, inheritedAliases);
+            visitSelect(parenthesed.getSelect(), used, known, warnings, inheritedAliases);
         } else if (select instanceof SetOperationList set) {
             set.getSelects()
-                    .forEach(
-                            item ->
-                                    visitSelect(
-                                            item, used, known, joins, warnings, inheritedAliases));
+                    .forEach(item -> visitSelect(item, used, known, warnings, inheritedAliases));
         } else if (select instanceof PlainSelect plain) {
             Map<String, String> aliases = new LinkedHashMap<>();
-            addFromItem(
-                    plain.getFromItem(), aliases, inheritedAliases, used, known, joins, warnings);
+            addFromItem(plain.getFromItem(), aliases, inheritedAliases, used, known, warnings);
             if (plain.getJoins() != null) {
                 for (Join join : plain.getJoins()) {
                     addFromItem(
-                            join.getRightItem(),
-                            aliases,
-                            inheritedAliases,
-                            used,
-                            known,
-                            joins,
-                            warnings);
-                    int relationCount = joins.size();
+                            join.getRightItem(), aliases, inheritedAliases, used, known, warnings);
                     if (join.getOnExpressions() != null) {
                         for (Expression on : join.getOnExpressions()) {
-                            collect(on, aliases, inheritedAliases, used, known, joins, warnings);
-                            collectJoin(
-                                    on,
-                                    visibleAliases(inheritedAliases, aliases),
-                                    joins,
-                                    relationCount);
+                            collect(on, aliases, inheritedAliases, used, known, warnings);
                         }
                     }
-                    if (joins.size() == relationCount) {
-                        warnings.add("JOIN 条件未能解析为字段等值连接");
+                    if (join.getUsingColumns() != null) {
+                        for (Column column : join.getUsingColumns()) {
+                            List<String> matches = matchingTables(column, aliases, known);
+                            matches.forEach(
+                                    table ->
+                                            used.computeIfAbsent(
+                                                            table, ignored -> new LinkedHashSet<>())
+                                                    .add(column.getColumnName()));
+                            if (matches.size() < 2) {
+                                warnings.add("JOIN USING 字段未能映射到两侧：" + column);
+                            }
+                        }
                     }
+                    if (join.isNatural()) warnings.add("NATURAL JOIN 字段无法精确识别");
                 }
             }
             plain.getSelectItems()
@@ -186,40 +160,46 @@ public class SqlLineageExtractor {
                                             inheritedAliases,
                                             used,
                                             known,
-                                            joins,
                                             warnings);
                                 }
                             });
-            collect(plain.getWhere(), aliases, inheritedAliases, used, known, joins, warnings);
-            collect(plain.getHaving(), aliases, inheritedAliases, used, known, joins, warnings);
-            if (plain.getGroupBy() != null
-                    && plain.getGroupBy().getGroupByExpressionList() != null) {
-                plain.getGroupBy()
-                        .getGroupByExpressionList()
-                        .forEach(
-                                expression ->
-                                        collect(
-                                                (Expression) expression,
-                                                aliases,
-                                                inheritedAliases,
-                                                used,
-                                                known,
-                                                joins,
-                                                warnings));
-            }
-            if (plain.getOrderByElements() != null) {
-                plain.getOrderByElements()
-                        .forEach(
-                                order ->
-                                        collect(
-                                                order.getExpression(),
-                                                aliases,
-                                                inheritedAliases,
-                                                used,
-                                                known,
-                                                joins,
-                                                warnings));
-            }
+            collectClauses(plain, aliases, inheritedAliases, used, known, warnings);
+        }
+    }
+
+    private void collectClauses(
+            PlainSelect plain,
+            Map<String, String> aliases,
+            Map<String, String> inheritedAliases,
+            Map<String, Set<String>> used,
+            Map<String, Map<String, ColumnInfo>> known,
+            List<String> warnings) {
+        collect(plain.getWhere(), aliases, inheritedAliases, used, known, warnings);
+        collect(plain.getHaving(), aliases, inheritedAliases, used, known, warnings);
+        if (plain.getGroupBy() != null && plain.getGroupBy().getGroupByExpressionList() != null) {
+            plain.getGroupBy()
+                    .getGroupByExpressionList()
+                    .forEach(
+                            expression ->
+                                    collect(
+                                            (Expression) expression,
+                                            aliases,
+                                            inheritedAliases,
+                                            used,
+                                            known,
+                                            warnings));
+        }
+        if (plain.getOrderByElements() != null) {
+            plain.getOrderByElements()
+                    .forEach(
+                            order ->
+                                    collect(
+                                            order.getExpression(),
+                                            aliases,
+                                            inheritedAliases,
+                                            used,
+                                            known,
+                                            warnings));
         }
     }
 
@@ -246,7 +226,6 @@ public class SqlLineageExtractor {
             Map<String, String> inheritedAliases,
             Map<String, Set<String>> used,
             Map<String, Map<String, ColumnInfo>> known,
-            List<JoinUse> joins,
             List<String> warnings) {
         if (item instanceof Table table) {
             String name = table.getName();
@@ -260,7 +239,6 @@ public class SqlLineageExtractor {
                     nested.getSelect(),
                     used,
                     known,
-                    joins,
                     warnings,
                     visibleAliases(inheritedAliases, aliases));
             warnings.add("派生表字段未自动映射到物理字段");
@@ -273,7 +251,6 @@ public class SqlLineageExtractor {
             Map<String, String> inheritedAliases,
             Map<String, Set<String>> used,
             Map<String, Map<String, ColumnInfo>> known,
-            List<JoinUse> joins,
             List<String> warnings) {
         if (expression == null) return;
         expression.accept(
@@ -284,7 +261,6 @@ public class SqlLineageExtractor {
                                 nested,
                                 used,
                                 known,
-                                joins,
                                 warnings,
                                 visibleAliases(inheritedAliases, aliases));
                         return null;
@@ -346,108 +322,6 @@ public class SqlLineageExtractor {
         return visible;
     }
 
-    private void collectJoin(
-            Expression on, Map<String, String> aliases, List<JoinUse> joins, int groupId) {
-        if (on instanceof AndExpression and) {
-            collectJoin(and.getLeftExpression(), aliases, joins, groupId);
-            collectJoin(and.getRightExpression(), aliases, joins, groupId);
-        } else if (on instanceof EqualsTo equals
-                && equals.getLeftExpression() instanceof Column left
-                && equals.getRightExpression() instanceof Column right
-                && left.getTable() != null
-                && right.getTable() != null) {
-            String source = aliases.get(key(left.getTable().getName()));
-            String target = aliases.get(key(right.getTable().getName()));
-            if (source != null && target != null && !source.equalsIgnoreCase(target)) {
-                joins.add(
-                        new JoinUse(
-                                source,
-                                left.getColumnName(),
-                                target,
-                                right.getColumnName(),
-                                groupId));
-            }
-        }
-    }
-
-    private RelationUse match(
-            JoinUse join, List<JoinUse> joins, List<LogicalTableRelation> configured) {
-        for (LogicalTableRelation relation : configured) {
-            if (!Boolean.TRUE.equals(relation.getIsEnabled())) continue;
-            boolean forward =
-                    join.sourceTable().equalsIgnoreCase(relation.getSourceTableName())
-                            && join.targetTable().equalsIgnoreCase(relation.getTargetTableName());
-            boolean reverse =
-                    join.sourceTable().equalsIgnoreCase(relation.getTargetTableName())
-                            && join.targetTable().equalsIgnoreCase(relation.getSourceTableName());
-            if (!forward && !reverse) continue;
-            try {
-                List<String> source =
-                        relationHelper.fromJson(
-                                relation.getSourceColumnNamesJson(), "sourceColumnNames");
-                List<String> target =
-                        relationHelper.fromJson(
-                                relation.getTargetColumnNamesJson(), "targetColumnNames");
-                boolean allKeysPresent = source.size() == target.size();
-                for (int i = 0; allKeysPresent && i < source.size(); i++) {
-                    String sourceColumn = forward ? source.get(i) : target.get(i);
-                    String targetColumn = forward ? target.get(i) : source.get(i);
-                    allKeysPresent =
-                            joins.stream()
-                                    .anyMatch(
-                                            pair ->
-                                                    pair.groupId() == join.groupId()
-                                                            && ((pair.sourceTable()
-                                                                                    .equalsIgnoreCase(
-                                                                                            join
-                                                                                                    .sourceTable())
-                                                                            && pair.targetTable()
-                                                                                    .equalsIgnoreCase(
-                                                                                            join
-                                                                                                    .targetTable())
-                                                                            && pair.sourceColumn()
-                                                                                    .equalsIgnoreCase(
-                                                                                            sourceColumn)
-                                                                            && pair.targetColumn()
-                                                                                    .equalsIgnoreCase(
-                                                                                            targetColumn))
-                                                                    || (pair.targetTable()
-                                                                                    .equalsIgnoreCase(
-                                                                                            join
-                                                                                                    .sourceTable())
-                                                                            && pair.sourceTable()
-                                                                                    .equalsIgnoreCase(
-                                                                                            join
-                                                                                                    .targetTable())
-                                                                            && pair.targetColumn()
-                                                                                    .equalsIgnoreCase(
-                                                                                            sourceColumn)
-                                                                            && pair.sourceColumn()
-                                                                                    .equalsIgnoreCase(
-                                                                                            targetColumn))));
-                }
-                if (allKeysPresent) {
-                    return new RelationUse(
-                            join.sourceTable(),
-                            join.sourceColumn(),
-                            join.targetTable(),
-                            join.targetColumn(),
-                            relation.getRelationType(),
-                            relation.getDescription());
-                }
-            } catch (Exception ignored) {
-                // An invalid semantic relation must not hide the actual SQL join.
-            }
-        }
-        return new RelationUse(
-                join.sourceTable(),
-                join.sourceColumn(),
-                join.targetTable(),
-                join.targetColumn(),
-                null,
-                null);
-    }
-
     private static String key(String name) {
         return name == null ? "" : baseName(name).toLowerCase(Locale.ROOT);
     }
@@ -457,26 +331,5 @@ public class SqlLineageExtractor {
         return unquoted.substring(unquoted.lastIndexOf('.') + 1);
     }
 
-    private record JoinUse(
-            String sourceTable,
-            String sourceColumn,
-            String targetTable,
-            String targetColumn,
-            int groupId) {}
-
-    public record Lineage(
-            List<TableUse> tables, List<RelationUse> relations, List<String> warnings) {}
-
-    public record TableUse(
-            String name, String domain, String description, List<ColumnUse> columns) {}
-
-    public record ColumnUse(String name, String description) {}
-
-    public record RelationUse(
-            String sourceTable,
-            String sourceColumn,
-            String targetTable,
-            String targetColumn,
-            String relationType,
-            String description) {}
+    public record Lineage(List<TableUse> tables, List<String> warnings) {}
 }

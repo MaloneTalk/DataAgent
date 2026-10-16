@@ -95,7 +95,7 @@ public class AgentController {
     public Result<AnswerProvenanceVo> getAnswerProvenance(
             @PathVariable String sessionId, @PathVariable String answerId) {
         sessionService.requireOwnership(userContextHolder.requireScopedUserId(), sessionId);
-        return Result.success(answerProvenanceService.find(sessionId, answerId));
+        return Result.success(answerProvenanceService.find(sessionId, answerId).orElse(null));
     }
 
     @GetMapping("/session/{sessionId}/provenance")

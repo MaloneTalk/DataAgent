@@ -17,20 +17,17 @@
  */
 package io.github.malonetalk.model.vo;
 
-import io.github.malonetalk.agent.provenance.SqlLineageExtractor.RelationUse;
-import io.github.malonetalk.agent.provenance.SqlLineageExtractor.TableUse;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record AnswerProvenanceVo(
-        String answerId,
         String status,
-        List<String> traceIds,
         List<DatasourceUse> datasources,
         List<SqlUse> sqlExecutions,
         List<MetricUse> metricReferences,
         List<PythonUse> pythonExecutions,
         List<TableUse> tables,
-        List<RelationUse> relations,
         List<String> warnings) {
 
     public record DatasourceUse(Integer id, String name, String databaseName) {}
@@ -45,10 +42,11 @@ public record AnswerProvenanceVo(
 
     public record MetricUse(String key, String name, String measureExpr, String filters) {}
 
-    public record PythonUse(
-            String callId,
-            String code,
-            String output,
-            String status,
-            List<String> sourceSqlCallIds) {}
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PythonUse(String callId, String code, String status) {}
+
+    public record TableUse(
+            String name, String domain, String description, List<ColumnUse> columns) {}
+
+    public record ColumnUse(String name, String description) {}
 }

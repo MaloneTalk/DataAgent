@@ -40,9 +40,7 @@ export interface ToolResultInfo {
 }
 
 export interface AnswerProvenance {
-  answerId: string;
   status: string;
-  traceIds: string[];
   datasources: { id: number; name: string | null; databaseName: string | null }[];
   sqlExecutions: {
     callId: string;
@@ -61,23 +59,13 @@ export interface AnswerProvenance {
   pythonExecutions: {
     callId: string;
     code: string;
-    output: string | null;
     status: string;
-    sourceSqlCallIds: string[];
   }[];
   tables: {
     name: string;
     domain: string | null;
     description: string | null;
     columns: { name: string; description: string | null }[];
-  }[];
-  relations: {
-    sourceTable: string;
-    sourceColumn: string;
-    targetTable: string;
-    targetColumn: string;
-    relationType: string | null;
-    description: string | null;
   }[];
   warnings: string[];
 }

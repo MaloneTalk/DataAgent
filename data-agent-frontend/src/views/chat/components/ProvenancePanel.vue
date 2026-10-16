@@ -35,9 +35,6 @@
       · {{ provenance.status === 'COMPLETE' ? '完整记录' : '部分记录' }}
     </summary>
     <div class="provenance-panel__body">
-      <p v-if="provenance.traceIds.length" class="provenance-panel__muted">
-        Trace：{{ provenance.traceIds.join('、') }}
-      </p>
       <section>
         <h4>1. 数据源</h4>
         <p v-if="!provenance.datasources.length">本次回答未执行数据查询</p>
@@ -98,7 +95,7 @@
       </section>
 
       <section>
-        <h4>4. 引用的指标口径</h4>
+        <h4>4. 查询到的指标口径</h4>
         <p v-if="!provenance.metricReferences.length">无</p>
         <p v-for="metric in provenance.metricReferences" :key="metric.key">
           {{ metric.name }}（{{ metric.key }}）
@@ -121,26 +118,8 @@
               复制 Python
             </button>
           </div>
-          <div v-if="python.sourceSqlCallIds.length" class="provenance-panel__muted">
-            声明的输入 SQL：{{ python.sourceSqlCallIds.join('、') }}
-          </div>
           <pre>{{ python.code }}</pre>
-          <div v-if="python.output" class="provenance-panel__muted">输出：{{ python.output }}</div>
         </div>
-      </section>
-
-      <section>
-        <h4>6. 表的逻辑链路</h4>
-        <p v-if="!provenance.relations.length">本次 SQL 未识别到表连接</p>
-        <p v-for="(relation, index) in provenance.relations" :key="index">
-          {{ relation.sourceTable }}.{{ relation.sourceColumn }} → {{ relation.targetTable }}.{{
-            relation.targetColumn
-          }}
-          <span class="provenance-panel__muted">
-            · {{ relation.relationType || 'SQL 实际连接，未匹配已配置关系' }}
-            {{ relation.description || '' }}
-          </span>
-        </p>
       </section>
 
       <p v-for="warning in provenance.warnings" :key="warning" class="provenance-panel__warning">

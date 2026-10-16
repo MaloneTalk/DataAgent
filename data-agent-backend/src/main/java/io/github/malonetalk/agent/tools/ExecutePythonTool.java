@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -61,34 +60,22 @@ public class ExecutePythonTool implements MarkAgentTool {
                                     Python code to execute for data analysis. \
                                     Must be self-contained and include any data inline.\
                                     """)
-                    String code,
-            @ToolParam(
-                            name = "source_sql_call_ids",
-                            description =
-                                    "Optional IDs of successful execute_sql calls whose results"
-                                            + " were used.",
-                            required = false)
-                    List<String> sourceSqlCallIds) {
+                    String code) {
 
         if (!semaphore.tryAcquire()) {
-            return result("Error: too many concurrent Python executions.", false, sourceSqlCallIds);
+            return result("Error: too many concurrent Python executions.", false);
         }
         try {
             PythonRun run = doExecute(code);
-            return result(run.output(), run.success(), sourceSqlCallIds);
+            return result(run.output(), run.success());
         } finally {
             semaphore.release();
         }
     }
 
-    private ToolResultBlock result(String output, boolean success, List<String> sourceSqlCallIds) {
+    private ToolResultBlock result(String output, boolean success) {
         return ToolResultBlock.of(
-                TextBlock.builder().text(output).build(),
-                Map.of(
-                        "success",
-                        success,
-                        "sourceSqlCallIds",
-                        sourceSqlCallIds == null ? List.of() : sourceSqlCallIds));
+                TextBlock.builder().text(output).build(), Map.of("success", success));
     }
 
     private PythonRun doExecute(String code) {

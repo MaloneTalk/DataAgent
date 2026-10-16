@@ -47,14 +47,13 @@ import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Schedulers;
 
 @Slf4j
@@ -117,8 +116,7 @@ public class AgentService {
                         : sessionService.getLatestUserMessageId(sessionId);
         if (answerId == null) answerId = userMsg.getId();
         final String currentAnswerId = answerId;
-        List<ChatStreamEvent> provenanceEvents = Collections.synchronizedList(new ArrayList<>());
-        AtomicBoolean saved = new AtomicBoolean();
+        List<ChatStreamEvent> provenanceEvents = new ArrayList<>();
 
         StreamOptions streamOptions =
                 StreamOptions.builder()
@@ -146,27 +144,24 @@ public class AgentService {
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapIterable(eventConverter::map)
                 .map(event -> event.toBuilder().answerId(currentAnswerId).build())
-                .doOnNext(provenanceEvents::add)
-                .doOnComplete(
-                        () -> {
-                            saved.set(
-                                    saveProvenance(
-                                            sessionId,
-                                            currentAnswerId,
-                                            traceId,
-                                            provenanceEvents,
-                                            "COMPLETE"));
+                .doOnNext(
+                        event -> {
+                            if (event.toolCall() != null || event.toolResult() != null)
+                                provenanceEvents.add(event);
                         })
+                .doOnComplete(
+                        () ->
+                                saveProvenance(
+                                        sessionId, currentAnswerId, provenanceEvents, "COMPLETE"))
                 .doFinally(
                         signalType -> {
                             try {
                                 agent.saveTo(session, sessionId);
                             } finally {
-                                if (!saved.get()) {
+                                if (signalType != SignalType.ON_COMPLETE) {
                                     saveProvenance(
                                             sessionId,
                                             currentAnswerId,
-                                            traceId,
                                             provenanceEvents,
                                             "PARTIAL");
                                 }
@@ -175,22 +170,16 @@ public class AgentService {
                         });
     }
 
-    private boolean saveProvenance(
-            String sessionId,
-            String answerId,
-            String traceId,
-            List<ChatStreamEvent> events,
-            String status) {
+    private void saveProvenance(
+            String sessionId, String answerId, List<ChatStreamEvent> events, String status) {
         try {
-            answerProvenanceService.save(sessionId, answerId, traceId, events, status);
-            return true;
+            answerProvenanceService.save(sessionId, answerId, events, status);
         } catch (RuntimeException e) {
             log.error(
                     "Failed to save answer provenance: sessionId={}, answerId={}",
                     sessionId,
                     answerId,
                     e);
-            return false;
         }
     }
 
