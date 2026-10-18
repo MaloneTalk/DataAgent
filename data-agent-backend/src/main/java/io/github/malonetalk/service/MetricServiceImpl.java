@@ -55,23 +55,25 @@ public class MetricServiceImpl implements MetricService {
     private final DatasourceService datasourceService;
 
     @Override
-    public String getCaliberByHint(Integer datasourceId, String hint) {
+    public MetricLookup lookupCaliber(Integer datasourceId, String hint) {
         String query = SemanticUtils.trimToNull(hint);
         if (query == null) {
-            return "缺少指标描述,无法查询口径。";
+            return new MetricLookup("缺少指标描述,无法查询口径。", List.of());
         }
         List<MetricInfoBo> candidates =
                 match(toBoList(metricInfoMapper.selectByDatasource(datasourceId)), query);
         if (candidates.isEmpty()) {
             List<MetricInfoBo> suggestions = toBoList(metricInfoMapper.suggest(datasourceId));
             log.warn("指标口径未命中: hint={}", query);
-            return formatNotFound(query, suggestions);
+            return new MetricLookup(formatNotFound(query, suggestions), List.of());
         }
         MetricInfoBo best = candidates.get(0);
         if (candidates.size() == 1) {
-            return best.toCaliberText();
+            return new MetricLookup(best.toCaliberText(), candidates);
         }
-        return formatCaliberWithAlternatives(best, candidates.subList(1, candidates.size()));
+        return new MetricLookup(
+                formatCaliberWithAlternatives(best, candidates.subList(1, candidates.size())),
+                candidates);
     }
 
     /**

@@ -14,7 +14,7 @@
 | `spring.datasource.driver-class-name` | `com.mysql.cj.jdbc.Driver` | MySQL 驱动 |
 
 新库建表脚本见 `sql/data_source.sql`。已有数据库升级到主键关联版本时，需在启动新版后端前
-执行 `sql/migration_primary_key_relations.sql`，其中包含旧库兼容和主键关联升级。
+执行 `sql/migration_primary_key_relations.sql`，其中包含旧库兼容、主键关联升级和回答溯源表。
 
 ## 2. LLM 提供商
 

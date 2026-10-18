@@ -28,6 +28,7 @@ import io.agentscope.core.session.Session;
 import io.agentscope.core.session.mysql.MysqlSession;
 import io.agentscope.core.state.SessionKey;
 import io.agentscope.core.state.SimpleSessionKey;
+import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.convertor.handler.ToolResultHandler;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionDatasourceBinding;
@@ -62,15 +63,18 @@ public class SessionService {
     private final DataSource dataSource;
     private final SessionDatasourceMapper sessionDatasourceMapper;
     private final UserSessionMapper userSessionMapper;
+    private final AnswerProvenanceService answerProvenanceService;
     private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
 
     public SessionService(
             DataSource dataSource,
             SessionDatasourceMapper sessionDatasourceMapper,
-            UserSessionMapper userSessionMapper) {
+            UserSessionMapper userSessionMapper,
+            AnswerProvenanceService answerProvenanceService) {
         this.dataSource = dataSource;
         this.sessionDatasourceMapper = sessionDatasourceMapper;
         this.userSessionMapper = userSessionMapper;
+        this.answerProvenanceService = answerProvenanceService;
     }
 
     public Session getOrCreateSession(String sessionId) {
@@ -108,6 +112,14 @@ public class SessionService {
             return Collections.emptyList();
         }
         return session.getList(SimpleSessionKey.of(sessionId), "memory_messages", Msg.class);
+    }
+
+    public String getLatestUserMessageId(String sessionId) {
+        List<Msg> messages = loadMessages(sessionId);
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i).getRole() == MsgRole.USER) return messages.get(i).getId();
+        }
+        return null;
     }
 
     private List<TurnItem> buildTurnItems(List<Msg> messages) {
@@ -225,6 +237,7 @@ public class SessionService {
             session = createMysqlSession();
         }
         session.delete(SimpleSessionKey.of(sessionId));
+        answerProvenanceService.deleteSession(sessionId);
         sessionDatasourceMapper.deleteBySessionId(sessionId);
         userSessionMapper.deleteBySessionId(sessionId);
     }
@@ -253,6 +266,7 @@ public class SessionService {
             sessionCache.remove(sessionId);
             MysqlSession session = createMysqlSession();
             session.delete(SimpleSessionKey.of(sessionId));
+            answerProvenanceService.deleteSession(sessionId);
             sessionDatasourceMapper.deleteBySessionId(sessionId);
         }
         userSessionMapper.deleteByUserId(userId);

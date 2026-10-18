@@ -115,6 +115,7 @@ export function useAgentChat(initialSessionId?: string) {
   async function sendMessage(text: string) {
     if (isStreaming.value || !text.trim()) return;
 
+    const currentSessionId = sessionId.value;
     addUserMessage(text);
     const agentMsg = addAgentMessage();
     isStreaming.value = true;
@@ -129,11 +130,11 @@ export function useAgentChat(initialSessionId?: string) {
     const request =
       pq != null
         ? {
-            sessionId: sessionId.value,
+            sessionId: currentSessionId,
             toolResults: [{ toolCallId: pq.toolCallId, toolName: pq.toolName, output: text }],
           }
         : {
-            sessionId: sessionId.value,
+            sessionId: currentSessionId,
             message: text,
             datasourceId: datasourceId.value ?? undefined,
           };

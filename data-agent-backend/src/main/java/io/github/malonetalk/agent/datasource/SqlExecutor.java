@@ -53,13 +53,13 @@ public class SqlExecutor {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
-    public QueryResult execute(Datasource datasource, String sql) {
+    public SqlExecution executeDetailed(Datasource datasource, String sql) {
         String validatedSql = validateAndTransform(sql);
 
         DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            return doExecute(conn, validatedSql);
+            return new SqlExecution(validatedSql, doExecute(conn, validatedSql));
         } catch (SQLException e) {
             log.error("SQL execution failed: {}", e.getMessage(), e);
             throw BusinessException.of(
@@ -68,6 +68,8 @@ public class SqlExecutor {
                     e);
         }
     }
+
+    public record SqlExecution(String executedSql, QueryResult result) {}
 
     static String truncate(String message) {
         if (message == null || message.isBlank()) {
