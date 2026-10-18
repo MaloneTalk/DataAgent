@@ -16,31 +16,19 @@
  -->
 
 <script setup lang="ts">
-  import { computed, onMounted, reactive, ref } from 'vue';
-  import type { FormInstance, FormRules } from 'element-plus';
+  import { computed, onMounted, ref } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useDatasource } from '@/composables/useDatasource';
   import {
     listMetrics,
-    createMetric,
-    updateMetric,
     deleteMetric,
+    metricCalculationTypeLabels,
+    metricValueTypeLabels,
     type MetricInfo,
-    type MetricCreateRequest,
-    type MetricUpdateRequest,
   } from '@/api/metric';
   import { formatDateTime } from '@/utils/dateTime';
-
-  interface MetricEditForm {
-    metricKey: string;
-    name: string;
-    aliases: string;
-    measureExpr: string;
-    filters: string;
-    timeField: string;
-    description: string;
-  }
+  import MetricEditDialog from './components/MetricEditDialog.vue';
 
   const metricLoading = ref(false);
   const metricError = ref('');
@@ -60,23 +48,7 @@
   const datasourceEmpty = ref(false);
 
   const metricDialogVisible = ref(false);
-  const metricSubmitLoading = ref(false);
-  const metricFormRef = ref<FormInstance>();
-  const metricForm = reactive<MetricEditForm>({
-    metricKey: '',
-    name: '',
-    aliases: '',
-    measureExpr: '',
-    filters: '',
-    timeField: '',
-    description: '',
-  });
   const selectedMetric = ref<MetricInfo | null>(null);
-
-  const metricRules: FormRules<MetricEditForm> = {
-    metricKey: [{ required: true, message: '指标 key 不能为空', trigger: 'blur' }],
-    name: [{ required: true, message: '指标名称不能为空', trigger: 'blur' }],
-  };
 
   const filteredRows = computed(() => {
     const kw = keyword.value.trim().toLowerCase();
@@ -134,76 +106,12 @@
 
   const handleOpenCreate = () => {
     selectedMetric.value = null;
-    Object.assign(metricForm, {
-      metricKey: '',
-      name: '',
-      aliases: '',
-      measureExpr: '',
-      filters: '',
-      timeField: '',
-      description: '',
-    });
     metricDialogVisible.value = true;
   };
 
   const handleOpenEdit = (row: MetricInfo) => {
     selectedMetric.value = row;
-    Object.assign(metricForm, {
-      metricKey: row.metricKey,
-      name: row.name,
-      aliases: row.aliases ?? '',
-      measureExpr: row.measureExpr ?? '',
-      filters: row.filters ?? '',
-      timeField: row.timeField ?? '',
-      description: row.description ?? '',
-    });
     metricDialogVisible.value = true;
-  };
-
-  const handleSubmit = async () => {
-    if (!metricFormRef.value) {
-      return;
-    }
-
-    const valid = await metricFormRef.value.validate().catch(() => false);
-    if (!valid) {
-      return;
-    }
-
-    metricSubmitLoading.value = true;
-    try {
-      const fields = {
-        name: metricForm.name.trim(),
-        aliases: metricForm.aliases.trim(),
-        measureExpr: metricForm.measureExpr.trim(),
-        filters: metricForm.filters.trim(),
-        timeField: metricForm.timeField.trim(),
-        description: metricForm.description.trim(),
-      };
-
-      if (selectedMetric.value) {
-        const payload: MetricUpdateRequest = fields;
-        await updateMetric(selectedMetric.value.id, payload);
-        ElMessage.success('指标口径已更新');
-      } else {
-        if (selectedDatasourceId.value === undefined) {
-          ElMessage.warning('请先选择数据源');
-          return;
-        }
-        const payload: MetricCreateRequest = {
-          datasourceId: selectedDatasourceId.value,
-          metricKey: metricForm.metricKey.trim(),
-          ...fields,
-        };
-        await createMetric(payload);
-        ElMessage.success('指标口径已创建');
-      }
-
-      metricDialogVisible.value = false;
-      await loadMetrics();
-    } finally {
-      metricSubmitLoading.value = false;
-    }
   };
 
   const handleDelete = async (row: MetricInfo) => {
@@ -250,8 +158,8 @@
         指标口径
         <HelpTip>
           <strong>指标口径</strong>
-          是指标的统一计算规则。它定义业务叫法、同义词、聚合表达式、过滤条件和时间字段，供 Agent
-          生成 SQL 时检索使用。
+          是指标的统一计算规则。它定义业务叫法、计算方式、结果类型、单位、倍率、币种、过滤条件和时间字段，供
+          Agent 生成 SQL 时检索使用。
         </HelpTip>
       </h2>
     </div>
@@ -300,6 +208,28 @@
         <el-table v-loading="metricLoading" :data="filteredRows" class="semantic-table">
           <el-table-column prop="metricKey" label="指标 Key" min-width="160" />
           <el-table-column prop="name" label="指标名称" min-width="160" />
+          <el-table-column prop="calculationType" label="计算方式" min-width="140">
+            <template #default="{ row }: { row: MetricInfo }">
+              {{ metricCalculationTypeLabels[row.calculationType] || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="valueType" label="结果类型" min-width="120">
+            <template #default="{ row }: { row: MetricInfo }">
+              {{ row.valueType ? metricValueTypeLabels[row.valueType] : '未配置' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="unit" label="标准单位" min-width="100">
+            <template #default="{ row }">{{ row.unit || '-' }}</template>
+          </el-table-column>
+          <el-table-column
+            prop="resultMultiplier"
+            label="结果倍率"
+            min-width="140"
+            show-overflow-tooltip
+          />
+          <el-table-column prop="currencyCode" label="币种" min-width="90">
+            <template #default="{ row }">{{ row.currencyCode || '-' }}</template>
+          </el-table-column>
           <el-table-column prop="aliases" label="同义词" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               {{ row.aliases || '-' }}
@@ -354,50 +284,12 @@
       </template>
     </section>
 
-    <el-dialog
+    <MetricEditDialog
       v-model="metricDialogVisible"
-      :title="selectedMetric ? '编辑指标口径' : '新增指标口径'"
-      width="680px"
-    >
-      <el-form ref="metricFormRef" :model="metricForm" :rules="metricRules" label-width="110px">
-        <el-form-item label="指标 Key" prop="metricKey">
-          <el-input
-            v-model="metricForm.metricKey"
-            :disabled="!!selectedMetric"
-            placeholder="稳定标识,如 sales,不可重复"
-          />
-        </el-form-item>
-        <el-form-item label="指标名称" prop="name">
-          <el-input v-model="metricForm.name" placeholder="官方中文名,如 销售额" />
-        </el-form-item>
-        <el-form-item label="同义词">
-          <el-input v-model="metricForm.aliases" placeholder="逗号分隔,如 GMV,营收,流水" />
-        </el-form-item>
-        <el-form-item label="度量">
-          <el-input v-model="metricForm.measureExpr" placeholder="如 SUM(paid_amount)" />
-        </el-form-item>
-        <el-form-item label="过滤条件">
-          <el-input v-model="metricForm.filters" placeholder="如 status='paid' AND is_test=0" />
-        </el-form-item>
-        <el-form-item label="时间字段">
-          <el-input v-model="metricForm.timeField" placeholder="如 settle_time" />
-        </el-form-item>
-        <el-form-item label="说明">
-          <el-input
-            v-model="metricForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="业务口径说明 / 规则"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="metricDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="metricSubmitLoading" @click="handleSubmit">
-          保存
-        </el-button>
-      </template>
-    </el-dialog>
+      :metric="selectedMetric"
+      :datasource-id="selectedDatasourceId"
+      @saved="loadMetrics"
+    />
   </div>
 </template>
 

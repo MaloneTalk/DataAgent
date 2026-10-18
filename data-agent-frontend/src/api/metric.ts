@@ -19,6 +19,22 @@ import request from './request';
 import type { ApiResponse } from './request';
 import type { BooleanVo, PageResponse } from './types';
 
+export const metricCalculationTypeLabels = {
+  EXPRESSION: '普通表达式',
+  DISTINCT_COUNT: '去重计数',
+  RATIO: '分子分母计算',
+  SNAPSHOT: '快照',
+} as const;
+
+export const metricValueTypeLabels = {
+  NUMBER: '普通数值',
+  MONEY: '金额',
+  PERCENT: '百分比',
+} as const;
+
+export type MetricCalculationType = keyof typeof metricCalculationTypeLabels;
+export type MetricValueType = keyof typeof metricValueTypeLabels;
+
 export interface MetricInfo {
   id: number;
   datasourceId: number;
@@ -28,20 +44,20 @@ export interface MetricInfo {
   measureExpr: string | null;
   filters: string | null;
   timeField: string | null;
+  calculationType: MetricCalculationType;
+  valueType: MetricValueType | null;
+  unit: string | null;
+  /** 十进制字符串，避免 DECIMAL(24,12) 经 JavaScript number 丢失精度。 */
+  resultMultiplier: string;
+  currencyCode: string | null;
   description: string | null;
   createTime: string;
   updateTime: string;
 }
 
-export interface MetricCreateRequest {
+export interface MetricCreateRequest extends MetricUpdateRequest {
   datasourceId: number;
   metricKey: string;
-  name: string;
-  aliases?: string;
-  measureExpr?: string;
-  filters?: string;
-  timeField?: string;
-  description?: string;
 }
 
 /** 更新不允许修改 metricKey。 */
@@ -51,6 +67,11 @@ export interface MetricUpdateRequest {
   measureExpr?: string;
   filters?: string;
   timeField?: string;
+  calculationType?: MetricCalculationType;
+  valueType?: MetricValueType;
+  unit?: string;
+  resultMultiplier?: string;
+  currencyCode?: string;
   description?: string;
 }
 

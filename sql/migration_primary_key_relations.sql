@@ -484,6 +484,72 @@ PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
 
+-- metric_info 业务属性：保留旧表达式及数值，不猜测单位、币种和结果类型。
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'calculation_type'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `calculation_type` VARCHAR(32) NOT NULL DEFAULT ''EXPRESSION'' COMMENT ''计算方式:EXPRESSION/DISTINCT_COUNT/RATIO/SNAPSHOT'' AFTER `time_field`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'value_type'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `value_type` VARCHAR(16) DEFAULT NULL COMMENT ''结果类型:NUMBER/MONEY/PERCENT,NULL表示未配置'' AFTER `calculation_type`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'unit'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `unit` VARCHAR(32) DEFAULT NULL COMMENT ''标准结果单位,如元/人/次,百分比比值为1'' AFTER `value_type`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'result_multiplier'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `result_multiplier` DECIMAL(24,12) NOT NULL DEFAULT 1 COMMENT ''标准结果=度量表达式原始结果乘以此倍率'' AFTER `unit`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'currency_code'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `currency_code` VARCHAR(3) DEFAULT NULL COMMENT ''金额币种代码,如CNY/USD'' AFTER `result_multiplier`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
 -- metric_info 审计字段：creator_id / updater_id
 SET @migration_sql = IF(
     EXISTS(
