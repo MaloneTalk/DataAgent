@@ -15,25 +15,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 <script setup lang="ts">
+  import { CopyDocument } from '@element-plus/icons-vue';
   import type { AnswerProvenance } from '@/api/agent';
 
   defineProps<{ provenance: AnswerProvenance }>();
 
-  async function copy(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // Clipboard API may fail in insecure contexts; ignore.
-    }
+  function copy(text: string) {
+    navigator.clipboard.writeText(text).catch(() => undefined);
   }
 </script>
 
 <template>
-  <details class="provenance-panel">
-    <summary>
-      数据来源 · {{ provenance.sqlExecutions.filter(s => s.status === 'SUCCESS').length }} 次查询
-      · {{ provenance.status === 'COMPLETE' ? '完整记录' : '部分记录' }}
-    </summary>
+  <div class="provenance-panel">
+    <div class="provenance-panel__summary">
+      数据证据 · {{ provenance.sqlExecutions.filter(s => s.status === 'SUCCESS').length }} 次查询 ·
+      {{ provenance.status === 'COMPLETE' ? '完整记录' : '部分记录' }}
+    </div>
     <div class="provenance-panel__body">
       <section>
         <h4>1. 数据源</h4>
@@ -72,25 +69,35 @@
             <span class="provenance-panel__muted">· {{ sql.callId }}</span>
             <span v-if="sql.returnedRows !== null">· 返回 {{ sql.returnedRows }} 行</span>
             <span v-if="sql.truncated">· 结果已截断</span>
-            <button type="button" class="provenance-panel__copy" @click="copy(sql.sql)">
-              复制 SQL
-            </button>
-          </div>
-          <pre>{{ sql.sql }}</pre>
-          <div
-            v-if="sql.executedSql && sql.executedSql !== sql.sql"
-            class="provenance-panel__muted"
-          >
-            实际执行：
             <button
               type="button"
               class="provenance-panel__copy"
-              @click="copy(sql.executedSql || '')"
+              title="复制 SQL"
+              aria-label="复制 SQL"
+              @click="copy(sql.sql)"
             >
-              复制 SQL
+              <el-icon><CopyDocument /></el-icon>
             </button>
-            <pre>{{ sql.executedSql }}</pre>
           </div>
+          <pre class="provenance-panel__sql">{{ sql.sql }}</pre>
+          <details
+            v-if="sql.executedSql && sql.executedSql !== sql.sql"
+            class="provenance-panel__executed"
+          >
+            <summary>实际执行 SQL</summary>
+            <div class="provenance-panel__executed-body">
+              <button
+                type="button"
+                class="provenance-panel__copy"
+                title="复制 SQL"
+                aria-label="复制 SQL"
+                @click="copy(sql.executedSql || '')"
+              >
+                <el-icon><CopyDocument /></el-icon>
+              </button>
+              <pre>{{ sql.executedSql }}</pre>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -114,8 +121,14 @@
         >
           <div>
             {{ python.status === 'SUCCESS' ? '成功' : '未成功' }}
-            <button type="button" class="provenance-panel__copy" @click="copy(python.code)">
-              复制 Python
+            <button
+              type="button"
+              class="provenance-panel__copy"
+              title="复制 Python"
+              aria-label="复制 Python"
+              @click="copy(python.code)"
+            >
+              <el-icon><CopyDocument /></el-icon>
             </button>
           </div>
           <pre>{{ python.code }}</pre>
@@ -126,7 +139,7 @@
         {{ warning }}
       </p>
     </div>
-  </details>
+  </div>
 </template>
 
 <style scoped>
@@ -136,8 +149,7 @@
     margin-bottom: 12px;
     font-size: 12px;
   }
-  summary {
-    cursor: pointer;
+  .provenance-panel__summary {
     padding: 10px 16px;
     color: var(--app-text-secondary);
     font-size: 13px;
@@ -159,9 +171,40 @@
   pre {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    background: var(--app-bg-page);
     padding: 8px;
+    color: var(--app-text-primary);
+    background: var(--app-bg-page);
+    border-left: 3px solid var(--app-border);
     border-radius: 4px;
+  }
+  .provenance-panel__sql {
+    background: color-mix(in srgb, var(--app-link) 8%, var(--app-bg-page));
+    border-left-color: var(--app-link);
+  }
+  .provenance-panel__executed {
+    margin-top: 8px;
+    border: 1px solid color-mix(in srgb, var(--el-color-success) 45%, var(--app-border));
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--el-color-success) 6%, var(--app-bg-card));
+  }
+  .provenance-panel__executed summary {
+    padding: 8px 10px;
+    color: var(--el-color-success);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .provenance-panel__executed-body {
+    padding: 0 10px 10px;
+  }
+  .provenance-panel__executed-body .provenance-panel__copy {
+    display: block;
+    margin: 0 0 2px auto;
+    color: var(--el-color-success);
+  }
+  .provenance-panel__executed-body pre {
+    margin: 0;
+    background: color-mix(in srgb, var(--el-color-success) 10%, var(--app-bg-page));
+    border-left-color: var(--el-color-success);
   }
   .provenance-panel__item {
     margin: 8px 0;
@@ -174,6 +217,11 @@
   }
   .provenance-panel__copy {
     margin-left: 8px;
+    padding: 2px;
+    border: 0;
+    background: none;
+    color: var(--app-accent);
     cursor: pointer;
+    vertical-align: middle;
   }
 </style>

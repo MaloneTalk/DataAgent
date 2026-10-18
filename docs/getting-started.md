@@ -98,10 +98,9 @@ mysql -u root -p data_agent < sql/data_source.sql
 
 ```bash
 mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
-mysql -u root -p data_agent < sql/migration_answer_provenance.sql
 ```
 
-迁移必须在启动新版后端前完成。`migration_primary_key_relations.sql` 会补齐旧库缺少的字段与索引，并将列和逻辑关系中的表名引用转换为
+迁移必须在启动新版后端前完成。该脚本会补齐旧库缺少的字段、索引和回答溯源表，并将列和逻辑关系中的表名引用转换为
 `table_info.id` 外键；脚本会在改表前检查无法匹配的引用、同一数据源内重复的表名，
 以及同一表内重复的列名。若检查失败，修复数据后重新执行整份脚本即可。
 

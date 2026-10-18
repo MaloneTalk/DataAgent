@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.model.po.AnswerProvenancePo;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -25,20 +26,18 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface AnswerProvenanceMapper {
 
-    AnswerProvenancePo selectBySessionIdAndAnswerId(
-            @Param("sessionId") String sessionId, @Param("answerId") String answerId);
-
     AnswerProvenancePo selectForUpdateBySessionIdAndAnswerId(
             @Param("sessionId") String sessionId, @Param("answerId") String answerId);
 
-    List<AnswerProvenancePo> selectBySessionId(@Param("sessionId") String sessionId);
+    IPage<AnswerProvenancePo> selectPage(
+            IPage<AnswerProvenancePo> page,
+            @Param("sessionId") String sessionId,
+            @Param("answerId") String answerId,
+            @Param("sessionIds") List<String> sessionIds);
 
     int insert(AnswerProvenancePo provenance);
 
-    int updateJsonBySessionIdAndAnswerId(
-            @Param("sessionId") String sessionId,
-            @Param("answerId") String answerId,
-            @Param("provenanceJson") String provenanceJson);
+    int updateBySessionIdAndAnswerId(AnswerProvenancePo provenance);
 
     int deleteBySessionId(@Param("sessionId") String sessionId);
 }

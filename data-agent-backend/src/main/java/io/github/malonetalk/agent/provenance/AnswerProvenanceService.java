@@ -18,16 +18,14 @@
 package io.github.malonetalk.agent.provenance;
 
 import io.github.malonetalk.dto.ChatStreamEvent;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.model.dto.DataEvidencePageQuery;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 public interface AnswerProvenanceService {
 
-    Optional<AnswerProvenanceVo> find(String sessionId, String answerId);
-
-    Map<String, AnswerProvenanceVo> listBySession(String sessionId);
+    PageResponse<DataEvidenceVo> getPage(DataEvidencePageQuery query, Integer userId);
 
     void deleteSession(String sessionId);
 

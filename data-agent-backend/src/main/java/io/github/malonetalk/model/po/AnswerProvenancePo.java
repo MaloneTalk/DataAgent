@@ -24,5 +24,11 @@ public class AnswerProvenancePo {
 
     private String answerId;
     private String sessionId;
-    private String provenanceJson;
+    private String status;
+    private String datasourcesJson;
+    private String sqlExecutionsJson;
+    private String metricReferencesJson;
+    private String pythonExecutionsJson;
+    private String tablesJson;
+    private String warningsJson;
 }

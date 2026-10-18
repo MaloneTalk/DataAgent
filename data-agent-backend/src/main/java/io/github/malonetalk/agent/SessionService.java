@@ -125,23 +125,21 @@ public class SessionService {
     private List<TurnItem> buildTurnItems(List<Msg> messages) {
         List<TurnItem> turns = new ArrayList<>();
         List<ContentBlock> agentBlocks = null;
-        String answerId = null;
 
         for (Msg msg : messages) {
             boolean isUser = msg.getRole() == MsgRole.USER;
             if (isUser) {
                 if (agentBlocks != null) {
-                    turns.add(buildAgentTurn(agentBlocks, answerId));
+                    turns.add(buildAgentTurn(agentBlocks));
                     agentBlocks = null;
                 }
-                answerId = msg.getId();
                 String text =
                         msg.getContent().stream()
                                 .filter(block -> block instanceof TextBlock)
                                 .map(block -> ((TextBlock) block).getText())
                                 .filter(t -> t != null && !t.isEmpty())
                                 .collect(Collectors.joining());
-                turns.add(new TurnItem(MsgRole.USER.name(), text, answerId, List.of()));
+                turns.add(new TurnItem(MsgRole.USER.name(), text, List.of()));
             } else {
                 if (agentBlocks == null) {
                     agentBlocks = new ArrayList<>();
@@ -150,13 +148,13 @@ public class SessionService {
             }
         }
         if (agentBlocks != null) {
-            turns.add(buildAgentTurn(agentBlocks, answerId));
+            turns.add(buildAgentTurn(agentBlocks));
         }
 
         return turns;
     }
 
-    private TurnItem buildAgentTurn(List<ContentBlock> blocks, String answerId) {
+    private TurnItem buildAgentTurn(List<ContentBlock> blocks) {
         StringBuilder content = new StringBuilder();
         List<ChatStreamEvent> traceSteps = new ArrayList<>();
 
@@ -172,7 +170,7 @@ public class SessionService {
             }
         }
 
-        return new TurnItem(MsgRole.ASSISTANT.name(), content.toString(), answerId, traceSteps);
+        return new TurnItem(MsgRole.ASSISTANT.name(), content.toString(), traceSteps);
     }
 
     private void appendText(StringBuilder content, TextBlock tb) {

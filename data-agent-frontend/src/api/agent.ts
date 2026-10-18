@@ -84,7 +84,6 @@ export interface ChatStreamEvent {
   toolCall: ToolCallInfo | null;
   toolResult: ToolResultInfo | null;
   errorCode: string | null;
-  answerId: string | null;
 }
 
 export interface SessionInfo {
@@ -106,7 +105,6 @@ export interface ChatRequest {
 export interface TurnItem {
   role: string;
   content: string;
-  answerId: string | null;
   traceSteps: ChatStreamEvent[];
 }
 
@@ -172,25 +170,6 @@ export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]
   return fetchJson<TurnItem[]>(
     `/api/agent/session/${encodeURIComponent(sessionId)}/history`,
     'Failed to fetch session history',
-  );
-}
-
-export async function fetchAnswerProvenance(
-  sessionId: string,
-  answerId: string,
-): Promise<AnswerProvenance | null> {
-  return fetchJson<AnswerProvenance | null>(
-    `/api/agent/session/${encodeURIComponent(sessionId)}/answers/${encodeURIComponent(answerId)}/provenance`,
-    'Failed to fetch answer provenance',
-  );
-}
-
-export async function fetchSessionProvenance(
-  sessionId: string,
-): Promise<Record<string, AnswerProvenance>> {
-  return fetchJson<Record<string, AnswerProvenance>>(
-    `/api/agent/session/${encodeURIComponent(sessionId)}/provenance`,
-    'Failed to fetch session provenance',
   );
 }
 

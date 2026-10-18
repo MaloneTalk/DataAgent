@@ -143,7 +143,6 @@ public class AgentService {
                                         signalType))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapIterable(eventConverter::map)
-                .map(event -> event.toBuilder().answerId(currentAnswerId).build())
                 .doOnNext(
                         event -> {
                             if (event.toolCall() != null || event.toolResult() != null)

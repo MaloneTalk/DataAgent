@@ -24,7 +24,7 @@ import java.util.Map;
 import lombok.Builder;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Builder(toBuilder = true)
+@Builder
 public record ChatStreamEvent(
         ChatStreamEventType type,
         String messageId,
@@ -32,8 +32,7 @@ public record ChatStreamEvent(
         String content,
         ToolCallInfo toolCall,
         ToolResultInfo toolResult,
-        String errorCode,
-        String answerId) {
+        String errorCode) {
 
     public record ToolCallInfo(String id, String name, Map<String, Object> input) {}
 

@@ -27,11 +27,12 @@ import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.model.dto.DataEvidencePageQuery;
 import io.github.malonetalk.model.holder.UserContextHolder;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -91,18 +92,11 @@ public class AgentController {
         return Result.success(history);
     }
 
-    @GetMapping("/session/{sessionId}/answers/{answerId}/provenance")
-    public Result<AnswerProvenanceVo> getAnswerProvenance(
-            @PathVariable String sessionId, @PathVariable String answerId) {
-        sessionService.requireOwnership(userContextHolder.requireScopedUserId(), sessionId);
-        return Result.success(answerProvenanceService.find(sessionId, answerId).orElse(null));
-    }
-
-    @GetMapping("/session/{sessionId}/provenance")
-    public Result<Map<String, AnswerProvenanceVo>> listAnswerProvenance(
-            @PathVariable String sessionId) {
-        sessionService.requireOwnership(userContextHolder.requireScopedUserId(), sessionId);
-        return Result.success(answerProvenanceService.listBySession(sessionId));
+    @GetMapping("/evidence")
+    public Result<PageResponse<DataEvidenceVo>> listDataEvidence(
+            @Valid DataEvidencePageQuery query) {
+        return Result.success(
+                answerProvenanceService.getPage(query, userContextHolder.requireScopedUserId()));
     }
 
     @DeleteMapping("/session/{sessionId}")

@@ -5,37 +5,68 @@
     <resultMap id="BaseResultMap" type="io.github.malonetalk.model.po.AnswerProvenancePo">
         <id column="answer_id" property="answerId"/>
         <result column="session_id" property="sessionId"/>
-        <result column="provenance_json" property="provenanceJson"/>
+        <result column="status" property="status"/>
+        <result column="datasources_json" property="datasourcesJson"/>
+        <result column="sql_executions_json" property="sqlExecutionsJson"/>
+        <result column="metric_references_json" property="metricReferencesJson"/>
+        <result column="python_executions_json" property="pythonExecutionsJson"/>
+        <result column="tables_json" property="tablesJson"/>
+        <result column="warnings_json" property="warningsJson"/>
     </resultMap>
 
-    <select id="selectBySessionIdAndAnswerId" resultMap="BaseResultMap">
-        SELECT answer_id, session_id, provenance_json
-        FROM answer_provenance
-        WHERE session_id = #{sessionId} AND answer_id = #{answerId}
-    </select>
+    <sql id="BaseColumnList">
+        answer_id, session_id, status, datasources_json, sql_executions_json,
+        metric_references_json, python_executions_json, tables_json, warnings_json
+    </sql>
 
-    <select id="selectBySessionId" resultMap="BaseResultMap">
-        SELECT answer_id, session_id, provenance_json
+    <select id="selectPage" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumnList"/>
         FROM answer_provenance
-        WHERE session_id = #{sessionId}
+        <where>
+            <if test="sessionId != null">
+                session_id = #{sessionId}
+            </if>
+            <if test="answerId != null">
+                AND answer_id = #{answerId}
+            </if>
+            <if test="sessionIds != null">
+                AND session_id IN
+                <foreach collection="sessionIds" item="id" open="(" separator="," close=")">
+                    #{id}
+                </foreach>
+            </if>
+        </where>
+        ORDER BY answer_id DESC
     </select>
 
     <select id="selectForUpdateBySessionIdAndAnswerId" resultMap="BaseResultMap">
-        SELECT answer_id, session_id, provenance_json
+        SELECT <include refid="BaseColumnList"/>
         FROM answer_provenance
         WHERE session_id = #{sessionId} AND answer_id = #{answerId}
         FOR UPDATE
     </select>
 
     <insert id="insert" parameterType="io.github.malonetalk.model.po.AnswerProvenancePo">
-        INSERT INTO answer_provenance (answer_id, session_id, provenance_json)
-        VALUES (#{answerId}, #{sessionId}, #{provenanceJson})
+        INSERT INTO answer_provenance (
+            answer_id, session_id, status, datasources_json, sql_executions_json,
+            metric_references_json, python_executions_json, tables_json, warnings_json
+        ) VALUES (
+            #{answerId}, #{sessionId}, #{status}, #{datasourcesJson}, #{sqlExecutionsJson},
+            #{metricReferencesJson}, #{pythonExecutionsJson}, #{tablesJson}, #{warningsJson}
+        )
     </insert>
 
-    <update id="updateJsonBySessionIdAndAnswerId">
+    <update id="updateBySessionIdAndAnswerId">
         UPDATE answer_provenance
-        SET provenance_json = #{provenanceJson}
-        WHERE session_id = #{sessionId} AND answer_id = #{answerId}
+        SET status = #{status},
+            datasources_json = #{datasourcesJson},
+            sql_executions_json = #{sqlExecutionsJson},
+            metric_references_json = #{metricReferencesJson},
+            python_executions_json = #{pythonExecutionsJson},
+            tables_json = #{tablesJson},
+            warnings_json = #{warningsJson}
+        WHERE session_id = #{sessionId}
+          AND answer_id = #{answerId}
     </update>
 
     <delete id="deleteBySessionId">

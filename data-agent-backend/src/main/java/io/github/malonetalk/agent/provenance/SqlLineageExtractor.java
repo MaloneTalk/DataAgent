@@ -323,12 +323,9 @@ public class SqlLineageExtractor {
     }
 
     private static String key(String name) {
-        return name == null ? "" : baseName(name).toLowerCase(Locale.ROOT);
-    }
-
-    private static String baseName(String name) {
+        if (name == null) return "";
         String unquoted = name.replace("`", "");
-        return unquoted.substring(unquoted.lastIndexOf('.') + 1);
+        return unquoted.substring(unquoted.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
     }
 
     public record Lineage(List<TableUse> tables, List<String> warnings) {}

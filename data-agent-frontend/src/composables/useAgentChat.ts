@@ -16,14 +16,7 @@
  */
 
 import { ref, shallowRef } from 'vue';
-import {
-  streamChat,
-  fetchSessionHistory,
-  fetchSessionProvenance,
-  fetchAnswerProvenance,
-  type AnswerProvenance,
-  type ChatStreamEventType,
-} from '@/api/agent';
+import { streamChat, fetchSessionHistory, type ChatStreamEventType } from '@/api/agent';
 import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
 export interface PendingQuestion {
@@ -47,8 +40,6 @@ export interface ChatMessage {
   traceSteps: TraceStep[];
   isStreaming: boolean;
   timestamp: number;
-  answerId: string | null;
-  provenance: AnswerProvenance | null;
 }
 
 let seq = 0;
@@ -78,8 +69,6 @@ export function useAgentChat(initialSessionId?: string) {
       traceSteps: [],
       isStreaming: false,
       timestamp: Date.now(),
-      answerId: null,
-      provenance: null,
     };
     messages.value = [...messages.value, msg];
     return msg;
@@ -93,8 +82,6 @@ export function useAgentChat(initialSessionId?: string) {
       traceSteps: [],
       isStreaming: true,
       timestamp: Date.now(),
-      answerId: null,
-      provenance: null,
     };
     messages.value = [...messages.value, msg];
     return msg;
@@ -114,10 +101,7 @@ export function useAgentChat(initialSessionId?: string) {
     messages.value = [];
     sessionId.value = sid;
 
-    const [turns, provenance] = await Promise.all([
-      fetchSessionHistory(sid),
-      fetchSessionProvenance(sid).catch((): Record<string, AnswerProvenance> => ({})),
-    ]);
+    const turns = await fetchSessionHistory(sid);
     messages.value = turns.map(turn => ({
       id: nextId(),
       role: (turn.role === 'USER' ? 'user' : 'agent') as 'user' | 'agent',
@@ -125,8 +109,6 @@ export function useAgentChat(initialSessionId?: string) {
       traceSteps: turn.traceSteps,
       isStreaming: false,
       timestamp: Date.now(),
-      answerId: turn.answerId,
-      provenance: turn.answerId ? (provenance[turn.answerId] ?? null) : null,
     }));
   }
 
@@ -163,8 +145,6 @@ export function useAgentChat(initialSessionId?: string) {
           if (event.type === 'text' && event.content) {
             msg.content += event.content;
           }
-
-          if (event.answerId) msg.answerId = event.answerId;
 
           if (event.type === 'summary' && event.content) {
             if (!summaryStarted) {
@@ -223,19 +203,6 @@ export function useAgentChat(initialSessionId?: string) {
       });
       isStreaming.value = false;
       abortController.value = null;
-      const completed = messages.value.find(m => m.id === agentMsg.id);
-      if (completed?.answerId) {
-        try {
-          const provenance = await fetchAnswerProvenance(currentSessionId, completed.answerId);
-          messages.value = messages.value.map(msg =>
-            msg.role === 'agent' && msg.answerId === completed.answerId
-              ? { ...msg, provenance }
-              : msg,
-          );
-        } catch {
-          // The trace remains available if provenance was not persisted.
-        }
-      }
     }
   }
 

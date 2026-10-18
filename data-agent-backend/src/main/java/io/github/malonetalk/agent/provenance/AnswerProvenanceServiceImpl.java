@@ -17,23 +17,30 @@
  */
 package io.github.malonetalk.agent.provenance;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolCallInfo;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolResultInfo;
+import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.AnswerProvenanceMapper;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.mapper.UserSessionMapper;
+import io.github.malonetalk.model.dto.DataEvidencePageQuery;
 import io.github.malonetalk.model.po.AnswerProvenancePo;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.DatasourceUse;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.PythonUse;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.SqlUse;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.TableUse;
+import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,11 +63,7 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
     private final SqlLineageExtractor lineageExtractor;
     private final TableInfoMapper tableInfoMapper;
     private final ColumnSemanticInfoMapper columnInfoMapper;
-
-    @Override
-    public Optional<AnswerProvenanceVo> find(String sessionId, String answerId) {
-        return read(provenanceMapper.selectBySessionIdAndAnswerId(sessionId, answerId));
-    }
+    private final UserSessionMapper userSessionMapper;
 
     @Override
     public void deleteSession(String sessionId) {
@@ -68,12 +71,37 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
     }
 
     @Override
-    public Map<String, AnswerProvenanceVo> listBySession(String sessionId) {
-        Map<String, AnswerProvenanceVo> answers = new LinkedHashMap<>();
-        for (AnswerProvenancePo provenance : provenanceMapper.selectBySessionId(sessionId)) {
-            read(provenance).ifPresent(answer -> answers.put(provenance.getAnswerId(), answer));
+    public PageResponse<DataEvidenceVo> getPage(DataEvidencePageQuery query, Integer userId) {
+        int pageNumber = PageResponse.resolvePage(query.page());
+        int pageSize = PageResponse.resolvePageSize(query.pageSize());
+        String sessionId = SemanticUtils.trimToNull(query.sessionId());
+        List<String> sessionIds =
+                userId == null ? null : userSessionMapper.selectSessionIdsByUserId(userId);
+        if (sessionIds != null
+                && (sessionIds.isEmpty() || sessionId != null && !sessionIds.contains(sessionId))) {
+            return PageResponse.empty(pageNumber, pageSize);
         }
-        return answers;
+
+        IPage<AnswerProvenancePo> page =
+                provenanceMapper.selectPage(
+                        new Page<>(pageNumber, pageSize),
+                        sessionId,
+                        SemanticUtils.trimToNull(query.answerId()),
+                        sessionId == null ? sessionIds : null);
+        List<DataEvidenceVo> evidence =
+                page.getRecords().stream()
+                        .flatMap(
+                                stored ->
+                                        read(stored)
+                                                .map(
+                                                        value ->
+                                                                new DataEvidenceVo(
+                                                                        stored.getAnswerId(),
+                                                                        stored.getSessionId(),
+                                                                        value))
+                                                .stream())
+                        .toList();
+        return PageResponse.of(evidence, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override
@@ -86,9 +114,8 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
         if (previous.isEmpty() && events.stream().noneMatch(this::isProvenanceEvent)) return;
 
         AnswerProvenanceVo current = build(events, status);
-        AnswerProvenanceVo merged =
-                validateSources(previous.map(old -> merge(old, current)).orElse(current));
-        persist(sessionId, answerId, write(merged), stored != null);
+        AnswerProvenanceVo merged = previous.map(old -> merge(old, current)).orElse(current);
+        persist(sessionId, answerId, merged, stored != null);
     }
 
     private boolean isProvenanceEvent(ChatStreamEvent event) {
@@ -99,16 +126,23 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
         };
     }
 
-    private void persist(String sessionId, String answerId, String json, boolean exists) {
-        if (exists) {
-            provenanceMapper.updateJsonBySessionIdAndAnswerId(sessionId, answerId, json);
-            return;
-        }
+    private void persist(
+            String sessionId, String answerId, AnswerProvenanceVo evidence, boolean exists) {
         AnswerProvenancePo provenance = new AnswerProvenancePo();
         provenance.setAnswerId(answerId);
         provenance.setSessionId(sessionId);
-        provenance.setProvenanceJson(json);
-        provenanceMapper.insert(provenance);
+        provenance.setStatus(evidence.status());
+        provenance.setDatasourcesJson(write(evidence.datasources()));
+        provenance.setSqlExecutionsJson(write(evidence.sqlExecutions()));
+        provenance.setMetricReferencesJson(write(evidence.metricReferences()));
+        provenance.setPythonExecutionsJson(write(evidence.pythonExecutions()));
+        provenance.setTablesJson(write(evidence.tables()));
+        provenance.setWarningsJson(write(evidence.warnings()));
+        if (exists) {
+            provenanceMapper.updateBySessionIdAndAnswerId(provenance);
+        } else {
+            provenanceMapper.insert(provenance);
+        }
     }
 
     private AnswerProvenanceVo build(List<ChatStreamEvent> events, String status) {
@@ -144,6 +178,9 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
             } else if ("execute_python".equals(call.name())) {
                 pythonExecutions.add(pythonExecution(call, result));
             }
+        }
+        if (!pythonExecutions.isEmpty()) {
+            warnings.add("Python 内联数据与 SQL 结果未做逐值校验");
         }
         return new AnswerProvenanceVo(
                 status,
@@ -213,21 +250,6 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
                                 : "FAILED");
     }
 
-    private AnswerProvenanceVo validateSources(AnswerProvenanceVo answer) {
-        List<String> warnings = new ArrayList<>(answer.warnings());
-        if (!answer.pythonExecutions().isEmpty()) {
-            warnings.add("Python 内联数据与 SQL 结果未做逐值校验");
-        }
-        return new AnswerProvenanceVo(
-                answer.status(),
-                answer.datasources(),
-                answer.sqlExecutions(),
-                answer.metricReferences(),
-                answer.pythonExecutions(),
-                answer.tables(),
-                distinct(warnings));
-    }
-
     private AnswerProvenanceVo merge(AnswerProvenanceVo old, AnswerProvenanceVo next) {
         return new AnswerProvenanceVo(
                 next.status(),
@@ -243,8 +265,14 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
         if (provenance == null) return Optional.empty();
         try {
             return Optional.of(
-                    objectMapper.readValue(
-                            provenance.getProvenanceJson(), AnswerProvenanceVo.class));
+                    new AnswerProvenanceVo(
+                            provenance.getStatus(),
+                            readList(provenance.getDatasourcesJson(), DatasourceUse.class),
+                            readList(provenance.getSqlExecutionsJson(), SqlUse.class),
+                            readList(provenance.getMetricReferencesJson(), MetricUse.class),
+                            readList(provenance.getPythonExecutionsJson(), PythonUse.class),
+                            readList(provenance.getTablesJson(), TableUse.class),
+                            readList(provenance.getWarningsJson(), String.class)));
         } catch (JsonProcessingException e) {
             log.warn(
                     "Skipping invalid answer provenance: answerId={}", provenance.getAnswerId(), e);
@@ -252,9 +280,15 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
         }
     }
 
-    private String write(AnswerProvenanceVo provenance) {
+    private <T> List<T> readList(String json, Class<T> elementType) throws JsonProcessingException {
+        return objectMapper.readValue(
+                json,
+                objectMapper.getTypeFactory().constructCollectionType(List.class, elementType));
+    }
+
+    private String write(Object value) {
         try {
-            return objectMapper.writeValueAsString(provenance);
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Cannot save answer provenance", e);
         }

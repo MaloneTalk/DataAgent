@@ -17,10 +17,8 @@
  */
 package io.github.malonetalk.model.vo;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 public record AnswerProvenanceVo(
         String status,
         List<DatasourceUse> datasources,
@@ -29,6 +27,8 @@ public record AnswerProvenanceVo(
         List<PythonUse> pythonExecutions,
         List<TableUse> tables,
         List<String> warnings) {
+
+    public record DataEvidenceVo(String answerId, String sessionId, AnswerProvenanceVo evidence) {}
 
     public record DatasourceUse(Integer id, String name, String databaseName) {}
 
@@ -42,7 +42,6 @@ public record AnswerProvenanceVo(
 
     public record MetricUse(String key, String name, String measureExpr, String filters) {}
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
     public record PythonUse(String callId, String code, String status) {}
 
     public record TableUse(
