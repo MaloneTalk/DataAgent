@@ -94,6 +94,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '表格导出' },
   },
   {
+    path: '/asset/evidence',
+    name: 'EvidenceList',
+    component: () => import('@/views/evidence/EvidenceList.vue'),
+    meta: { title: '数据证据' },
+  },
+  {
     path: '/system',
     redirect: '/system/user',
   },

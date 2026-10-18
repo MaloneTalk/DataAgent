@@ -606,3 +606,18 @@ SET @migration_sql = IF(
 PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
+
+-- 回答数据证据快照
+CREATE TABLE IF NOT EXISTS `answer_provenance` (
+    `answer_id` VARCHAR(255) NOT NULL COMMENT '初始用户消息ID',
+    `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `status` VARCHAR(16) NOT NULL COMMENT '记录状态：COMPLETE/PARTIAL',
+    `datasources_json` JSON NOT NULL COMMENT '使用的数据源',
+    `sql_executions_json` JSON NOT NULL COMMENT '执行的SQL',
+    `metric_references_json` JSON NOT NULL COMMENT '引用的指标口径',
+    `python_executions_json` JSON NOT NULL COMMENT '执行的Python代码',
+    `tables_json` JSON NOT NULL COMMENT '表和字段血缘',
+    `warnings_json` JSON NOT NULL COMMENT '溯源警告',
+    PRIMARY KEY (`answer_id`),
+    KEY `idx_answer_provenance_session` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='回答数据证据';

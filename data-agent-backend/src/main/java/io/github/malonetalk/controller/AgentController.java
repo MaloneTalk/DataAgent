@@ -20,13 +20,17 @@ package io.github.malonetalk.controller;
 import io.agentscope.core.message.Msg;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
+import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
+import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.model.dto.DataEvidencePageQuery;
 import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -51,6 +55,7 @@ public class AgentController {
     private final AgentService agentService;
     private final SessionService sessionService;
     private final UserContextHolder userContextHolder;
+    private final AnswerProvenanceService answerProvenanceService;
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
@@ -85,6 +90,13 @@ public class AgentController {
         Integer userId = userContextHolder.requireScopedUserId();
         List<TurnItem> history = sessionService.getSessionHistory(sessionId, userId);
         return Result.success(history);
+    }
+
+    @GetMapping("/evidence")
+    public Result<PageResponse<DataEvidenceVo>> listDataEvidence(
+            @Valid DataEvidencePageQuery query) {
+        return Result.success(
+                answerProvenanceService.getPage(query, userContextHolder.requireScopedUserId()));
     }
 
     @DeleteMapping("/session/{sessionId}")

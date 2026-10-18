@@ -32,6 +32,7 @@ import io.agentscope.core.tool.ToolExecutionContext;
 import io.agentscope.core.tool.Toolkit;
 import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
+import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.agent.skill.SkillLoaderService;
 import io.github.malonetalk.agent.tools.MarkAgentTool;
 import io.github.malonetalk.convertor.EventConverter;
@@ -45,12 +46,14 @@ import io.github.malonetalk.web.TraceIdFilter;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Schedulers;
 
 @Slf4j
@@ -68,6 +71,7 @@ public class AgentService {
     private final ExceptionResponseMapper exceptionResponseMapper;
     private final EventConverter eventConverter;
     private final DatasourceService datasourceService;
+    private final AnswerProvenanceService answerProvenanceService;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -106,6 +110,13 @@ public class AgentService {
         Session session = sessionService.getOrCreateSession(sessionId);
         agent.loadIfExists(session, sessionId);
         Msg userMsg = buildUserMessage(userInput, toolResults);
+        String answerId =
+                toolResults == null || toolResults.isEmpty()
+                        ? userMsg.getId()
+                        : sessionService.getLatestUserMessageId(sessionId);
+        if (answerId == null) answerId = userMsg.getId();
+        final String currentAnswerId = answerId;
+        List<ChatStreamEvent> provenanceEvents = new ArrayList<>();
 
         StreamOptions streamOptions =
                 StreamOptions.builder()
@@ -132,11 +143,43 @@ public class AgentService {
                                         signalType))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapIterable(eventConverter::map)
+                .doOnNext(
+                        event -> {
+                            if (event.toolCall() != null || event.toolResult() != null)
+                                provenanceEvents.add(event);
+                        })
+                .doOnComplete(
+                        () ->
+                                saveProvenance(
+                                        sessionId, currentAnswerId, provenanceEvents, "COMPLETE"))
                 .doFinally(
                         signalType -> {
-                            agent.saveTo(session, sessionId);
-                            MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
+                            try {
+                                agent.saveTo(session, sessionId);
+                            } finally {
+                                if (signalType != SignalType.ON_COMPLETE) {
+                                    saveProvenance(
+                                            sessionId,
+                                            currentAnswerId,
+                                            provenanceEvents,
+                                            "PARTIAL");
+                                }
+                                MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
+                            }
                         });
+    }
+
+    private void saveProvenance(
+            String sessionId, String answerId, List<ChatStreamEvent> events, String status) {
+        try {
+            answerProvenanceService.save(sessionId, answerId, events, status);
+        } catch (RuntimeException e) {
+            log.error(
+                    "Failed to save answer provenance: sessionId={}, answerId={}",
+                    sessionId,
+                    answerId,
+                    e);
+        }
     }
 
     private Msg buildUserMessage(String userInput, List<ChatRequest.ToolResultInput> toolResults) {

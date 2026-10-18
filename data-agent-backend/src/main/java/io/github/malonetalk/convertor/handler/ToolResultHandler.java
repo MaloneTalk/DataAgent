@@ -47,7 +47,11 @@ public interface ToolResultHandler {
                 .isLast(isLast)
                 .toolResult(
                         new ChatStreamEvent.ToolResultInfo(
-                                block.getId(), block.getName(), text, block.isSuspended()))
+                                block.getId(),
+                                block.getName(),
+                                text,
+                                block.isSuspended(),
+                                block.getMetadata()))
                 .build();
     }
 }

@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import java.util.Map;
@@ -35,10 +36,15 @@ public record ChatStreamEvent(
 
     public record ToolCallInfo(String id, String name, Map<String, Object> input) {}
 
-    public record ToolResultInfo(String id, String name, String output, boolean suspended) {
+    public record ToolResultInfo(
+            String id,
+            String name,
+            String output,
+            boolean suspended,
+            @JsonIgnore Map<String, Object> metadata) {
 
-        public ToolResultInfo(String id, String name, String output) {
-            this(id, name, output, false);
+        public ToolResultInfo(String id, String name, String output, boolean suspended) {
+            this(id, name, output, suspended, Map.of());
         }
     }
 }

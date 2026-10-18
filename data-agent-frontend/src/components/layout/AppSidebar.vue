@@ -42,6 +42,7 @@
       children: [
         { path: '/asset/report', title: '报告管理' },
         { path: '/asset/table-export', title: '表格导出' },
+        { path: '/asset/evidence', title: '数据证据' },
       ],
     },
     {

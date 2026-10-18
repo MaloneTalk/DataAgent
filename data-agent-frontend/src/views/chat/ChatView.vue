@@ -26,6 +26,7 @@
   import SessionList from '@/views/chat/components/SessionList.vue';
   import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
   import ReportList from '@/views/report/ReportList.vue';
+  import EvidenceList from '@/views/evidence/EvidenceList.vue';
 
   const route = useRoute();
   const router = useRouter();
@@ -47,6 +48,7 @@
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
   const showSessionList = ref(false);
   const reportDialogVisible = ref(false);
+  const evidenceDialogVisible = ref(false);
   const previewVisible = ref(false);
   const previewContent = ref('');
   const datasources = ref<DatasourceResponse[]>([]);
@@ -207,6 +209,7 @@
             />
           </el-select>
           <el-button text @click="reportDialogVisible = true">会话报告</el-button>
+          <el-button text @click="evidenceDialogVisible = true">数据证据</el-button>
           <el-button text @click="handleNewSession">新建会话</el-button>
         </div>
       </div>
@@ -265,6 +268,16 @@
         destroy-on-close
       >
         <ReportList :fixed-session-id="sessionId" embedded />
+      </el-dialog>
+
+      <el-dialog
+        v-model="evidenceDialogVisible"
+        title="数据证据"
+        width="960px"
+        top="30px"
+        destroy-on-close
+      >
+        <EvidenceList :fixed-session-id="sessionId" />
       </el-dialog>
     </div>
   </div>

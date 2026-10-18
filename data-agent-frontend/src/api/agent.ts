@@ -39,6 +39,37 @@ export interface ToolResultInfo {
   output: string;
 }
 
+export interface AnswerProvenance {
+  status: string;
+  datasources: { id: number; name: string | null; databaseName: string | null }[];
+  sqlExecutions: {
+    callId: string;
+    sql: string;
+    executedSql: string | null;
+    status: string;
+    returnedRows: number | null;
+    truncated: boolean | null;
+  }[];
+  metricReferences: {
+    key: string;
+    name: string;
+    measureExpr: string | null;
+    filters: string | null;
+  }[];
+  pythonExecutions: {
+    callId: string;
+    code: string;
+    status: string;
+  }[];
+  tables: {
+    name: string;
+    domain: string | null;
+    description: string | null;
+    columns: { name: string; description: string | null }[];
+  }[];
+  warnings: string[];
+}
+
 export interface ToolResultInput {
   toolCallId: string;
   toolName: string;

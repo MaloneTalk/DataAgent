@@ -17,15 +17,19 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
+import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -51,8 +55,17 @@ public class ExecuteSqlTool implements MarkAgentTool {
                 () -> {
                     Datasource datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
-                    QueryResult result = sqlExecutor.execute(datasource, sql);
-                    return ToolResultBlock.text(formatResult(result));
+                    SqlExecution execution = sqlExecutor.executeDetailed(datasource, sql);
+                    Map<String, Object> metadata = new HashMap<>();
+                    metadata.put("datasourceId", datasource.getId());
+                    metadata.put("datasourceName", datasource.getName());
+                    metadata.put("databaseName", datasource.getDatabaseName());
+                    metadata.put("executedSql", execution.executedSql());
+                    metadata.put("returnedRows", execution.result().rows().size());
+                    metadata.put("truncated", execution.result().truncated());
+                    return ToolResultBlock.of(
+                            TextBlock.builder().text(formatResult(execution.result())).build(),
+                            metadata);
                 });
     }
 
