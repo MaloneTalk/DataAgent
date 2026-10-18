@@ -161,6 +161,11 @@ CREATE TABLE IF NOT EXISTS `metric_info` (
     `measure_expr` VARCHAR(500) DEFAULT NULL COMMENT '度量表达式,如 SUM(paid_amount)',
     `filters` TEXT DEFAULT NULL COMMENT '过滤条件,如 status=''paid'' AND is_test=0',
     `time_field` VARCHAR(255) DEFAULT NULL COMMENT '时间维度字段,如 settle_time',
+    `calculation_type` VARCHAR(32) NOT NULL DEFAULT 'EXPRESSION' COMMENT '计算方式:EXPRESSION/DISTINCT_COUNT/RATIO/SNAPSHOT',
+    `value_type` VARCHAR(16) DEFAULT NULL COMMENT '结果类型:NUMBER/MONEY/PERCENT,NULL表示未配置',
+    `unit` VARCHAR(32) DEFAULT NULL COMMENT '标准结果单位,如元/人/次,百分比比值为1',
+    `result_multiplier` DECIMAL(24,12) NOT NULL DEFAULT 1 COMMENT '标准结果=度量表达式原始结果乘以此倍率',
+    `currency_code` VARCHAR(3) DEFAULT NULL COMMENT '金额币种代码,如CNY/USD',
     `description` TEXT DEFAULT NULL COMMENT '业务口径说明/规则',
     `creator_id` BIGINT DEFAULT NULL COMMENT '创建人ID',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -176,10 +181,12 @@ CREATE TABLE IF NOT EXISTS `metric_info` (
 -- 示例:销售额口径。请按你实际的 datasource_id 调整后再执行(取消注释)。
 -- INSERT INTO `metric_info`
 --   (`datasource_id`, `metric_key`, `name`, `aliases`,
---    `measure_expr`, `filters`, `time_field`, `description`)
+--    `measure_expr`, `filters`, `time_field`, `calculation_type`, `value_type`,
+--    `unit`, `result_multiplier`, `currency_code`, `description`)
 -- VALUES
 --   (1, 'sales', '销售额', 'GMV,营收,流水,成交额',
 --    'SUM(paid_amount)', 'status=''paid'' AND is_test=0', 'settle_time',
+--    'EXPRESSION', 'MONEY', '元', 1, 'CNY',
 --    '已支付净额,使用结算时间,排除测试账号');
 
 -- 权限管理：角色表 + 表级白名单 + 列级黑名单。

@@ -9,7 +9,7 @@
 | 1 | [getting-started.md](getting-started.md) | 想跑起来的人 | 环境准备、建库、启动前后端、第一次提问 |
 | 2 | [architecture.md](architecture.md) | 想理解系统的人 | 系统组成、请求流转、模块划分、MCP 集成、API 概览 |
 | 3 | [configuration.md](configuration.md) | 要部署/接入的人 | LLM 提供商、元数据库、查询数据源、Skill、MCP 配置、安全提示 |
-| 4 | [semantic-layer.md](semantic-layer.md) | 要维护业务知识的人 | 语义层概念、管理界面操作、同步机制 |
+| 4 | [semantic-layer.md](semantic-layer.md) | 要维护业务知识的人 | 语义层概念、管理界面、同步机制、指标业务属性与API示例 |
 | 5 | [skills.md](skills.md) | 要扩展 Agent 能力的人 | Skill 是什么、怎么写、怎么加自定义 Skill |
 
 ## 贡献相关

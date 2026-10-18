@@ -13,8 +13,10 @@
 | `spring.datasource.password` | `root` | 支持 `${DB_PASSWORD:...}` |
 | `spring.datasource.driver-class-name` | `com.mysql.cj.jdbc.Driver` | MySQL 驱动 |
 
-新库建表脚本见 `sql/data_source.sql`。已有数据库升级到主键关联版本时，需在启动新版后端前
-执行 `sql/migration_primary_key_relations.sql`，其中包含旧库兼容、主键关联升级和回答溯源表。
+新库建表脚本见 `sql/data_source.sql`。已有数据库升级时，需备份数据库并在启动新版后端前
+执行最新的 `sql/migration_primary_key_relations.sql`，其中包含旧库兼容、主键关联升级、指标业务属性扩展和回答溯源表。
+已经完成主键关联升级的旧库也需执行，以补齐计算方式、结果类型、单位、倍率、币种及回答溯源表；新增字段逐列检查是否存在，回答溯源表按需创建，可重复执行。
+指标属性的配置规则与接口示例见 [语义层](semantic-layer.md#5-指标业务属性)。
 
 ## 2. LLM 提供商
 

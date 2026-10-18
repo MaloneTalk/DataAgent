@@ -20,6 +20,8 @@ package io.github.malonetalk.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.github.malonetalk.enums.MetricCalculationType;
+import io.github.malonetalk.enums.MetricValueType;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.MetricInfoMapper;
@@ -30,10 +32,14 @@ import io.github.malonetalk.model.dto.MetricQueryDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
 import io.github.malonetalk.model.po.MetricInfoPo;
 import io.github.malonetalk.utils.SemanticUtils;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Currency;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -154,6 +160,7 @@ public class MetricServiceImpl implements MetricService {
         MetricInfoPo po = metricConverter.toPoForInsert(dto);
         po.setDatasourceId(dsId);
         po.setMetricKey(key);
+        normalizeBusinessProperties(po);
         metricInfoMapper.insert(po);
         return metricConverter.toBo(po);
     }
@@ -165,6 +172,7 @@ public class MetricServiceImpl implements MetricService {
         }
         MetricInfoPo po = requireById(id);
         metricConverter.toPoForUpdate(dto, po);
+        normalizeBusinessProperties(po);
         if (!StringUtils.hasText(dto.name())) {
             po.setName(null);
         }
@@ -220,5 +228,43 @@ public class MetricServiceImpl implements MetricService {
 
     private List<MetricInfoBo> toBoList(List<MetricInfoPo> pos) {
         return pos.stream().map(metricConverter::toBo).toList();
+    }
+
+    private void normalizeBusinessProperties(MetricInfoPo po) {
+        po.setCalculationType(
+                Optional.ofNullable(po.getCalculationType())
+                        .orElse(MetricCalculationType.EXPRESSION));
+        BigDecimal multiplier =
+                Optional.ofNullable(po.getResultMultiplier()).orElse(BigDecimal.ONE);
+        if (multiplier.signum() <= 0
+                || multiplier.scale() > 12
+                || multiplier.precision() - multiplier.scale() > 12) {
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "结果倍率必须为正数，最多12位整数和12位小数");
+        }
+        po.setResultMultiplier(multiplier);
+        po.setUnit(SemanticUtils.trimToNull(po.getUnit()));
+        if (po.getValueType() == MetricValueType.PERCENT) {
+            if (multiplier.compareTo(BigDecimal.ONE) != 0) {
+                throw BusinessException.of(ErrorCode.BAD_REQUEST, "百分比指标的结果倍率必须为1，展示时再乘以100");
+            }
+            po.setUnit("1");
+        } else if (po.getValueType() != null && !StringUtils.hasText(po.getUnit())) {
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "请填写标准结果单位");
+        }
+        if (po.getValueType() != MetricValueType.MONEY) {
+            po.setCurrencyCode(null);
+            return;
+        }
+        String currency =
+                Optional.ofNullable(SemanticUtils.trimToNull(po.getCurrencyCode()))
+                        .map(code -> code.toUpperCase(Locale.ROOT))
+                        .orElseThrow(
+                                () -> BusinessException.of(ErrorCode.BAD_REQUEST, "金额指标必须填写币种"));
+        try {
+            Currency.getInstance(currency);
+        } catch (IllegalArgumentException exception) {
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "不支持的币种代码: " + currency);
+        }
+        po.setCurrencyCode(currency);
     }
 }

@@ -45,7 +45,10 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                     Get the precise business caliber (definition) of a metric when you are unsure \
                     how it should be computed — which measure expression to use, which time field \
                     to apply, or whether test data should be excluded. It returns the metric's \
-                    measure expression, filters, time field and caliber notes. Call this whenever \
+                    measure expression, filters, time field, calculation type, value type, unit, \
+                    result multiplier, currency and caliber notes. Apply the result multiplier \
+                    exactly once; percentage values are ratios and are multiplied by 100 only \
+                    for display. Call this whenever \
                     the exact caliber of a mentioned metric is unclear before generating SQL. \
                     You may pass the user's question verbatim: the matcher scans the question for \
                     known metric names and aliases, so there is no need to distill it to a keyword.\

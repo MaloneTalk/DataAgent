@@ -17,6 +17,10 @@
  */
 package io.github.malonetalk.model.vo;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import io.github.malonetalk.enums.MetricCalculationType;
+import io.github.malonetalk.enums.MetricValueType;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /** 指标口径出参。与持久化对象解耦,不泄露 isDeleted 等内部状态。 */
@@ -29,6 +33,11 @@ public record MetricInfoVo(
         String measureExpr,
         String filters,
         String timeField,
+        MetricCalculationType calculationType,
+        MetricValueType valueType,
+        String unit,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal resultMultiplier,
+        String currencyCode,
         String description,
         LocalDateTime createTime,
         LocalDateTime updateTime)

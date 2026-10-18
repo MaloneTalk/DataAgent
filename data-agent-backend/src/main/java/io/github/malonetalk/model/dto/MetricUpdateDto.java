@@ -17,13 +17,29 @@
  */
 package io.github.malonetalk.model.dto;
 
+import io.github.malonetalk.enums.MetricCalculationType;
+import io.github.malonetalk.enums.MetricValueType;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import lombok.Builder;
 
 /** 更新指标口径。不包含 metricKey,即不允许修改稳定标识。 */
+@Builder
 public record MetricUpdateDto(
         @NotBlank(message = "name 不能为空") String name,
         String aliases,
         String measureExpr,
         String filters,
         String timeField,
+        MetricCalculationType calculationType,
+        MetricValueType valueType,
+        @Size(max = 32, message = "unit 最多32个字符") String unit,
+        @DecimalMin(value = "0", inclusive = false, message = "resultMultiplier 必须大于0")
+                @Digits(integer = 12, fraction = 12, message = "resultMultiplier 最多12位整数和12位小数")
+                BigDecimal resultMultiplier,
+        @Pattern(regexp = "^$|[A-Za-z]{3}", message = "currencyCode 必须为3位币种代码") String currencyCode,
         String description) {}

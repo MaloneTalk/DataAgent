@@ -91,11 +91,13 @@ cd data-agent-frontend
 pnpm install && pnpm dev
 ```
 
-已有数据库升级到主键关联版本时，先备份数据库并在启动新版后端前执行：
+已有数据库升级时，先备份数据库并在启动新版后端前执行最新迁移脚本。已完成主键关联升级的旧库也需执行，以补齐指标的计算方式、结果类型、单位、倍率和币种：
 
 ```bash
 mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
 ```
+
+五个指标属性的默认值、校验与配置示例见[指标业务属性](docs/semantic-layer.md#5-指标业务属性)。
 
 浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，先在「数据源管理」接入业务库，在「语义管理」同步表结构并维护表/列/指标口径，再到聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"* 用户与角色入口在「系统管理」。
 
