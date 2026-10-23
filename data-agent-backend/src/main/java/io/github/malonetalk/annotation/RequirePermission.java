@@ -34,5 +34,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RequirePermission {
 
-    PermissionEnum[] value() default {};
+    PermissionEnum[] value();
 }

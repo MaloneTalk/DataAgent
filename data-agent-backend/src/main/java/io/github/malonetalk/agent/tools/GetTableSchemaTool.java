@@ -23,8 +23,11 @@ import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
@@ -35,7 +38,10 @@ import org.springframework.stereotype.Component;
 @AllArgsConstructor
 public class GetTableSchemaTool implements MarkAgentTool {
 
+    private final PermissionService permissions;
+
     private final DatasourceService dataSourceService;
+    private final DataPermissionService dataPermissions;
     private final ColumnSemanticService columnSemanticService;
     private final ToolExceptionMapper toolExceptionMapper;
 
@@ -51,13 +57,24 @@ public class GetTableSchemaTool implements MarkAgentTool {
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName,
             ToolCallContext ctx) {
+        permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
         return toolExceptionMapper.run(
                 () -> {
                     Datasource datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    var user = permissions.user(ctx.userId());
+                    dataPermissions.requireTable(user, datasource.getId(), tableName);
+                    var hidden = dataPermissions.hidden(user, datasource.getId(), tableName);
                     List<ColumnPromptResponse> columns =
-                            columnSemanticService.getMergedTableSchema(
-                                    datasource.getId(), tableName);
+                            columnSemanticService
+                                    .getMergedTableSchema(datasource.getId(), tableName)
+                                    .stream()
+                                    .filter(
+                                            c ->
+                                                    !hidden.contains(
+                                                            DataPermissionService.normalize(
+                                                                    c.name())))
+                                    .toList();
                     return ToolResultBlock.text(
                             SemanticUtils.formatTableSchema(tableName, columns)
                                     + ToolCallConstants.METRIC_CALIBER_REMINDER);

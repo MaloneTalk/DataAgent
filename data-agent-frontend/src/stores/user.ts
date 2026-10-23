@@ -18,7 +18,7 @@
 
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { login as loginApi, type LoginRequest, type UserInfoResponse } from '@/api/auth';
+import { fetchMe, login as loginApi, type LoginRequest, type UserInfoResponse } from '@/api/auth';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'userInfo';
@@ -26,6 +26,15 @@ const USER_KEY = 'userInfo';
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>('');
   const userInfo = ref<UserInfoResponse | null>(null);
+
+  const permissionsLoaded = ref(false);
+  function hasPermission(code: string) {
+    return Boolean(userInfo.value?.superAdmin || userInfo.value?.permissions?.includes(code));
+  }
+  async function refreshPermissions() {
+    setUserInfo(await fetchMe());
+    permissionsLoaded.value = true;
+  }
 
   const isLoggedIn = computed(() => Boolean(token.value));
 
@@ -47,10 +56,12 @@ export const useUserStore = defineStore('user', () => {
     const result = await loginApi(payload);
     setToken(result.token);
     setUserInfo(result.user);
+    permissionsLoaded.value = true;
     return result;
   }
 
   function logout() {
+    permissionsLoaded.value = false;
     token.value = '';
     userInfo.value = null;
     localStorage.removeItem(TOKEN_KEY);
@@ -74,6 +85,9 @@ export const useUserStore = defineStore('user', () => {
   }
 
   return {
+    permissionsLoaded,
+    hasPermission,
+    refreshPermissions,
     token,
     userInfo,
     isLoggedIn,

@@ -20,6 +20,7 @@ package io.github.malonetalk.agent.datasource;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.service.SqlPermissionService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -52,9 +53,12 @@ public class SqlExecutor {
     private static final int QUERY_TIMEOUT_SECONDS = 30;
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
+    private final SqlPermissionService sqlPermissions;
 
-    public SqlExecution executeDetailed(Datasource datasource, String sql) {
-        String validatedSql = validateAndTransform(sql);
+    public SqlExecution executeDetailed(Datasource datasource, String sql, Integer userId) {
+        String validatedSql =
+                validateAndTransform(
+                        sqlPermissions.authorize(userId, datasource, validateSelectSql(sql)));
 
         DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 

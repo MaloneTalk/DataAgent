@@ -62,11 +62,12 @@ public class TableExportServiceImpl implements TableExportService {
     private final TableExportMapper tableExportMapper;
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlExecutor sqlExecutor;
+    private final SqlPermissionService sqlPermissions;
     private final SessionService sessionService;
 
     @Override
     public TableExportResponse create(
-            String sessionId, Datasource datasource, String title, String sql) {
+            String sessionId, Datasource datasource, String title, String sql, Integer userId) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -74,7 +75,9 @@ public class TableExportServiceImpl implements TableExportService {
         if (exportTitle.length() > MAX_TITLE_LENGTH) {
             exportTitle = exportTitle.substring(0, MAX_TITLE_LENGTH);
         }
-        String safeSql = sqlExecutor.validateSelectSql(sql);
+        sessionService.requireOwnership(userId, exportSessionId);
+        String safeSql =
+                sqlPermissions.authorize(userId, datasource, sqlExecutor.validateSelectSql(sql));
 
         String exportId = UUID.randomUUID().toString();
         CsvResult csv = writeCsv(datasource, safeSql);

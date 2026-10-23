@@ -102,3 +102,22 @@ export function getAllTableColumns(datasourceId: number) {
     .get<ApiResponse<Record<string, string[]>>>(`/datasource/${datasourceId}/columns`)
     .then(res => res.data.data);
 }
+
+export interface PermissionDefinition {
+  code: string;
+  name: string;
+  module: string;
+  description: string;
+  superAdminOnly: boolean;
+}
+export function getPermissionCatalog() {
+  return request
+    .get<ApiResponse<PermissionDefinition[]>>('/sys/permissions')
+    .then(r => r.data.data);
+}
+export function getCapabilities(id: number) {
+  return request.get<ApiResponse<string[]>>(`/sys/role/${id}/capabilities`).then(r => r.data.data);
+}
+export function saveCapabilities(id: number, codes: string[]) {
+  return request.put(`/sys/role/${id}/capabilities`, { codes });
+}

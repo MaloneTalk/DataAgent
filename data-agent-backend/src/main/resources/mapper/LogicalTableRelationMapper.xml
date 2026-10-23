@@ -51,6 +51,16 @@
         <include refid="RelationSelect"/>
         WHERE relation.datasource_id = #{query.datasourceId}
           AND LOWER(source_table.table_name) = LOWER(#{query.tableName})
+        <if test="roleId != null">
+            AND EXISTS (SELECT 1 FROM role_table_permission rp WHERE rp.role_id = #{roleId}
+                AND rp.datasource_id = relation.datasource_id AND LOWER(rp.table_name) = LOWER(source_table.table_name))
+            AND EXISTS (SELECT 1 FROM role_table_permission rp WHERE rp.role_id = #{roleId}
+                AND rp.datasource_id = relation.datasource_id AND LOWER(rp.table_name) = LOWER(target_table.table_name))
+            AND NOT EXISTS (SELECT 1 FROM role_hidden_column hc WHERE hc.role_id = #{roleId}
+                AND hc.datasource_id = relation.datasource_id AND (
+                    (LOWER(hc.table_name) = LOWER(source_table.table_name) AND JSON_CONTAINS(relation.source_column_names_json, JSON_QUOTE(hc.column_name)))
+                    OR (LOWER(hc.table_name) = LOWER(target_table.table_name) AND JSON_CONTAINS(relation.target_column_names_json, JSON_QUOTE(hc.column_name)))))
+        </if>
         <if test="query.keyword != null and query.keyword != ''">
             AND LOWER(target_table.table_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
         </if>

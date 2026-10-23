@@ -44,6 +44,8 @@ public interface SysUserService {
 
     SysUserBo update(Integer id, UserUpdateDto dto);
 
+    void assignRole(Integer id, Integer roleId);
+
     void changePassword(Integer userId, String oldPassword, String newPassword);
 
     void resetPassword(Integer id, String newPassword);

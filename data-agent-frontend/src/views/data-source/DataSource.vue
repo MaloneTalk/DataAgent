@@ -197,7 +197,9 @@
   <div>
     <div class="page-header">
       <h2 class="page-title">数据源管理</h2>
-      <el-button type="primary" @click="handleAdd">新增数据源</el-button>
+      <el-button v-permission="'data:datasource:create'" type="primary" @click="handleAdd">
+        新增数据源
+      </el-button>
     </div>
     <el-table v-loading="loading" :data="dataSourceList" style="width: 100%">
       <el-table-column type="expand">
@@ -238,8 +240,16 @@
       </el-table-column>
       <el-table-column label="操作" width="300">
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
           <el-button
+            v-permission="'data:datasource:update'"
+            link
+            type="primary"
+            @click="handleEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'data:datasource:set-status'"
             v-if="row.status !== 'ACTIVE'"
             link
             type="success"
@@ -247,8 +257,23 @@
           >
             激活
           </el-button>
-          <el-button v-else link type="warning" @click="handleDeactivate(row)">禁用</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button
+            v-permission="'data:datasource:set-status'"
+            v-else
+            link
+            type="warning"
+            @click="handleDeactivate(row)"
+          >
+            禁用
+          </el-button>
+          <el-button
+            v-permission="'data:datasource:delete'"
+            link
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

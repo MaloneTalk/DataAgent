@@ -32,11 +32,14 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -49,6 +52,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
+    private final DataPermissionService dataPermissions;
+    private final UserContextHolder holder;
     private final TableInfoMapper tableInfoMapper;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final SemanticMergeService semanticMergeService;
@@ -77,7 +82,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                 pageSize,
                                 SemanticUtils.trimToNull(query.keyword()),
                                 query.sortOrder()),
-                        sortDescending);
+                        sortDescending,
+                        dataPermissions.roleScope(holder.checkAndGet()).orElse(null));
         List<ColumnSemanticResponse> responses =
                 page.getRecords().stream().map(semanticConverter::toResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
@@ -92,6 +98,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String normalizedColumnName =
                 SemanticUtils.normalizeObjectName(
                         request.columnName(), "Missing columnName for column semantic update.");
+        requireColumnAccess(request.datasourceId(), normalizedTableName, normalizedColumnName);
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -134,6 +141,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Transactional
     public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
         requireDatasource(datasourceId);
+        requireColumnAccess(datasourceId, tableName, columnName);
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName);
@@ -163,7 +171,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                 columnName,
                                                 "Missing columnName for batch column semantic"
                                                         + " reset."))
-                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        normalizedColumnNames.forEach(
+                name -> requireColumnAccess(datasourceId, normalizedTableName, name));
         List<ColumnInfo> matchedColumns =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableName(datasourceId, normalizedTableName)
@@ -216,5 +226,15 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                     ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
         return datasource;
+    }
+
+    private void requireColumnAccess(Integer datasourceId, String table, String column) {
+        var user = holder.checkAndGet();
+        dataPermissions.requireTable(user, datasourceId, table);
+        if (dataPermissions
+                .hidden(user, datasourceId, table)
+                .contains(DataPermissionService.normalize(column))) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
     }
 }

@@ -19,8 +19,14 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { permissionForPath, routePermissions } from './permissions';
 
 const routes: RouteRecordRaw[] = [
+  {
+    path: '/forbidden',
+    component: () => import('@/views/ForbiddenView.vue'),
+    meta: { title: '暂无访问权限' },
+  },
   {
     path: '/login',
     name: 'Login',
@@ -142,14 +148,27 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach(to => {
+router.beforeEach(async to => {
   document.title = `${to.meta.title || 'Data Agent'}`;
   const userStore = useUserStore();
   if (!userStore.isLoggedIn && to.path !== '/login') {
     return '/login';
   }
-  if (userStore.isLoggedIn && to.path === '/login') {
-    return '/chat';
+  if (!userStore.isLoggedIn) return;
+  if (!userStore.permissionsLoaded) {
+    try {
+      await userStore.refreshPermissions();
+    } catch {
+      userStore.logout();
+      return '/login';
+    }
+  }
+  const permission = permissionForPath(to.path);
+  if (to.path === '/login' || (permission && !userStore.hasPermission(permission))) {
+    return (
+      Object.entries(routePermissions).find(([, code]) => userStore.hasPermission(code))?.[0] ||
+      '/forbidden'
+    );
   }
 });
 

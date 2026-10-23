@@ -39,6 +39,8 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.utils.RequestAssert;
@@ -57,6 +59,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private final DatasourceService datasourceService;
+    private final DataPermissionService dataPermissions;
+    private final UserContextHolder holder;
     private final TableInfoMapper tableInfoMapper;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final LogicalTableRelationMapper logicalTableRelationMapper;
@@ -83,7 +87,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                 SemanticUtils.trimToNull(query.keyword()),
                                 query.enabled(),
                                 query.sortOrder()),
-                        sortDescending);
+                        sortDescending,
+                        dataPermissions.roleScope(holder.checkAndGet()).orElse(null));
         if (page.getTotal() == 0L) {
             return PageResponse.empty(pageNumber, pageSize);
         }
@@ -108,7 +113,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                 pageSize,
                                 SemanticUtils.trimToNull(query.keyword()),
                                 query.sortOrder()),
-                        sortDescending);
+                        sortDescending,
+                        dataPermissions.roleScope(holder.checkAndGet()).orElse(null));
         if (page.getRecords().isEmpty()) {
             return new RelationWorkspaceResponse(
                     PageResponse.of(List.of(), page.getTotal(), pageNumber, pageSize), List.of());
@@ -121,6 +127,16 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableIds(query.datasourceId(), currentPageTableIds)
                         .stream()
+                        .filter(
+                                c ->
+                                        !dataPermissions
+                                                .hidden(
+                                                        holder.checkAndGet(),
+                                                        query.datasourceId(),
+                                                        c.getTableName())
+                                                .contains(
+                                                        DataPermissionService.normalize(
+                                                                c.getColumnName())))
                         .collect(Collectors.groupingBy(ColumnInfo::getTableId));
         List<RelationWorkspaceTableResponse> nodes =
                 page.getRecords().stream()
@@ -141,10 +157,21 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                 relation ->
                                         currentPageTableIds.contains(relation.getTargetTableId()))
                         .map(semanticConverter::toResponse)
+                        .filter(rel -> visibleRelation(query.datasourceId(), rel))
                         .toList();
 
         return new RelationWorkspaceResponse(
                 PageResponse.of(nodes, page.getTotal(), pageNumber, pageSize), relations);
+    }
+
+    private boolean visibleRelation(Integer datasourceId, LogicalTableRelationResponse relation) {
+        var user = holder.checkAndGet();
+        var sourceHidden = dataPermissions.hidden(user, datasourceId, relation.sourceTableName());
+        var targetHidden = dataPermissions.hidden(user, datasourceId, relation.targetTableName());
+        return relation.sourceColumnNames().stream()
+                        .noneMatch(c -> sourceHidden.contains(DataPermissionService.normalize(c)))
+                && relation.targetColumnNames().stream()
+                        .noneMatch(c -> targetHidden.contains(DataPermissionService.normalize(c)));
     }
 
     @Override
@@ -309,6 +336,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private TableInfo requireTable(Integer datasourceId, String tableName, String fieldName) {
+        dataPermissions.requireTable(holder.checkAndGet(), datasourceId, tableName);
         TableInfo tableInfo =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
         if (tableInfo == null) {
@@ -321,7 +349,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private void ensureColumnsOperable(
             Integer datasourceId, String tableName, List<String> columnNames, String fieldName) {
+        var hidden = dataPermissions.hidden(holder.checkAndGet(), datasourceId, tableName);
         for (String columnName : columnNames) {
+            if (hidden.contains(DataPermissionService.normalize(columnName)))
+                throw BusinessException.of(ErrorCode.FORBIDDEN);
             ColumnInfo columnInfo =
                     columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                             datasourceId, tableName, columnName);

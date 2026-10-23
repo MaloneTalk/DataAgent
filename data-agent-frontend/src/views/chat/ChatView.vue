@@ -20,7 +20,7 @@
   import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
   import { fetchSessionList } from '@/api/agent';
-  import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
+  import { getDatasourceOptions, type DatasourceResponse } from '@/api/datasource';
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
@@ -84,7 +84,7 @@
 
   async function loadDatasources() {
     try {
-      datasources.value = (await getDatasourceList()) ?? [];
+      datasources.value = (await getDatasourceOptions()) ?? [];
     } catch {
       datasources.value = [];
     }

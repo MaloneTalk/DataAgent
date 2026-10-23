@@ -26,8 +26,10 @@ import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.PermissionService;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -36,6 +38,8 @@ import org.springframework.stereotype.Component;
 @Component
 @AllArgsConstructor
 public class ExecuteSqlTool implements MarkAgentTool {
+
+    private final PermissionService permissions;
 
     private final DatasourceService dataSourceService;
     private final SqlExecutor sqlExecutor;
@@ -51,11 +55,13 @@ public class ExecuteSqlTool implements MarkAgentTool {
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql,
             ToolCallContext ctx) {
+        permissions.require(ctx.userId(), PermissionEnum.ANALYSIS_SQL_EXECUTE);
         return toolExceptionMapper.run(
                 () -> {
                     Datasource datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
-                    SqlExecution execution = sqlExecutor.executeDetailed(datasource, sql);
+                    SqlExecution execution =
+                            sqlExecutor.executeDetailed(datasource, sql, ctx.userId());
                     Map<String, Object> metadata = new HashMap<>();
                     metadata.put("datasourceId", datasource.getId());
                     metadata.put("datasourceName", datasource.getName());

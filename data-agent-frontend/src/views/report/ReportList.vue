@@ -163,7 +163,14 @@
         <template #default="{ row }">
           <el-button link type="primary" @click="handlePreview(row)">预览</el-button>
           <el-button link type="success" @click="handleExport(row)">导出</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button
+            v-permission="'asset:report:delete'"
+            link
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

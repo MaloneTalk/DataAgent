@@ -76,3 +76,9 @@ export function deactivateDatasource(id: number) {
     .put<ApiResponse<boolean>>(`/datasource/${id}/deactivate`)
     .then(res => res.data.data);
 }
+
+export function getDatasourceOptions() {
+  return request
+    .get<ApiResponse<DatasourceResponse[]>>('/datasource/options')
+    .then(res => res.data.data);
+}

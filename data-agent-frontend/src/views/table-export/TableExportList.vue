@@ -127,8 +127,22 @@
       </el-table-column>
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-button link type="success" @click="handleDownload(row)">下载</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button
+            v-permission="'asset:export:download'"
+            link
+            type="success"
+            @click="handleDownload(row)"
+          >
+            下载
+          </el-button>
+          <el-button
+            v-permission="'asset:export:delete'"
+            link
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

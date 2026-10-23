@@ -30,16 +30,19 @@ import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.UserCreateDto;
 import io.github.malonetalk.model.dto.UserUpdateDto;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.utils.PasswordUtil;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+@lombok.extern.slf4j.Slf4j
 @Service
 @AllArgsConstructor
 public class SysUserServiceImpl implements SysUserService {
 
     private final SysUserMapper sysUserMapper;
+    private final UserContextHolder holder;
     private final SysRoleMapper sysRoleMapper;
     private final UserConverter userConverter;
 
@@ -97,6 +100,7 @@ public class SysUserServiceImpl implements SysUserService {
         if (selectLocalByUsername(dto.username()) != null) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "用户名 '" + dto.username() + "' 已存在");
         }
+        if (dto.roleId() != 0) requireAdminForRoleAssignment();
         requireRoleIfAssigned(dto.roleId());
         SysUserPo user = new SysUserPo();
         user.setUsername(dto.username());
@@ -112,13 +116,26 @@ public class SysUserServiceImpl implements SysUserService {
     @Override
     public SysUserBo update(Integer id, UserUpdateDto dto) {
         SysUserPo user = requireUser(id);
+        protectAdmin(user);
         user.setDisplayName(dto.displayName());
-        if (dto.roleId() != null) {
-            requireRoleIfAssigned(dto.roleId());
-            user.setRoleId(dto.roleId());
-        }
         sysUserMapper.updateById(user);
         return userConverter.toBo(user);
+    }
+
+    @Override
+    public void assignRole(Integer id, Integer roleId) {
+        requireAdminForRoleAssignment();
+        SysUserPo user = requireUser(id);
+        requireRoleIfAssigned(roleId);
+        Integer previous = user.getRoleId();
+        user.setRoleId(roleId);
+        sysUserMapper.updateById(user);
+        log.info(
+                "Role assignment: actor={}, user={}, before={}, after={}",
+                holder.checkAndGet().userId(),
+                id,
+                previous,
+                roleId);
     }
 
     @Override
@@ -134,6 +151,7 @@ public class SysUserServiceImpl implements SysUserService {
     @Override
     public void resetPassword(Integer id, String newPassword) {
         SysUserPo user = requireUser(id);
+        protectAdmin(user);
         if (user.getPasswordHash() == null) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "外部身份源用户无法重置密码");
         }
@@ -142,7 +160,7 @@ public class SysUserServiceImpl implements SysUserService {
 
     @Override
     public void updateStatus(Integer id, Integer status) {
-        requireUser(id);
+        protectAdmin(requireUser(id));
         SysUserPo patch = new SysUserPo();
         patch.setId(id);
         patch.setStatus(status);
@@ -175,6 +193,20 @@ public class SysUserServiceImpl implements SysUserService {
         if (roleId == 0) return; // 0 = 未分配角色
         if (sysRoleMapper.selectById(roleId) == null) {
             throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "角色ID " + roleId + " 不存在");
+        }
+    }
+
+    private void requireAdminForRoleAssignment() {
+        if (!Boolean.TRUE.equals(holder.checkAndGet().superAdmin())) {
+            throw BusinessException.of(
+                    ErrorCode.FORBIDDEN, "Only super administrators can assign roles.");
+        }
+    }
+
+    private void protectAdmin(SysUserPo target) {
+        if (Boolean.TRUE.equals(target.getSuperAdmin())
+                && !Boolean.TRUE.equals(holder.checkAndGet().superAdmin())) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
     }
 }

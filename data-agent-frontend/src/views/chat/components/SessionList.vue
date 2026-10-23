@@ -120,7 +120,13 @@
     </div>
 
     <div class="session-list__footer">
-      <el-button class="new-session-btn" @click="handleNewSession">新建会话</el-button>
+      <el-button
+        v-permission="'analysis:chat:use'"
+        class="new-session-btn"
+        @click="handleNewSession"
+      >
+        新建会话
+      </el-button>
     </div>
   </div>
 </template>

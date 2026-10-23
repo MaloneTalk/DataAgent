@@ -22,6 +22,8 @@
   import * as sysUserApi from '@/api/sysUser';
   import { listRoles, type RoleResponse } from '@/api/sysRole';
   import type { UserResponse } from '@/api/sysUser';
+  import { useUserStore } from '@/stores/user';
+  const userStore = useUserStore();
   import { formatDateTime } from '@/utils/dateTime';
 
   const loading = ref(false);
@@ -105,8 +107,9 @@
       if (isEdit.value && editingId.value != null) {
         await sysUserApi.updateUser(editingId.value, {
           displayName: form.displayName,
-          roleId: form.roleId,
         });
+        if (userStore.userInfo?.superAdmin)
+          await sysUserApi.assignRole(editingId.value, form.roleId);
         ElMessage.success('更新成功');
       } else {
         await sysUserApi.createUser({ ...form });
@@ -188,7 +191,9 @@
     </div>
 
     <div class="table-actions">
-      <el-button type="primary" @click="openCreate">新建用户</el-button>
+      <el-button v-permission="'sys:user:create'" type="primary" @click="openCreate">
+        新建用户
+      </el-button>
     </div>
 
     <el-table v-loading="loading" :data="users" border stripe style="width: 100%">
@@ -217,9 +222,18 @@
       </el-table-column>
       <el-table-column label="操作" width="280" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" @click="openResetPwd(row)">重置密码</el-button>
+          <el-button v-permission="'sys:user:update'" size="small" @click="openEdit(row)">
+            编辑
+          </el-button>
           <el-button
+            v-permission="'sys:user:reset-password'"
+            size="small"
+            @click="openResetPwd(row)"
+          >
+            重置密码
+          </el-button>
+          <el-button
+            v-permission="'sys:user:set-status'"
             size="small"
             :type="row.status === 1 ? 'warning' : 'success'"
             @click="onToggleStatus(row)"
@@ -261,7 +275,12 @@
           <el-input v-model="form.displayName" placeholder="请输入显示名" />
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="form.roleId" placeholder="请选择角色" style="width: 100%">
+          <el-select
+            :disabled="!userStore.userInfo?.superAdmin"
+            v-model="form.roleId"
+            placeholder="请选择角色"
+            style="width: 100%"
+          >
             <el-option :value="0" label="未分配" />
             <el-option v-for="r in roleOptions" :key="r.id" :value="r.id" :label="r.name" />
           </el-select>

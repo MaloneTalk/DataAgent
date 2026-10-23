@@ -25,6 +25,7 @@ import io.github.malonetalk.dto.RoleResponse;
 import io.github.malonetalk.dto.SaveColumnPermissionRequest;
 import io.github.malonetalk.dto.SaveTablePermissionRequest;
 import io.github.malonetalk.dto.TablePermissionResponse;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.service.SysRoleService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -40,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/sys/role")
@@ -50,33 +50,39 @@ public class SysRoleController {
     private final SysRoleService sysRoleService;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SYS_ROLE_READ)
     public Result<List<RoleResponse>> listAll() {
         return Result.success(sysRoleService.listAll());
     }
 
     @PostMapping
+    @RequirePermission(PermissionEnum.SYS_ROLE_CREATE)
     public Result<RoleResponse> create(@Valid @RequestBody RoleRequest request) {
         return Result.success(sysRoleService.create(request));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission(PermissionEnum.SYS_ROLE_UPDATE)
     public Result<RoleResponse> update(
             @PathVariable Integer id, @Valid @RequestBody RoleRequest request) {
         return Result.success(sysRoleService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission(PermissionEnum.SYS_ROLE_DELETE)
     public Result<Void> delete(@PathVariable Integer id) {
         sysRoleService.delete(id);
         return Result.success();
     }
 
     @GetMapping("/{roleId}/permissions")
+    @RequirePermission(PermissionEnum.SYS_ROLE_READ)
     public Result<List<TablePermissionResponse>> getPermissions(@PathVariable Integer roleId) {
         return Result.success(sysRoleService.getPermissions(roleId));
     }
 
     @PutMapping("/{roleId}/permissions")
+    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
     public Result<Void> savePermissions(
             @PathVariable Integer roleId, @Valid @RequestBody SaveTablePermissionRequest request) {
         sysRoleService.savePermissions(roleId, request);
@@ -84,12 +90,14 @@ public class SysRoleController {
     }
 
     @GetMapping("/{roleId}/columns")
+    @RequirePermission(PermissionEnum.SYS_ROLE_READ)
     public Result<List<ColumnPermissionResponse>> getColumnPermissions(
             @PathVariable Integer roleId, @RequestParam Integer datasourceId) {
         return Result.success(sysRoleService.getColumnPermissions(roleId, datasourceId));
     }
 
     @PutMapping("/{roleId}/columns")
+    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
     public Result<Void> saveColumnPermissions(
             @PathVariable Integer roleId, @Valid @RequestBody SaveColumnPermissionRequest request) {
         sysRoleService.saveColumnPermissions(roleId, request);

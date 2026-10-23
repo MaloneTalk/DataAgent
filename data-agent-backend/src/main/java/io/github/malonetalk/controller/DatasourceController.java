@@ -26,11 +26,15 @@ import io.github.malonetalk.dto.DatasourceResponse;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.vo.DatasourceOptionVo;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -52,6 +56,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class DatasourceController {
 
     private final DatasourceService dataSourceService;
+    private final DataPermissionService dataPermissions;
+    private final UserContextHolder holder;
     private final DatasourceConverter datasourceConverter;
 
     /**
@@ -67,6 +73,7 @@ public class DatasourceController {
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_READ)
     public Result<List<DatasourceResponse>> findAll() {
         List<DatasourceResponse> list =
                 dataSourceService.findAll().stream().map(datasourceConverter::toResponse).toList();
@@ -74,13 +81,14 @@ public class DatasourceController {
     }
 
     @GetMapping("/{id}")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_READ)
     public Result<DatasourceResponse> findById(@PathVariable Integer id) {
         return Result.success(datasourceConverter.toResponse(requireDatasource(id)));
     }
 
     /** 返回某数据源下的所有物理表名，供权限配置页使用。 */
-    @RequirePermission
     @GetMapping("/{id}/tables")
+    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
     public Result<List<String>> listTableNames(@PathVariable Integer id) {
         requireDatasource(id);
         List<String> tables =
@@ -91,8 +99,8 @@ public class DatasourceController {
     }
 
     /** 返回某数据源下所有表的列名，一次查询，供列级权限配置使用。 */
-    @RequirePermission
     @GetMapping("/{id}/columns")
+    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
     public Result<Map<String, List<String>>> listAllColumns(@PathVariable Integer id) {
         requireDatasource(id);
         Map<String, List<String>> map =
@@ -105,8 +113,8 @@ public class DatasourceController {
         return Result.success(map);
     }
 
-    @RequirePermission
     @PostMapping
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_CREATE)
     public Result<Boolean> save(@Valid @RequestBody DatasourceRequest request) {
         DataSourceType type = requireDatasourceType(request.type());
         Datasource datasource = datasourceConverter.toEntity(request);
@@ -117,8 +125,8 @@ public class DatasourceController {
         return Result.success();
     }
 
-    @RequirePermission
     @PutMapping("/{id}")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_UPDATE)
     public Result<Boolean> update(
             @PathVariable Integer id, @Valid @RequestBody DatasourceRequest request) {
         DataSourceType type = requireDatasourceType(request.type());
@@ -139,8 +147,8 @@ public class DatasourceController {
         return Result.success(true);
     }
 
-    @RequirePermission
     @DeleteMapping("/{id}")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_DELETE)
     public Result<Boolean> deleteById(@PathVariable Integer id) {
         requireDatasource(id);
         requireOperationSuccess(
@@ -149,6 +157,7 @@ public class DatasourceController {
     }
 
     @GetMapping("/status/{status}")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_READ)
     public Result<List<DatasourceResponse>> findByStatus(@PathVariable String status) {
         List<DatasourceResponse> list =
                 dataSourceService.findByStatus(status).stream()
@@ -158,6 +167,7 @@ public class DatasourceController {
     }
 
     @GetMapping("/type/{type}")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_READ)
     public Result<List<DatasourceResponse>> findByType(@PathVariable String type) {
         List<DatasourceResponse> list =
                 dataSourceService.findByType(type).stream()
@@ -166,8 +176,8 @@ public class DatasourceController {
         return Result.success(list);
     }
 
-    @RequirePermission
     @PutMapping("/{id}/activate")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_SET_STATUS)
     public Result<Boolean> activate(@PathVariable Integer id) {
         requireDatasource(id);
         requireOperationSuccess(
@@ -176,8 +186,8 @@ public class DatasourceController {
         return Result.success(true);
     }
 
-    @RequirePermission
     @PutMapping("/{id}/deactivate")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_SET_STATUS)
     public Result<Boolean> deactivate(@PathVariable Integer id) {
         requireDatasource(id);
         requireOperationSuccess(
@@ -207,5 +217,22 @@ public class DatasourceController {
         if (!success) {
             throw BusinessException.of(ErrorCode.OPERATION_FAILED, message);
         }
+    }
+
+    @GetMapping("/options")
+    @RequirePermission(PermissionEnum.ANALYSIS_CHAT_USE)
+    public Result<List<DatasourceOptionVo>> options() {
+        var user = holder.checkAndGet();
+        return Result.success(
+                dataSourceService.findAll().stream()
+                        .filter(ds -> dataPermissions.canDatasource(user, ds.getId()))
+                        .map(
+                                ds ->
+                                        new DatasourceOptionVo(
+                                                ds.getId(),
+                                                ds.getName(),
+                                                ds.getType(),
+                                                ds.getStatus()))
+                        .toList());
     }
 }

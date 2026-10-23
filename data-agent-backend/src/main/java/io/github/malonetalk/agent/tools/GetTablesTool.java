@@ -22,9 +22,14 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -34,7 +39,10 @@ import org.springframework.stereotype.Component;
 @AllArgsConstructor
 public class GetTablesTool implements MarkAgentTool {
 
+    private final PermissionService permissions;
+
     private final DatasourceService dataSourceService;
+    private final DataPermissionService dataPermissions;
     private final TableSemanticService tableSemanticService;
     private final ToolExceptionMapper toolExceptionMapper;
 
@@ -57,16 +65,75 @@ public class GetTablesTool implements MarkAgentTool {
                             required = false)
                     List<String> domains,
             ToolCallContext ctx) {
+        permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
         return toolExceptionMapper.run(
                 () -> {
                     Datasource dataSource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    var user = permissions.user(ctx.userId());
+                    var visible =
+                            tableSemanticService
+                                    .listMergedTablesByDomains(dataSource.getId(), domains)
+                                    .stream()
+                                    .filter(
+                                            t ->
+                                                    dataPermissions.canTable(
+                                                            user, dataSource.getId(), t.name()))
+                                    .map(t -> filterTable(t, user, dataSource.getId()))
+                                    .toList();
                     return ToolResultBlock.text(
-                            JsonUtils.getJsonCodec()
-                                            .toJson(
-                                                    tableSemanticService.listMergedTablesByDomains(
-                                                            dataSource.getId(), domains))
+                            JsonUtils.getJsonCodec().toJson(visible)
                                     + ToolCallConstants.METRIC_CALIBER_REMINDER);
                 });
+    }
+
+    private TablePromptResponse filterTable(
+            TablePromptResponse table, UserContextBo user, Integer datasourceId) {
+        var relations =
+                table.relations().stream()
+                        .filter(
+                                rel ->
+                                        dataPermissions.canTable(
+                                                        user, datasourceId, rel.sourceTableName())
+                                                && dataPermissions.canTable(
+                                                        user, datasourceId, rel.targetTableName()))
+                        .filter(
+                                rel ->
+                                        rel.sourceColumnNames().stream()
+                                                .noneMatch(
+                                                        c ->
+                                                                dataPermissions
+                                                                        .hidden(
+                                                                                user,
+                                                                                datasourceId,
+                                                                                rel
+                                                                                        .sourceTableName())
+                                                                        .contains(
+                                                                                DataPermissionService
+                                                                                        .normalize(
+                                                                                                c))))
+                        .filter(
+                                rel ->
+                                        rel.targetColumnNames().stream()
+                                                .noneMatch(
+                                                        c ->
+                                                                dataPermissions
+                                                                        .hidden(
+                                                                                user,
+                                                                                datasourceId,
+                                                                                rel
+                                                                                        .targetTableName())
+                                                                        .contains(
+                                                                                DataPermissionService
+                                                                                        .normalize(
+                                                                                                c))))
+                        .toList();
+        return TablePromptResponse.builder()
+                .name(table.name())
+                .domain(table.domain())
+                .description(table.description())
+                .dataGranularity(table.dataGranularity())
+                .relations(relations)
+                .build();
     }
 }

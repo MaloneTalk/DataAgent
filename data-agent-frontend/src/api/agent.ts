@@ -148,6 +148,7 @@ async function fetchJson<T>(url: string, fallback: string, init?: RequestInit): 
     handleUnauthorized();
     throw new ApiError('登录已过期，请重新登录', { code: 401 });
   }
+  if (response.status === 403) window.dispatchEvent(new Event('permissions-changed'));
   if (!response.ok) {
     throw await resolveApiError(response, `${fallback}: ${response.status} ${response.statusText}`);
   }
@@ -197,6 +198,7 @@ export async function* streamChat(
     throw new ApiError('登录已过期，请重新登录', { code: 401 });
   }
 
+  if (response.status === 403) window.dispatchEvent(new Event('permissions-changed'));
   if (!response.ok) {
     throw await resolveApiError(
       response,

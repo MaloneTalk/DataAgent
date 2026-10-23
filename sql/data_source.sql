@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `report` (
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_session_id` (`session_id`)
+    UNIQUE KEY `uk_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告表';
 
 CREATE TABLE IF NOT EXISTS `table_export` (
@@ -255,7 +255,7 @@ CREATE TABLE IF NOT EXISTS `user_session` (
     `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID（对应 agentscope_sessions.session_id）',
     `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`user_id`, `session_id`),
-    KEY `idx_session_id` (`session_id`)
+    UNIQUE KEY `uk_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-会话归属表';
 
 CREATE TABLE IF NOT EXISTS `mcp_server` (
@@ -284,3 +284,10 @@ CREATE TABLE IF NOT EXISTS `mcp_server` (
     UNIQUE KEY `uk_mcp_server_name` (`name`),
     KEY `idx_mcp_server_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP Server 配置表';
+
+CREATE TABLE IF NOT EXISTS sys_role_permission (
+    role_id INT NOT NULL,
+    permission_code VARCHAR(100) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_id, permission_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色功能权限';

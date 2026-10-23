@@ -104,6 +104,7 @@ service.interceptors.response.use(
       }
       return Promise.reject(apiError);
     }
+    if (status === 403) window.dispatchEvent(new Event('permissions-changed'));
     const responseBody = error.response?.data as ApiResponse | undefined;
     const apiError = toApiError(responseBody, error.message || '网络错误');
     showApiError(apiError);

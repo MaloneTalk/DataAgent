@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.service.SqlPermissionService;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -34,7 +35,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class SqlExecutorTest {
 
-    private final SqlExecutor executor = new SqlExecutor(mock(DynamicDataSourceManager.class));
+    private final SqlExecutor executor =
+            new SqlExecutor(mock(DynamicDataSourceManager.class), mock(SqlPermissionService.class));
 
     @Test
     void acceptsBusinessTableCountsAndAppliesOuterRowLimit() {

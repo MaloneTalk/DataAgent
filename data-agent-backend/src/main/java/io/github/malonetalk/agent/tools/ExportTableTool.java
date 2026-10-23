@@ -24,8 +24,10 @@ import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.TableExportService;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +37,8 @@ import org.springframework.stereotype.Component;
 @Component
 @AllArgsConstructor
 public class ExportTableTool implements MarkAgentTool {
+
+    private final PermissionService permissions;
 
     private final DatasourceService datasourceService;
     private final TableExportService tableExportService;
@@ -53,12 +57,14 @@ public class ExportTableTool implements MarkAgentTool {
                     String sql,
             @ToolParam(name = "title", description = "A short title for this export") String title,
             ToolCallContext ctx) {
+        permissions.require(ctx.userId(), PermissionEnum.ASSET_EXPORT_CREATE);
         return toolExceptionMapper.run(
                 () -> {
                     Datasource datasource =
                             datasourceService.getDatasourceForSession(ctx.sessionId());
                     TableExportResponse export =
-                            tableExportService.create(ctx.sessionId(), datasource, title, sql);
+                            tableExportService.create(
+                                    ctx.sessionId(), datasource, title, sql, ctx.userId());
                     Map<String, Object> metadata = new HashMap<>();
                     metadata.put("datasourceId", datasource.getId());
                     metadata.put("datasourceName", datasource.getName());

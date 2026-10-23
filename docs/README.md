@@ -12,6 +12,8 @@
 | 4 | [semantic-layer.md](semantic-layer.md) | 要维护业务知识的人 | 语义层概念、管理界面、同步机制、指标业务属性与API示例 |
 | 5 | [skills.md](skills.md) | 要扩展 Agent 能力的人 | Skill 是什么、怎么写、怎么加自定义 Skill |
 
+| 6 | [permissions.md](permissions.md) | 要配置权限的人 | 权限点、角色授权、数据范围与数据库升级 |
+
 ## 贡献相关
 
 | 文档 | 说明 |

@@ -77,6 +77,10 @@ public class SessionService {
         this.answerProvenanceService = answerProvenanceService;
     }
 
+    public boolean hasDatasourceBinding(String sessionId) {
+        return sessionDatasourceMapper.selectBySessionId(sessionId) != null;
+    }
+
     public Session getOrCreateSession(String sessionId) {
         return sessionCache.computeIfAbsent(sessionId, k -> createMysqlSession());
     }
@@ -87,7 +91,12 @@ public class SessionService {
 
     /** 声明会话归属（INSERT IGNORE），首次访问时由 chatStream 调用。 */
     public void bindUserSession(int userId, String sessionId) {
+        if (getOrCreateSession(sessionId).exists(SimpleSessionKey.of(sessionId))
+                && !userSessionMapper.exists(userId, sessionId)) {
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         userSessionMapper.insertIgnore(userId, sessionId);
+        requireOwnership(userId, sessionId);
     }
 
     public void requireOwnership(Integer userId, String sessionId) {

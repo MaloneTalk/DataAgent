@@ -17,9 +17,11 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.annotation.LoginRequired;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.SysUserBo;
+import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.dto.ChangePasswordDto;
 import io.github.malonetalk.model.dto.LoginDto;
@@ -27,6 +29,7 @@ import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.vo.BooleanVo;
 import io.github.malonetalk.model.vo.LoginVo;
 import io.github.malonetalk.model.vo.UserInfoVo;
+import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.SysUserService;
 import io.github.malonetalk.utils.JwtUtil;
 import io.github.malonetalk.utils.PasswordUtil;
@@ -48,9 +51,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @AllArgsConstructor
 @RequestMapping("/api/auth")
+@LoginRequired
 public class AuthController {
 
     private final SysUserService sysUserService;
+    private final PermissionService permissions;
     private final JwtUtil jwtUtil;
     private final UserContextHolder userContextHolder;
     private final UserConverter userConverter;
@@ -68,12 +73,12 @@ public class AuthController {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "账号已禁用，请联系管理员");
         }
         String token = jwtUtil.generate(user.getId());
-        return new LoginVo(token, userConverter.toInfoVo(user));
+        return new LoginVo(token, info(userConverter.toContextBoFromBo(user)));
     }
 
     @GetMapping("/me")
     public UserInfoVo me() {
-        return userConverter.toInfoVoFromContext(userContextHolder.checkAndGet());
+        return info(userContextHolder.checkAndGet());
     }
 
     @PostMapping("/change-password")
@@ -81,5 +86,16 @@ public class AuthController {
         Integer userId = userContextHolder.checkAndGet().userId();
         sysUserService.changePassword(userId, dto.oldPassword(), dto.newPassword());
         return BooleanVo.TRUE;
+    }
+
+    private UserInfoVo info(UserContextBo user) {
+        return UserInfoVo.builder()
+                .userId(user.userId())
+                .username(user.username())
+                .displayName(user.displayName())
+                .roleId(user.roleId())
+                .superAdmin(Boolean.TRUE.equals(user.superAdmin()))
+                .permissions(permissions.codes(user))
+                .build();
     }
 }
