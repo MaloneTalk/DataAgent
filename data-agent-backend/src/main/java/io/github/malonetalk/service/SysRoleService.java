@@ -17,12 +17,8 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.dto.ColumnPermissionResponse;
 import io.github.malonetalk.dto.RoleRequest;
 import io.github.malonetalk.dto.RoleResponse;
-import io.github.malonetalk.dto.SaveColumnPermissionRequest;
-import io.github.malonetalk.dto.SaveTablePermissionRequest;
-import io.github.malonetalk.dto.TablePermissionResponse;
 import java.util.List;
 
 public interface SysRoleService {
@@ -34,12 +30,4 @@ public interface SysRoleService {
     RoleResponse update(Integer id, RoleRequest request);
 
     void delete(Integer id);
-
-    List<TablePermissionResponse> getPermissions(Integer roleId);
-
-    void savePermissions(Integer roleId, SaveTablePermissionRequest request);
-
-    List<ColumnPermissionResponse> getColumnPermissions(Integer roleId, Integer datasourceId);
-
-    void saveColumnPermissions(Integer roleId, SaveColumnPermissionRequest request);
 }

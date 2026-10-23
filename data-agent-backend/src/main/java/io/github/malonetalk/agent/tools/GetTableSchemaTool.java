@@ -57,12 +57,12 @@ public class GetTableSchemaTool implements MarkAgentTool {
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName,
             ToolCallContext ctx) {
-        permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
+        var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
         return toolExceptionMapper.run(
                 () -> {
                     Datasource datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
-                    var user = permissions.user(ctx.userId());
+
                     dataPermissions.requireTable(user, datasource.getId(), tableName);
                     var hidden = dataPermissions.hidden(user, datasource.getId(), tableName);
                     List<ColumnPromptResponse> columns =
@@ -72,7 +72,7 @@ public class GetTableSchemaTool implements MarkAgentTool {
                                     .filter(
                                             c ->
                                                     !hidden.contains(
-                                                            DataPermissionService.normalize(
+                                                            SemanticUtils.normalizeIdentifier(
                                                                     c.name())))
                                     .toList();
                     return ToolResultBlock.text(

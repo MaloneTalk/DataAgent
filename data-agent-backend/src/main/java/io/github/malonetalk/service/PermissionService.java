@@ -58,19 +58,19 @@ public class PermissionService {
     }
 
     public boolean has(UserContextBo user, PermissionEnum permission) {
-        return Boolean.TRUE.equals(user.superAdmin())
-                || (!permission.isSuperAdminOnly() && codes(user).contains(permission.getCode()));
+        return Boolean.TRUE.equals(user.superAdmin()) || codes(user).contains(permission.getCode());
     }
 
-    public void require(Integer userId, PermissionEnum... permissions) {
-        require(user(userId), permissions);
+    public UserContextBo require(Integer userId, PermissionEnum... permissions) {
+        UserContextBo user = user(userId);
+        require(user, permissions);
+        return user;
     }
 
     public void require(UserContextBo user, PermissionEnum... permissions) {
         Set<String> codes = codes(user);
         for (PermissionEnum permission : permissions) {
-            if (!Boolean.TRUE.equals(user.superAdmin())
-                    && (permission.isSuperAdminOnly() || !codes.contains(permission.getCode()))) {
+            if (!codes.contains(permission.getCode())) {
                 throw BusinessException.of(
                         ErrorCode.FORBIDDEN, "Missing permission: " + permission.getCode());
             }

@@ -155,7 +155,7 @@ router.beforeEach(async to => {
     return '/login';
   }
   if (!userStore.isLoggedIn) return;
-  if (!userStore.permissionsLoaded) {
+  if (!userStore.userInfo) {
     try {
       await userStore.refreshPermissions();
     } catch {

@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service;
 
+import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
+
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
@@ -55,10 +57,9 @@ public class SqlPermissionService {
                             .split(","));
 
     public String authorize(Integer userId, Datasource datasource, String sql) {
-        permissions.require(userId, PermissionEnum.ANALYSIS_SQL_EXECUTE);
-        UserContextBo user = permissions.user(userId);
+        UserContextBo user = permissions.require(userId, PermissionEnum.ANALYSIS_SQL_EXECUTE);
         if (Boolean.TRUE.equals(user.superAdmin())) return sql;
-        data.requireDatasource(userId, datasource.getId());
+        data.requireDatasource(user, datasource.getId());
         try {
             if (!(CCJSqlParserUtil.parse(sql) instanceof Select select)) throw denied();
             Inspector inspector = new Inspector(user, datasource.getId());
@@ -95,7 +96,7 @@ public class SqlPermissionService {
 
         @Override
         public <S> Void visit(Column column, S context) {
-            referenced.add(DataPermissionService.normalize(column.getColumnName()));
+            referenced.add(normalizeIdentifier(column.getColumnName()));
             if (column.getTable() != null && column.getTable().getSchemaName() != null)
                 throw denied();
             return super.visit(column, context);
@@ -131,10 +132,9 @@ public class SqlPermissionService {
                                                 .forEach(
                                                         c ->
                                                                 referenced.add(
-                                                                        DataPermissionService
-                                                                                .normalize(
-                                                                                        c
-                                                                                                .getColumnName())));
+                                                                        normalizeIdentifier(
+                                                                                c
+                                                                                        .getColumnName())));
                                     join.setRightItem(project(join.getRightItem()));
                                 });
             }
@@ -156,7 +156,7 @@ public class SqlPermissionService {
                     || table.getSchemaName() != null
                     || table.getDatabase() != null && table.getDatabase().getDatabaseName() != null)
                 throw denied();
-            String name = DataPermissionService.normalize(table.getName());
+            String name = normalizeIdentifier(table.getName());
             hidden.addAll(data.hidden(user, datasourceId, name));
             var columns = data.visibleColumns(user, datasourceId, name);
             if (columns.isEmpty()) throw denied();

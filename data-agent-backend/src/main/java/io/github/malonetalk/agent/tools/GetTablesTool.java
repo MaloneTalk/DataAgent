@@ -65,12 +65,12 @@ public class GetTablesTool implements MarkAgentTool {
                             required = false)
                     List<String> domains,
             ToolCallContext ctx) {
-        permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
+        var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
         return toolExceptionMapper.run(
                 () -> {
                     Datasource dataSource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
-                    var user = permissions.user(ctx.userId());
+
                     var visible =
                             tableSemanticService
                                     .listMergedTablesByDomains(dataSource.getId(), domains)
@@ -99,34 +99,16 @@ public class GetTablesTool implements MarkAgentTool {
                                                         user, datasourceId, rel.targetTableName()))
                         .filter(
                                 rel ->
-                                        rel.sourceColumnNames().stream()
-                                                .noneMatch(
-                                                        c ->
-                                                                dataPermissions
-                                                                        .hidden(
-                                                                                user,
-                                                                                datasourceId,
-                                                                                rel
-                                                                                        .sourceTableName())
-                                                                        .contains(
-                                                                                DataPermissionService
-                                                                                        .normalize(
-                                                                                                c))))
-                        .filter(
-                                rel ->
-                                        rel.targetColumnNames().stream()
-                                                .noneMatch(
-                                                        c ->
-                                                                dataPermissions
-                                                                        .hidden(
-                                                                                user,
-                                                                                datasourceId,
-                                                                                rel
-                                                                                        .targetTableName())
-                                                                        .contains(
-                                                                                DataPermissionService
-                                                                                        .normalize(
-                                                                                                c))))
+                                        !dataPermissions.hasHiddenColumns(
+                                                        user,
+                                                        datasourceId,
+                                                        rel.sourceTableName(),
+                                                        rel.sourceColumnNames())
+                                                && !dataPermissions.hasHiddenColumns(
+                                                        user,
+                                                        datasourceId,
+                                                        rel.targetTableName(),
+                                                        rel.targetColumnNames()))
                         .toList();
         return TablePromptResponse.builder()
                 .name(table.name())

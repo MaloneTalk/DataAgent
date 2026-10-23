@@ -20,27 +20,16 @@ package io.github.malonetalk.controller;
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.model.dto.RoleCapabilitiesDto;
 import io.github.malonetalk.model.vo.PermissionVo;
-import io.github.malonetalk.service.RoleCapabilityService;
-import jakarta.validation.Valid;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/sys")
 public class PermissionController {
-    private final RoleCapabilityService service;
-
     @RequirePermission(PermissionEnum.SYS_ROLE_READ)
     @GetMapping("/permissions")
     public Result<List<PermissionVo>> catalog() {
@@ -55,19 +44,5 @@ public class PermissionController {
                                                 p.getName(),
                                                 p.isSuperAdminOnly()))
                         .toList());
-    }
-
-    @RequirePermission(PermissionEnum.SYS_ROLE_READ)
-    @GetMapping("/role/{id}/capabilities")
-    public Result<Set<String>> get(@PathVariable Integer id) {
-        return Result.success(service.get(id));
-    }
-
-    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
-    @PutMapping("/role/{id}/capabilities")
-    public Result<Void> save(
-            @PathVariable Integer id, @Valid @RequestBody RoleCapabilitiesDto dto) {
-        service.save(id, dto.codes());
-        return Result.success();
     }
 }

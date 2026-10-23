@@ -62,7 +62,6 @@ public class TableExportServiceImpl implements TableExportService {
     private final TableExportMapper tableExportMapper;
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlExecutor sqlExecutor;
-    private final SqlPermissionService sqlPermissions;
     private final SessionService sessionService;
 
     @Override
@@ -76,8 +75,7 @@ public class TableExportServiceImpl implements TableExportService {
             exportTitle = exportTitle.substring(0, MAX_TITLE_LENGTH);
         }
         sessionService.requireOwnership(userId, exportSessionId);
-        String safeSql =
-                sqlPermissions.authorize(userId, datasource, sqlExecutor.validateSelectSql(sql));
+        String safeSql = sqlExecutor.authorizeSelectSql(datasource, sql, userId);
 
         String exportId = UUID.randomUUID().toString();
         CsvResult csv = writeCsv(datasource, safeSql);

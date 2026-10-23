@@ -135,7 +135,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                                         query.datasourceId(),
                                                         c.getTableName())
                                                 .contains(
-                                                        DataPermissionService.normalize(
+                                                        SemanticUtils.normalizeIdentifier(
                                                                 c.getColumnName())))
                         .collect(Collectors.groupingBy(ColumnInfo::getTableId));
         List<RelationWorkspaceTableResponse> nodes =
@@ -166,12 +166,16 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private boolean visibleRelation(Integer datasourceId, LogicalTableRelationResponse relation) {
         var user = holder.checkAndGet();
-        var sourceHidden = dataPermissions.hidden(user, datasourceId, relation.sourceTableName());
-        var targetHidden = dataPermissions.hidden(user, datasourceId, relation.targetTableName());
-        return relation.sourceColumnNames().stream()
-                        .noneMatch(c -> sourceHidden.contains(DataPermissionService.normalize(c)))
-                && relation.targetColumnNames().stream()
-                        .noneMatch(c -> targetHidden.contains(DataPermissionService.normalize(c)));
+        return !dataPermissions.hasHiddenColumns(
+                        user,
+                        datasourceId,
+                        relation.sourceTableName(),
+                        relation.sourceColumnNames())
+                && !dataPermissions.hasHiddenColumns(
+                        user,
+                        datasourceId,
+                        relation.targetTableName(),
+                        relation.targetColumnNames());
     }
 
     @Override
@@ -351,7 +355,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             Integer datasourceId, String tableName, List<String> columnNames, String fieldName) {
         var hidden = dataPermissions.hidden(holder.checkAndGet(), datasourceId, tableName);
         for (String columnName : columnNames) {
-            if (hidden.contains(DataPermissionService.normalize(columnName)))
+            if (hidden.contains(SemanticUtils.normalizeIdentifier(columnName)))
                 throw BusinessException.of(ErrorCode.FORBIDDEN);
             ColumnInfo columnInfo =
                     columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(

@@ -56,9 +56,7 @@ public class SqlExecutor {
     private final SqlPermissionService sqlPermissions;
 
     public SqlExecution executeDetailed(Datasource datasource, String sql, Integer userId) {
-        String validatedSql =
-                validateAndTransform(
-                        sqlPermissions.authorize(userId, datasource, validateSelectSql(sql)));
+        String validatedSql = validateAndTransform(authorizeSelectSql(datasource, sql, userId));
 
         DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
@@ -80,6 +78,10 @@ public class SqlExecutor {
             return "unknown database error";
         }
         return message.length() > 200 ? message.substring(0, 200) + "..." : message;
+    }
+
+    public String authorizeSelectSql(Datasource datasource, String sql, Integer userId) {
+        return sqlPermissions.authorize(userId, datasource, validateSelectSql(sql));
     }
 
     public String validateSelectSql(String sql) {

@@ -233,7 +233,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         dataPermissions.requireTable(user, datasourceId, table);
         if (dataPermissions
                 .hidden(user, datasourceId, table)
-                .contains(DataPermissionService.normalize(column))) {
+                .contains(SemanticUtils.normalizeIdentifier(column))) {
             throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
     }

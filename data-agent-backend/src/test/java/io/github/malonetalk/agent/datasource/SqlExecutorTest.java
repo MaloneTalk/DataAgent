@@ -21,7 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.service.SqlPermissionService;
@@ -35,8 +39,28 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class SqlExecutorTest {
 
+    private final SqlPermissionService permissions = mock(SqlPermissionService.class);
     private final SqlExecutor executor =
-            new SqlExecutor(mock(DynamicDataSourceManager.class), mock(SqlPermissionService.class));
+            new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
+
+    @Test
+    void sharedSelectEntryNormalizesSqlBeforeDataAuthorization() {
+        Datasource datasource = new Datasource();
+        when(permissions.authorize(7, datasource, "SELECT id FROM orders"))
+                .thenReturn("authorized SQL");
+        assertEquals(
+                "authorized SQL",
+                executor.authorizeSelectSql(datasource, "SELECT id FROM orders;", 7));
+        verify(permissions).authorize(7, datasource, "SELECT id FROM orders");
+    }
+
+    @Test
+    void sharedSelectEntryRejectsWritesBeforeAuthorization() {
+        assertThrows(
+                BusinessException.class,
+                () -> executor.authorizeSelectSql(new Datasource(), "DELETE FROM orders", 7));
+        verifyNoInteractions(permissions);
+    }
 
     @Test
     void acceptsBusinessTableCountsAndAppliesOuterRowLimit() {

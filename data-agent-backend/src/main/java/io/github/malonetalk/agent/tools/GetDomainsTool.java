@@ -52,9 +52,9 @@ public class GetDomainsTool implements MarkAgentTool {
                             + " this tool first to choose the most relevant domains before querying"
                             + " tables.")
     public ToolResultBlock getDomains(ToolCallContext ctx) {
-        permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
+        var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
         var ds = datasources.getDatasourceForSession(ctx.sessionId());
-        var user = permissions.user(ctx.userId());
+
         var domains =
                 tables.listMergedTablesByDomains(ds.getId(), List.of()).stream()
                         .filter(t -> dataPermissions.canTable(user, ds.getId(), t.name()))

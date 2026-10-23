@@ -47,6 +47,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
@@ -110,10 +111,10 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId) {
-        permissions.require(userId, PermissionEnum.ANALYSIS_CHAT_USE);
+        var user = permissions.require(userId, PermissionEnum.ANALYSIS_CHAT_USE);
         // Verify unique ownership before loading memory or binding a datasource.
         sessionService.bindUserSession(userId, sessionId);
-        authorizeDatasource(userId, sessionId, datasourceId);
+        authorizeDatasource(user, sessionId, datasourceId);
         ReActAgent agent =
                 createAgent(ToolCallContext.builder().sessionId(sessionId).userId(userId).build());
 
@@ -180,24 +181,21 @@ public class AgentService {
                         });
     }
 
-    private void authorizeDatasource(int userId, String sessionId, Integer datasourceId) {
+    private void authorizeDatasource(UserContextBo user, String sessionId, Integer datasourceId) {
         if (datasourceId != null) {
-            dataPermissions.requireDatasource(userId, datasourceId);
+            dataPermissions.requireDatasource(user, datasourceId);
             datasourceService.bindSessionDatasource(sessionId, datasourceId);
         }
         try {
             dataPermissions.requireDatasource(
-                    userId, datasourceService.getDatasourceForSession(sessionId).getId());
+                    user, datasourceService.getDatasourceForSession(sessionId).getId());
         } catch (BusinessException ex) {
             // Never silently switch an already bound session to another source.
             if (sessionService.hasDatasourceBinding(sessionId)) throw ex;
             var allowed =
                     datasourceService.findAll().stream()
                             .filter(ds -> Status.ACTIVE.getCode().equals(ds.getStatus()))
-                            .filter(
-                                    ds ->
-                                            dataPermissions.canDatasource(
-                                                    permissions.user(userId), ds.getId()))
+                            .filter(ds -> dataPermissions.canDatasource(user, ds.getId()))
                             .findFirst()
                             .orElseThrow(() -> ex);
             datasourceService.bindSessionDatasource(sessionId, allowed.getId());
