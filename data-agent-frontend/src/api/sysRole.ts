@@ -107,7 +107,6 @@ export interface PermissionDefinition {
   code: string;
   name: string;
   module: string;
-  description: string;
   superAdminOnly: boolean;
 }
 export function getPermissionCatalog() {

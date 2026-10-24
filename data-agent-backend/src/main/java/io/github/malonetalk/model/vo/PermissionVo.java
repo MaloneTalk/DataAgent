@@ -17,5 +17,4 @@
  */
 package io.github.malonetalk.model.vo;
 
-public record PermissionVo(
-        String code, String name, String module, String description, boolean superAdminOnly) {}
+public record PermissionVo(String code, String name, String module, boolean superAdminOnly) {}

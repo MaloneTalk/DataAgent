@@ -31,18 +31,25 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.expression.Alias;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
 import net.sf.jsqlparser.expression.Function;
+import net.sf.jsqlparser.expression.UserVariable;
+import net.sf.jsqlparser.expression.VariableAssignment;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.piped.FromQuery;
 import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.LateralSubSelect;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.SelectVisitorAdapter;
 import net.sf.jsqlparser.statement.select.SetOperationList;
+import net.sf.jsqlparser.statement.select.TableStatement;
+import net.sf.jsqlparser.statement.select.Values;
 import net.sf.jsqlparser.statement.select.WithItem;
-import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.springframework.stereotype.Service;
 
 /** Restrict every physical source to a projection of authorized columns before execution. */
@@ -65,7 +72,7 @@ public class SqlPermissionService {
         try {
             if (!(CCJSqlParserUtil.parse(sql) instanceof Select select)) throw denied();
             Inspector inspector = new Inspector(user, datasource.getId());
-            inspector.getTables((Statement) select);
+            inspector.inspect(select, null);
             if (inspector.referenced.stream().anyMatch(inspector.hidden::contains)) throw denied();
             return select.toString();
         } catch (BusinessException ex) {
@@ -80,55 +87,115 @@ public class SqlPermissionService {
                 ErrorCode.FORBIDDEN, "SQL references inaccessible data or unsupported syntax.");
     }
 
-    private class Inspector extends TablesNamesFinder<Void> {
+    private class Inspector extends SelectVisitorAdapter<Void> {
         private final UserContextBo user;
         private final Integer datasourceId;
         private final Set<String> hidden = new HashSet<>();
         private final Set<String> referenced = new HashSet<>();
+        private final ExpressionVisitorAdapter<Void> expressions =
+                new ExpressionVisitorAdapter<>() {
+                    @Override
+                    public <S> Void visit(Column column, S context) {
+                        referenced.add(normalizeIdentifier(column.getColumnName()));
+                        if (column.getTable() != null && column.getTable().getSchemaName() != null)
+                            throw denied();
+                        return null;
+                    }
+
+                    @Override
+                    public <S> Void visit(Function function, S context) {
+                        if (!FUNCTIONS.contains(function.getName().toLowerCase(Locale.ROOT)))
+                            throw denied();
+                        return super.visit(function, context);
+                    }
+
+                    @Override
+                    public <S> Void visit(UserVariable variable, S context) {
+                        throw denied();
+                    }
+
+                    @Override
+                    public <S> Void visit(VariableAssignment assignment, S context) {
+                        throw denied();
+                    }
+
+                    @Override
+                    public <S> Void visit(Select select, S context) {
+                        inspect(select, context);
+                        return null;
+                    }
+                };
 
         Inspector(UserContextBo user, Integer datasourceId) {
             this.user = user;
             this.datasourceId = datasourceId;
+            expressions.setSelectVisitor(this);
+        }
+
+        private <S> void inspect(Select select, S context) {
+            select.accept(this, context);
+        }
+
+        private void rejectWith(Select select) {
+            if (select.getWithItemsList() != null && !select.getWithItemsList().isEmpty())
+                throw denied(); // MySQL 5.7 does not support CTEs.
         }
 
         @Override
         public <S> Void visit(WithItem<?> item, S context) {
-            throw denied(); // MySQL 5.7 does not support CTEs.
+            throw denied();
         }
 
         @Override
-        public <S> Void visit(Column column, S context) {
-            referenced.add(normalizeIdentifier(column.getColumnName()));
-            if (column.getTable() != null && column.getTable().getSchemaName() != null)
-                throw denied();
-            return super.visit(column, context);
+        public <S> Void visit(Values select, S context) {
+            throw denied();
         }
 
         @Override
-        public <S> Void visit(Function function, S context) {
-            if (!FUNCTIONS.contains(function.getName().toLowerCase(Locale.ROOT))) throw denied();
-            return super.visit(function, context);
+        public <S> Void visit(TableStatement select, S context) {
+            throw denied();
+        }
+
+        @Override
+        public <S> Void visit(LateralSubSelect select, S context) {
+            throw denied();
+        }
+
+        @Override
+        public <S> Void visit(FromQuery select, S context) {
+            throw denied();
+        }
+
+        @Override
+        public <S> Void visit(ParenthesedSelect select, S context) {
+            rejectWith(select);
+            inspect(select.getSelect(), context);
+            inspectOrderBy(select, context);
+            return null;
         }
 
         @Override
         public <S> Void visit(PlainSelect select, S context) {
+            rejectWith(select);
             if (select.getIntoTables() != null || select.getIntoTempTable() != null) throw denied();
-            // Visit original nested queries first. Generated projections must not be rewritten
-            // again.
-            super.visit(select, context);
-            if (select.getOrderByElements() != null)
-                select.getOrderByElements()
-                        .forEach(order -> order.getExpression().accept(this, context));
+            // ExpressionVisitorAdapter visits nested expressions, including GROUP_CONCAT.
+            select.getSelectItems().forEach(item -> item.accept(expressions, context));
+            inspectExpression(select.getWhere(), context);
+            inspectExpression(select.getHaving(), context);
+            inspectOrderBy(select, context);
             if (select.getGroupBy() != null
                     && select.getGroupBy().getGroupByExpressionList() != null)
-                select.getGroupBy().getGroupByExpressionList().accept(this, context);
-            if (select.getHaving() != null) select.getHaving().accept(this, context);
+                select.getGroupBy().getGroupByExpressionList().accept(expressions, context);
             if (select.getQualify() != null) throw denied();
-            if (select.getFromItem() != null) select.setFromItem(project(select.getFromItem()));
+            if (select.getFromItem() != null)
+                select.setFromItem(project(select.getFromItem(), context));
             if (select.getJoins() != null) {
                 select.getJoins()
                         .forEach(
                                 join -> {
+                                    if (join.getOnExpressions() != null)
+                                        join.getOnExpressions()
+                                                .forEach(on -> inspectExpression(on, context));
                                     if (join.getUsingColumns() != null)
                                         join.getUsingColumns()
                                                 .forEach(
@@ -137,7 +204,7 @@ public class SqlPermissionService {
                                                                         normalizeIdentifier(
                                                                                 c
                                                                                         .getColumnName())));
-                                    join.setRightItem(project(join.getRightItem()));
+                                    join.setRightItem(project(join.getRightItem(), context));
                                 });
             }
             return null;
@@ -145,15 +212,27 @@ public class SqlPermissionService {
 
         @Override
         public <S> Void visit(SetOperationList select, S context) {
-            super.visit(select, context);
-            if (select.getOrderByElements() != null)
-                select.getOrderByElements()
-                        .forEach(order -> order.getExpression().accept(this, context));
+            rejectWith(select);
+            select.getSelects().forEach(child -> inspect(child, context));
+            inspectOrderBy(select, context);
             return null;
         }
 
-        private FromItem project(FromItem source) {
-            if (source instanceof ParenthesedSelect) return source;
+        private <S> void inspectExpression(Expression expression, S context) {
+            if (expression != null) expression.accept(expressions, context);
+        }
+
+        private <S> void inspectOrderBy(Select select, S context) {
+            if (select.getOrderByElements() != null)
+                select.getOrderByElements()
+                        .forEach(order -> inspectExpression(order.getExpression(), context));
+        }
+
+        private <S> FromItem project(FromItem source, S context) {
+            if (source instanceof ParenthesedSelect nested) {
+                inspect(nested, context);
+                return source;
+            }
             if (!(source instanceof Table table)
                     || table.getSchemaName() != null
                     || table.getDatabase() != null && table.getDatabase().getDatabaseName() != null)

@@ -27,8 +27,11 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref<UserInfoResponse | null>(null);
   const isLoggedIn = computed(() => Boolean(token.value));
 
-  function hasPermission(code: string) {
-    return Boolean(userInfo.value?.superAdmin || userInfo.value?.permissions.includes(code));
+  function hasPermission(permission: string | string[]) {
+    const codes = Array.isArray(permission) ? permission : [permission];
+    return Boolean(
+      userInfo.value?.superAdmin || codes.some(code => userInfo.value?.permissions.includes(code)),
+    );
   }
 
   async function refreshPermissions() {

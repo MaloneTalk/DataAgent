@@ -22,7 +22,7 @@ import { useUserStore } from '@/stores/user';
 
 declare module 'vue-router' {
   interface RouteMeta {
-    permission?: string;
+    permission?: string | string[];
   }
 }
 
@@ -46,13 +46,13 @@ const routes: RouteRecordRaw[] = [
     path: '/chat',
     name: 'Chat',
     component: () => import('@/views/chat/ChatView.vue'),
-    meta: { title: 'AI 智能分析', permission: 'analysis:chat:use' },
+    meta: { title: 'AI 智能分析', permission: ['analysis:chat:use', 'analysis:session:read'] },
   },
   {
     path: '/chat/:sessionId',
     name: 'ChatSession',
     component: () => import('@/views/chat/ChatView.vue'),
-    meta: { title: 'AI 智能分析', permission: 'analysis:chat:use' },
+    meta: { title: 'AI 智能分析', permission: ['analysis:chat:use', 'analysis:session:read'] },
   },
   {
     path: '/data-source',

@@ -49,9 +49,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +64,10 @@ public class SessionService {
     private final SessionDatasourceMapper sessionDatasourceMapper;
     private final UserSessionMapper userSessionMapper;
     private final AnswerProvenanceService answerProvenanceService;
-    private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
+
+    @Getter(lazy = true)
+    private final MysqlSession session =
+            new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
 
     public SessionService(
             DataSource dataSource,
@@ -81,17 +84,9 @@ public class SessionService {
         return sessionDatasourceMapper.selectBySessionId(sessionId) != null;
     }
 
-    public Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(sessionId, k -> createMysqlSession());
-    }
-
-    private MysqlSession createMysqlSession() {
-        return new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
-    }
-
     /** 声明会话归属（INSERT IGNORE），首次访问时由 chatStream 调用。 */
     public void bindUserSession(int userId, String sessionId) {
-        if (getOrCreateSession(sessionId).exists(SimpleSessionKey.of(sessionId))
+        if (getSession().exists(SimpleSessionKey.of(sessionId))
                 && !userSessionMapper.exists(userId, sessionId)) {
             throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND);
         }
@@ -116,7 +111,7 @@ public class SessionService {
     }
 
     private List<Msg> loadMessages(String sessionId) {
-        Session session = getOrCreateSession(sessionId);
+        Session session = getSession();
         if (!session.exists(SimpleSessionKey.of(sessionId))) {
             return Collections.emptyList();
         }
@@ -241,11 +236,7 @@ public class SessionService {
     }
 
     private void doClearSession(String sessionId) {
-        Session session = sessionCache.remove(sessionId);
-        if (session == null) {
-            session = createMysqlSession();
-        }
-        session.delete(SimpleSessionKey.of(sessionId));
+        getSession().delete(SimpleSessionKey.of(sessionId));
         answerProvenanceService.deleteSession(sessionId);
         sessionDatasourceMapper.deleteBySessionId(sessionId);
         userSessionMapper.deleteBySessionId(sessionId);
@@ -254,7 +245,7 @@ public class SessionService {
     /** 清空全部会话；调用入口要求 analysis:session:delete-all。 */
     @Transactional
     public void clearAllSessions() {
-        MysqlSession session = createMysqlSession();
+        MysqlSession session = getSession();
         Set<SessionKey> keys = session.listSessionKeys();
         if (keys != null) {
             for (SessionKey key : keys) {
@@ -269,7 +260,7 @@ public class SessionService {
      * @param userId null 表示 admin（全量），非 null 表示只查该用户的会话
      */
     public List<SessionInfo> listSessions(Integer userId) {
-        MysqlSession session = createMysqlSession();
+        MysqlSession session = getSession();
         Set<SessionKey> keys = session.listSessionKeys();
 
         if (keys == null || keys.isEmpty()) {

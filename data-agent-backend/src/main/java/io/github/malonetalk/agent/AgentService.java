@@ -118,7 +118,7 @@ public class AgentService {
         ReActAgent agent =
                 createAgent(ToolCallContext.builder().sessionId(sessionId).userId(userId).build());
 
-        Session session = sessionService.getOrCreateSession(sessionId);
+        Session session = sessionService.getSession();
         agent.loadIfExists(session, sessionId);
         validateClientToolResults(userId, sessionId, toolResults);
         Msg userMsg = buildUserMessage(userInput, toolResults);

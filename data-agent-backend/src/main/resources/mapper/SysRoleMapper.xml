@@ -36,8 +36,4 @@
         DELETE FROM sys_role WHERE id = #{id}
     </delete>
 
-    <select id="countAll" resultType="int">
-        SELECT COUNT(*) FROM sys_role
-    </select>
-
 </mapper>

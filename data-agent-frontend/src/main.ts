@@ -42,7 +42,13 @@ window.addEventListener('permissions-changed', async () => {
   if (store.isLoggedIn) {
     try {
       await store.refreshPermissions();
-      await router.replace(router.currentRoute.value.fullPath);
+      const current = router.currentRoute.value;
+      await router.replace({
+        path: current.path,
+        query: current.query,
+        hash: current.hash,
+        force: true,
+      });
     } catch {
       /* request handler displays errors */
     }

@@ -34,6 +34,4 @@ public interface SysRoleMapper {
     int update(SysRole role);
 
     int deleteById(@Param("id") Integer id);
-
-    int countAll();
 }

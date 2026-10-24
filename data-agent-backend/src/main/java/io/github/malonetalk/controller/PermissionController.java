@@ -41,7 +41,6 @@ public class PermissionController {
                                                 p.getCode(),
                                                 p.getName(),
                                                 p.getModule(),
-                                                p.getName(),
                                                 p.isSuperAdminOnly()))
                         .toList());
     }

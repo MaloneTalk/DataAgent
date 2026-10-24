@@ -55,6 +55,8 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 
 查看全部会话需要额外的 `analysis:session:read-all`，它不会授予删除他人会话的权限。清空全部会话需要 `analysis:session:delete-all`。报告、导出默认只允许访问本人会话下的资源；超级管理员保留全量访问。
 
+`analysis:session:read` 可独立打开聊天页面查阅历史，无需聊天使用权限。输入框、新建会话和数据源选择只对拥有 `analysis:chat:use` 的用户显示；会话删除、报告和数据证据各自检查对应权限。前端收到撤权响应后刷新权限，并强制重新经过当前页面的路由守卫。
+
 第一版仅超级管理员能够配置角色授权、分配角色，以及同步表结构和刷新物理状态。`semantic:table:sync` 覆盖全数据源的结构读取与同步，暂不授予普通角色。Python 当前直接启动本机子进程，因此 `analysis:python:execute` 也仅限超级管理员；开放前需要实际的操作系统或容器隔离。这些能力在权限目录中以「仅超管」显示，数据库中已有的普通角色同步授权也不会生效。
 
 ## 后端执行规则
@@ -66,6 +68,8 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依赖请求线程的 ThreadLocal。敏感工具执行前查询数据库，异步请求切换和请求完成时清理上下文。客户端只能提交属于该会话的 `ask_user` 响应，不能伪造 SQL、Python 或报告生成结果。
 
 普通用户的 SQL 会把每个物理表替换成只投影可见列的派生表。因此 `SELECT *`、JOIN、子查询和 UNION 都不能读到隐藏列。显式引用隐藏列时拒绝执行，包括 WHERE、ORDER BY、GROUP BY 和 HAVING。跨库引用、CTE、不支持的 FROM 结构、未列入安全名单的函数均拒绝。语法和 SELECT 限制仍由 `SqlExecutor` 检查，导出复用同一授权处理。
+
+表达式中的子查询也经过相同授权，包括 `GROUP_CONCAT` 的参数和排序表达式。普通用户不能读取或赋值 MySQL 用户变量（如 `@v`、`@v := ...`），避免共享连接池的会话变量在用户之间残留。
 
 改写时物理表名取自授权记录，客户端提交的大小写只用于匹配和保留查询别名，不能切换到另一张大小写不同的物理表。逻辑外键的修改、禁用、单条和批量删除都检查来源表、目标表及隐藏列权限；删除和禁用不要求物理表仍然存在。
 
