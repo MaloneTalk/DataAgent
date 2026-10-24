@@ -24,7 +24,6 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.service.PermissionService;
-import io.github.malonetalk.service.SysUserService;
 import io.github.malonetalk.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -46,21 +45,11 @@ public class AuthInterceptor implements AsyncHandlerInterceptor {
     private final PermissionService permissions;
     private final JwtUtil jwtUtil;
     private final UserContextHolder userContextHolder;
-    private final SysUserService sysUserService;
 
     @Override
     public boolean preHandle(
             HttpServletRequest request, HttpServletResponse response, Object handler) {
-        Integer userId = jwtUtil.parseUserId(extractBearer(request));
-        if (userId == null) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Missing or invalid token.");
-        }
-        UserContextBo context = sysUserService.selectAuthProjection(userId);
-        if (context == null) {
-            // 用户不存在或 status=0（禁用），均视为未授权。
-            throw BusinessException.of(
-                    ErrorCode.UNAUTHORIZED, "Account is disabled or does not exist.");
-        }
+        UserContextBo context = permissions.user(jwtUtil.parseUserId(extractBearer(request)));
         userContextHolder.set(context);
 
         try {
@@ -71,7 +60,8 @@ public class AuthInterceptor implements AsyncHandlerInterceptor {
             if (required == null)
                 required = method.getBeanType().getAnnotation(RequirePermission.class);
             if (required != null && required.value().length > 0) {
-                permissions.require(context, required.value());
+                if (required.anyOf()) permissions.requireAny(context, required.value());
+                else permissions.require(context, required.value());
             } else if (!method.hasMethodAnnotation(LoginRequired.class)
                     && !method.getBeanType().isAnnotationPresent(LoginRequired.class)) {
                 throw BusinessException.of(ErrorCode.FORBIDDEN, "Endpoint has no access policy.");

@@ -20,7 +20,7 @@
   import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
   import { fetchSessionList } from '@/api/agent';
-  import { getDatasourceOptions, type DatasourceResponse } from '@/api/datasource';
+  import { getDatasourceOptions, type DatasourceOption } from '@/api/datasource';
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
@@ -51,7 +51,7 @@
   const evidenceDialogVisible = ref(false);
   const previewVisible = ref(false);
   const previewContent = ref('');
-  const datasources = ref<DatasourceResponse[]>([]);
+  const datasources = ref<DatasourceOption[]>([]);
 
   // 已发过消息 = 绑定已落库 = 不可再切换数据源（锁定语义）。
   const isBound = computed(() => messages.value.length > 0);

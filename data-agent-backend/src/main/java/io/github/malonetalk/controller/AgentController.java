@@ -124,7 +124,7 @@ public class AgentController {
     @DeleteMapping("/session")
     @RequirePermission(PermissionEnum.ANALYSIS_SESSION_DELETE_ALL)
     public Result<Boolean> clearAllSessions() {
-        sessionService.clearAllSessions(null);
+        sessionService.clearAllSessions();
         return Result.success(true);
     }
 

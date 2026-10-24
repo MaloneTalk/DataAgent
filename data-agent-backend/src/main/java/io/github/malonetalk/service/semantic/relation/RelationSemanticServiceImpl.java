@@ -158,8 +158,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .filter(
                                 relation ->
                                         currentPageTableIds.contains(relation.getTargetTableId()))
-                        .map(semanticConverter::toResponse)
                         .filter(rel -> visibleRelation(hiddenByTable, rel))
+                        .map(semanticConverter::toResponse)
                         .toList();
 
         return new RelationWorkspaceResponse(
@@ -167,17 +167,21 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private boolean visibleRelation(
-            Map<String, Set<String>> hiddenByTable, LogicalTableRelationResponse relation) {
+            Map<String, Set<String>> hiddenByTable, LogicalTableRelation relation) {
         var sourceHidden =
                 hiddenByTable.getOrDefault(
-                        SemanticUtils.normalizeIdentifier(relation.sourceTableName()), Set.of());
+                        SemanticUtils.normalizeIdentifier(relation.getSourceTableName()), Set.of());
         var targetHidden =
                 hiddenByTable.getOrDefault(
-                        SemanticUtils.normalizeIdentifier(relation.targetTableName()), Set.of());
-        return relation.sourceColumnNames().stream()
+                        SemanticUtils.normalizeIdentifier(relation.getTargetTableName()), Set.of());
+        return logicalTableRelationHelper
+                        .fromJson(relation.getSourceColumnNamesJson(), "sourceColumnNames")
+                        .stream()
                         .map(SemanticUtils::normalizeIdentifier)
                         .noneMatch(sourceHidden::contains)
-                && relation.targetColumnNames().stream()
+                && logicalTableRelationHelper
+                        .fromJson(relation.getTargetColumnNamesJson(), "targetColumnNames")
+                        .stream()
                         .map(SemanticUtils::normalizeIdentifier)
                         .noneMatch(targetHidden::contains);
     }
@@ -246,6 +250,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             return 0;
         }
         TableInfo sourceTable = requireTable(datasourceId, normalizedTableName, "sourceTable");
+        relationIds.forEach(id -> requireRelation(datasourceId, normalizedTableName, id));
         int deleted =
                 logicalTableRelationMapper.deleteByIdsAndSourceTable(
                         datasourceId, sourceTable.getId(), relationIds);
@@ -417,6 +422,12 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                 relation.getSourceTableName(), "sourceTableName"))) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Logical relation does not exist.");
+        }
+        var user = holder.checkAndGet();
+        dataPermissions.requireTable(user, datasourceId, relation.getSourceTableName());
+        dataPermissions.requireTable(user, datasourceId, relation.getTargetTableName());
+        if (!visibleRelation(dataPermissions.hiddenByTable(user, datasourceId), relation)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
         return relation;
     }

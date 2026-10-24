@@ -65,7 +65,7 @@
 <template>
   <el-dialog v-model="visible" title="角色功能权限" width="760px" :close-on-click-modal="false">
     <div v-loading="loading">
-      <p>未勾选的能力默认拒绝。授权管理、角色分配及未隔离的 Python 执行仅限超级管理员。</p>
+      <p>未勾选的能力默认拒绝。授权管理、角色分配、表结构同步及 Python 执行仅限超级管理员。</p>
       <el-checkbox-group v-model="selected">
         <section v-for="group in groups" :key="group" style="margin-bottom: 12px">
           <strong>{{ group }}</strong>

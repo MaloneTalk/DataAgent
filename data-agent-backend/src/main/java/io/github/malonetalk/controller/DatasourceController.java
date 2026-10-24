@@ -220,7 +220,14 @@ public class DatasourceController {
     }
 
     @GetMapping("/options")
-    @RequirePermission(PermissionEnum.ANALYSIS_CHAT_USE)
+    @RequirePermission(
+            value = {
+                PermissionEnum.ANALYSIS_CHAT_USE,
+                PermissionEnum.SEMANTIC_TABLE_READ,
+                PermissionEnum.SEMANTIC_RELATION_READ,
+                PermissionEnum.SEMANTIC_METRIC_READ
+            },
+            anyOf = true)
     public Result<List<DatasourceOptionVo>> options() {
         var user = holder.checkAndGet();
         return Result.success(

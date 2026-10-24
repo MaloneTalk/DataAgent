@@ -26,11 +26,12 @@
     deleteDatasource,
     activateDatasource,
     deactivateDatasource,
+    getDatasourceList,
     type DatasourceResponse,
   } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
 
-  const { list: dataSourceList, loading, error, fetchList } = useDatasource();
+  const { list: dataSourceList, loading, error, fetchList } = useDatasource(getDatasourceList);
 
   const dialogVisible = ref(false);
   const submitLoading = ref(false);

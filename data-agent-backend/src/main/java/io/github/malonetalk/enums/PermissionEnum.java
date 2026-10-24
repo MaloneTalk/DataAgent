@@ -43,7 +43,7 @@ public enum PermissionEnum {
     SEMANTIC_DOMAIN_DELETE("semantic:domain:delete", "数据领域：删除", "数据领域"),
     SEMANTIC_TABLE_READ("semantic:table:read", "表语义：查看", "表语义"),
     SEMANTIC_TABLE_UPDATE("semantic:table:update", "表语义：修改", "表语义"),
-    SEMANTIC_TABLE_SYNC("semantic:table:sync", "表语义：同步", "表语义"),
+    SEMANTIC_TABLE_SYNC("semantic:table:sync", "表语义：同步", "表语义", true),
     SEMANTIC_COLUMN_READ("semantic:column:read", "列语义：查看", "列语义"),
     SEMANTIC_COLUMN_UPDATE("semantic:column:update", "列语义：修改", "列语义"),
     SEMANTIC_RELATION_READ("semantic:relation:read", "逻辑外键：查看", "逻辑外键"),

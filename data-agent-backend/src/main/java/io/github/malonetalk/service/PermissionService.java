@@ -81,4 +81,11 @@ public class PermissionService {
         if (!Boolean.TRUE.equals(user.superAdmin()))
             throw BusinessException.of(ErrorCode.FORBIDDEN);
     }
+
+    public void requireAny(UserContextBo user, PermissionEnum... permissions) {
+        Set<String> codes = codes(user);
+        if (Arrays.stream(permissions).map(PermissionEnum::getCode).noneMatch(codes::contains)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "Missing required permission.");
+        }
+    }
 }

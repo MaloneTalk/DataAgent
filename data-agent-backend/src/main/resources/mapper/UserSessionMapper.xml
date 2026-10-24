@@ -21,8 +21,5 @@
         DELETE FROM user_session WHERE session_id = #{sessionId}
     </delete>
 
-    <delete id="deleteByUserId">
-        DELETE FROM user_session WHERE user_id = #{userId}
-    </delete>
 
 </mapper>

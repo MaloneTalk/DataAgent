@@ -158,8 +158,7 @@ public class SqlPermissionService {
                     || table.getSchemaName() != null
                     || table.getDatabase() != null && table.getDatabase().getDatabaseName() != null)
                 throw denied();
-            String name = normalizeIdentifier(table.getName());
-            data.requireTable(user, datasourceId, name);
+            String name = data.requireTable(user, datasourceId, table.getName());
             var hiddenColumns = data.hidden(user, datasourceId, name);
             hidden.addAll(hiddenColumns);
             String projection =
@@ -176,10 +175,7 @@ public class SqlPermissionService {
                 restricted.setSelect(
                         (Select)
                                 CCJSqlParserUtil.parse(
-                                        "SELECT "
-                                                + projection
-                                                + " FROM "
-                                                + quote(table.getName().replace("`", ""))));
+                                        "SELECT " + projection + " FROM " + quote(name)));
                 restricted.setAlias(
                         table.getAlias() == null
                                 ? new Alias(quote(table.getName().replace("`", "")))

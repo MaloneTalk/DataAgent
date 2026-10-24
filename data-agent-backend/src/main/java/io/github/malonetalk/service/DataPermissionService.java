@@ -19,6 +19,7 @@ package io.github.malonetalk.service;
 
 import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
+import io.github.malonetalk.entity.RoleTablePermission;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
@@ -40,19 +41,24 @@ public class DataPermissionService {
     private final RoleHiddenColumnMapper columns;
 
     public boolean canTable(UserContextBo user, Integer datasourceId, String table) {
-        return Boolean.TRUE.equals(user.superAdmin())
-                || user.roleId() != null
-                        && user.roleId() > 0
-                        && tables.selectByRoleAndDatasource(user.roleId(), datasourceId).stream()
-                                .anyMatch(
-                                        p ->
-                                                normalizeIdentifier(p.getTableName())
-                                                        .equals(normalizeIdentifier(table)));
+        return authorizedTableName(user, datasourceId, table).isPresent();
     }
 
-    public void requireTable(UserContextBo user, Integer datasourceId, String table) {
-        if (!canTable(user, datasourceId, table))
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "Table access denied.");
+    /** Returns the granted physical name, never the client-supplied spelling. */
+    public String requireTable(UserContextBo user, Integer datasourceId, String table) {
+        return authorizedTableName(user, datasourceId, table)
+                .orElseThrow(
+                        () -> BusinessException.of(ErrorCode.FORBIDDEN, "Table access denied."));
+    }
+
+    private Optional<String> authorizedTableName(
+            UserContextBo user, Integer datasourceId, String table) {
+        if (Boolean.TRUE.equals(user.superAdmin())) return Optional.of(table);
+        if (user.roleId() == null || user.roleId() <= 0) return Optional.empty();
+        return tables.selectByRoleAndDatasource(user.roleId(), datasourceId).stream()
+                .map(RoleTablePermission::getTableName)
+                .filter(name -> normalizeIdentifier(name).equals(normalizeIdentifier(table)))
+                .findFirst();
     }
 
     public boolean canDatasource(UserContextBo user, Integer datasourceId) {

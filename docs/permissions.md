@@ -19,6 +19,14 @@ HAVING COUNT(*) > 1;
 
 迁移不会给已有角色自动授予能力。超级管理员仍由 `sys_user.is_super_admin` 识别，角色 ID 不代表管理员身份。
 
+同一会话可以保存多份报告，`report.session_id` 只应有普通索引。如果已经使用本分支早期版本建库，先用 `SHOW INDEX FROM report` 确认是否存在误建的 `uk_session_id` 唯一索引；仅在存在该索引时执行以下修复，保留报告数据：
+
+```sql
+ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id);
+```
+
+`user_session.session_id` 的唯一约束必须保留。
+
 ## 配置角色
 
 超级管理员进入「系统管理 → 角色管理」：
@@ -47,17 +55,19 @@ HAVING COUNT(*) > 1;
 
 查看全部会话需要额外的 `analysis:session:read-all`，它不会授予删除他人会话的权限。清空全部会话需要 `analysis:session:delete-all`。报告、导出默认只允许访问本人会话下的资源；超级管理员保留全量访问。
 
-第一版仅超级管理员能够配置角色授权、分配角色。Python 当前直接启动本机子进程，因此 `analysis:python:execute` 也仅限超级管理员，不能授予普通角色；开放前需要实际的操作系统或容器隔离。权限目录中这三类能力以「仅超管」显示。
+第一版仅超级管理员能够配置角色授权、分配角色，以及同步表结构和刷新物理状态。`semantic:table:sync` 覆盖全数据源的结构读取与同步，暂不授予普通角色。Python 当前直接启动本机子进程，因此 `analysis:python:execute` 也仅限超级管理员；开放前需要实际的操作系统或容器隔离。这些能力在权限目录中以「仅超管」显示，数据库中已有的普通角色同步授权也不会生效。
 
 ## 后端执行规则
 
 `PermissionEnum` 是权限目录的唯一来源。新增能力时定义稳定编码，再在实际入口绑定检查。仅在页面添加一行权限配置不会产生新的执行能力。
 
-所有 `/api/**` 业务接口必须显式声明 `@RequirePermission`，本人基础接口使用 `@LoginRequired`。登录接口单独放行。未声明策略的接口默认拒绝，即使是超级管理员也不能通过该接口。方法注解覆盖类注解，多权限要求全部满足。
+所有 `/api/**` 业务接口必须显式声明 `@RequirePermission`，本人基础接口使用 `@LoginRequired`。登录接口单独放行。未声明策略的接口默认拒绝，即使是超级管理员也不能通过该接口。方法注解覆盖类注解，多权限默认要求全部满足；共享的数据源摘要接口显式声明 `anyOf = true`，允许具备任一相关页面权限的用户访问，结果仍按表授权过滤。
 
 Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依赖请求线程的 ThreadLocal。敏感工具执行前查询数据库，异步请求切换和请求完成时清理上下文。客户端只能提交属于该会话的 `ask_user` 响应，不能伪造 SQL、Python 或报告生成结果。
 
 普通用户的 SQL 会把每个物理表替换成只投影可见列的派生表。因此 `SELECT *`、JOIN、子查询和 UNION 都不能读到隐藏列。显式引用隐藏列时拒绝执行，包括 WHERE、ORDER BY、GROUP BY 和 HAVING。跨库引用、CTE、不支持的 FROM 结构、未列入安全名单的函数均拒绝。语法和 SELECT 限制仍由 `SqlExecutor` 检查，导出复用同一授权处理。
+
+改写时物理表名取自授权记录，客户端提交的大小写只用于匹配和保留查询别名，不能切换到另一张大小写不同的物理表。逻辑外键的修改、禁用、单条和批量删除都检查来源表、目标表及隐藏列权限；删除和禁用不要求物理表仍然存在。
 
 隐藏列引用检查采用保守规则：一个查询中任意授权表隐藏的同名列，不允许在该查询中显式引用，即使另一个表的同名列可见。遇到这类合法查询被拒绝时，应调整查询范围，不要跳过授权校验。元数据需要先完成同步；没有可见列元数据的表不能执行普通用户查询。
 
@@ -72,7 +82,7 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 | `PUT /api/sys/role/{id}/capabilities` | 全量替换功能权限，提交 `{ "codes": [] }` |
 | `GET /api/auth/me` | 当前角色、超级管理员标记、有效权限编码 |
 | `PUT /api/sys/user/{id}/role` | 分配角色，提交 `{ "roleId": 0 }` 可取消分配 |
-| `GET /api/datasource/options` | 分析用户可用的数据源摘要，不含连接凭据 |
+| `GET /api/datasource/options` | 聊天、表语义、逻辑外键或指标查看权限任一满足即可访问，按表授权过滤，不含连接凭据 |
 
 已有角色 `permissions` 和 `columns` 接口继续表示表白名单、隐藏列。用户资料更新接口只更新 `displayName`；原来依赖该接口修改 `roleId` 的客户端需改用独立角色分配接口。
 
@@ -80,6 +90,6 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 
 ## 验证
 
-后端执行 `mvn verify`，涵盖权限撤销、接口策略覆盖、异步上下文清理、会话归属、SQL 表列投影、嵌套查询与隐藏列拒绝等回归检查。前端执行 `npm run build` 和 `npm run lint:check`。
+后端校验命令为 `mvn verify`；前端校验命令为 `npm run build` 和 `npm run lint:check`。
 
 数据库迁移和 MySQL 5.7 上的实际查询验证需要在部署环境执行；单元测试不会修改运行中的数据库。

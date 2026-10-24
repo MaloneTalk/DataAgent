@@ -89,13 +89,6 @@ public class AuthController {
     }
 
     private UserInfoVo info(UserContextBo user) {
-        return UserInfoVo.builder()
-                .userId(user.userId())
-                .username(user.username())
-                .displayName(user.displayName())
-                .roleId(user.roleId())
-                .superAdmin(Boolean.TRUE.equals(user.superAdmin()))
-                .permissions(permissions.codes(user))
-                .build();
+        return userConverter.toInfoVo(user, permissions.codes(user));
     }
 }

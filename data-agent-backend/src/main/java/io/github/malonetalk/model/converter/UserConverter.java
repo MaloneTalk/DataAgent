@@ -20,7 +20,9 @@ package io.github.malonetalk.model.converter;
 import io.github.malonetalk.model.bo.SysUserBo;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.model.vo.UserInfoVo;
 import io.github.malonetalk.model.vo.UserVo;
+import java.util.Set;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -36,4 +38,7 @@ public interface UserConverter {
     UserContextBo toContextBoFromBo(SysUserBo bo);
 
     UserVo toVo(SysUserBo bo);
+
+    @Mapping(target = "permissions", source = "permissions")
+    UserInfoVo toInfoVo(UserContextBo user, Set<String> permissions);
 }

@@ -21,6 +21,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useFieldErrors } from '@/composables/useFieldErrors';
+  import { useUserStore } from '@/stores/user';
   import { formatDateTime } from '@/utils/dateTime';
   import { getDomainNames } from '@/api/domain';
   import {
@@ -48,6 +49,7 @@
   const rows = ref<TableSemanticInfo[]>([]);
   const datasourceId = ref<number | null>(null);
   const domainOptions = ref<string[]>([]);
+  const userStore = useUserStore();
   const page = reactive({
     page: 1,
     pageSize: 10,
@@ -90,6 +92,7 @@
   };
 
   const loadDomainOptions = async () => {
+    if (!userStore.hasPermission('semantic:domain:read')) return;
     try {
       domainOptions.value = await getDomainNames();
     } catch {

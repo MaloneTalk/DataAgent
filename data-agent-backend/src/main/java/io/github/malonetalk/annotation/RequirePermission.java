@@ -35,4 +35,7 @@ import java.lang.annotation.Target;
 public @interface RequirePermission {
 
     PermissionEnum[] value();
+
+    /** Defaults to requiring every permission; opt in explicitly for shared lookup endpoints. */
+    boolean anyOf() default false;
 }
