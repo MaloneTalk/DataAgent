@@ -18,10 +18,10 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue';
   import { useUserStore } from '@/stores/user';
-  import { permissionForPath } from '@/router/permissions';
-  import { useRoute } from 'vue-router';
+  import { useRoute, useRouter } from 'vue-router';
 
   const route = useRoute();
+  const router = useRouter();
   const userStore = useUserStore();
 
   const isCollapse = ref(false);
@@ -58,19 +58,18 @@
     },
   ];
 
+  function canVisit(path: string) {
+    const permission = router.resolve(path).meta.permission;
+    return Boolean(permission && userStore.hasPermission(permission));
+  }
+
   const visibleItems = computed(() =>
     menuItems
       .map(item => ({
         ...item,
-        children: item.children?.filter(child =>
-          userStore.hasPermission(permissionForPath(child.path)!),
-        ),
+        children: item.children?.filter(child => canVisit(child.path)),
       }))
-      .filter(item =>
-        item.children
-          ? item.children.length > 0
-          : userStore.hasPermission(permissionForPath(item.path)!),
-      ),
+      .filter(item => (item.children ? item.children.length > 0 : canVisit(item.path))),
   );
 
   const toggleSidebar = () => {

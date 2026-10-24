@@ -122,6 +122,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
         Set<Integer> currentPageTableIds =
                 page.getRecords().stream().map(TableInfo::getId).collect(Collectors.toSet());
+        Map<String, Set<String>> hiddenByTable =
+                dataPermissions.hiddenByTable(holder.checkAndGet(), query.datasourceId());
         // 列记录已持有 table_id，按主键分组可直接关联当前页的表。
         Map<Integer, List<ColumnInfo>> columnsByTableId =
                 columnSemanticInfoMapper
@@ -129,11 +131,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .stream()
                         .filter(
                                 c ->
-                                        !dataPermissions
-                                                .hidden(
-                                                        holder.checkAndGet(),
-                                                        query.datasourceId(),
-                                                        c.getTableName())
+                                        !hiddenByTable
+                                                .getOrDefault(
+                                                        SemanticUtils.normalizeIdentifier(
+                                                                c.getTableName()),
+                                                        Set.of())
                                                 .contains(
                                                         SemanticUtils.normalizeIdentifier(
                                                                 c.getColumnName())))
@@ -157,25 +159,27 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                                 relation ->
                                         currentPageTableIds.contains(relation.getTargetTableId()))
                         .map(semanticConverter::toResponse)
-                        .filter(rel -> visibleRelation(query.datasourceId(), rel))
+                        .filter(rel -> visibleRelation(hiddenByTable, rel))
                         .toList();
 
         return new RelationWorkspaceResponse(
                 PageResponse.of(nodes, page.getTotal(), pageNumber, pageSize), relations);
     }
 
-    private boolean visibleRelation(Integer datasourceId, LogicalTableRelationResponse relation) {
-        var user = holder.checkAndGet();
-        return !dataPermissions.hasHiddenColumns(
-                        user,
-                        datasourceId,
-                        relation.sourceTableName(),
-                        relation.sourceColumnNames())
-                && !dataPermissions.hasHiddenColumns(
-                        user,
-                        datasourceId,
-                        relation.targetTableName(),
-                        relation.targetColumnNames());
+    private boolean visibleRelation(
+            Map<String, Set<String>> hiddenByTable, LogicalTableRelationResponse relation) {
+        var sourceHidden =
+                hiddenByTable.getOrDefault(
+                        SemanticUtils.normalizeIdentifier(relation.sourceTableName()), Set.of());
+        var targetHidden =
+                hiddenByTable.getOrDefault(
+                        SemanticUtils.normalizeIdentifier(relation.targetTableName()), Set.of());
+        return relation.sourceColumnNames().stream()
+                        .map(SemanticUtils::normalizeIdentifier)
+                        .noneMatch(sourceHidden::contains)
+                && relation.targetColumnNames().stream()
+                        .map(SemanticUtils::normalizeIdentifier)
+                        .noneMatch(targetHidden::contains);
     }
 
     @Override

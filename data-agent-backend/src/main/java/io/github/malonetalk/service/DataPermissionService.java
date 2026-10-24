@@ -26,6 +26,7 @@ import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -66,15 +67,19 @@ public class DataPermissionService {
             throw BusinessException.of(ErrorCode.FORBIDDEN, "Datasource access denied.");
     }
 
-    public Set<String> hidden(UserContextBo user, Integer datasourceId, String table) {
-        if (Boolean.TRUE.equals(user.superAdmin())) return Set.of();
+    public Map<String, Set<String>> hiddenByTable(UserContextBo user, Integer datasourceId) {
+        if (Boolean.TRUE.equals(user.superAdmin())) return Map.of();
         return columns.selectByRoleAndDatasource(user.roleId(), datasourceId).stream()
-                .filter(
-                        p ->
-                                normalizeIdentifier(p.getTableName())
-                                        .equals(normalizeIdentifier(table)))
-                .map(p -> normalizeIdentifier(p.getColumnName()))
-                .collect(Collectors.toSet());
+                .collect(
+                        Collectors.groupingBy(
+                                p -> normalizeIdentifier(p.getTableName()),
+                                Collectors.mapping(
+                                        p -> normalizeIdentifier(p.getColumnName()),
+                                        Collectors.toSet())));
+    }
+
+    public Set<String> hidden(UserContextBo user, Integer datasourceId, String table) {
+        return hiddenByTable(user, datasourceId).getOrDefault(normalizeIdentifier(table), Set.of());
     }
 
     public boolean hasHiddenColumns(

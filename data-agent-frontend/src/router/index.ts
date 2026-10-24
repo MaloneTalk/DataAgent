@@ -19,7 +19,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-import { permissionForPath, routePermissions } from './permissions';
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    permission?: string;
+  }
+}
 
 const routes: RouteRecordRaw[] = [
   {
@@ -41,19 +46,19 @@ const routes: RouteRecordRaw[] = [
     path: '/chat',
     name: 'Chat',
     component: () => import('@/views/chat/ChatView.vue'),
-    meta: { title: 'AI 智能分析' },
+    meta: { title: 'AI 智能分析', permission: 'analysis:chat:use' },
   },
   {
     path: '/chat/:sessionId',
     name: 'ChatSession',
     component: () => import('@/views/chat/ChatView.vue'),
-    meta: { title: 'AI 智能分析' },
+    meta: { title: 'AI 智能分析', permission: 'analysis:chat:use' },
   },
   {
     path: '/data-source',
     name: 'DataSource',
     component: () => import('@/views/data-source/DataSource.vue'),
-    meta: { title: '数据源管理' },
+    meta: { title: '数据源管理', permission: 'data:datasource:read' },
   },
   {
     path: '/semantic',
@@ -63,25 +68,25 @@ const routes: RouteRecordRaw[] = [
     path: '/semantic/domain',
     name: 'DomainManage',
     component: () => import('@/views/semantic/components/DomainManage.vue'),
-    meta: { title: '数据领域' },
+    meta: { title: '数据领域', permission: 'semantic:domain:read' },
   },
   {
     path: '/semantic/table',
     name: 'TableSemanticManage',
     component: () => import('@/views/semantic/components/TableSemanticManage.vue'),
-    meta: { title: '表语义' },
+    meta: { title: '表语义', permission: 'semantic:table:read' },
   },
   {
     path: '/semantic/metric',
     name: 'MetricManage',
     component: () => import('@/views/metric/MetricManage.vue'),
-    meta: { title: '指标口径' },
+    meta: { title: '指标口径', permission: 'semantic:metric:read' },
   },
   {
     path: '/semantic/relation',
     name: 'RelationManage',
     component: () => import('@/views/semantic/components/RelationManage.vue'),
-    meta: { title: '逻辑外键' },
+    meta: { title: '逻辑外键', permission: 'semantic:relation:read' },
   },
   {
     path: '/asset',
@@ -91,19 +96,19 @@ const routes: RouteRecordRaw[] = [
     path: '/asset/report',
     name: 'ReportList',
     component: () => import('@/views/report/ReportList.vue'),
-    meta: { title: '报告管理' },
+    meta: { title: '报告管理', permission: 'asset:report:read' },
   },
   {
     path: '/asset/table-export',
     name: 'TableExportList',
     component: () => import('@/views/table-export/TableExportList.vue'),
-    meta: { title: '表格导出' },
+    meta: { title: '表格导出', permission: 'asset:export:read' },
   },
   {
     path: '/asset/evidence',
     name: 'EvidenceList',
     component: () => import('@/views/evidence/EvidenceList.vue'),
-    meta: { title: '数据证据' },
+    meta: { title: '数据证据', permission: 'asset:evidence:read' },
   },
   {
     path: '/system',
@@ -113,13 +118,13 @@ const routes: RouteRecordRaw[] = [
     path: '/system/user',
     name: 'UserManage',
     component: () => import('@/views/sys-user/UserManage.vue'),
-    meta: { title: '用户管理' },
+    meta: { title: '用户管理', permission: 'sys:user:read' },
   },
   {
     path: '/system/role',
     name: 'RoleManage',
     component: () => import('@/views/sys-role/RoleManage.vue'),
-    meta: { title: '角色管理' },
+    meta: { title: '角色管理', permission: 'sys:role:read' },
   },
   {
     path: '/metric',
@@ -163,11 +168,15 @@ router.beforeEach(async to => {
       return '/login';
     }
   }
-  const permission = permissionForPath(to.path);
+  const permission = to.meta.permission;
   if (to.path === '/login' || (permission && !userStore.hasPermission(permission))) {
     return (
-      Object.entries(routePermissions).find(([, code]) => userStore.hasPermission(code))?.[0] ||
-      '/forbidden'
+      routes.find(
+        route =>
+          !route.path.includes(':') &&
+          route.meta?.permission &&
+          userStore.hasPermission(route.meta.permission),
+      )?.path || '/forbidden'
     );
   }
 });
