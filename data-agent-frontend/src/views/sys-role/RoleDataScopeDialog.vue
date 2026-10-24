@@ -54,13 +54,17 @@
     blacklistedColumns.value[tableName] = vals;
   }
 
-  watch(permVisible, async value => {
-    if (!value) return;
-    selectedDs.value = null;
+  function resetPermissions() {
     allTables.value = [];
     checkedTables.value = [];
     tableColumns.value = {};
     blacklistedColumns.value = {};
+  }
+
+  watch(permVisible, async value => {
+    if (!value) return;
+    selectedDs.value = null;
+    resetPermissions();
     try {
       datasources.value = await getDatasourceList();
     } catch {
@@ -74,47 +78,29 @@
       current = false;
     });
     if (dsId == null) {
-      allTables.value = [];
-      checkedTables.value = [];
-      tableColumns.value = {};
-      blacklistedColumns.value = {};
+      resetPermissions();
       return;
     }
     permLoading.value = true;
     try {
-      const [tables, perms, colPerms] = await Promise.all([
+      const [tables, perms, colPerms, columns] = await Promise.all([
         getDatasourceTables(dsId),
         sysRoleApi.getPermissions(props.roleId!),
         sysRoleApi.getColumnPermissions(props.roleId!, dsId),
+        sysRoleApi.getAllTableColumns(dsId).catch(() => ({})),
       ]);
       if (!current) return;
       allTables.value = tables;
       const dsPerm = perms.find(p => p.datasourceId === dsId);
       checkedTables.value = dsPerm ? dsPerm.tableNames : [];
 
-      // Load all columns for all tables in one request
-      try {
-        const columns = await sysRoleApi.getAllTableColumns(dsId);
-        if (!current) return;
-        tableColumns.value = columns;
-      } catch {
-        if (!current) return;
-        tableColumns.value = {};
-      }
-
-      if (!current) return;
-      // Map existing column blacklist
-      const blMap: Record<string, string[]> = {};
-      for (const cp of colPerms) {
-        blMap[cp.tableName] = cp.columnNames;
-      }
-      blacklistedColumns.value = blMap;
+      tableColumns.value = columns;
+      blacklistedColumns.value = Object.fromEntries(
+        colPerms.map(p => [p.tableName, p.columnNames]),
+      );
     } catch {
       if (!current) return;
-      allTables.value = [];
-      checkedTables.value = [];
-      tableColumns.value = {};
-      blacklistedColumns.value = {};
+      resetPermissions();
     } finally {
       if (current) permLoading.value = false;
     }

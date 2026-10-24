@@ -23,6 +23,7 @@ import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import java.util.HashSet;
 import java.util.Locale;
@@ -50,6 +51,7 @@ import org.springframework.stereotype.Service;
 public class SqlPermissionService {
     private final PermissionService permissions;
     private final DataPermissionService data;
+    private final ColumnSemanticInfoMapper metadata;
     private static final Set<String> FUNCTIONS =
             Set.of(
                     ("count,sum,avg,min,max,round,abs,ceil,ceiling,floor,coalesce,ifnull,nullif,if,concat,concat_ws,substring,substr,left,right,length,char_length,lower,upper,trim,replace,date,date_format,date_add,date_sub"
@@ -157,13 +159,18 @@ public class SqlPermissionService {
                     || table.getDatabase() != null && table.getDatabase().getDatabaseName() != null)
                 throw denied();
             String name = normalizeIdentifier(table.getName());
-            hidden.addAll(data.hidden(user, datasourceId, name));
-            var columns = data.visibleColumns(user, datasourceId, name);
-            if (columns.isEmpty()) throw denied();
+            data.requireTable(user, datasourceId, name);
+            var hiddenColumns = data.hidden(user, datasourceId, name);
+            hidden.addAll(hiddenColumns);
             String projection =
-                    columns.stream()
+                    metadata.selectByDatasourceIdAndTableName(datasourceId, name).stream()
+                            .filter(
+                                    c ->
+                                            !hiddenColumns.contains(
+                                                    normalizeIdentifier(c.getColumnName())))
                             .map(c -> quote(c.getColumnName()))
                             .collect(Collectors.joining(", "));
+            if (projection.isEmpty()) throw denied();
             try {
                 ParenthesedSelect restricted = new ParenthesedSelect();
                 restricted.setSelect(

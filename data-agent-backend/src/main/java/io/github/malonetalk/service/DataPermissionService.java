@@ -19,10 +19,8 @@ package io.github.malonetalk.service;
 
 import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
-import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
-import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
@@ -39,7 +37,6 @@ import org.springframework.stereotype.Service;
 public class DataPermissionService {
     private final RoleTablePermissionMapper tables;
     private final RoleHiddenColumnMapper columns;
-    private final ColumnSemanticInfoMapper metadata;
 
     public boolean canTable(UserContextBo user, Integer datasourceId, String table) {
         return Boolean.TRUE.equals(user.superAdmin())
@@ -84,14 +81,6 @@ public class DataPermissionService {
             UserContextBo user, Integer datasourceId, String table, List<String> names) {
         Set<String> hidden = hidden(user, datasourceId, table);
         return names.stream().map(SemanticUtils::normalizeIdentifier).anyMatch(hidden::contains);
-    }
-
-    public List<ColumnInfo> visibleColumns(UserContextBo user, Integer datasourceId, String table) {
-        requireTable(user, datasourceId, table);
-        Set<String> hidden = hidden(user, datasourceId, table);
-        return metadata.selectByDatasourceIdAndTableName(datasourceId, table).stream()
-                .filter(c -> !hidden.contains(normalizeIdentifier(c.getColumnName())))
-                .toList();
     }
 
     public Optional<Integer> roleScope(UserContextBo user) {

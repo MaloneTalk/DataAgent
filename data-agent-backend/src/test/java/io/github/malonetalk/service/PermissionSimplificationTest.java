@@ -47,7 +47,7 @@ class PermissionSimplificationTest {
     private final RoleHiddenColumnMapper columns = mock(RoleHiddenColumnMapper.class);
     private final ColumnSemanticInfoMapper metadata = mock(ColumnSemanticInfoMapper.class);
     private final PermissionService permissions = new PermissionService(users, capabilities);
-    private final DataPermissionService data = new DataPermissionService(tables, columns, metadata);
+    private final DataPermissionService data = new DataPermissionService(tables, columns);
     private final UserContextBo user =
             UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
 
@@ -67,7 +67,7 @@ class PermissionSimplificationTest {
         when(metadata.selectByDatasourceIdAndTableName(1, "orders")).thenReturn(List.of(id));
         Datasource datasource = new Datasource();
         datasource.setId(1);
-        SqlPermissionService sql = new SqlPermissionService(permissions, data);
+        SqlPermissionService sql = new SqlPermissionService(permissions, data, metadata);
 
         assertTrue(
                 sql.authorize(7, datasource, "SELECT * FROM orders")

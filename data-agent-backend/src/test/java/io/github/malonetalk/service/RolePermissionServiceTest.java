@@ -109,7 +109,7 @@ class RolePermissionServiceTest {
         when(roles.selectById(2)).thenReturn(new SysRole());
         SysUserMapper users = mock(SysUserMapper.class);
         when(users.selectCount(any())).thenReturn(0L);
-        var roleService = new SysRoleServiceImpl(roles, users, mock(RoleConverter.class), service);
+        var roleService = new SysRoleService(roles, users, mock(RoleConverter.class), service);
         roleService.delete(2);
         var order = inOrder(capabilities, tables, columns, roles);
         order.verify(capabilities).deleteByRoleId(2);
