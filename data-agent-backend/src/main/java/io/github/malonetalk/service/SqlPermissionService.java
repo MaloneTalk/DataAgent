@@ -41,6 +41,7 @@ import net.sf.jsqlparser.expression.JsonAggregateFunction;
 import net.sf.jsqlparser.expression.JsonFunction;
 import net.sf.jsqlparser.expression.UserVariable;
 import net.sf.jsqlparser.expression.VariableAssignment;
+import net.sf.jsqlparser.expression.operators.relational.LikeExpression;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
@@ -114,6 +115,12 @@ public class SqlPermissionService {
                         if (!FUNCTIONS.contains(function.getName().toLowerCase(Locale.ROOT)))
                             throw denied();
                         return super.visit(function, context);
+                    }
+
+                    @Override
+                    public <S> Void visit(LikeExpression expression, S context) {
+                        inspectExpression(expression.getEscape(), context);
+                        return super.visit(expression, context);
                     }
 
                     @Override
@@ -226,6 +233,13 @@ public class SqlPermissionService {
         public <S> Void visit(PlainSelect select, S context) {
             rejectWith(select);
             if (select.getIntoTables() != null || select.getIntoTempTable() != null) throw denied();
+            if (select.getTop() != null
+                    || select.getSkip() != null
+                    || select.getFirst() != null
+                    || select.getOracleHierarchical() != null
+                    || select.getPreferringClause() != null) throw denied();
+            if (select.getDistinct() != null && select.getDistinct().getOnSelectItems() != null)
+                throw denied();
             if (select.getWindowDefinitions() != null && !select.getWindowDefinitions().isEmpty())
                 throw denied();
             // ExpressionVisitorAdapter visits nested expressions, including GROUP_CONCAT.

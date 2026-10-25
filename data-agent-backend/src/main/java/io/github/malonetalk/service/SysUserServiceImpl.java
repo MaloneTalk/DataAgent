@@ -35,6 +35,7 @@ import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.utils.PasswordUtil;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @lombok.extern.slf4j.Slf4j
 @Service
@@ -96,12 +97,13 @@ public class SysUserServiceImpl implements SysUserService {
     }
 
     @Override
+    @Transactional
     public SysUserBo create(UserCreateDto dto) {
         if (selectLocalByUsername(dto.username()) != null) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "用户名 '" + dto.username() + "' 已存在");
         }
         if (dto.roleId() != 0) requireAdminForRoleAssignment();
-        requireRoleIfAssigned(dto.roleId());
+        lockRoleIfAssigned(dto.roleId());
         SysUserPo user = new SysUserPo();
         user.setUsername(dto.username());
         user.setPasswordHash(PasswordUtil.hash(dto.password()));
@@ -118,18 +120,24 @@ public class SysUserServiceImpl implements SysUserService {
         SysUserPo user = requireUser(id);
         protectAdmin(user);
         user.setDisplayName(dto.displayName());
-        sysUserMapper.updateById(user);
+        SysUserPo patch = new SysUserPo();
+        patch.setId(id);
+        patch.setDisplayName(dto.displayName());
+        sysUserMapper.updateById(patch);
         return userConverter.toBo(user);
     }
 
     @Override
+    @Transactional
     public void assignRole(Integer id, Integer roleId) {
         requireAdminForRoleAssignment();
+        lockRoleIfAssigned(roleId);
         SysUserPo user = requireUser(id);
-        requireRoleIfAssigned(roleId);
         Integer previous = user.getRoleId();
-        user.setRoleId(roleId);
-        sysUserMapper.updateById(user);
+        SysUserPo patch = new SysUserPo();
+        patch.setId(id);
+        patch.setRoleId(roleId);
+        sysUserMapper.updateById(patch);
         log.info(
                 "Role assignment: actor={}, user={}, before={}, after={}",
                 holder.checkAndGet().userId(),
@@ -189,9 +197,9 @@ public class SysUserServiceImpl implements SysUserService {
         return user;
     }
 
-    private void requireRoleIfAssigned(Integer roleId) {
+    private void lockRoleIfAssigned(Integer roleId) {
         if (roleId == 0) return; // 0 = 未分配角色
-        if (sysRoleMapper.selectById(roleId) == null) {
+        if (sysRoleMapper.lockById(roleId) == null) {
             throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "角色ID " + roleId + " 不存在");
         }
     }

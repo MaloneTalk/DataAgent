@@ -69,7 +69,9 @@ public class SysRoleService {
 
     @Transactional
     public void delete(Integer id) {
-        requireRole(id);
+        if (sysRoleMapper.lockById(id) == null) {
+            throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "角色不存在");
+        }
         if (userMapper.selectCount(Wrappers.<SysUserPo>lambdaQuery().eq(SysUserPo::getRoleId, id))
                 > 0) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "角色仍被用户使用");

@@ -46,7 +46,6 @@ import io.github.malonetalk.model.dto.SaveTablePermissionRequest;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
-import io.github.malonetalk.model.po.SysRole;
 import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
@@ -123,7 +122,7 @@ class RolePermissionServiceTest {
 
     @Test
     void roleDeletionCleansEveryGrantTypeBeforeDeletingTheRole() {
-        when(roles.selectById(2)).thenReturn(new SysRole());
+        when(roles.lockById(2)).thenReturn(2);
         SysUserMapper users = mock(SysUserMapper.class);
         when(users.selectCount(any())).thenReturn(0L);
         var roleService = new SysRoleService(roles, users, mock(RoleConverter.class), service);
