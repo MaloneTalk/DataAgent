@@ -19,12 +19,14 @@ package io.github.malonetalk.service;
 
 import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
+import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
-import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.bo.DataPermissionScopeBo;
+import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -34,6 +36,8 @@ import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
 import net.sf.jsqlparser.expression.Function;
+import net.sf.jsqlparser.expression.JsonAggregateFunction;
+import net.sf.jsqlparser.expression.JsonFunction;
 import net.sf.jsqlparser.expression.UserVariable;
 import net.sf.jsqlparser.expression.VariableAssignment;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -65,16 +69,16 @@ public class SqlPermissionService {
                          + ",datediff,timestampdiff,year,month,day,dayofmonth,dayofweek,week,quarter,hour,now,curdate,current_date,current_timestamp,str_to_date,cast,convert,group_concat,greatest,least,mod,power,sqrt,stddev,stddev_pop,stddev_samp,variance,var_pop,var_samp,extract,unix_timestamp,from_unixtime,find_in_set,locate,instr,json_extract,json_unquote,json_length,json_contains,format,sign,log,log10,exp")
                             .split(","));
 
-    public String authorize(Integer userId, Datasource datasource, String sql) {
-        UserContextBo user = permissions.require(userId, PermissionEnum.ANALYSIS_SQL_EXECUTE);
-        if (Boolean.TRUE.equals(user.superAdmin())) return sql;
-        data.requireDatasource(user, datasource.getId());
+    public Select authorize(Integer userId, Datasource datasource, Select select) {
+        var user = permissions.require(userId, PermissionEnum.ANALYSIS_SQL_EXECUTE);
+        if (Boolean.TRUE.equals(user.superAdmin())) return select;
+        var scope = data.loadScope(user, datasource.getId());
+        if (scope.tables().isEmpty()) throw denied();
         try {
-            if (!(CCJSqlParserUtil.parse(sql) instanceof Select select)) throw denied();
-            Inspector inspector = new Inspector(user, datasource.getId());
+            Inspector inspector = new Inspector(scope, datasource);
             inspector.inspect(select, null);
             if (inspector.referenced.stream().anyMatch(inspector.hidden::contains)) throw denied();
-            return select.toString();
+            return select;
         } catch (BusinessException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -88,8 +92,9 @@ public class SqlPermissionService {
     }
 
     private class Inspector extends SelectVisitorAdapter<Void> {
-        private final UserContextBo user;
+        private final DataPermissionScopeBo scope;
         private final Integer datasourceId;
+        private final String identifierQuote;
         private final Set<String> hidden = new HashSet<>();
         private final Set<String> referenced = new HashSet<>();
         private final ExpressionVisitorAdapter<Void> expressions =
@@ -109,6 +114,17 @@ public class SqlPermissionService {
                         return super.visit(function, context);
                     }
 
+                    // These nodes bypass Function and their default visitors omit object values.
+                    @Override
+                    public <S> Void visit(JsonFunction function, S context) {
+                        throw denied();
+                    }
+
+                    @Override
+                    public <S> Void visit(JsonAggregateFunction function, S context) {
+                        throw denied();
+                    }
+
                     @Override
                     public <S> Void visit(UserVariable variable, S context) {
                         throw denied();
@@ -126,9 +142,20 @@ public class SqlPermissionService {
                     }
                 };
 
-        Inspector(UserContextBo user, Integer datasourceId) {
-            this.user = user;
-            this.datasourceId = datasourceId;
+        Inspector(DataPermissionScopeBo scope, Datasource datasource) {
+            this.scope = scope;
+            this.datasourceId = datasource.getId();
+            var type =
+                    DataSourceType.fromCode(datasource.getType())
+                            .orElseThrow(
+                                    () ->
+                                            BusinessException.of(
+                                                    ErrorCode.UNSUPPORTED_DATASOURCE_TYPE));
+            this.identifierQuote =
+                    switch (type) {
+                        case MYSQL, OCEANBASE, CLICKHOUSE -> "`";
+                        default -> "\"";
+                    };
             expressions.setSelectVisitor(this);
         }
 
@@ -237,11 +264,12 @@ public class SqlPermissionService {
                     || table.getSchemaName() != null
                     || table.getDatabase() != null && table.getDatabase().getDatabaseName() != null)
                 throw denied();
-            String name = data.requireTable(user, datasourceId, table.getName());
-            var hiddenColumns = data.hidden(user, datasourceId, name);
+            String name = scope.requireTable(table.getName());
+            var hiddenColumns = scope.hidden(name);
             hidden.addAll(hiddenColumns);
             String projection =
                     metadata.selectByDatasourceIdAndTableName(datasourceId, name).stream()
+                            .filter(SemanticAvailabilityHelper::hasPhysicalColumn)
                             .filter(
                                     c ->
                                             !hiddenColumns.contains(
@@ -257,7 +285,7 @@ public class SqlPermissionService {
                                         "SELECT " + projection + " FROM " + quote(name)));
                 restricted.setAlias(
                         table.getAlias() == null
-                                ? new Alias(quote(table.getName().replace("`", "")))
+                                ? new Alias(table.getName(), false)
                                 : table.getAlias());
                 return restricted;
             } catch (Exception ex) {
@@ -266,7 +294,9 @@ public class SqlPermissionService {
         }
 
         private String quote(String identifier) {
-            return "`" + identifier.replace("`", "``") + "`";
+            return identifierQuote
+                    + identifier.replace(identifierQuote, identifierQuote + identifierQuote)
+                    + identifierQuote;
         }
     }
 }

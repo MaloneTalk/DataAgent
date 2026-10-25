@@ -88,11 +88,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             return List.of();
         }
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
         return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
-                .filter(
-                        table ->
-                                dataPermissions.canTable(
-                                        holder.checkAndGet(), datasourceId, table.getTableName()))
+                .filter(table -> scope.canTable(table.getTableName()))
                 .map(TableInfo::getTableName)
                 .filter(tableName -> tableName != null && !tableName.isBlank())
                 .map(String::trim)
@@ -107,11 +105,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             return List.of();
         }
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
         return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
-                .filter(
-                        table ->
-                                dataPermissions.canTable(
-                                        holder.checkAndGet(), datasourceId, table.getTableName()))
+                .filter(table -> scope.canTable(table.getTableName()))
                 .map(TableInfo::getDomain)
                 .filter(domain -> domain != null && !domain.isBlank())
                 .map(String::trim)

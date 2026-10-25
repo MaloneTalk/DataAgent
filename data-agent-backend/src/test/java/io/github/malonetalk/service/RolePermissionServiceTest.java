@@ -27,9 +27,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.malonetalk.convertor.RoleConverter;
-import io.github.malonetalk.dto.SaveColumnPermissionRequest;
-import io.github.malonetalk.dto.SaveTablePermissionRequest;
-import io.github.malonetalk.entity.SysRole;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
@@ -39,7 +36,11 @@ import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.dto.RoleDataScopeDto;
 import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.po.SysRole;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -70,27 +71,19 @@ class RolePermissionServiceTest {
         assertThrows(BusinessException.class, () -> service.saveCapabilities(2, Set.of()));
         assertThrows(
                 BusinessException.class,
-                () -> service.savePermissions(2, new SaveTablePermissionRequest(1, null)));
-        assertThrows(
-                BusinessException.class,
-                () ->
-                        service.saveColumnPermissions(
-                                2, new SaveColumnPermissionRequest(1, "orders", null)));
+                () -> service.saveDataScope(2, new RoleDataScopeDto(1, List.of(), Map.of())));
         verifyNoInteractions(capabilities, tables, columns, roles);
     }
 
     @Test
-    void emptyAndNullListsStillRevokeGrants() {
+    void emptyScopeStillRevokesGrants() {
         holder.set(UserContextBo.builder().userId(1).superAdmin(true).build());
         when(roles.selectById(2)).thenReturn(new SysRole());
         service.saveCapabilities(2, Set.of());
-        service.savePermissions(2, new SaveTablePermissionRequest(1, null));
-        service.saveColumnPermissions(2, new SaveColumnPermissionRequest(1, "orders", null));
+        service.saveDataScope(2, new RoleDataScopeDto(1, List.of(), Map.of()));
         verify(capabilities).deleteByRoleId(2);
-        verify(tables).deleteByRoleAndDatasource(2, 1);
-        verify(columns).deleteByRoleDatasourceAndTable(2, 1, "orders");
-        verify(tables, never()).insert(any());
-        verify(columns, never()).insert(any());
+        verify(tables).replaceDataScope(2, 1, List.of(), List.of());
+        verifyNoInteractions(columns);
     }
 
     @Test

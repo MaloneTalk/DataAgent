@@ -26,7 +26,7 @@ import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
-import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
@@ -70,16 +70,14 @@ public class GetTablesTool implements MarkAgentTool {
                 () -> {
                     Datasource dataSource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    var scope = dataPermissions.loadScope(user, dataSource.getId());
 
                     var visible =
                             tableSemanticService
                                     .listMergedTablesByDomains(dataSource.getId(), domains)
                                     .stream()
-                                    .filter(
-                                            t ->
-                                                    dataPermissions.canTable(
-                                                            user, dataSource.getId(), t.name()))
-                                    .map(t -> filterTable(t, user, dataSource.getId()))
+                                    .filter(t -> scope.canTable(t.name()))
+                                    .map(t -> filterTable(t, scope))
                                     .toList();
                     return ToolResultBlock.text(
                             JsonUtils.getJsonCodec().toJson(visible)
@@ -88,25 +86,19 @@ public class GetTablesTool implements MarkAgentTool {
     }
 
     private TablePromptResponse filterTable(
-            TablePromptResponse table, UserContextBo user, Integer datasourceId) {
+            TablePromptResponse table, DataPermissionScopeBo scope) {
         var relations =
                 table.relations().stream()
                         .filter(
                                 rel ->
-                                        dataPermissions.canTable(
-                                                        user, datasourceId, rel.sourceTableName())
-                                                && dataPermissions.canTable(
-                                                        user, datasourceId, rel.targetTableName()))
+                                        scope.canTable(rel.sourceTableName())
+                                                && scope.canTable(rel.targetTableName()))
                         .filter(
                                 rel ->
-                                        !dataPermissions.hasHiddenColumns(
-                                                        user,
-                                                        datasourceId,
+                                        !scope.hasHiddenColumns(
                                                         rel.sourceTableName(),
                                                         rel.sourceColumnNames())
-                                                && !dataPermissions.hasHiddenColumns(
-                                                        user,
-                                                        datasourceId,
+                                                && !scope.hasHiddenColumns(
                                                         rel.targetTableName(),
                                                         rel.targetColumnNames()))
                         .toList();

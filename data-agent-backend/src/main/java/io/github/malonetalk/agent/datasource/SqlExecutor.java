@@ -31,7 +31,6 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import javax.sql.DataSource;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.JSQLParserException;
@@ -56,9 +55,10 @@ public class SqlExecutor {
     private final SqlPermissionService sqlPermissions;
 
     public SqlExecution executeDetailed(Datasource datasource, String sql, Integer userId) {
-        String validatedSql = validateAndTransform(authorizeSelectSql(datasource, sql, userId));
+        Select select = sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
+        String validatedSql = applyRowLimit(select);
 
-        DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
             return new SqlExecution(validatedSql, doExecute(conn, validatedSql));
@@ -81,7 +81,7 @@ public class SqlExecutor {
     }
 
     public String authorizeSelectSql(Datasource datasource, String sql, Integer userId) {
-        return sqlPermissions.authorize(userId, datasource, validateSelectSql(sql));
+        return sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql)).toString();
     }
 
     public String validateSelectSql(String sql) {
@@ -90,8 +90,11 @@ public class SqlExecutor {
     }
 
     String validateAndTransform(String sql) {
-        Select select = parseAllowedSelect(sql);
-        String safeSql = trimTrailingSemicolon(sql);
+        return applyRowLimit(parseAllowedSelect(sql));
+    }
+
+    private String applyRowLimit(Select select) {
+        String safeSql = select.toString();
 
         //  inject LIMIT if absent, to prevent full table scans
         if (!hasLimit(select)) {

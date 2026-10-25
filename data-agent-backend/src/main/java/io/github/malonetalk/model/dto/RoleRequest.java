@@ -15,16 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.dto;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
 
-@Data
-public class SysRole {
-    private Integer id;
-    private String name;
-    private String description;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+public record RoleRequest(@NotBlank(message = "name 不能为空") String name, String description) {}

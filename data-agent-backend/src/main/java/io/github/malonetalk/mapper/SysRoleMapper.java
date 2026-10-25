@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.SysRole;
+import io.github.malonetalk.model.po.SysRole;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

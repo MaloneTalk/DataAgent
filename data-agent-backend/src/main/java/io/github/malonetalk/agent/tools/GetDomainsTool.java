@@ -54,10 +54,11 @@ public class GetDomainsTool implements MarkAgentTool {
     public ToolResultBlock getDomains(ToolCallContext ctx) {
         var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
         var ds = datasources.getDatasourceForSession(ctx.sessionId());
+        var scope = dataPermissions.loadScope(user, ds.getId());
 
         var domains =
                 tables.listMergedTablesByDomains(ds.getId(), List.of()).stream()
-                        .filter(t -> dataPermissions.canTable(user, ds.getId(), t.name()))
+                        .filter(t -> scope.canTable(t.name()))
                         .map(t -> t.domain())
                         .collect(Collectors.toSet());
         return toolExceptionMapper.run(

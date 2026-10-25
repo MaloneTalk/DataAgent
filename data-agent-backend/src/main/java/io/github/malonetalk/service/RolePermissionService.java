@@ -17,12 +17,6 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.dto.ColumnPermissionResponse;
-import io.github.malonetalk.dto.SaveColumnPermissionRequest;
-import io.github.malonetalk.dto.SaveTablePermissionRequest;
-import io.github.malonetalk.dto.TablePermissionResponse;
-import io.github.malonetalk.entity.RoleHiddenColumn;
-import io.github.malonetalk.entity.RoleTablePermission;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -33,11 +27,16 @@ import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.dto.RoleDataScopeDto;
 import io.github.malonetalk.model.holder.UserContextHolder;
-import java.time.LocalDateTime;
+import io.github.malonetalk.model.po.RoleHiddenColumn;
+import io.github.malonetalk.model.po.RoleTablePermission;
+import io.github.malonetalk.model.vo.ColumnPermissionResponse;
+import io.github.malonetalk.model.vo.TablePermissionResponse;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -104,35 +103,51 @@ public class RolePermissionService {
                 .toList();
     }
 
-    @Transactional
-    public void savePermissions(Integer roleId, SaveTablePermissionRequest request) {
+    public void saveDataScope(Integer roleId, RoleDataScopeDto request) {
         var actor = requireGrantActor(roleId);
+        var tableNames = request.tableNames();
+        var availableTables =
+                tableMetadata.selectByDatasourceId(request.datasourceId()).stream()
+                        .map(t -> t.getTableName())
+                        .collect(Collectors.toSet());
+        if (!availableTables.containsAll(tableNames)
+                || new HashSet<>(tableNames).size() != tableNames.size()
+                || !new HashSet<>(tableNames).equals(request.hiddenColumns().keySet())) {
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "Unknown or duplicate tables.");
+        }
+        Map<String, Set<String>> availableColumns =
+                columnMetadata.selectByDatasourceId(request.datasourceId()).stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        c -> c.getTableName(),
+                                        Collectors.mapping(
+                                                c -> c.getColumnName(), Collectors.toSet())));
+        List<RoleHiddenColumn> hiddenColumns = new ArrayList<>();
+        request.hiddenColumns()
+                .forEach(
+                        (table, columns) -> {
+                            if (!availableColumns.getOrDefault(table, Set.of()).containsAll(columns)
+                                    || new HashSet<>(columns).size() != columns.size()) {
+                                throw BusinessException.of(
+                                        ErrorCode.BAD_REQUEST, "Unknown or duplicate columns.");
+                            }
+                            columns.forEach(
+                                    column -> {
+                                        RoleHiddenColumn hidden = new RoleHiddenColumn();
+                                        hidden.setRoleId(roleId);
+                                        hidden.setDatasourceId(request.datasourceId());
+                                        hidden.setTableName(table);
+                                        hidden.setColumnName(column);
+                                        hiddenColumns.add(hidden);
+                                    });
+                        });
+        roleTablePermissionMapper.replaceDataScope(
+                roleId, request.datasourceId(), tableNames, hiddenColumns);
         log.info(
                 "Data permission change: actor={}, role={}, request={}",
                 actor.userId(),
                 roleId,
                 request);
-        List<String> tableNames = Optional.ofNullable(request.tableNames()).orElseGet(List::of);
-        if (!tableNames.isEmpty()) {
-            var available =
-                    tableMetadata.selectByDatasourceId(request.datasourceId()).stream()
-                            .map(t -> t.getTableName())
-                            .collect(Collectors.toSet());
-            if (!available.containsAll(tableNames)
-                    || new HashSet<>(tableNames).size() != tableNames.size()) {
-                throw BusinessException.of(ErrorCode.BAD_REQUEST, "Unknown or duplicate tables.");
-            }
-        }
-        roleTablePermissionMapper.deleteByRoleAndDatasource(roleId, request.datasourceId());
-        LocalDateTime now = LocalDateTime.now();
-        for (String tableName : tableNames) {
-            RoleTablePermission perm = new RoleTablePermission();
-            perm.setRoleId(roleId);
-            perm.setDatasourceId(request.datasourceId());
-            perm.setTableName(tableName);
-            perm.setCreateTime(now);
-            roleTablePermissionMapper.insert(perm);
-        }
     }
 
     public List<ColumnPermissionResponse> getColumnPermissions(
@@ -149,40 +164,6 @@ public class RolePermissionService {
                 .stream()
                 .map(e -> new ColumnPermissionResponse(e.getKey(), e.getValue()))
                 .toList();
-    }
-
-    @Transactional
-    public void saveColumnPermissions(Integer roleId, SaveColumnPermissionRequest request) {
-        var actor = requireGrantActor(roleId);
-        log.info(
-                "Data permission change: actor={}, role={}, request={}",
-                actor.userId(),
-                roleId,
-                request);
-        List<String> columnNames = Optional.ofNullable(request.columnNames()).orElseGet(List::of);
-        if (!columnNames.isEmpty()) {
-            var available =
-                    columnMetadata
-                            .selectByDatasourceIdAndTableName(
-                                    request.datasourceId(), request.tableName())
-                            .stream()
-                            .map(c -> c.getColumnName())
-                            .collect(Collectors.toSet());
-            if (!available.containsAll(columnNames))
-                throw BusinessException.of(ErrorCode.BAD_REQUEST, "Unknown columns.");
-        }
-        roleHiddenColumnMapper.deleteByRoleDatasourceAndTable(
-                roleId, request.datasourceId(), request.tableName());
-        LocalDateTime now = LocalDateTime.now();
-        for (String columnName : columnNames) {
-            RoleHiddenColumn perm = new RoleHiddenColumn();
-            perm.setRoleId(roleId);
-            perm.setDatasourceId(request.datasourceId());
-            perm.setTableName(request.tableName());
-            perm.setColumnName(columnName);
-            perm.setCreateTime(now);
-            roleHiddenColumnMapper.insert(perm);
-        }
     }
 
     public void deleteByRoleId(Integer roleId) {

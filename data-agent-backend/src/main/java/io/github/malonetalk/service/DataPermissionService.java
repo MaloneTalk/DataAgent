@@ -19,20 +19,21 @@ package io.github.malonetalk.service;
 
 import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
-import io.github.malonetalk.entity.RoleTablePermission;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
+import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.model.bo.UserContextBo;
-import io.github.malonetalk.utils.SemanticUtils;
-import java.util.List;
+import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,8 +41,19 @@ public class DataPermissionService {
     private final RoleTablePermissionMapper tables;
     private final RoleHiddenColumnMapper columns;
 
-    public boolean canTable(UserContextBo user, Integer datasourceId, String table) {
-        return authorizedTableName(user, datasourceId, table).isPresent();
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public DataPermissionScopeBo loadScope(UserContextBo user, Integer datasourceId) {
+        if (Boolean.TRUE.equals(user.superAdmin()))
+            return new DataPermissionScopeBo(true, Map.of(), Map.of());
+        if (user.roleId() == null || user.roleId() <= 0)
+            return new DataPermissionScopeBo(false, Map.of(), Map.of());
+        var granted =
+                tables.selectByRoleAndDatasource(user.roleId(), datasourceId).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        p -> normalizeIdentifier(p.getTableName()),
+                                        RoleTablePermission::getTableName));
+        return new DataPermissionScopeBo(false, granted, hiddenByTable(user, datasourceId));
     }
 
     /** Returns the granted physical name, never the client-supplied spelling. */
@@ -86,12 +98,6 @@ public class DataPermissionService {
 
     public Set<String> hidden(UserContextBo user, Integer datasourceId, String table) {
         return hiddenByTable(user, datasourceId).getOrDefault(normalizeIdentifier(table), Set.of());
-    }
-
-    public boolean hasHiddenColumns(
-            UserContextBo user, Integer datasourceId, String table, List<String> names) {
-        Set<String> hidden = hidden(user, datasourceId, table);
-        return names.stream().map(SemanticUtils::normalizeIdentifier).anyMatch(hidden::contains);
     }
 
     public Optional<Integer> roleScope(UserContextBo user) {

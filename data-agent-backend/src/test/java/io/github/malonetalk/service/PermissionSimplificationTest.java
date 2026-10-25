@@ -28,8 +28,6 @@ import static org.mockito.Mockito.when;
 
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.Datasource;
-import io.github.malonetalk.entity.RoleHiddenColumn;
-import io.github.malonetalk.entity.RoleTablePermission;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
@@ -37,7 +35,11 @@ import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.po.RoleHiddenColumn;
+import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.List;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.select.Select;
 import org.junit.jupiter.api.Test;
 
 class PermissionSimplificationTest {
@@ -52,7 +54,8 @@ class PermissionSimplificationTest {
             UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
 
     @Test
-    void sharedSqlGateLoadsIdentityOnceAndStillRejectsRevocationAndHiddenColumns() {
+    void sharedSqlGateLoadsIdentityOnceAndStillRejectsRevocationAndHiddenColumns()
+            throws Exception {
         when(users.selectAuthProjection(7)).thenReturn(user);
         when(capabilities.selectCodes(2)).thenReturn(List.of("analysis:sql:execute"));
         RoleTablePermission table = new RoleTablePermission();
@@ -67,23 +70,40 @@ class PermissionSimplificationTest {
         when(metadata.selectByDatasourceIdAndTableName(1, "orders")).thenReturn(List.of(id));
         Datasource datasource = new Datasource();
         datasource.setId(1);
+        datasource.setType("mysql");
         SqlPermissionService sql = new SqlPermissionService(permissions, data, metadata);
 
         assertTrue(
-                sql.authorize(7, datasource, "SELECT * FROM orders")
+                sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT * FROM orders"))
+                        .toString()
                         .contains("SELECT `id` FROM `orders`"));
         verify(users).selectAuthProjection(7);
         assertThrows(
                 BusinessException.class,
-                () -> sql.authorize(7, datasource, "SELECT phone FROM orders"));
+                () ->
+                        sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT phone FROM orders")));
         when(capabilities.selectCodes(2)).thenReturn(List.of());
         assertThrows(
                 BusinessException.class,
-                () -> sql.authorize(7, datasource, "SELECT * FROM orders"));
+                () ->
+                        sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT * FROM orders")));
         when(users.selectAuthProjection(7)).thenReturn(null);
         assertThrows(
                 BusinessException.class,
-                () -> sql.authorize(7, datasource, "SELECT * FROM orders"));
+                () ->
+                        sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT * FROM orders")));
     }
 
     @Test
@@ -113,7 +133,9 @@ class PermissionSimplificationTest {
         hidden.setTableName("orders");
         hidden.setColumnName("phone");
         when(columns.selectByRoleAndDatasource(2, 1)).thenReturn(List.of(hidden));
-        assertTrue(data.hasHiddenColumns(user, 1, "orders", List.of("id", "amount", "`PHONE`")));
+        assertTrue(
+                data.loadScope(user, 1)
+                        .hasHiddenColumns("orders", List.of("id", "amount", "`PHONE`")));
         verify(columns, times(1)).selectByRoleAndDatasource(2, 1);
     }
 }

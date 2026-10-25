@@ -15,8 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.po;
 
-import java.util.List;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-public record TablePermissionResponse(Integer datasourceId, List<String> tableNames) {}
+@Data
+public class RoleTablePermission {
+    private Integer id;
+    private Integer roleId;
+    private Integer datasourceId;
+    private String tableName;
+    private LocalDateTime createTime;
+}

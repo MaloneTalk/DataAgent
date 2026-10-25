@@ -50,17 +50,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.sql.DataSource;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SessionService {
 
-    private final DataSource dataSource;
+    private final javax.sql.DataSource dataSource;
     private final SessionDatasourceMapper sessionDatasourceMapper;
     private final UserSessionMapper userSessionMapper;
     private final AnswerProvenanceService answerProvenanceService;
@@ -68,17 +69,6 @@ public class SessionService {
     @Getter(lazy = true)
     private final MysqlSession session =
             new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
-
-    public SessionService(
-            DataSource dataSource,
-            SessionDatasourceMapper sessionDatasourceMapper,
-            UserSessionMapper userSessionMapper,
-            AnswerProvenanceService answerProvenanceService) {
-        this.dataSource = dataSource;
-        this.sessionDatasourceMapper = sessionDatasourceMapper;
-        this.userSessionMapper = userSessionMapper;
-        this.answerProvenanceService = answerProvenanceService;
-    }
 
     public boolean hasDatasourceBinding(String sessionId) {
         return sessionDatasourceMapper.selectBySessionId(sessionId) != null;

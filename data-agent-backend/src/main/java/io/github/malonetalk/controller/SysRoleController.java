@@ -19,14 +19,13 @@ package io.github.malonetalk.controller;
 
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
-import io.github.malonetalk.dto.ColumnPermissionResponse;
-import io.github.malonetalk.dto.RoleRequest;
-import io.github.malonetalk.dto.RoleResponse;
-import io.github.malonetalk.dto.SaveColumnPermissionRequest;
-import io.github.malonetalk.dto.SaveTablePermissionRequest;
-import io.github.malonetalk.dto.TablePermissionResponse;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.dto.RoleCapabilitiesDto;
+import io.github.malonetalk.model.dto.RoleDataScopeDto;
+import io.github.malonetalk.model.dto.RoleRequest;
+import io.github.malonetalk.model.vo.ColumnPermissionResponse;
+import io.github.malonetalk.model.vo.RoleResponse;
+import io.github.malonetalk.model.vo.TablePermissionResponse;
 import io.github.malonetalk.service.RolePermissionService;
 import io.github.malonetalk.service.SysRoleService;
 import jakarta.validation.Valid;
@@ -85,11 +84,11 @@ public class SysRoleController {
         return Result.success(permissions.getPermissions(roleId));
     }
 
-    @PutMapping("/{roleId}/permissions")
+    @PutMapping("/{roleId}/data-scope")
     @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
-    public Result<Void> savePermissions(
-            @PathVariable Integer roleId, @Valid @RequestBody SaveTablePermissionRequest request) {
-        permissions.savePermissions(roleId, request);
+    public Result<Void> saveDataScope(
+            @PathVariable Integer roleId, @Valid @RequestBody RoleDataScopeDto request) {
+        permissions.saveDataScope(roleId, request);
         return Result.success();
     }
 
@@ -98,14 +97,6 @@ public class SysRoleController {
     public Result<List<ColumnPermissionResponse>> getColumnPermissions(
             @PathVariable Integer roleId, @RequestParam Integer datasourceId) {
         return Result.success(permissions.getColumnPermissions(roleId, datasourceId));
-    }
-
-    @PutMapping("/{roleId}/columns")
-    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
-    public Result<Void> saveColumnPermissions(
-            @PathVariable Integer roleId, @Valid @RequestBody SaveColumnPermissionRequest request) {
-        permissions.saveColumnPermissions(roleId, request);
-        return Result.success();
     }
 
     @RequirePermission(PermissionEnum.SYS_ROLE_READ)

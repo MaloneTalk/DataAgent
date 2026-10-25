@@ -20,6 +20,9 @@ package io.github.malonetalk.agent.datasource;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -44,14 +47,14 @@ class SqlExecutorTest {
             new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
 
     @Test
-    void sharedSelectEntryNormalizesSqlBeforeDataAuthorization() {
+    void sharedSelectEntryPassesParsedSelectToDataAuthorization() {
         Datasource datasource = new Datasource();
-        when(permissions.authorize(7, datasource, "SELECT id FROM orders"))
-                .thenReturn("authorized SQL");
+        when(permissions.authorize(eq(7), same(datasource), any(Select.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2));
         assertEquals(
-                "authorized SQL",
+                "SELECT id FROM orders",
                 executor.authorizeSelectSql(datasource, "SELECT id FROM orders;", 7));
-        verify(permissions).authorize(7, datasource, "SELECT id FROM orders");
+        verify(permissions).authorize(eq(7), same(datasource), any(Select.class));
     }
 
     @Test
@@ -63,7 +66,7 @@ class SqlExecutorTest {
     }
 
     @Test
-    void acceptsBusinessTableCountsAndAppliesOuterRowLimit() {
+    void acceptsBusinessTableCountsAndAppliesOuterRowLimit() throws Exception {
         String sql =
                 """
                 SELECT 'ticket' t, COUNT(*) c FROM ticket
@@ -78,7 +81,7 @@ class SqlExecutorTest {
 
         assertEquals(sql, executor.validateSelectSql(sql + ";"));
         assertEquals(
-                "SELECT * FROM (" + sql + ") AS _sandbox LIMIT 200",
+                "SELECT * FROM (" + CCJSqlParserUtil.parse(sql) + ") AS _sandbox LIMIT 200",
                 executor.validateAndTransform(sql));
     }
 

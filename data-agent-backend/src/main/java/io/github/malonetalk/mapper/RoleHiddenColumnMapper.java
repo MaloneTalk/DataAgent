@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.RoleHiddenColumn;
+import io.github.malonetalk.model.po.RoleHiddenColumn;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -27,13 +27,6 @@ public interface RoleHiddenColumnMapper {
 
     List<RoleHiddenColumn> selectByRoleAndDatasource(
             @Param("roleId") Integer roleId, @Param("datasourceId") Integer datasourceId);
-
-    int insert(RoleHiddenColumn perm);
-
-    int deleteByRoleDatasourceAndTable(
-            @Param("roleId") Integer roleId,
-            @Param("datasourceId") Integer datasourceId,
-            @Param("tableName") String tableName);
 
     int deleteByRoleId(@Param("roleId") Integer roleId);
 }

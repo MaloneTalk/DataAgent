@@ -112,26 +112,15 @@
     const datasourceId = selectedDs.value;
     const tableNames = [...checkedTables.value];
     const hidden = Object.fromEntries(
-      Object.entries(blacklistedColumns.value).map(([table, columns]) => [table, [...columns]]),
+      tableNames.map(table => [table, [...(blacklistedColumns.value[table] || [])]]),
     );
     savingPerm.value = true;
     try {
-      // Save table whitelist
-      await sysRoleApi.savePermissions(roleId, {
+      await sysRoleApi.saveDataScope(roleId, {
         datasourceId,
         tableNames,
+        hiddenColumns: hidden,
       });
-
-      // Save column blacklists for each checked table
-      await Promise.all(
-        tableNames.map(tableName =>
-          sysRoleApi.saveColumnPermissions(roleId, {
-            datasourceId,
-            tableName,
-            columnNames: hidden[tableName] || [],
-          }),
-        ),
-      );
 
       ElMessage.success('权限已保存');
     } catch {

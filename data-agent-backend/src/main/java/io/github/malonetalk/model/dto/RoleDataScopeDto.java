@@ -15,10 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 
-public record SaveTablePermissionRequest(
-        @NotNull(message = "datasourceId 不能为空") Integer datasourceId, List<String> tableNames) {}
+/** Complete table and hidden-column permissions for one datasource. */
+public record RoleDataScopeDto(
+        @NotNull Integer datasourceId,
+        @NotNull List<@NotBlank String> tableNames,
+        @NotNull Map<@NotBlank String, @NotNull List<@NotBlank String>> hiddenColumns) {}

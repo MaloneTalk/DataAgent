@@ -19,14 +19,14 @@ package io.github.malonetalk.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.convertor.RoleConverter;
-import io.github.malonetalk.dto.RoleRequest;
-import io.github.malonetalk.dto.RoleResponse;
-import io.github.malonetalk.entity.SysRole;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
+import io.github.malonetalk.model.dto.RoleRequest;
+import io.github.malonetalk.model.po.SysRole;
 import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.model.vo.RoleResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;

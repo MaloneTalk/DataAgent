@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.convertor;
 
-import io.github.malonetalk.dto.RoleResponse;
-import io.github.malonetalk.entity.SysRole;
+import io.github.malonetalk.model.po.SysRole;
+import io.github.malonetalk.model.vo.RoleResponse;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")

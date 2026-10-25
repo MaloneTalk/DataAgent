@@ -61,6 +61,24 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 
 ## 后端执行规则
 
+权限是后端中的逻辑模块，代码沿用项目已有分层目录：
+
+```text
+io.github.malonetalk/
+  annotation/   登录要求、权限要求注解
+  config/       MVC 鉴权拦截器注册
+  controller/   权限目录、角色与授权接口
+  convertor/    角色模型转换
+  enums/        权限码目录
+  interceptor/  HTTP 鉴权拦截器
+  mapper/       角色、功能权限与表列授权存储
+  service/      功能权限判断、角色授权、数据范围与 SQL 授权
+```
+
+相关 PO、DTO、VO、BO 统一放在 `io.github.malonetalk.model` 的对应子包；权限 Mapper XML 与其他映射一起放在 `resources/mapper`。MyBatis 按 `mapper/*.xml` 加载。已有分层能够容纳的类使用对应目录；需要新增专属目录时，只放置现有分层无法归类的权限实现。
+
+业务接口通过权限注解声明要求，Agent 工具和业务服务通过权限服务执行检查。权限模块复用用户服务提供的身份信息、共享用户上下文和表列元数据；用户登录与业务资源归属检查仍由各自原有入口负责。
+
 `PermissionEnum` 是权限目录的唯一来源。新增能力时定义稳定编码，再在实际入口绑定检查。仅在页面添加一行权限配置不会产生新的执行能力。
 
 所有 `/api/**` 业务接口必须显式声明 `@RequirePermission`，本人基础接口使用 `@LoginRequired`。登录接口单独放行。未声明策略的接口默认拒绝，即使是超级管理员也不能通过该接口。方法注解覆盖类注解，多权限默认要求全部满足；共享的数据源摘要接口显式声明 `anyOf = true`，允许具备任一相关页面权限的用户访问，结果仍按表授权过滤。
@@ -69,9 +87,17 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 
 普通用户的 SQL 会把每个物理表替换成只投影可见列的派生表。因此 `SELECT *`、JOIN、子查询和 UNION 都不能读到隐藏列。显式引用隐藏列时拒绝执行，包括 WHERE、ORDER BY、GROUP BY 和 HAVING。跨库引用、CTE、不支持的 FROM 结构、未列入安全名单的函数均拒绝。语法和 SELECT 限制仍由 `SqlExecutor` 检查，导出复用同一授权处理。
 
+投影会排除元数据中 `physicalStatus = false` 的列，已物理删除但保留语义信息的列不会影响其他列的查询。执行和导出都复用一次解析得到的 SELECT 语法树；普通查询仍受 200 行限制，导出沿用自身的行数上限。
+
+表、关系、领域过滤和 SQL 授权在每次操作开始时批量读取表白名单与隐藏列，在同一个可重复读事务中获得一致快照，随后仅在内存中匹配，不按表或关系循环查询权限，也不跨请求缓存。
+
 表达式中的子查询也经过相同授权，包括 `GROUP_CONCAT` 的参数和排序表达式。普通用户不能读取或赋值 MySQL 用户变量（如 `@v`、`@v := ...`），避免共享连接池的会话变量在用户之间残留。
 
+`JSON_OBJECT`、`JSON_ARRAY`、`JSON_OBJECTAGG`、`JSON_ARRAYAGG` 使用独立的语法树节点，默认访问器不能完整检查其对象值，因此普通用户暂不允许使用；函数白名单内的 `JSON_EXTRACT`、`JSON_UNQUOTE`、`JSON_LENGTH`、`JSON_CONTAINS` 仍可使用。这样对象函数内部的子查询无法绕过表列授权。标识符引用跟随目标数据源类型：MySQL、OceanBase、ClickHouse 使用反引号，PostgreSQL 等使用双引号，并保留原查询的表别名与引用方式。
+
 改写时物理表名取自授权记录，客户端提交的大小写只用于匹配和保留查询别名，不能切换到另一张大小写不同的物理表。逻辑外键的修改、禁用、单条和批量删除都检查来源表、目标表及隐藏列权限；删除和禁用不要求物理表仍然存在。
+
+关系分页接口在 JSON 列数组和隐藏列配置两侧统一转小写后匹配，避免 `USER_ID` 与 `user_id` 的大小写差异导致隐藏关系被返回。
 
 隐藏列引用检查采用保守规则：一个查询中任意授权表隐藏的同名列，不允许在该查询中显式引用，即使另一个表的同名列可见。遇到这类合法查询被拒绝时，应调整查询范围，不要跳过授权校验。元数据需要先完成同步；没有可见列元数据的表不能执行普通用户查询。
 
@@ -84,11 +110,14 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 | `GET /api/sys/permissions` | 权限目录 |
 | `GET /api/sys/role/{id}/capabilities` | 角色功能权限 |
 | `PUT /api/sys/role/{id}/capabilities` | 全量替换功能权限，提交 `{ "codes": [] }` |
+| `PUT /api/sys/role/{id}/data-scope` | 全量替换指定数据源的表白名单与隐藏列，Mapper 在同一事务中保存 |
 | `GET /api/auth/me` | 当前角色、超级管理员标记、有效权限编码 |
 | `PUT /api/sys/user/{id}/role` | 分配角色，提交 `{ "roleId": 0 }` 可取消分配 |
 | `GET /api/datasource/options` | 聊天、表语义、逻辑外键或指标查看权限任一满足即可访问，按表授权过滤，不含连接凭据 |
 
-已有角色 `permissions` 和 `columns` 接口继续表示表白名单、隐藏列。用户资料更新接口只更新 `displayName`；原来依赖该接口修改 `roleId` 的客户端需改用独立角色分配接口。
+角色 `GET permissions` 和 `GET columns` 接口继续读取表白名单、隐藏列；对应的两个分步 PUT 接口已经移除，写入统一使用 `PUT /api/sys/role/{id}/data-scope`。用户资料更新接口只更新 `displayName`；原来依赖该接口修改 `roleId` 的客户端需改用独立角色分配接口。
+
+权限配置页面使用 `data-scope` 一次提交 `{ "datasourceId": 1, "tableNames": ["orders"], "hiddenColumns": { "orders": ["secret"] } }`。每张授权表都必须有隐藏列条目，无隐藏列时提交空数组；空表列表和空对象表示撤销该数据源的全部表列权限。Mapper 锁定角色记录，批量替换两类授权，任一步骤失败则全部回滚。
 
 权限撤销会阻止后续查询和工具调用，但不会删除历史会话、报告、证据和已经生成的导出。历史资产读取仍按能力权限及归属检查，不根据当前表列权限追溯撤销。需要追溯撤权时，应另行增加资产数据来源与读取时的重新校验。
 
