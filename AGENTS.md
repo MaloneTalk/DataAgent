@@ -27,3 +27,8 @@
 **Write MySQL 5.7 compatible SQL — no window functions (`ROW_NUMBER()`, `RANK()`, etc.), no CTE (`WITH ... AS`), no other MySQL 8.0+ syntax.**
 
 **New data entities belong in `io.github.malonetalk.model`.** Place new PO/DTO/VO/BO under `io.github.malonetalk.model.{po,dto,vo,bo}`. Do not add new classes to the deprecated `io.github.malonetalk.dto` and `io.github.malonetalk.entity` packages.
+
+**Follow the project's persistence and response conventions for new entities:**
+- **PO** classes must extend `io.github.malonetalk.model.po.BasePo`, which provides the shared audit fields (creator/updater and timestamps, logical delete).
+- **VO** classes must implement the `io.github.malonetalk.model.vo.BaseVo` marker interface. Controllers must return the `BaseVo` implementation directly instead of wrapping it in the deprecated `io.github.malonetalk.common.Result`; uniform wrapping is handled by `BaseVoResponseAdvice`.
+- **Mapper** interfaces must extend `io.github.malonetalk.mapper.AuditableMapper<T>` (which in turn extends MyBatis-Plus `BaseMapper<T>`) and use MyBatis-Plus APIs. Do not create a mapper XML file unless a method genuinely requires complex SQL.
