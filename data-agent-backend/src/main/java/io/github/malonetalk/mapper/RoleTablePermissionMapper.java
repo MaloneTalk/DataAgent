@@ -17,43 +17,18 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.exception.BusinessException;
-import io.github.malonetalk.exception.ErrorCode;
-import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.springframework.transaction.annotation.Transactional;
 
 @Mapper
 public interface RoleTablePermissionMapper {
-
-    /** Serialize scope edits and publish table grants together with their hidden columns. */
-    @Transactional
-    default void replaceDataScope(
-            Integer roleId,
-            Integer datasourceId,
-            List<String> tableNames,
-            List<RoleHiddenColumn> hiddenColumns) {
-        if (lockRole(roleId) == null) throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND);
-        deleteByRoleAndDatasource(roleId, datasourceId);
-        deleteHiddenByRoleAndDatasource(roleId, datasourceId);
-        if (!tableNames.isEmpty()) insertTables(roleId, datasourceId, tableNames);
-        if (!hiddenColumns.isEmpty()) insertHiddenColumns(hiddenColumns);
-    }
-
-    Integer lockRole(@Param("roleId") Integer roleId);
-
-    int deleteHiddenByRoleAndDatasource(
-            @Param("roleId") Integer roleId, @Param("datasourceId") Integer datasourceId);
 
     int insertTables(
             @Param("roleId") Integer roleId,
             @Param("datasourceId") Integer datasourceId,
             @Param("tableNames") List<String> tableNames);
-
-    int insertHiddenColumns(@Param("columns") List<RoleHiddenColumn> columns);
 
     List<RoleTablePermission> selectByRoleId(@Param("roleId") Integer roleId);
 

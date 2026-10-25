@@ -25,6 +25,16 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface RoleHiddenColumnMapper {
 
+    int insertColumns(@Param("columns") List<RoleHiddenColumn> columns);
+
+    int deleteByRoleAndDatasource(
+            @Param("roleId") Integer roleId, @Param("datasourceId") Integer datasourceId);
+
+    int deleteByRoleDatasourceAndTable(
+            @Param("roleId") Integer roleId,
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableName") String tableName);
+
     List<RoleHiddenColumn> selectByRoleAndDatasource(
             @Param("roleId") Integer roleId, @Param("datasourceId") Integer datasourceId);
 

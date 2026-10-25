@@ -95,6 +95,8 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 
 `JSON_OBJECT`、`JSON_ARRAY`、`JSON_OBJECTAGG`、`JSON_ARRAYAGG` 使用独立的语法树节点，默认访问器不能完整检查其对象值，因此普通用户暂不允许使用；函数白名单内的 `JSON_EXTRACT`、`JSON_UNQUOTE`、`JSON_LENGTH`、`JSON_CONTAINS` 仍可使用。这样对象函数内部的子查询无法绕过表列授权。标识符引用跟随目标数据源类型：MySQL、OceanBase、ClickHouse 使用反引号，PostgreSQL 等使用双引号，并保留原查询的表别名与引用方式。
 
+`LIMIT`、`OFFSET`、`FETCH` 和 `LIMIT BY` 内的表达式也执行相同的表列授权，包括 UNION、括号查询和嵌套子查询的分页条件。窗口表达式、命名窗口及使用独立分析表达式节点的聚合 `FILTER` 暂不向普通用户开放，避免默认表达式访问器遗漏内部子查询。
+
 改写时物理表名取自授权记录，客户端提交的大小写只用于匹配和保留查询别名，不能切换到另一张大小写不同的物理表。逻辑外键的修改、禁用、单条和批量删除都检查来源表、目标表及隐藏列权限；删除和禁用不要求物理表仍然存在。
 
 关系分页接口在 JSON 列数组和隐藏列配置两侧统一转小写后匹配，避免 `USER_ID` 与 `user_id` 的大小写差异导致隐藏关系被返回。
@@ -110,19 +112,23 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 | `GET /api/sys/permissions` | 权限目录 |
 | `GET /api/sys/role/{id}/capabilities` | 角色功能权限 |
 | `PUT /api/sys/role/{id}/capabilities` | 全量替换功能权限，提交 `{ "codes": [] }` |
-| `PUT /api/sys/role/{id}/data-scope` | 全量替换指定数据源的表白名单与隐藏列，Mapper 在同一事务中保存 |
+| `PUT /api/sys/role/{id}/data-scope` | 全量替换指定数据源的表白名单与隐藏列，ServiceImpl 负责事务编排 |
+| `PUT /api/sys/role/{id}/permissions` | 兼容接口：替换表白名单，保留仍被授权表的隐藏列，清理被移除表的隐藏列 |
+| `PUT /api/sys/role/{id}/columns` | 兼容接口：替换单张已授权表的隐藏列，保留表白名单和其他表的隐藏列 |
 | `GET /api/auth/me` | 当前角色、超级管理员标记、有效权限编码 |
 | `PUT /api/sys/user/{id}/role` | 分配角色，提交 `{ "roleId": 0 }` 可取消分配 |
 | `GET /api/datasource/options` | 聊天、表语义、逻辑外键或指标查看权限任一满足即可访问，按表授权过滤，不含连接凭据 |
 
-角色 `GET permissions` 和 `GET columns` 接口继续读取表白名单、隐藏列；对应的两个分步 PUT 接口已经移除，写入统一使用 `PUT /api/sys/role/{id}/data-scope`。用户资料更新接口只更新 `displayName`；原来依赖该接口修改 `roleId` 的客户端需改用独立角色分配接口。
+角色 `GET permissions` 和 `GET columns` 接口继续读取表白名单、隐藏列；原有两个 PUT 接口保留原路径和请求结构，新配置页面使用 `PUT /api/sys/role/{id}/data-scope` 一次提交。三个写接口都要求超级管理员身份。用户资料更新接口只更新 `displayName`；原来依赖该接口修改 `roleId` 的客户端需改用独立角色分配接口。
 
-权限配置页面使用 `data-scope` 一次提交 `{ "datasourceId": 1, "tableNames": ["orders"], "hiddenColumns": { "orders": ["secret"] } }`。每张授权表都必须有隐藏列条目，无隐藏列时提交空数组；空表列表和空对象表示撤销该数据源的全部表列权限。Mapper 锁定角色记录，批量替换两类授权，任一步骤失败则全部回滚。
+权限配置页面使用 `data-scope` 一次提交 `{ "datasourceId": 1, "tableNames": ["orders"], "hiddenColumns": { "orders": ["secret"] } }`。每张授权表都必须有隐藏列条目，无隐藏列时提交空数组；空表列表和空对象表示撤销该数据源的全部表列权限。`RolePermissionServiceImpl` 在事务中锁定角色记录、校验并批量保存授权，任一步骤失败则全部回滚。Mapper 只执行各自表的单条查询或批量 SQL，不包含事务编排与业务判断。
+
+配置页面只有完整加载当前角色、当前数据源的表列及已有授权后才允许保存。加载失败、切换角色或数据源、关闭对话框都会使已加载状态失效；加载失败不能被当作空授权保存。
 
 权限撤销会阻止后续查询和工具调用，但不会删除历史会话、报告、证据和已经生成的导出。历史资产读取仍按能力权限及归属检查，不根据当前表列权限追溯撤销。需要追溯撤权时，应另行增加资产数据来源与读取时的重新校验。
 
 ## 验证
 
-后端校验命令为 `mvn verify`；前端校验命令为 `npm run build` 和 `npm run lint:check`。
+后端校验命令为 `mvn verify`；前端校验命令为 `npm test`、`npm run build` 和 `npm run lint:check`。回归测试覆盖分页子查询授权、兼容接口鉴权、Service 事务回滚，以及页面加载失败与切换上下文后的保存保护。
 
 数据库迁移和 MySQL 5.7 上的实际查询验证需要在部署环境执行；单元测试不会修改运行中的数据库。

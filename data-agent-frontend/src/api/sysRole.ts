@@ -42,6 +42,17 @@ export interface RoleDataScopeRequest {
   hiddenColumns: Record<string, string[]>;
 }
 
+export interface SaveTablePermissionRequest {
+  datasourceId: number;
+  tableNames: string[];
+}
+
+export interface SaveColumnPermissionRequest {
+  datasourceId: number;
+  tableName: string;
+  columnNames: string[];
+}
+
 export interface ColumnPermissionResponse {
   tableName: string;
   columnNames: string[];
@@ -74,6 +85,18 @@ export function getPermissions(roleId: number) {
 export function saveDataScope(roleId: number, payload: RoleDataScopeRequest) {
   return request
     .put<ApiResponse<boolean>>(`/sys/role/${roleId}/data-scope`, payload)
+    .then(res => res.data.data);
+}
+
+export function savePermissions(roleId: number, payload: SaveTablePermissionRequest) {
+  return request
+    .put<ApiResponse<boolean>>(`/sys/role/${roleId}/permissions`, payload)
+    .then(res => res.data.data);
+}
+
+export function saveColumnPermissions(roleId: number, payload: SaveColumnPermissionRequest) {
+  return request
+    .put<ApiResponse<boolean>>(`/sys/role/${roleId}/columns`, payload)
     .then(res => res.data.data);
 }
 

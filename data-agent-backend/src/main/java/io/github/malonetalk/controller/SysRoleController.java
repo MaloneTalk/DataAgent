@@ -23,6 +23,8 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.dto.RoleCapabilitiesDto;
 import io.github.malonetalk.model.dto.RoleDataScopeDto;
 import io.github.malonetalk.model.dto.RoleRequest;
+import io.github.malonetalk.model.dto.SaveColumnPermissionRequest;
+import io.github.malonetalk.model.dto.SaveTablePermissionRequest;
 import io.github.malonetalk.model.vo.ColumnPermissionResponse;
 import io.github.malonetalk.model.vo.RoleResponse;
 import io.github.malonetalk.model.vo.TablePermissionResponse;
@@ -82,6 +84,22 @@ public class SysRoleController {
     @RequirePermission(PermissionEnum.SYS_ROLE_READ)
     public Result<List<TablePermissionResponse>> getPermissions(@PathVariable Integer roleId) {
         return Result.success(permissions.getPermissions(roleId));
+    }
+
+    @PutMapping("/{roleId}/permissions")
+    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
+    public Result<Void> savePermissions(
+            @PathVariable Integer roleId, @Valid @RequestBody SaveTablePermissionRequest request) {
+        permissions.savePermissions(roleId, request);
+        return Result.success();
+    }
+
+    @PutMapping("/{roleId}/columns")
+    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
+    public Result<Void> saveColumnPermissions(
+            @PathVariable Integer roleId, @Valid @RequestBody SaveColumnPermissionRequest request) {
+        permissions.saveColumnPermissions(roleId, request);
+        return Result.success();
     }
 
     @PutMapping("/{roleId}/data-scope")

@@ -17,7 +17,7 @@
  -->
 
 <script setup lang="ts">
-  import { ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
   import { ElMessage } from 'element-plus';
   import * as sysRoleApi from '@/api/sysRole';
   import {
@@ -34,6 +34,16 @@
   const allTables = ref<string[]>([]);
   const checkedTables = ref<string[]>([]);
   const savingPerm = ref(false);
+  const loadedScope = ref<{ roleId: number; datasourceId: number } | null>(null);
+  const canSave = computed(
+    () =>
+      permVisible.value &&
+      !permLoading.value &&
+      !savingPerm.value &&
+      loadedScope.value !== null &&
+      loadedScope.value.roleId === props.roleId &&
+      loadedScope.value.datasourceId === selectedDs.value,
+  );
 
   // Column-level state: tableName → all columns, tableName → blacklisted columns
   const tableColumns = ref<Record<string, string[]>>({});
@@ -55,6 +65,7 @@
   }
 
   function resetPermissions() {
+    loadedScope.value = null;
     allTables.value = [];
     checkedTables.value = [];
     tableColumns.value = {};
@@ -72,42 +83,47 @@
     }
   });
 
-  watch(selectedDs, async (dsId, _previous, onCleanup) => {
-    let current = true;
-    onCleanup(() => {
-      current = false;
-    });
-    if (dsId == null) {
+  watch(
+    [selectedDs, () => props.roleId, permVisible],
+    async ([dsId, roleId, visible], _previous, onCleanup) => {
+      let current = true;
+      onCleanup(() => {
+        current = false;
+      });
       resetPermissions();
-      return;
-    }
-    permLoading.value = true;
-    try {
-      const [tables, perms, colPerms, columns] = await Promise.all([
-        getDatasourceTables(dsId),
-        sysRoleApi.getPermissions(props.roleId!),
-        sysRoleApi.getColumnPermissions(props.roleId!, dsId),
-        sysRoleApi.getAllTableColumns(dsId).catch(() => ({})),
-      ]);
-      if (!current) return;
-      allTables.value = tables;
-      const dsPerm = perms.find(p => p.datasourceId === dsId);
-      checkedTables.value = dsPerm ? dsPerm.tableNames : [];
+      if (!visible || dsId == null || roleId == null) {
+        permLoading.value = false;
+        return;
+      }
+      permLoading.value = true;
+      try {
+        const [tables, perms, colPerms, columns] = await Promise.all([
+          getDatasourceTables(dsId),
+          sysRoleApi.getPermissions(roleId),
+          sysRoleApi.getColumnPermissions(roleId, dsId),
+          sysRoleApi.getAllTableColumns(dsId),
+        ]);
+        if (!current) return;
+        allTables.value = tables;
+        const dsPerm = perms.find(p => p.datasourceId === dsId);
+        checkedTables.value = dsPerm ? dsPerm.tableNames : [];
 
-      tableColumns.value = columns;
-      blacklistedColumns.value = Object.fromEntries(
-        colPerms.map(p => [p.tableName, p.columnNames]),
-      );
-    } catch {
-      if (!current) return;
-      resetPermissions();
-    } finally {
-      if (current) permLoading.value = false;
-    }
-  });
+        tableColumns.value = columns;
+        blacklistedColumns.value = Object.fromEntries(
+          colPerms.map(p => [p.tableName, p.columnNames]),
+        );
+        loadedScope.value = { roleId, datasourceId: dsId };
+      } catch {
+        if (!current) return;
+        resetPermissions();
+      } finally {
+        if (current) permLoading.value = false;
+      }
+    },
+  );
 
   async function savePerm() {
-    if (props.roleId == null || selectedDs.value == null) return;
+    if (!canSave.value || props.roleId == null || selectedDs.value == null) return;
     const roleId = props.roleId;
     const datasourceId = selectedDs.value;
     const tableNames = [...checkedTables.value];
@@ -217,7 +233,7 @@
         </div>
       </div>
       <div style="margin-top: 16px">
-        <el-button type="primary" :loading="savingPerm" :disabled="permLoading" @click="savePerm">
+        <el-button type="primary" :loading="savingPerm" :disabled="!canSave" @click="savePerm">
           保存权限
         </el-button>
       </div>

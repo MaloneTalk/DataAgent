@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.expression.Alias;
+import net.sf.jsqlparser.expression.AnalyticExpression;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
 import net.sf.jsqlparser.expression.Function;
@@ -46,6 +47,7 @@ import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.piped.FromQuery;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.LateralSubSelect;
+import net.sf.jsqlparser.statement.select.Limit;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -114,6 +116,11 @@ public class SqlPermissionService {
                         return super.visit(function, context);
                     }
 
+                    @Override
+                    public <S> Void visit(AnalyticExpression expression, S context) {
+                        throw denied();
+                    }
+
                     // These nodes bypass Function and their default visitors omit object values.
                     @Override
                     public <S> Void visit(JsonFunction function, S context) {
@@ -160,7 +167,21 @@ public class SqlPermissionService {
         }
 
         private <S> void inspect(Select select, S context) {
+            inspectLimit(select.getLimit(), context);
+            inspectLimit(select.getLimitBy(), context);
+            if (select.getOffset() != null)
+                inspectExpression(select.getOffset().getOffset(), context);
+            if (select.getFetch() != null)
+                inspectExpression(select.getFetch().getExpression(), context);
             select.accept(this, context);
+        }
+
+        private <S> void inspectLimit(Limit limit, S context) {
+            if (limit == null) return;
+            inspectExpression(limit.getOffset(), context);
+            inspectExpression(limit.getRowCount(), context);
+            if (limit.getByExpressions() != null)
+                limit.getByExpressions().accept(expressions, context);
         }
 
         private void rejectWith(Select select) {
@@ -205,6 +226,8 @@ public class SqlPermissionService {
         public <S> Void visit(PlainSelect select, S context) {
             rejectWith(select);
             if (select.getIntoTables() != null || select.getIntoTempTable() != null) throw denied();
+            if (select.getWindowDefinitions() != null && !select.getWindowDefinitions().isEmpty())
+                throw denied();
             // ExpressionVisitorAdapter visits nested expressions, including GROUP_CONCAT.
             select.getSelectItems().forEach(item -> item.accept(expressions, context));
             inspectExpression(select.getWhere(), context);

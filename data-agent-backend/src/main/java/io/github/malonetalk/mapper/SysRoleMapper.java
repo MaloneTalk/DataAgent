@@ -29,6 +29,8 @@ public interface SysRoleMapper {
 
     SysRole selectById(@Param("id") Integer id);
 
+    Integer lockById(@Param("id") Integer id);
+
     int insert(SysRole role);
 
     int update(SysRole role);
