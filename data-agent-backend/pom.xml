@@ -77,6 +77,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <jsqlparser.version>5.2</jsqlparser.version>
         <jsonwebtoken.version>0.12.6</jsonwebtoken.version>
+        <opentelemetry-reactor.version>2.9.0-alpha</opentelemetry-reactor.version>
     </properties>
 
     <dependencyManagement>
@@ -99,6 +100,23 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
+
+        <!--
+          agentscope TelemetryTracer 依赖本库的 ContextPropagationOperator。
+          该 artifact 无正式版（2.x 全部为 -alpha），故锁定 2.9.0-alpha：
+          它基于 OTel API 1.43 编译，可在 Boot 4.0.3 管理的 1.55 上向后兼容运行；
+          更新的 2.33.0-alpha 基于 OTel 1.67 编译，搭配 1.55 有 NoSuchMethodError 风险。
+        -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-reactor-3.1</artifactId>
+            <version>${opentelemetry-reactor.version}</version>
         </dependency>
 
         <dependency>
