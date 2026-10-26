@@ -64,6 +64,22 @@ docker-compose up -d --build
 - **后端**: http://localhost:8080
 - **管理员账号**: `admin` / `admin`（或你设置的 `ADMIN_INIT_PASSWORD`）
 
+### 可观测性（可选）
+
+需要查看 trace / metrics / logs 时，启动仓库自带的 Grafana LGTM 观测栈：
+
+```bash
+docker compose -f docker/observability/docker-compose.yml up -d
+```
+
+在 `docker/.env` 中把 `TRACING_OTLP_EXPORT_ENABLED`、`METRICS_OTLP_EXPORT_ENABLED`、`LOGS_OTLP_EXPORT_ENABLED` 设为 `true`，然后重建并重启后端：
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build backend
+```
+
+Grafana：http://localhost:3001（`admin` / `admin`），在 Explore 中分别查看 Tempo（trace）、Prometheus（metrics）、Loki（logs）。这只是本地示例——导出走标准 OTLP/HTTP，也可以直接把 endpoint 指向 Jaeger、SigNoz、Langfuse 等任意 OTel 后端。详见 [observability.md](observability.md)。
+
 ---
 
 ## 方式二：手动搭建

@@ -170,3 +170,20 @@ SELF_CHECK=true mvn -f data-agent-backend/pom.xml clean test -Dtest=SysUserPassw
 - 不要把 `IO_GITHUB_MALONETALK_MODEL_API_KEY`、`JWT_SECRET`、`ADMIN_INIT_PASSWORD` 写入仓库。
 - 生产环境必须设置长度不少于 32 字节的 `JWT_SECRET`；留空只适合本地开发。
 - 目标数据源的连接信息会保存在元数据库中，请限制元数据库账号、网络与备份访问权限。
+
+## 9. 可观测性（OpenTelemetry）
+
+后端已接入 OpenTelemetry，trace / metrics / logs **默认只写终端，导出开关默认关闭**。导出使用标准 OTLP/HTTP，可对接任意 OTel 后端（Jaeger、Tempo、SigNoz、Langfuse 等），Grafana LGTM 仅为本地示例。完整说明（覆盖范围、接入示例、排障）见 [observability.md](observability.md)。
+
+| 配置键 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `management.tracing.sampling.probability` | - | `1.0` | 采样率（0.0–1.0） |
+| `management.tracing.propagation.type` | - | `w3c` | 跨服务传播格式 |
+| `management.tracing.export.otlp.enabled` | `TRACING_OTLP_EXPORT_ENABLED` | `false` | 是否导出 trace |
+| `management.opentelemetry.tracing.export.otlp.endpoint` | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `http://localhost:4318/v1/traces` | OTLP trace 地址 |
+| `management.otlp.metrics.export.enabled` | `METRICS_OTLP_EXPORT_ENABLED` | `false` | 是否导出 metrics |
+| `management.otlp.metrics.export.url` | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | `http://localhost:4318/v1/metrics` | OTLP metrics 地址 |
+| `management.logging.export.otlp.enabled` | `LOGS_OTLP_EXPORT_ENABLED` | `false` | 是否导出日志 |
+| `management.opentelemetry.logging.export.otlp.endpoint` | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | `http://localhost:4318/v1/logs` | OTLP logs 地址 |
+
+> 仅查看终端日志时无需配置任何项。接入 Collector 时，把对应 `*_ENABLED` 设为 `true` 并指向 OTLP 地址即可；三种信号可独立开启。

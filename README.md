@@ -24,6 +24,7 @@
 - **资产管理**：内置报表工具、表格导出工具与配套前端资产视图。
 - **Skill 系统**：从文件系统 / Git / Nacos 多源加载可复用的查询流程（"已验证查询模式"）。
 - **MCP 集成（开发中）**：可注册并连接外部 MCP Server，把外部工具纳入 Agent 工具箱。当前能力仍在打磨，欢迎参与共建。
+- **可观测性（OpenTelemetry）**：HTTP、Agent、LLM、工具与 JDBC 调用统一走 OTel trace；标准 OTLP 导出，可接入任意 OTel 后端（Jaeger / Tempo / SigNoz / Langfuse 等），仓库自带 Grafana LGTM 本地示例。
 
 ## 💡 核心设计亮点
 
@@ -61,6 +62,18 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 - **大批量表格导出**当前按 MySQL 流式读取路径优化；PostgreSQL 查询可接入，但大批量导出前需补 cursor/事务设置。
 
 完整架构与请求流转见 [docs/architecture.md](docs/architecture.md)。
+
+## 🔭 可观测性
+
+后端基于 OpenTelemetry 统一采集 traces / metrics / logs：
+
+- 一次对话从 HTTP 请求、agentscope 的 `invoke_agent` / `chat` / `execute_tool` 到 MyBatis / 动态数据源 SQL，共享同一条 trace。
+- 日志通过 Logback appender 关联 traceId/spanId，指标由 Micrometer 经 OTLP 导出。
+- 默认只写终端；通过环境变量按需开启导出。
+- 导出是标准 **OTLP/HTTP，不绑定 Grafana**：可直接指向 Jaeger、Tempo、SigNoz、Uptrace、Honeycomb、Datadog、New Relic、Langfuse、Arize Phoenix 等任意 OTel 后端。
+- 仓库自带 `docker/observability/docker-compose.yml`（Grafana LGTM）作为本地示例，一条命令即可查看 trace/metrics/logs。
+
+详见 [docs/observability.md](docs/observability.md)。
 
 ## 🚀 快速开始
 
@@ -110,6 +123,7 @@ mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
 | [docs/getting-started.md](docs/getting-started.md) | 详细安装与启动 |
 | [docs/configuration.md](docs/configuration.md) | LLM、数据源、Skill、MCP 配置 |
 | [docs/semantic-layer.md](docs/semantic-layer.md) | 语义层概念与管理 |
+| [docs/observability.md](docs/observability.md) | OpenTelemetry 链路、指标与日志 |
 | [docs/contributing.md](docs/contributing.md) | 开发环境与贡献流程 |
 
 > 从旧版本升级时密码哈希已由 PBKDF2 改为 BCrypt，存量用户需按 [configuration.md](docs/configuration.md#密码哈希与旧数据迁移) 的指引重置密码。

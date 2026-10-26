@@ -11,6 +11,7 @@
 | 3 | [configuration.md](configuration.md) | 要部署/接入的人 | LLM 提供商、元数据库、查询数据源、Skill、MCP 配置、安全提示 |
 | 4 | [semantic-layer.md](semantic-layer.md) | 要维护业务知识的人 | 语义层概念、管理界面、同步机制、指标业务属性与API示例 |
 | 5 | [skills.md](skills.md) | 要扩展 Agent 能力的人 | Skill 是什么、怎么写、怎么加自定义 Skill |
+| 6 | [observability.md](observability.md) | 要观测/排障的人 | OpenTelemetry trace/metrics/logs、配置开关、任意 OTLP 后端（Grafana LGTM 示例） |
 
 ## 贡献相关
 
@@ -27,6 +28,7 @@ DataAgent/
 ├── AGENTS.md                 # 后端工程原则（代码规范的总纲）
 ├── data-agent-backend/       # Spring Boot 后端
 ├── data-agent-frontend/      # Vue 3 + TS + Vite 前端
+├── docker/                   # Docker Compose（含 observability/ 观测栈）
 ├── skills/                   # Skill 目录（内置 + 自定义，放入即生效）
 ├── sql/                      # 元数据库初始化脚本（data_source.sql）
 └── docs/                     # 本文档集
