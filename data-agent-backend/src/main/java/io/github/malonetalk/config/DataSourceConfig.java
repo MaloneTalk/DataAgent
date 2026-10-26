@@ -20,6 +20,8 @@ package io.github.malonetalk.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
+import jakarta.annotation.PreDestroy;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -52,8 +54,10 @@ public class DataSourceConfig {
     @Value("${spring.datasource.hikari.connection-timeout:20000}")
     private long connectionTimeout;
 
+    private HikariDataSource hikariDataSource;
+
     @Bean
-    public DataSource dataSource() {
+    public DataSource dataSource(JdbcTelemetry jdbcTelemetry) {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(jdbcUrl);
         config.setUsername(username);
@@ -65,7 +69,15 @@ public class DataSourceConfig {
         config.setIdleTimeout(idleTimeout);
         config.setConnectionTimeout(connectionTimeout);
 
-        return new HikariDataSource(config);
+        this.hikariDataSource = new HikariDataSource(config);
+        return jdbcTelemetry.wrap(hikariDataSource);
+    }
+
+    @PreDestroy
+    public void close() {
+        if (hikariDataSource != null && !hikariDataSource.isClosed()) {
+            hikariDataSource.close();
+        }
     }
 
     @Bean

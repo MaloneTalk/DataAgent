@@ -23,10 +23,12 @@ import io.agentscope.core.tracing.TracerRegistry;
 import io.agentscope.core.tracing.telemetry.TelemetryTracer;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
@@ -45,6 +47,11 @@ public class ObservabilityConfig {
     private final Tracer otelTracer;
     private final OpenTelemetry openTelemetry;
     private final Environment environment;
+
+    @Bean
+    JdbcTelemetry jdbcTelemetry() {
+        return JdbcTelemetry.create(openTelemetry);
+    }
 
     @PostConstruct
     void init() {

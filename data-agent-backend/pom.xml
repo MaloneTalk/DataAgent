@@ -127,6 +127,13 @@
             <version>${opentelemetry-instrumentation.version}</version>
         </dependency>
 
+        <!-- JDBC 插桩：把 MyBatis 与动态数据源的 SQL 调用记录为 db.* span -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-jdbc</artifactId>
+            <version>${opentelemetry-instrumentation.version}</version>
+        </dependency>
+
         <!-- OTel SDK logs 1.55 运行时需要同版本的 incubator API（ExtendedLogRecord/ExtendedAttributes） -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
