@@ -4,24 +4,24 @@ FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /app
 
 # Maven 依赖默认直连 Maven Central。国内网络拉取易中断导致构建失败时，
-# 取消下面整段注释，改用阿里云镜像源：
-# RUN mkdir -p /root/.m2 && echo '<settings>\
-#   <mirrors>\
-#     <mirror>\
-#       <id>aliyun</id>\
-#       <url>https://maven.aliyun.com/repository/public</url>\
-#       <mirrorOf>*</mirrorOf>\
-#     </mirror>\
-#   </mirrors>\
-# </settings>' > /root/.m2/settings.xml
+# 取消下面整段注释启用阿里云镜像，并给 mvn 命令加上 -s /root/settings.xml。
+# 注意：settings.xml 不能放 /root/.m2（会被下面的 cache mount 覆盖）。
+# RUN printf '%s\n' \
+#   '<settings>' \
+#   '  <mirrors>' \
+#   '    <mirror>' \
+#   '      <id>aliyun</id>' \
+#   '      <url>https://maven.aliyun.com/repository/public</url>' \
+#   '      <mirrorOf>*</mirrorOf>' \
+#     '</mirror>' \
+#   '</mirrors>' \
+# '</settings>' > /root/settings.xml
 
-# Copy pom.xml and download dependencies
+# Copy pom + source and build.
+# /root/.m2 通过 BuildKit cache 持久化，跨构建复用依赖，无需额外的 go-offline 步骤。
 COPY data-agent-backend/pom.xml .
-RUN mvn dependency:go-offline -B
-
-# Copy source code and build
 COPY data-agent-backend/src ./src
-RUN mvn clean package -DskipTests -B
+RUN --mount=type=cache,target=/root/.m2 mvn -B clean package -DskipTests
 
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine

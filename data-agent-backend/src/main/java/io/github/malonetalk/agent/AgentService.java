@@ -42,7 +42,8 @@ import io.github.malonetalk.enums.ChatStreamEventType;
 import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.service.DatasourceService;
-import io.github.malonetalk.web.TraceIdFilter;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.instrumentation.reactor.v3_1.ContextPropagationOperator;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -50,7 +51,6 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.SignalType;
@@ -88,8 +88,13 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId) {
+        Context otelContext = Context.current();
         return Flux.defer(
                         () -> streamAgent(userId, sessionId, userInput, toolResults, datasourceId))
+                .contextWrite(
+                        ctx ->
+                                ContextPropagationOperator.storeOpenTelemetryContext(
+                                        ctx, otelContext))
                 .onErrorResume(this::toErrorEvent);
     }
 
@@ -125,16 +130,8 @@ public class AgentService {
                         .includeReasoningResult(true)
                         .build();
 
-        // traceId 从请求线程的 MDC 取出（TraceIdFilter 已设置），贴到 agent.stream 这个「源头」上：
-        // doOnEach 在 agentscope 的异步发射线程上触发（早于下游 EventConverter），保证内部日志也带 traceId。
-        String traceId = MDC.get(TraceIdFilter.TRACE_ID_MDC_KEY);
+        // trace context 已在 chatStream 种入 Reactor context，agentscope 会自动沿用同一 traceId。
         return agent.stream(userMsg, streamOptions)
-                .doOnEach(
-                        signal -> {
-                            if (traceId != null && !traceId.isBlank()) {
-                                MDC.put(TraceIdFilter.TRACE_ID_MDC_KEY, traceId);
-                            }
-                        })
                 .doFinally(
                         signalType ->
                                 log.info(
@@ -164,7 +161,6 @@ public class AgentService {
                                             provenanceEvents,
                                             "PARTIAL");
                                 }
-                                MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
                             }
                         });
     }

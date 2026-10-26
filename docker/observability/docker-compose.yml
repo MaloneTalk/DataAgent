@@ -1,0 +1,51 @@
+# OpenTelemetry 示例观测后端（Grafana LGTM）
+#
+# 单容器打包 OpenTelemetry Collector + Prometheus + Tempo + Loki + Pyroscope + Grafana，
+# 用于本地查看 data-agent-backend 导出的 trace / metrics，仅建议开发/演示环境使用。
+#
+# 前置：主栈已启动，docker/docker-compose.yml 会创建 data-agent-network。
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# 启动本观测栈：
+#   docker compose -f docker/observability/docker-compose.yml up -d
+#
+# 访问：
+#   Grafana      http://localhost:3001  （默认账号/密码 admin/admin）
+#   OTLP / HTTP  http://localhost:4318
+#   OTLP / gRPC  http://localhost:4317
+#
+# 让后端把数据发到这里（在 docker/.env 中设置后重启 backend）：
+#   TRACING_OTLP_EXPORT_ENABLED=true
+#   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-lgtm:4318/v1/traces
+#   METRICS_OTLP_EXPORT_ENABLED=true
+#   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://otel-lgtm:4318/v1/metrics
+#
+# 在 Grafana 中：
+#   Explore -> Tempo  查 trace（service.name=data-agent-management）
+#   Explore -> Prometheus 查指标
+
+services:
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: data-agent-otel-lgtm
+    restart: unless-stopped
+    ports:
+      # Grafana UI（避开主栈 frontend 的 3000 端口）
+      - "${GRAFANA_PORT:-3001}:3000"
+      # OTLP 接收端
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      # 可选：持久化所有组件数据（/data），不挂载时数据随容器销毁
+      - otel-lgtm-data:/data
+    networks:
+      - data-agent-network
+
+volumes:
+  otel-lgtm-data:
+    name: data-agent-otel-lgtm-data
+
+networks:
+  data-agent-network:
+    name: data-agent-network
+    external: true

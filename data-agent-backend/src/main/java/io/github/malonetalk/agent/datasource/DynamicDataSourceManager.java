@@ -22,14 +22,17 @@ import com.zaxxer.hikari.HikariDataSource;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class DynamicDataSourceManager {
 
     private static final int MAX_POOL_SIZE = 5;
@@ -40,10 +43,13 @@ public class DynamicDataSourceManager {
 
     private final ConcurrentHashMap<Integer, HikariDataSource> dataSourcePool =
             new ConcurrentHashMap<>();
+    private final JdbcTelemetry jdbcTelemetry;
 
     public DataSource getOrCreateDataSource(Datasource datasource) {
-        return dataSourcePool.computeIfAbsent(
-                datasource.getId(), id -> createDataSource(datasource));
+        HikariDataSource pool =
+                dataSourcePool.computeIfAbsent(
+                        datasource.getId(), id -> createDataSource(datasource));
+        return jdbcTelemetry.wrap(pool);
     }
 
     private HikariDataSource createDataSource(Datasource datasource) {
