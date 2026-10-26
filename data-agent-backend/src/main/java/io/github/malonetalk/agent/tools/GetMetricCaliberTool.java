@@ -22,9 +22,11 @@ import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.MetricService;
+import io.github.malonetalk.service.PermissionService;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,8 @@ import org.springframework.stereotype.Component;
 @Component
 @AllArgsConstructor
 public class GetMetricCaliberTool implements MarkAgentTool {
+
+    private final PermissionService permissions;
 
     private final MetricService metricService;
     private final DatasourceService datasourceService;
@@ -61,6 +65,7 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                                             + " 销售额 / 上个月的GMV是多少")
                     String hint,
             ToolCallContext ctx) {
+        permissions.require(ctx.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
         try {
             Integer dsId = datasourceService.getDatasourceForSession(ctx.sessionId()).getId();
             MetricService.MetricLookup lookup = metricService.lookupCaliber(dsId, hint);

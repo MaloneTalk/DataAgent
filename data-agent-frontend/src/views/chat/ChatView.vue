@@ -19,8 +19,9 @@
   import { ref, nextTick, watch, onMounted, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
+  import { useUserStore } from '@/stores/user';
   import { fetchSessionList } from '@/api/agent';
-  import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
+  import { getDatasourceOptions, type DatasourceOption } from '@/api/datasource';
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
@@ -30,6 +31,9 @@
 
   const route = useRoute();
   const router = useRouter();
+  const userStore = useUserStore();
+  const canChat = computed(() => userStore.hasPermission('analysis:chat:use'));
+  const canReadSessions = computed(() => userStore.hasPermission('analysis:session:read'));
 
   const {
     messages,
@@ -46,12 +50,12 @@
 
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
-  const showSessionList = ref(false);
+  const showSessionList = ref(!canChat.value);
   const reportDialogVisible = ref(false);
   const evidenceDialogVisible = ref(false);
   const previewVisible = ref(false);
   const previewContent = ref('');
-  const datasources = ref<DatasourceResponse[]>([]);
+  const datasources = ref<DatasourceOption[]>([]);
 
   // 已发过消息 = 绑定已落库 = 不可再切换数据源（锁定语义）。
   const isBound = computed(() => messages.value.length > 0);
@@ -84,7 +88,7 @@
 
   async function loadDatasources() {
     try {
-      datasources.value = (await getDatasourceList()) ?? [];
+      datasources.value = (await getDatasourceOptions()) ?? [];
     } catch {
       datasources.value = [];
     }
@@ -99,6 +103,16 @@
       datasourceId.value = found?.datasourceId ?? null;
     } catch {
       // 会话列表加载失败不阻断会话展示。
+    }
+  }
+
+  async function loadSession(sid: string) {
+    if (canReadSessions.value) {
+      await loadHistory(sid);
+      await resolveBoundDatasource(sid);
+    } else {
+      newSession();
+      sessionId.value = sid;
     }
   }
 
@@ -132,11 +146,10 @@
   watch(messages, () => scrollToBottom(), { deep: true });
 
   onMounted(async () => {
-    loadDatasources();
+    if (canChat.value) void loadDatasources();
     const sid = route.params.sessionId as string | undefined;
     if (sid) {
-      await loadHistory(sid);
-      await resolveBoundDatasource(sid);
+      await loadSession(sid);
     }
   });
 
@@ -144,9 +157,10 @@
     () => route.params.sessionId,
     async newSid => {
       // Avoid triggering loadHistory when router.replace updates URL on first message
-      if (newSid && typeof newSid === 'string' && newSid !== sessionId.value) {
-        await loadHistory(newSid);
-        await resolveBoundDatasource(newSid);
+      if (typeof newSid !== 'string') {
+        newSession();
+      } else if (newSid !== sessionId.value) {
+        await loadSession(newSid);
       }
     },
   );
@@ -158,6 +172,7 @@
   });
 
   function handleSend(text: string) {
+    if (!canChat.value) return;
     sendMessage(text);
     if (!activeSessionId.value) {
       router.replace(`/chat/${sessionId.value}`);
@@ -165,6 +180,7 @@
   }
 
   function handleNewSession() {
+    if (!canChat.value) return;
     newSession();
     router.push(`/chat/${sessionId.value}`);
   }
@@ -173,6 +189,7 @@
 <template>
   <div class="chat-view">
     <div
+      v-if="canReadSessions"
       class="chat-view__session-panel"
       :class="{ 'chat-view__session-panel--hidden': !showSessionList }"
     >
@@ -187,12 +204,13 @@
     <div class="chat-view__main">
       <div class="chat-view__header">
         <div class="chat-view__header-left">
-          <button class="chat-view__toggle-btn" @click="toggleSessionList">
+          <button v-if="canReadSessions" class="chat-view__toggle-btn" @click="toggleSessionList">
             {{ showSessionList ? '◁' : '▷' }}
           </button>
         </div>
         <div class="chat-view__header-right">
           <el-select
+            v-if="canChat"
             v-model="datasourceId"
             :disabled="isBound"
             :placeholder="dsPlaceholder"
@@ -208,16 +226,26 @@
               :value="datasourceId"
             />
           </el-select>
-          <el-button text @click="reportDialogVisible = true">会话报告</el-button>
-          <el-button text @click="evidenceDialogVisible = true">数据证据</el-button>
-          <el-button text @click="handleNewSession">新建会话</el-button>
+          <el-button v-permission="'asset:report:read'" text @click="reportDialogVisible = true">
+            会话报告
+          </el-button>
+          <el-button
+            v-permission="'asset:evidence:read'"
+            text
+            @click="evidenceDialogVisible = true"
+          >
+            数据证据
+          </el-button>
+          <el-button v-if="canChat" text @click="handleNewSession">新建会话</el-button>
         </div>
       </div>
 
       <div ref="messagesContainer" class="chat-view__messages">
         <div v-if="messages.length === 0" class="chat-view__empty">
-          <div class="chat-view__empty-text">开始对话，让 AI 帮你分析数据</div>
-          <div class="chat-view__empty-hints">
+          <div class="chat-view__empty-text">
+            {{ canChat ? '开始对话，让 AI 帮你分析数据' : '选择会话查看历史记录' }}
+          </div>
+          <div v-if="canChat" class="chat-view__empty-hints">
             <div
               class="hint-item"
               @click="handleSend('帮我查一下上个月高价值用户都买了哪些品类的商品？')"
@@ -246,6 +274,7 @@
       </div>
 
       <ChatInput
+        v-if="canChat"
         :key="sessionId"
         :is-streaming="isStreaming"
         :pending-question="pendingQuestion"

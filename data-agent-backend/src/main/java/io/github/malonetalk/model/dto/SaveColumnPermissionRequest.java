@@ -15,8 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
-public record TablePermissionResponse(Integer datasourceId, List<String> tableNames) {}
+public record SaveColumnPermissionRequest(
+        @NotNull Integer datasourceId,
+        @NotBlank String tableName,
+        @NotNull List<@NotBlank String> columnNames) {}

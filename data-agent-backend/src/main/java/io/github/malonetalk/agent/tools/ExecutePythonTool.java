@@ -21,6 +21,9 @@ import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.service.PermissionService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -32,9 +35,12 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@lombok.RequiredArgsConstructor
 @Slf4j
 @Component
 public class ExecutePythonTool implements MarkAgentTool {
+
+    private final PermissionService permissions;
 
     private static final int TIMEOUT_SECONDS = 30;
     private static final int MAX_CONCURRENT = 5;
@@ -60,7 +66,9 @@ public class ExecutePythonTool implements MarkAgentTool {
                                     Python code to execute for data analysis. \
                                     Must be self-contained and include any data inline.\
                                     """)
-                    String code) {
+                    String code,
+            ToolCallContext ctx) {
+        permissions.require(ctx.userId(), PermissionEnum.ANALYSIS_PYTHON_EXECUTE);
 
         if (!semaphore.tryAcquire()) {
             return result("Error: too many concurrent Python executions.", false);

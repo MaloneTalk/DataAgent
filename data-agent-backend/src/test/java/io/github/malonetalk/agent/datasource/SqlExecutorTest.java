@@ -20,10 +20,18 @@ package io.github.malonetalk.agent.datasource;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.service.SqlPermissionService;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -34,10 +42,31 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class SqlExecutorTest {
 
-    private final SqlExecutor executor = new SqlExecutor(mock(DynamicDataSourceManager.class));
+    private final SqlPermissionService permissions = mock(SqlPermissionService.class);
+    private final SqlExecutor executor =
+            new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
 
     @Test
-    void acceptsBusinessTableCountsAndAppliesOuterRowLimit() {
+    void sharedSelectEntryPassesParsedSelectToDataAuthorization() {
+        Datasource datasource = new Datasource();
+        when(permissions.authorize(eq(7), same(datasource), any(Select.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2));
+        assertEquals(
+                "SELECT id FROM orders",
+                executor.authorizeSelectSql(datasource, "SELECT id FROM orders;", 7));
+        verify(permissions).authorize(eq(7), same(datasource), any(Select.class));
+    }
+
+    @Test
+    void sharedSelectEntryRejectsWritesBeforeAuthorization() {
+        assertThrows(
+                BusinessException.class,
+                () -> executor.authorizeSelectSql(new Datasource(), "DELETE FROM orders", 7));
+        verifyNoInteractions(permissions);
+    }
+
+    @Test
+    void acceptsBusinessTableCountsAndAppliesOuterRowLimit() throws Exception {
         String sql =
                 """
                 SELECT 'ticket' t, COUNT(*) c FROM ticket
@@ -52,7 +81,7 @@ class SqlExecutorTest {
 
         assertEquals(sql, executor.validateSelectSql(sql + ";"));
         assertEquals(
-                "SELECT * FROM (" + sql + ") AS _sandbox LIMIT 200",
+                "SELECT * FROM (" + CCJSqlParserUtil.parse(sql) + ") AS _sandbox LIMIT 200",
                 executor.validateAndTransform(sql));
     }
 

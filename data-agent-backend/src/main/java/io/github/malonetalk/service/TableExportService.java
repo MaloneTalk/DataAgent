@@ -25,7 +25,8 @@ import io.github.malonetalk.entity.Datasource;
 
 public interface TableExportService {
 
-    TableExportResponse create(String sessionId, Datasource datasource, String title, String sql);
+    TableExportResponse create(
+            String sessionId, Datasource datasource, String title, String sql, Integer userId);
 
     PageResponse<TableExportResponse> getExportPage(TableExportPageQuery query, Integer userId);
 

@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.RoleTablePermission;
+import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -25,12 +25,15 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface RoleTablePermissionMapper {
 
+    int insertTables(
+            @Param("roleId") Integer roleId,
+            @Param("datasourceId") Integer datasourceId,
+            @Param("tableNames") List<String> tableNames);
+
     List<RoleTablePermission> selectByRoleId(@Param("roleId") Integer roleId);
 
     List<RoleTablePermission> selectByRoleAndDatasource(
             @Param("roleId") Integer roleId, @Param("datasourceId") Integer datasourceId);
-
-    int insert(RoleTablePermission perm);
 
     int deleteByRoleAndDatasource(
             @Param("roleId") Integer roleId, @Param("datasourceId") Integer datasourceId);

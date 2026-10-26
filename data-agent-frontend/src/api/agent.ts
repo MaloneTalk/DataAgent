@@ -139,18 +139,23 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
+async function requireSuccessfulResponse(response: Response, fallback: string): Promise<void> {
+  if (response.status === 401) {
+    handleUnauthorized();
+    throw new ApiError('登录已过期，请重新登录', { code: 401 });
+  }
+  if (response.status === 403) window.dispatchEvent(new Event('permissions-changed'));
+  if (!response.ok) {
+    throw await resolveApiError(response, `${fallback}: ${response.status} ${response.statusText}`);
+  }
+}
+
 async function fetchJson<T>(url: string, fallback: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
     headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) },
   });
-  if (response.status === 401) {
-    handleUnauthorized();
-    throw new ApiError('登录已过期，请重新登录', { code: 401 });
-  }
-  if (!response.ok) {
-    throw await resolveApiError(response, `${fallback}: ${response.status} ${response.statusText}`);
-  }
+  await requireSuccessfulResponse(response, fallback);
   const body = await response.json();
   if (body.code !== 200) {
     throw new ApiError(body.message || fallback, {
@@ -192,17 +197,7 @@ export async function* streamChat(
     signal: abortSignal,
   });
 
-  if (response.status === 401) {
-    handleUnauthorized();
-    throw new ApiError('登录已过期，请重新登录', { code: 401 });
-  }
-
-  if (!response.ok) {
-    throw await resolveApiError(
-      response,
-      `Chat stream failed: ${response.status} ${response.statusText}`,
-    );
-  }
+  await requireSuccessfulResponse(response, 'Chat stream failed');
 
   const reader = response.body?.getReader();
   if (!reader) {

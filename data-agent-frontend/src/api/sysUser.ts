@@ -24,7 +24,7 @@ export interface UserResponse {
   id: number;
   username: string;
   displayName: string;
-  roleId: number; // 1=管理员 0=普通用户
+  roleId: number; // 0=未分配角色
   superAdmin: boolean; // 是否超级管理员
   status: number; // 1=启用 0=禁用
   createTime: string;
@@ -39,7 +39,6 @@ export interface UserCreateRequest {
 
 export interface UserUpdateRequest {
   displayName: string;
-  roleId: number | null;
 }
 
 /** 对应后端 BaseBatchQueryDto。 */
@@ -77,4 +76,8 @@ export function updateStatus(id: number, status: number) {
       params: { status },
     })
     .then(res => res.data.data);
+}
+
+export function assignRole(id: number, roleId: number) {
+  return request.put(`/sys/user/${id}/role`, { roleId });
 }

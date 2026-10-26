@@ -26,6 +26,7 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
+import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.core.session.Session;
 import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.tool.ToolExecutionContext;
@@ -35,19 +36,28 @@ import io.github.malonetalk.agent.models.ModelProperties;
 import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.agent.skill.SkillLoaderService;
 import io.github.malonetalk.agent.tools.MarkAgentTool;
+import io.github.malonetalk.agent.tools.ToolCallConstants;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.enums.Status;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.web.TraceIdFilter;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -72,6 +82,8 @@ public class AgentService {
     private final EventConverter eventConverter;
     private final DatasourceService datasourceService;
     private final AnswerProvenanceService answerProvenanceService;
+    private final PermissionService permissions;
+    private final DataPermissionService dataPermissions;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -99,16 +111,16 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId) {
-        // 首次访问声明归属；已绑定会被 INSERT IGNORE 忽略
+        var user = permissions.require(userId, PermissionEnum.ANALYSIS_CHAT_USE);
+        // Verify unique ownership before loading memory or binding a datasource.
         sessionService.bindUserSession(userId, sessionId);
-        if (datasourceId != null) {
-            datasourceService.bindSessionDatasource(sessionId, datasourceId);
-        }
+        authorizeDatasource(user, sessionId, datasourceId);
         ReActAgent agent =
                 createAgent(ToolCallContext.builder().sessionId(sessionId).userId(userId).build());
 
-        Session session = sessionService.getOrCreateSession(sessionId);
+        Session session = sessionService.getSession();
         agent.loadIfExists(session, sessionId);
+        validateClientToolResults(userId, sessionId, toolResults);
         Msg userMsg = buildUserMessage(userInput, toolResults);
         String answerId =
                 toolResults == null || toolResults.isEmpty()
@@ -167,6 +179,48 @@ public class AgentService {
                                 MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
                             }
                         });
+    }
+
+    private void authorizeDatasource(UserContextBo user, String sessionId, Integer datasourceId) {
+        if (datasourceId != null) {
+            dataPermissions.requireDatasource(user, datasourceId);
+            datasourceService.bindSessionDatasource(sessionId, datasourceId);
+        }
+        try {
+            dataPermissions.requireDatasource(
+                    user, datasourceService.getDatasourceForSession(sessionId).getId());
+        } catch (BusinessException ex) {
+            // Never silently switch an already bound session to another source.
+            if (sessionService.hasDatasourceBinding(sessionId)) throw ex;
+            var allowed =
+                    datasourceService.findAll().stream()
+                            .filter(ds -> Status.ACTIVE.getCode().equals(ds.getStatus()))
+                            .filter(ds -> dataPermissions.canDatasource(user, ds.getId()))
+                            .findFirst()
+                            .orElseThrow(() -> ex);
+            datasourceService.bindSessionDatasource(sessionId, allowed.getId());
+        }
+    }
+
+    private void validateClientToolResults(
+            int userId, String sessionId, List<ChatRequest.ToolResultInput> toolResults) {
+        if (toolResults != null && !toolResults.isEmpty()) {
+            var pending =
+                    sessionService.getSessionDebug(sessionId, userId).stream()
+                            .flatMap(msg -> msg.getContent().stream())
+                            .filter(block -> block instanceof ToolUseBlock)
+                            .map(block -> (ToolUseBlock) block)
+                            .filter(block -> ToolCallConstants.ASK_USER.equals(block.getName()))
+                            .map(ToolUseBlock::getId)
+                            .collect(Collectors.toSet());
+            if (toolResults.stream()
+                    .anyMatch(
+                            result ->
+                                    !ToolCallConstants.ASK_USER.equals(result.toolName())
+                                            || !pending.contains(result.toolCallId()))) {
+                throw BusinessException.of(ErrorCode.FORBIDDEN);
+            }
+        }
     }
 
     private void saveProvenance(

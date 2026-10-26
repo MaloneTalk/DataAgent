@@ -18,9 +18,6 @@
 package io.github.malonetalk.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PositiveOrZero;
 
-/** 更新用户。roleId 为 null 表示不修改角色。 */
-public record UserUpdateDto(
-        @NotBlank(message = "displayName 不能为空") String displayName,
-        @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}
+/** 用户资料更新；角色通过独立授权接口修改。 */
+public record UserUpdateDto(@NotBlank(message = "displayName 不能为空") String displayName) {}

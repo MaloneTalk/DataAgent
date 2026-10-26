@@ -28,9 +28,11 @@ import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.dto.DataEvidencePageQuery;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
+import io.github.malonetalk.service.PermissionService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -53,11 +55,13 @@ import reactor.core.publisher.Flux;
 public class AgentController {
 
     private final AgentService agentService;
+    private final PermissionService permissions;
     private final SessionService sessionService;
     private final UserContextHolder userContextHolder;
     private final AnswerProvenanceService answerProvenanceService;
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @RequirePermission(PermissionEnum.ANALYSIS_CHAT_USE)
     public Flux<ServerSentEvent<ChatStreamEvent>> chatStream(
             @Valid @RequestBody ChatRequest request) {
         // Read userId before Reactor switches threads.
@@ -79,27 +83,30 @@ public class AgentController {
     }
 
     @GetMapping("/session/{sessionId}/debug")
+    @RequirePermission(PermissionEnum.ANALYSIS_SESSION_DEBUG)
     public Result<List<Msg>> getSessionDebug(@PathVariable String sessionId) {
-        Integer userId = userContextHolder.requireScopedUserId();
+        Integer userId = readScopedUserId();
         List<Msg> messages = sessionService.getSessionDebug(sessionId, userId);
         return Result.success(messages);
     }
 
     @GetMapping("/session/{sessionId}/history")
+    @RequirePermission(PermissionEnum.ANALYSIS_SESSION_READ)
     public Result<List<TurnItem>> getSessionHistory(@PathVariable String sessionId) {
-        Integer userId = userContextHolder.requireScopedUserId();
+        Integer userId = readScopedUserId();
         List<TurnItem> history = sessionService.getSessionHistory(sessionId, userId);
         return Result.success(history);
     }
 
     @GetMapping("/evidence")
+    @RequirePermission(PermissionEnum.ASSET_EVIDENCE_READ)
     public Result<PageResponse<DataEvidenceVo>> listDataEvidence(
             @Valid DataEvidencePageQuery query) {
-        return Result.success(
-                answerProvenanceService.getPage(query, userContextHolder.requireScopedUserId()));
+        return Result.success(answerProvenanceService.getPage(query, readScopedUserId()));
     }
 
     @DeleteMapping("/session/{sessionId}")
+    @RequirePermission(PermissionEnum.ANALYSIS_SESSION_DELETE)
     public Result<Boolean> clearSession(@PathVariable String sessionId) {
         Integer userId = userContextHolder.requireScopedUserId();
         sessionService.clearSession(sessionId, userId);
@@ -107,16 +114,24 @@ public class AgentController {
     }
 
     @GetMapping("/sessions")
+    @RequirePermission(PermissionEnum.ANALYSIS_SESSION_READ)
     public Result<List<SessionInfo>> listSessions() {
-        Integer userId = userContextHolder.requireScopedUserId();
+        Integer userId = readScopedUserId();
         List<SessionInfo> sessions = sessionService.listSessions(userId);
         return Result.success(sessions);
     }
 
-    @RequirePermission
     @DeleteMapping("/session")
+    @RequirePermission(PermissionEnum.ANALYSIS_SESSION_DELETE_ALL)
     public Result<Boolean> clearAllSessions() {
-        sessionService.clearAllSessions(null);
+        sessionService.clearAllSessions();
         return Result.success(true);
+    }
+
+    private Integer readScopedUserId() {
+        var user = userContextHolder.checkAndGet();
+        return permissions.has(user, PermissionEnum.ANALYSIS_SESSION_READ_ALL)
+                ? null
+                : user.userId();
     }
 }

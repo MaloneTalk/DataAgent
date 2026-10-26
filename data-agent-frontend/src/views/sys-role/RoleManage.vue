@@ -17,14 +17,13 @@
  -->
 
 <script setup lang="ts">
-  import { ref, reactive, onMounted, watch } from 'vue';
+  import { ref, reactive, onMounted } from 'vue';
+  import RoleDataScopeDialog from './RoleDataScopeDialog.vue';
+  import RoleCapabilitiesDialog from './RoleCapabilitiesDialog.vue';
+  const capabilitiesVisible = ref(false);
+  const capabilitiesRoleId = ref<number | null>(null);
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
   import * as sysRoleApi from '@/api/sysRole';
-  import {
-    getDatasourceList,
-    getDatasourceTables,
-    type DatasourceResponse,
-  } from '@/api/datasource';
   import type { RoleResponse } from '@/api/sysRole';
   import { formatDateTime } from '@/utils/dateTime';
 
@@ -93,121 +92,13 @@
     }
   }
 
-  // ── Permission dialog ──
   const permVisible = ref(false);
   const permRoleId = ref<number | null>(null);
   const permRoleName = ref('');
-  const permLoading = ref(false);
-  const datasources = ref<DatasourceResponse[]>([]);
-  const selectedDs = ref<number | null>(null);
-  const allTables = ref<string[]>([]);
-  const checkedTables = ref<string[]>([]);
-  const savingPerm = ref(false);
-
-  // Column-level state: tableName → all columns, tableName → blacklisted columns
-  const tableColumns = ref<Record<string, string[]>>({});
-  const blacklistedColumns = ref<Record<string, string[]>>({});
-
-  function toggleTable(tableName: string, checked: boolean) {
-    if (checked) {
-      if (!checkedTables.value.includes(tableName)) {
-        checkedTables.value.push(tableName);
-      }
-    } else {
-      checkedTables.value = checkedTables.value.filter(t => t !== tableName);
-      delete blacklistedColumns.value[tableName];
-    }
-  }
-
-  function onColumnBlacklistChange(tableName: string, vals: string[]) {
-    blacklistedColumns.value[tableName] = vals;
-  }
-
-  async function openPermission(role: RoleResponse) {
+  function openPermission(role: RoleResponse) {
     permRoleId.value = role.id;
     permRoleName.value = role.name;
-    selectedDs.value = null;
-    allTables.value = [];
-    checkedTables.value = [];
-    tableColumns.value = {};
-    blacklistedColumns.value = {};
-    try {
-      datasources.value = await getDatasourceList();
-    } catch {
-      datasources.value = [];
-    }
     permVisible.value = true;
-  }
-
-  watch(selectedDs, async dsId => {
-    if (dsId == null) {
-      allTables.value = [];
-      checkedTables.value = [];
-      tableColumns.value = {};
-      blacklistedColumns.value = {};
-      return;
-    }
-    permLoading.value = true;
-    try {
-      const [tables, perms, colPerms] = await Promise.all([
-        getDatasourceTables(dsId),
-        sysRoleApi.getPermissions(permRoleId.value!),
-        sysRoleApi.getColumnPermissions(permRoleId.value!, dsId),
-      ]);
-      allTables.value = tables;
-      const dsPerm = perms.find(p => p.datasourceId === dsId);
-      checkedTables.value = dsPerm ? dsPerm.tableNames : [];
-
-      // Load all columns for all tables in one request
-      try {
-        tableColumns.value = await sysRoleApi.getAllTableColumns(dsId);
-      } catch {
-        tableColumns.value = {};
-      }
-
-      // Map existing column blacklist
-      const blMap: Record<string, string[]> = {};
-      for (const cp of colPerms) {
-        blMap[cp.tableName] = cp.columnNames;
-      }
-      blacklistedColumns.value = blMap;
-    } catch {
-      allTables.value = [];
-      checkedTables.value = [];
-      tableColumns.value = {};
-      blacklistedColumns.value = {};
-    } finally {
-      permLoading.value = false;
-    }
-  });
-
-  async function savePerm() {
-    if (permRoleId.value == null || selectedDs.value == null) return;
-    savingPerm.value = true;
-    try {
-      // Save table whitelist
-      await sysRoleApi.savePermissions(permRoleId.value, {
-        datasourceId: selectedDs.value,
-        tableNames: checkedTables.value,
-      });
-
-      // Save column blacklists for each checked table
-      await Promise.all(
-        checkedTables.value.map(tableName =>
-          sysRoleApi.saveColumnPermissions(permRoleId.value!, {
-            datasourceId: selectedDs.value!,
-            tableName,
-            columnNames: blacklistedColumns.value[tableName] || [],
-          }),
-        ),
-      );
-
-      ElMessage.success('权限已保存');
-    } catch {
-      /* toast handled */
-    } finally {
-      savingPerm.value = false;
-    }
   }
 
   onMounted(reload);
@@ -220,7 +111,9 @@
     </div>
 
     <div class="table-actions">
-      <el-button type="primary" @click="openCreate">新建角色</el-button>
+      <el-button v-permission="'sys:role:create'" type="primary" @click="openCreate">
+        新建角色
+      </el-button>
     </div>
 
     <el-table v-loading="loading" :data="roles" border stripe style="width: 100%">
@@ -232,15 +125,38 @@
           {{ formatDateTime(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240" align="center" fixed="right">
+      <el-table-column label="操作" width="340" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="primary" @click="openPermission(row)">权限</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button v-permission="'sys:role:update'" size="small" @click="openEdit(row)">
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'sys:role:grant'"
+            size="small"
+            type="primary"
+            @click="
+              capabilitiesRoleId = row.id;
+              capabilitiesVisible = true;
+            "
+          >
+            功能权限
+          </el-button>
+          <el-button v-permission="'sys:role:grant'" size="small" @click="openPermission(row)">
+            数据范围
+          </el-button>
+          <el-button
+            v-permission="'sys:role:delete'"
+            size="small"
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
+    <RoleCapabilitiesDialog v-model="capabilitiesVisible" :role-id="capabilitiesRoleId" />
     <!-- Create / Edit dialog -->
     <el-dialog
       v-model="formVisible"
@@ -268,95 +184,6 @@
       </template>
     </el-dialog>
 
-    <!-- Permission dialog -->
-    <el-dialog
-      v-model="permVisible"
-      :title="`表权限 & 列权限 — ${permRoleName}`"
-      width="640px"
-      :close-on-click-modal="false"
-    >
-      <el-form label-width="80px">
-        <el-form-item label="数据源">
-          <el-select v-model="selectedDs" placeholder="选择数据源" clearable style="width: 100%">
-            <el-option v-for="ds in datasources" :key="ds.id" :value="ds.id" :label="ds.name" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <div
-        v-if="selectedDs"
-        v-loading="permLoading"
-        style="margin-top: 8px; max-height: 50vh; overflow-y: auto"
-      >
-        <div
-          v-if="!permLoading && allTables.length === 0"
-          style="color: var(--app-text-muted); padding: 16px 0"
-        >
-          该数据源下暂无物理表
-        </div>
-        <div
-          v-for="tableName in allTables"
-          :key="tableName"
-          style="
-            margin-bottom: 8px;
-            border: 1px solid var(--app-border);
-            border-radius: 6px;
-            padding: 8px 12px;
-          "
-        >
-          <el-checkbox
-            :model-value="checkedTables.includes(tableName)"
-            @change="(val: boolean) => toggleTable(tableName, val)"
-            style="font-weight: 600"
-          >
-            {{ tableName }}
-          </el-checkbox>
-          <div
-            v-if="
-              checkedTables.includes(tableName) &&
-              tableColumns[tableName] &&
-              tableColumns[tableName].length > 0
-            "
-            style="
-              margin-top: 6px;
-              margin-left: 24px;
-              padding: 6px 0;
-              border-top: 1px dashed var(--app-border);
-            "
-          >
-            <div style="font-size: 12px; color: var(--app-text-muted); margin-bottom: 4px">
-              隐藏列（勾选即对该角色不可见）：
-            </div>
-            <el-checkbox-group
-              :model-value="blacklistedColumns[tableName] || []"
-              @update:model-value="(vals: string[]) => onColumnBlacklistChange(tableName, vals)"
-            >
-              <el-checkbox
-                v-for="col in tableColumns[tableName]"
-                :key="col"
-                :value="col"
-                style="margin-right: 24px; margin-bottom: 2px"
-              >
-                {{ col }}
-              </el-checkbox>
-            </el-checkbox-group>
-          </div>
-          <div
-            v-else-if="checkedTables.includes(tableName)"
-            style="
-              margin-top: 4px;
-              margin-left: 24px;
-              font-size: 12px;
-              color: var(--app-text-muted);
-            "
-          >
-            该表无列信息
-          </div>
-        </div>
-        <div style="margin-top: 16px">
-          <el-button type="primary" :loading="savingPerm" @click="savePerm">保存权限</el-button>
-        </div>
-      </div>
-      <div v-else style="color: var(--app-text-muted); padding: 16px 0">请先选择一个数据源</div>
-    </el-dialog>
+    <RoleDataScopeDialog v-model="permVisible" :role-id="permRoleId" :role-name="permRoleName" />
   </div>
 </template>

@@ -21,6 +21,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useFieldErrors } from '@/composables/useFieldErrors';
+  import { useUserStore } from '@/stores/user';
   import { formatDateTime } from '@/utils/dateTime';
   import { getDomainNames } from '@/api/domain';
   import {
@@ -48,6 +49,7 @@
   const rows = ref<TableSemanticInfo[]>([]);
   const datasourceId = ref<number | null>(null);
   const domainOptions = ref<string[]>([]);
+  const userStore = useUserStore();
   const page = reactive({
     page: 1,
     pageSize: 10,
@@ -90,6 +92,7 @@
   };
 
   const loadDomainOptions = async () => {
+    if (!userStore.hasPermission('semantic:domain:read')) return;
     try {
       domainOptions.value = await getDomainNames();
     } catch {
@@ -268,10 +271,16 @@
     <div class="section-header">
       <div class="section-header-actions">
         <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
-        <el-button :loading="refreshingPhysicalStatus" @click="handleRefreshPhysicalStatus">
+        <el-button
+          v-permission="'semantic:table:sync'"
+          :loading="refreshingPhysicalStatus"
+          @click="handleRefreshPhysicalStatus"
+        >
           刷新物理状态
         </el-button>
-        <el-button type="primary" @click="handleOpenSync">同步表</el-button>
+        <el-button v-permission="'semantic:table:sync'" type="primary" @click="handleOpenSync">
+          同步表
+        </el-button>
       </div>
     </div>
 
@@ -314,11 +323,26 @@
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
-          <el-button link type="primary" size="small" @click="handleManageColumns(row)">
+          <el-button
+            v-permission="'semantic:table:update'"
+            link
+            type="primary"
+            size="small"
+            @click="handleOpenEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'semantic:column:read'"
+            link
+            type="primary"
+            size="small"
+            @click="handleManageColumns(row)"
+          >
             管理列
           </el-button>
           <el-button
+            v-permission="'semantic:table:update'"
             v-if="row.id !== null"
             link
             type="warning"

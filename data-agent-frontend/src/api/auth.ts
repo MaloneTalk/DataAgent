@@ -24,6 +24,9 @@ export interface UserInfoResponse {
   userId: number;
   username: string;
   displayName: string;
+  roleId: number;
+  superAdmin: boolean;
+  permissions: string[];
 }
 
 export interface LoginResponse {

@@ -213,6 +213,7 @@ export function useAgentChat(initialSessionId?: string) {
     toolResult: TraceStep['toolResult'];
     errorCode?: string | null;
   }): TraceStep {
+    if (event.errorCode === 'FORBIDDEN') window.dispatchEvent(new Event('permissions-changed'));
     return {
       type: event.type,
       content: event.content,

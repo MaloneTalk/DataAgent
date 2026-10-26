@@ -30,11 +30,14 @@ import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -47,6 +50,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class TableSemanticServiceImpl implements TableSemanticService {
 
     private final DatasourceService datasourceService;
+    private final DataPermissionService dataPermissions;
+    private final UserContextHolder holder;
     private final TableInfoMapper tableInfoMapper;
     private final SemanticMergeService semanticMergeService;
     private final SemanticConverter semanticConverter;
@@ -70,7 +75,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                 pageSize,
                                 SemanticUtils.trimToNull(query.keyword()),
                                 query.sortOrder()),
-                        sortDescending);
+                        sortDescending,
+                        dataPermissions.roleScope(holder.checkAndGet()).orElse(null));
         List<TableSemanticResponse> responses =
                 page.getRecords().stream().map(semanticConverter::toResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
@@ -82,7 +88,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             return List.of();
         }
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
         return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
+                .filter(table -> scope.canTable(table.getTableName()))
                 .map(TableInfo::getTableName)
                 .filter(tableName -> tableName != null && !tableName.isBlank())
                 .map(String::trim)
@@ -97,7 +105,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (datasourceService.findById(datasourceId) == null) {
             return List.of();
         }
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
         return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
+                .filter(table -> scope.canTable(table.getTableName()))
                 .map(TableInfo::getDomain)
                 .filter(domain -> domain != null && !domain.isBlank())
                 .map(String::trim)
@@ -123,6 +133,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         String normalizedTableName =
                 SemanticUtils.normalizeObjectName(
                         request.tableName(), "Missing tableName for table semantic update.");
+        dataPermissions.requireTable(
+                holder.checkAndGet(), request.datasourceId(), normalizedTableName);
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
@@ -156,6 +168,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         String normalizedTableName =
                 SemanticUtils.requireTrimmed(
                         tableName, "Missing tableName for table semantic reset.");
+        dataPermissions.requireTable(holder.checkAndGet(), datasourceId, normalizedTableName);
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
@@ -180,7 +193,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                                 name,
                                                 "Missing tableName for batch table semantic"
                                                         + " reset."))
-                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        normalizedNames.forEach(
+                name -> dataPermissions.requireTable(holder.checkAndGet(), datasourceId, name));
         List<TableInfo> matchedTables =
                 tableInfoMapper.selectByDatasourceIdAndTableNames(
                         datasourceId, List.copyOf(normalizedNames));

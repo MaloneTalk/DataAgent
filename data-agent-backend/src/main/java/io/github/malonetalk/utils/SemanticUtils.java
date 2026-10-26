@@ -82,6 +82,10 @@ public final class SemanticUtils {
                 : normalized.toLowerCase(Locale.ROOT);
     }
 
+    public static String normalizeIdentifier(String name) {
+        return name.replace("`", "").replace("\"", "").toLowerCase(Locale.ROOT);
+    }
+
     public static String normalizeObjectName(String value, String missingMessage) {
         return requireTrimmed(value, missingMessage).toLowerCase(Locale.ROOT);
     }

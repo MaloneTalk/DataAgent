@@ -55,7 +55,8 @@ public class ExecuteSqlTool implements MarkAgentTool {
                 () -> {
                     Datasource datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
-                    SqlExecution execution = sqlExecutor.executeDetailed(datasource, sql);
+                    SqlExecution execution =
+                            sqlExecutor.executeDetailed(datasource, sql, ctx.userId());
                     Map<String, Object> metadata = new HashMap<>();
                     metadata.put("datasourceId", datasource.getId());
                     metadata.put("datasourceName", datasource.getName());

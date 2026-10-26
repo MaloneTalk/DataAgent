@@ -24,6 +24,7 @@ import io.github.malonetalk.dto.semantic.BatchResetTableSemanticRequest;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -40,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @Validated
 @RequestMapping("/api/semantic/tables")
@@ -50,24 +50,28 @@ public class TableSemanticController {
     private final TableSemanticService tableSemanticService;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_READ)
     public Result<PageResponse<TableSemanticResponse>> findAllTables(
             @Valid TableSemanticPageQuery query) {
         return Result.success(tableSemanticService.getTablePage(query));
     }
 
     @GetMapping("/names")
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_READ)
     public Result<List<String>> listTableNames(
             @RequestParam @NotNull @Min(1) Integer datasourceId) {
         return Result.success(tableSemanticService.listTableNames(datasourceId));
     }
 
     @GetMapping("/domains")
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_READ)
     public Result<List<String>> listTableDomains(
             @RequestParam @NotNull @Min(1) Integer datasourceId) {
         return Result.success(tableSemanticService.listAvailableDomains(datasourceId));
     }
 
     @PutMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_UPDATE)
     public Result<Boolean> updateTableSemantic(
             @Valid @RequestBody TableSemanticUpdateRequest request) {
         tableSemanticService.updateTableSemantic(request);
@@ -75,6 +79,7 @@ public class TableSemanticController {
     }
 
     @DeleteMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_UPDATE)
     public Result<Boolean> resetTableSemantic(
             @RequestParam @NotNull @Min(1) Integer datasourceId,
             @RequestParam @NotBlank String tableName) {
@@ -83,6 +88,7 @@ public class TableSemanticController {
     }
 
     @DeleteMapping("/batch")
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_UPDATE)
     public Result<Integer> resetTableSemantics(
             @Valid @RequestBody BatchResetTableSemanticRequest request) {
         return Result.success(

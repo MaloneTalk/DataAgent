@@ -63,6 +63,13 @@
         <include refid="ColumnsWithTableName"/>
         WHERE c.datasource_id = #{query.datasourceId}
           AND LOWER(table_meta.table_name) = LOWER(#{query.tableName})
+        <if test="roleId != null">
+            AND EXISTS (SELECT 1 FROM role_table_permission rp WHERE rp.role_id = #{roleId}
+                AND rp.datasource_id = c.datasource_id AND LOWER(rp.table_name) = LOWER(table_meta.table_name))
+            AND NOT EXISTS (SELECT 1 FROM role_hidden_column hc WHERE hc.role_id = #{roleId}
+                AND hc.datasource_id = c.datasource_id AND LOWER(hc.table_name) = LOWER(table_meta.table_name)
+                AND LOWER(hc.column_name) = LOWER(c.column_name))
+        </if>
         <if test="query.keyword != null and query.keyword != ''">
             AND LOWER(c.column_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
         </if>

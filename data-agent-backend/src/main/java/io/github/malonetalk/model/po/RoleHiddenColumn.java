@@ -15,13 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.po;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import java.util.List;
+import java.time.LocalDateTime;
+import lombok.Data;
 
-public record SaveColumnPermissionRequest(
-        @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
-        @NotBlank(message = "tableName 不能为空") String tableName,
-        List<String> columnNames) {}
+@Data
+public class RoleHiddenColumn {
+    private Integer id;
+    private Integer roleId;
+    private Integer datasourceId;
+    private String tableName;
+    private String columnName;
+    private LocalDateTime createTime;
+}

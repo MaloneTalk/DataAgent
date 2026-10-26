@@ -44,7 +44,8 @@ public interface ColumnSemanticInfoMapper {
     IPage<ColumnInfo> selectPageByDatasourceIdAndTableName(
             IPage<ColumnInfo> page,
             @Param("query") ColumnSemanticPageQuery query,
-            @Param("sortDescending") boolean sortDescending);
+            @Param("sortDescending") boolean sortDescending,
+            @Param("roleId") Integer roleId);
 
     ColumnInfo selectByDatasourceIdAndTableNameAndColumnName(
             @Param("datasourceId") Integer datasourceId,

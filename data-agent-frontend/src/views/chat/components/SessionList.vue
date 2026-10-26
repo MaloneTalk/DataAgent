@@ -112,7 +112,12 @@
             <div class="session-item__ds">{{ s.datasourceName ?? '未绑定数据源' }}</div>
             <div class="session-item__time">{{ formatTime(s.lastActiveAt) }}</div>
           </div>
-          <button class="session-item__delete" @click="e => handleDelete(e, s)" title="删除会话">
+          <button
+            v-permission="'analysis:session:delete'"
+            class="session-item__delete"
+            @click="e => handleDelete(e, s)"
+            title="删除会话"
+          >
             ×
           </button>
         </div>
@@ -120,7 +125,13 @@
     </div>
 
     <div class="session-list__footer">
-      <el-button class="new-session-btn" @click="handleNewSession">新建会话</el-button>
+      <el-button
+        v-permission="'analysis:chat:use'"
+        class="new-session-btn"
+        @click="handleNewSession"
+      >
+        新建会话
+      </el-button>
     </div>
   </div>
 </template>

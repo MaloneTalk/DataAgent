@@ -16,7 +16,7 @@
  */
 
 import request, { type ApiResponse } from './request';
-import { getDatasourceList } from './datasource';
+import { getDatasourceOptions } from './datasource';
 import type { PageResponse } from './types';
 
 export interface PhysicalTableCandidateResponse {
@@ -177,7 +177,7 @@ export interface UpdateLogicalTableRelationEnabledRequest {
 }
 
 export async function getActiveDatasourceId() {
-  const datasources = await getDatasourceList();
+  const datasources = await getDatasourceOptions();
   return datasources.find(datasource => datasource.status === 'ACTIVE')?.id ?? null;
 }
 

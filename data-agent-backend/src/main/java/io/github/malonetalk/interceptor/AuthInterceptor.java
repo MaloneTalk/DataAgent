@@ -17,61 +17,66 @@
  */
 package io.github.malonetalk.interceptor;
 
+import io.github.malonetalk.annotation.LoginRequired;
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.holder.UserContextHolder;
-import io.github.malonetalk.service.SysUserService;
+import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.AsyncHandlerInterceptor;
 
 /**
  * 鉴权拦截器：拦 /api/**，放行 /api/auth/login 与 /error。
  *
  * <p>方法/类上有 {@link RequirePermission} 且当前用户没有相应权限时返回
- * {@link ErrorCode#FORBIDDEN} (403)。表/列拦截、会话隔离 = 后续轮次。规定超级管理员不需要校验权限。
+ * {@link ErrorCode#FORBIDDEN} (403)。未声明访问策略的接口默认拒绝。
  */
 @Component
 @AllArgsConstructor
-public class AuthInterceptor implements HandlerInterceptor {
+public class AuthInterceptor implements AsyncHandlerInterceptor {
 
+    private final PermissionService permissions;
     private final JwtUtil jwtUtil;
     private final UserContextHolder userContextHolder;
-    private final SysUserService sysUserService;
 
     @Override
     public boolean preHandle(
             HttpServletRequest request, HttpServletResponse response, Object handler) {
-        Integer userId = jwtUtil.parseUserId(extractBearer(request));
-        if (userId == null) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Missing or invalid token.");
-        }
-        UserContextBo context = sysUserService.selectAuthProjection(userId);
-        if (context == null) {
-            // 用户不存在或 status=0（禁用），均视为未授权。
-            throw BusinessException.of(
-                    ErrorCode.UNAUTHORIZED, "Account is disabled or does not exist.");
-        }
+        UserContextBo context = permissions.user(jwtUtil.parseUserId(extractBearer(request)));
         userContextHolder.set(context);
 
-        // 如果没有权限校验注解，直接返回
-        if (!(handler instanceof HandlerMethod handlerMethod
-                && hashRequiredAnnotation(handlerMethod))) {
+        try {
+            if (!(handler instanceof HandlerMethod method)) {
+                throw BusinessException.of(ErrorCode.FORBIDDEN);
+            }
+            RequirePermission required = method.getMethodAnnotation(RequirePermission.class);
+            if (required == null)
+                required = method.getBeanType().getAnnotation(RequirePermission.class);
+            if (required != null && required.value().length > 0) {
+                if (required.anyOf()) permissions.requireAny(context, required.value());
+                else permissions.require(context, required.value());
+            } else if (!method.hasMethodAnnotation(LoginRequired.class)
+                    && !method.getBeanType().isAnnotationPresent(LoginRequired.class)) {
+                throw BusinessException.of(ErrorCode.FORBIDDEN, "Endpoint has no access policy.");
+            }
             return true;
+        } catch (RuntimeException ex) {
+            userContextHolder.clear();
+            throw ex;
         }
+    }
 
-        if (Boolean.TRUE.equals(context.superAdmin())) {
-            return true;
-        }
-        checkPermission(context);
-
-        return true;
+    @Override
+    public void afterConcurrentHandlingStarted(
+            HttpServletRequest request, HttpServletResponse response, Object handler) {
+        userContextHolder.clear();
     }
 
     @Override
@@ -81,20 +86,6 @@ public class AuthInterceptor implements HandlerInterceptor {
             Object handler,
             Exception ex) {
         userContextHolder.clear();
-    }
-
-    private boolean hashRequiredAnnotation(HandlerMethod handlerMethod) {
-        RequirePermission methodAnnotation =
-                handlerMethod.getMethodAnnotation(RequirePermission.class);
-        if (methodAnnotation != null) {
-            return true;
-        }
-        return handlerMethod.getBeanType().isAnnotationPresent(RequirePermission.class);
-    }
-
-    private void checkPermission(UserContextBo user) {
-        // TODO 实现按角色、按业务类型枚举授权（Issue #150）
-        throw BusinessException.of(ErrorCode.FORBIDDEN, "Missing required permission.");
     }
 
     private String extractBearer(HttpServletRequest request) {

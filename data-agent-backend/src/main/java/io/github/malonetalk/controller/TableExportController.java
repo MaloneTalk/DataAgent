@@ -17,11 +17,13 @@
  */
 package io.github.malonetalk.controller;
 
+import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.service.TableExportService;
 import jakarta.validation.Valid;
@@ -45,6 +47,7 @@ public class TableExportController {
     private final UserContextHolder userContextHolder;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.ASSET_EXPORT_READ)
     public Result<PageResponse<TableExportResponse>> findExports(
             @Valid TableExportPageQuery query) {
         return Result.success(
@@ -52,6 +55,7 @@ public class TableExportController {
     }
 
     @GetMapping("/{id}/download")
+    @RequirePermission(PermissionEnum.ASSET_EXPORT_DOWNLOAD)
     public ResponseEntity<byte[]> download(@PathVariable String id) {
         TableExportResource file =
                 tableExportService.findDownload(id, userContextHolder.requireScopedUserId());
@@ -67,6 +71,7 @@ public class TableExportController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission(PermissionEnum.ASSET_EXPORT_DELETE)
     public Result<Boolean> delete(@PathVariable String id) {
         tableExportService.deleteById(id, userContextHolder.requireScopedUserId());
         return Result.success(true);

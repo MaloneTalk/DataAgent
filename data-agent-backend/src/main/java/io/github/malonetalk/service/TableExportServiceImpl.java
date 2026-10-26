@@ -66,7 +66,7 @@ public class TableExportServiceImpl implements TableExportService {
 
     @Override
     public TableExportResponse create(
-            String sessionId, Datasource datasource, String title, String sql) {
+            String sessionId, Datasource datasource, String title, String sql, Integer userId) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -74,7 +74,8 @@ public class TableExportServiceImpl implements TableExportService {
         if (exportTitle.length() > MAX_TITLE_LENGTH) {
             exportTitle = exportTitle.substring(0, MAX_TITLE_LENGTH);
         }
-        String safeSql = sqlExecutor.validateSelectSql(sql);
+        sessionService.requireOwnership(userId, exportSessionId);
+        String safeSql = sqlExecutor.authorizeSelectSql(datasource, sql, userId);
 
         String exportId = UUID.randomUUID().toString();
         CsvResult csv = writeCsv(datasource, safeSql);
