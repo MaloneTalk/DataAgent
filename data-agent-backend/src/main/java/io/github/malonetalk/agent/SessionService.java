@@ -42,6 +42,7 @@ import io.github.malonetalk.mapper.UserSessionMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -82,7 +83,15 @@ public class SessionService {
     }
 
     private MysqlSession createMysqlSession() {
-        return new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
+        return new MysqlSession(dataSource, currentDatabaseName(), "agentscope_sessions", false);
+    }
+
+    private String currentDatabaseName() {
+        try (Connection conn = dataSource.getConnection()) {
+            return conn.getCatalog();
+        } catch (SQLException e) {
+            throw new IllegalStateException("无法获取当前数据库名", e);
+        }
     }
 
     /** 声明会话归属（INSERT IGNORE），首次访问时由 chatStream 调用。 */
