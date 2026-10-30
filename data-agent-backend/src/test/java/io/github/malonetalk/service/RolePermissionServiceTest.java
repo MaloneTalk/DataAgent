@@ -68,7 +68,7 @@ class RolePermissionServiceTest {
             new PermissionService(mock(SysUserService.class), capabilities);
     private final UserContextHolder holder = new UserContextHolder();
     private final RolePermissionService service =
-            new RolePermissionServiceImpl(
+            new RolePermissionService(
                     capabilities,
                     tables,
                     columns,

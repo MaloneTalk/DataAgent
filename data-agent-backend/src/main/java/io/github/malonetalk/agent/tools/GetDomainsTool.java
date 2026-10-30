@@ -23,12 +23,13 @@ import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.DomainService;
-import io.github.malonetalk.service.semantic.table.TableSemanticService;
-import java.util.List;
+import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
+import io.github.malonetalk.utils.SemanticUtils;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -41,7 +42,7 @@ public class GetDomainsTool implements MarkAgentTool {
 
     private final DomainService domainService;
     private final DatasourceService datasources;
-    private final TableSemanticService tables;
+    private final TableInfoMapper tableMetadata;
     private final DataPermissionService dataPermissions;
     private final ToolExceptionMapper toolExceptionMapper;
 
@@ -53,21 +54,24 @@ public class GetDomainsTool implements MarkAgentTool {
                             + " tables.")
     public ToolResultBlock getDomains(ToolCallContext ctx) {
         var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
-        var ds = datasources.getDatasourceForSession(ctx.sessionId());
-        var scope = dataPermissions.loadScope(user, ds.getId());
-
-        var domains =
-                tables.listMergedTablesByDomains(ds.getId(), List.of()).stream()
-                        .filter(t -> scope.canTable(t.name()))
-                        .map(t -> t.domain())
-                        .collect(Collectors.toSet());
         return toolExceptionMapper.run(
-                () ->
-                        ToolResultBlock.text(
-                                JsonUtils.getJsonCodec()
-                                        .toJson(
-                                                domainService.listDomainPrompts().stream()
-                                                        .filter(d -> domains.contains(d.name()))
-                                                        .toList())));
+                () -> {
+                    var datasource = datasources.getDatasourceForSession(ctx.sessionId());
+                    var scope = dataPermissions.loadScope(user, datasource.getId());
+                    var domains =
+                            tableMetadata.selectByDatasourceId(datasource.getId()).stream()
+                                    .filter(SemanticAvailabilityHelper::isTableAvailable)
+                                    .filter(table -> scope.canTable(table.getTableName()))
+                                    .map(table -> SemanticUtils.normalizeDomain(table.getDomain()))
+                                    .collect(Collectors.toSet());
+                    return ToolResultBlock.text(
+                            JsonUtils.getJsonCodec()
+                                    .toJson(
+                                            domainService.listDomainPrompts().stream()
+                                                    .filter(
+                                                            domain ->
+                                                                    domains.contains(domain.name()))
+                                                    .toList()));
+                });
     }
 }

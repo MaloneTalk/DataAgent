@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -108,12 +109,13 @@ public class SessionService {
         return session.getList(SimpleSessionKey.of(sessionId), "memory_messages", Msg.class);
     }
 
-    public String getLatestUserMessageId(String sessionId) {
+    public Optional<String> getLatestUserMessageId(String sessionId) {
         List<Msg> messages = loadMessages(sessionId);
         for (int i = messages.size() - 1; i >= 0; i--) {
-            if (messages.get(i).getRole() == MsgRole.USER) return messages.get(i).getId();
+            if (messages.get(i).getRole() == MsgRole.USER)
+                return Optional.ofNullable(messages.get(i).getId());
         }
-        return null;
+        return Optional.empty();
     }
 
     private List<TurnItem> buildTurnItems(List<Msg> messages) {

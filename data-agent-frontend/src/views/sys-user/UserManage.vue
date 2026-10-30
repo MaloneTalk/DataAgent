@@ -17,14 +17,15 @@
  -->
 
 <script setup lang="ts">
-  import { ref, reactive, onMounted } from 'vue';
+  import { computed, ref, reactive, onMounted } from 'vue';
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
   import * as sysUserApi from '@/api/sysUser';
   import { listRoles, type RoleResponse } from '@/api/sysRole';
   import type { UserResponse } from '@/api/sysUser';
   import { useUserStore } from '@/stores/user';
-  const userStore = useUserStore();
   import { formatDateTime } from '@/utils/dateTime';
+
+  const userStore = useUserStore();
 
   const loading = ref(false);
   const users = ref<UserResponse[]>([]);
@@ -61,9 +62,10 @@
 
   // ── Create / Edit dialog ──
   const formVisible = ref(false);
-  const formTitle = ref('新建用户');
-  const isEdit = ref(false);
   const editingId = ref<number | null>(null);
+  const isEdit = computed(() => editingId.value !== null);
+  const formTitle = computed(() => (isEdit.value ? '编辑用户' : '新建用户'));
+  const originalRoleId = ref(0);
   const formRef = ref<FormInstance>();
   const form = reactive({ username: '', password: '', displayName: '', roleId: 0 });
 
@@ -81,8 +83,7 @@
   };
 
   function openCreate() {
-    isEdit.value = false;
-    formTitle.value = '新建用户';
+    editingId.value = null;
     form.username = '';
     form.password = '';
     form.displayName = '';
@@ -91,11 +92,10 @@
   }
 
   function openEdit(user: UserResponse) {
-    isEdit.value = true;
-    formTitle.value = '编辑用户';
     editingId.value = user.id;
     form.displayName = user.displayName;
     form.roleId = user.roleId;
+    originalRoleId.value = user.roleId;
     formVisible.value = true;
   }
 
@@ -104,12 +104,13 @@
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
     try {
-      if (isEdit.value && editingId.value != null) {
+      if (editingId.value != null) {
         await sysUserApi.updateUser(editingId.value, {
           displayName: form.displayName,
         });
-        if (userStore.userInfo?.superAdmin)
+        if (userStore.userInfo?.superAdmin && form.roleId !== originalRoleId.value) {
           await sysUserApi.assignRole(editingId.value, form.roleId);
+        }
         ElMessage.success('更新成功');
       } else {
         await sysUserApi.createUser({ ...form });
@@ -176,6 +177,7 @@
 
   onMounted(() => {
     reload();
+    if (!userStore.hasPermission('sys:role:read')) return;
     listRoles()
       .then(list => {
         roleOptions.value = list;

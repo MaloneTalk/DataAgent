@@ -17,9 +17,12 @@
  */
 package io.github.malonetalk.agent.provenance;
 
+import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
+
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.ChatStreamEvent.ToolCallInfo;
@@ -47,6 +50,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -182,14 +186,15 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
         if (!pythonExecutions.isEmpty()) {
             warnings.add("Python 内联数据与 SQL 结果未做逐值校验");
         }
-        return new AnswerProvenanceVo(
-                status,
-                distinct(datasources),
-                sqlExecutions,
-                distinct(metrics),
-                pythonExecutions,
-                mergeTables(tables),
-                distinct(warnings));
+        return AnswerProvenanceVo.builder()
+                .status(status)
+                .datasources(distinct(datasources))
+                .sqlExecutions(sqlExecutions)
+                .metricReferences(distinct(metrics))
+                .pythonExecutions(pythonExecutions)
+                .tables(mergeTables(tables))
+                .warnings(distinct(warnings))
+                .build();
     }
 
     private void addSql(
@@ -204,13 +209,18 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
         String sql = string(call.input().get("sql"));
         boolean success = result != null && result.metadata().containsKey("executedSql");
         sqlExecutions.add(
-                new SqlUse(
-                        call.id(),
-                        sql,
-                        success ? string(result.metadata().get("executedSql")) : null,
-                        success ? "SUCCESS" : "UNCONFIRMED",
-                        success ? integer(result.metadata().get("returnedRows")) : null,
-                        success ? Boolean.TRUE.equals(result.metadata().get("truncated")) : null));
+                SqlUse.builder()
+                        .callId(call.id())
+                        .sql(sql)
+                        .executedSql(success ? string(result.metadata().get("executedSql")) : null)
+                        .status(success ? "SUCCESS" : "UNCONFIRMED")
+                        .returnedRows(
+                                success ? integer(result.metadata().get("returnedRows")) : null)
+                        .truncated(
+                                success
+                                        ? Boolean.TRUE.equals(result.metadata().get("truncated"))
+                                        : null)
+                        .build());
         if (!success) return;
 
         Integer datasourceId = integer(result.metadata().get("datasourceId"));
@@ -221,11 +231,37 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
                         string(result.metadata().get("databaseName"))));
         if (datasourceId == null) return;
 
+        // Tool results carry the execution-time snapshot, including after JSON persistence.
+        Map<String, Set<String>> authorizedColumns =
+                objectMapper.convertValue(
+                        result.metadata().get("authorizedColumns"), new TypeReference<>() {});
+        if (authorizedColumns == null) {
+            warnings.add("SQL 缺少执行时的列授权快照，未生成表列证据");
+            return;
+        }
         List<TableInfo> allTables =
                 tableCache.computeIfAbsent(datasourceId, tableInfoMapper::selectByDatasourceId);
         List<ColumnInfo> allColumns =
                 columnCache.computeIfAbsent(datasourceId, columnInfoMapper::selectByDatasourceId);
-        SqlLineageExtractor.Lineage lineage = lineageExtractor.extract(sql, allTables, allColumns);
+        var visibleTables =
+                allTables.stream()
+                        .filter(
+                                t ->
+                                        authorizedColumns.containsKey(
+                                                normalizeIdentifier(t.getTableName())))
+                        .toList();
+        var visibleColumns =
+                allColumns.stream()
+                        .filter(
+                                c ->
+                                        authorizedColumns
+                                                .getOrDefault(
+                                                        normalizeIdentifier(c.getTableName()),
+                                                        Set.of())
+                                                .contains(normalizeIdentifier(c.getColumnName())))
+                        .toList();
+        SqlLineageExtractor.Lineage lineage =
+                lineageExtractor.extract(sql, visibleTables, visibleColumns);
         tables.addAll(lineage.tables());
         warnings.addAll(lineage.warnings());
     }
@@ -251,28 +287,37 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
     }
 
     private AnswerProvenanceVo merge(AnswerProvenanceVo old, AnswerProvenanceVo next) {
-        return new AnswerProvenanceVo(
-                next.status(),
-                mergeDistinct(old.datasources(), next.datasources()),
-                mergeDistinct(old.sqlExecutions(), next.sqlExecutions()),
-                mergeDistinct(old.metricReferences(), next.metricReferences()),
-                mergeDistinct(old.pythonExecutions(), next.pythonExecutions()),
-                mergeTables(Stream.concat(old.tables().stream(), next.tables().stream()).toList()),
-                mergeDistinct(old.warnings(), next.warnings()));
+        return AnswerProvenanceVo.builder()
+                .status(next.status())
+                .datasources(mergeDistinct(old.datasources(), next.datasources()))
+                .sqlExecutions(mergeDistinct(old.sqlExecutions(), next.sqlExecutions()))
+                .metricReferences(mergeDistinct(old.metricReferences(), next.metricReferences()))
+                .pythonExecutions(mergeDistinct(old.pythonExecutions(), next.pythonExecutions()))
+                .tables(
+                        mergeTables(
+                                Stream.concat(old.tables().stream(), next.tables().stream())
+                                        .toList()))
+                .warnings(mergeDistinct(old.warnings(), next.warnings()))
+                .build();
     }
 
     private Optional<AnswerProvenanceVo> read(AnswerProvenancePo provenance) {
         if (provenance == null) return Optional.empty();
         try {
             return Optional.of(
-                    new AnswerProvenanceVo(
-                            provenance.getStatus(),
-                            readList(provenance.getDatasourcesJson(), DatasourceUse.class),
-                            readList(provenance.getSqlExecutionsJson(), SqlUse.class),
-                            readList(provenance.getMetricReferencesJson(), MetricUse.class),
-                            readList(provenance.getPythonExecutionsJson(), PythonUse.class),
-                            readList(provenance.getTablesJson(), TableUse.class),
-                            readList(provenance.getWarningsJson(), String.class)));
+                    AnswerProvenanceVo.builder()
+                            .status(provenance.getStatus())
+                            .datasources(
+                                    readList(provenance.getDatasourcesJson(), DatasourceUse.class))
+                            .sqlExecutions(
+                                    readList(provenance.getSqlExecutionsJson(), SqlUse.class))
+                            .metricReferences(
+                                    readList(provenance.getMetricReferencesJson(), MetricUse.class))
+                            .pythonExecutions(
+                                    readList(provenance.getPythonExecutionsJson(), PythonUse.class))
+                            .tables(readList(provenance.getTablesJson(), TableUse.class))
+                            .warnings(readList(provenance.getWarningsJson(), String.class))
+                            .build());
         } catch (JsonProcessingException e) {
             log.warn(
                     "Skipping invalid answer provenance: answerId={}", provenance.getAnswerId(), e);

@@ -125,9 +125,7 @@ public class AgentService {
         String answerId =
                 toolResults == null || toolResults.isEmpty()
                         ? userMsg.getId()
-                        : sessionService.getLatestUserMessageId(sessionId);
-        if (answerId == null) answerId = userMsg.getId();
-        final String currentAnswerId = answerId;
+                        : sessionService.getLatestUserMessageId(sessionId).orElse(userMsg.getId());
         List<ChatStreamEvent> provenanceEvents = new ArrayList<>();
 
         StreamOptions streamOptions =
@@ -161,9 +159,7 @@ public class AgentService {
                                 provenanceEvents.add(event);
                         })
                 .doOnComplete(
-                        () ->
-                                saveProvenance(
-                                        sessionId, currentAnswerId, provenanceEvents, "COMPLETE"))
+                        () -> saveProvenance(sessionId, answerId, provenanceEvents, "COMPLETE"))
                 .doFinally(
                         signalType -> {
                             try {
@@ -171,10 +167,7 @@ public class AgentService {
                             } finally {
                                 if (signalType != SignalType.ON_COMPLETE) {
                                     saveProvenance(
-                                            sessionId,
-                                            currentAnswerId,
-                                            provenanceEvents,
-                                            "PARTIAL");
+                                            sessionId, answerId, provenanceEvents, "PARTIAL");
                                 }
                                 MDC.remove(TraceIdFilter.TRACE_ID_MDC_KEY);
                             }

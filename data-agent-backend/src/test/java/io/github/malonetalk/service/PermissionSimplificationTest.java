@@ -34,10 +34,16 @@ import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
+import io.github.malonetalk.mapper.SysRoleMapper;
+import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.converter.UserConverter;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
+import io.github.malonetalk.model.po.SysUserPo;
 import java.util.List;
+import java.util.Optional;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.Select;
 import org.junit.jupiter.api.Test;
@@ -54,9 +60,27 @@ class PermissionSimplificationTest {
             UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
 
     @Test
+    void authProjectionIsEmptyForMissingOrInactiveUsers() {
+        var mapper = mock(SysUserMapper.class);
+        var converter = mock(UserConverter.class);
+        var service =
+                new SysUserServiceImpl(
+                        mapper, new UserContextHolder(), mock(SysRoleMapper.class), converter);
+        assertTrue(service.selectAuthProjection(7).isEmpty());
+        var stored = new SysUserPo();
+        when(mapper.selectById(7)).thenReturn(stored);
+        assertTrue(service.selectAuthProjection(7).isEmpty());
+        stored.setStatus(0);
+        assertTrue(service.selectAuthProjection(7).isEmpty());
+        stored.setStatus(1);
+        when(converter.toContextBo(stored)).thenReturn(user);
+        assertSame(user, service.selectAuthProjection(7).orElseThrow());
+    }
+
+    @Test
     void sharedSqlGateLoadsIdentityOnceAndStillRejectsRevocationAndHiddenColumns()
             throws Exception {
-        when(users.selectAuthProjection(7)).thenReturn(user);
+        when(users.selectAuthProjection(7)).thenReturn(Optional.of(user));
         when(capabilities.selectCodes(2)).thenReturn(List.of("analysis:sql:execute"));
         RoleTablePermission table = new RoleTablePermission();
         table.setTableName("orders");
@@ -78,6 +102,7 @@ class PermissionSimplificationTest {
                                 7,
                                 datasource,
                                 (Select) CCJSqlParserUtil.parse("SELECT * FROM orders"))
+                        .select()
                         .toString()
                         .contains("SELECT `id` FROM `orders`"));
         verify(users).selectAuthProjection(7);
@@ -96,7 +121,7 @@ class PermissionSimplificationTest {
                                 7,
                                 datasource,
                                 (Select) CCJSqlParserUtil.parse("SELECT * FROM orders")));
-        when(users.selectAuthProjection(7)).thenReturn(null);
+        when(users.selectAuthProjection(7)).thenReturn(Optional.empty());
         assertThrows(
                 BusinessException.class,
                 () ->
@@ -108,7 +133,7 @@ class PermissionSimplificationTest {
 
     @Test
     void allRequiredPermissionsAndReservedPermissionsStillApply() {
-        when(users.selectAuthProjection(7)).thenReturn(user);
+        when(users.selectAuthProjection(7)).thenReturn(Optional.of(user));
         when(capabilities.selectCodes(2))
                 .thenReturn(List.of("analysis:chat:use", "sys:role:grant", "unknown"));
         assertSame(user, permissions.require(7, PermissionEnum.ANALYSIS_CHAT_USE));

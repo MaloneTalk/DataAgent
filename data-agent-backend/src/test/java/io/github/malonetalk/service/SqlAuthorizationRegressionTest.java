@@ -37,6 +37,9 @@ import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -54,7 +57,13 @@ class SqlAuthorizationRegressionTest {
         var columns = mock(RoleHiddenColumnMapper.class);
         var metadata = mock(ColumnSemanticInfoMapper.class);
         when(users.selectAuthProjection(7))
-                .thenReturn(UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build());
+                .thenReturn(
+                        Optional.of(
+                                UserContextBo.builder()
+                                        .userId(7)
+                                        .roleId(2)
+                                        .superAdmin(false)
+                                        .build()));
         when(capabilities.selectCodes(2)).thenReturn(List.of("analysis:sql:execute"));
         var grant = new RoleTablePermission();
         grant.setTableName("orders");
@@ -99,7 +108,7 @@ class SqlAuthorizationRegressionTest {
         var exception =
                 assertThrows(
                         BusinessException.class,
-                        () -> executor.authorizeSelectSql(datasource, sql, 7));
+                        () -> executor.authorizeSelect(datasource, sql, 7));
         assertEquals(ErrorCode.FORBIDDEN, exception.getErrorCode());
     }
 
@@ -113,16 +122,69 @@ class SqlAuthorizationRegressionTest {
             })
     void preservesOrdinaryPagination(String sql) {
         assertTrue(
-                executor.authorizeSelectSql(datasource, sql, 7)
+                executor.authorizeSelect(datasource, sql, 7)
+                        .select()
+                        .toString()
                         .contains("SELECT \"id\" FROM \"orders\""));
     }
 
     @Test
     void authorizesAllowedSubqueriesInsidePagination() {
         String sql =
-                executor.authorizeSelectSql(
-                        datasource, "SELECT id FROM orders LIMIT (SELECT MAX(id) FROM orders)", 7);
+                executor.authorizeSelect(
+                                datasource,
+                                "SELECT id FROM orders LIMIT (SELECT MAX(id) FROM orders)",
+                                7)
+                        .select()
+                        .toString();
         assertTrue(
                 sql.contains("LIMIT (SELECT MAX(id) FROM (SELECT \"id\" FROM \"orders\") orders)"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT id FROM orders WHERE id = ANY (SELECT secret FROM forbidden)",
+                "SELECT id FROM orders WHERE id = ALL (SELECT secret FROM orders)",
+                "SELECT id FROM orders WHERE id = SOME (SELECT secret FROM forbidden)",
+                "SELECT TRIM('x' FROM (SELECT secret FROM forbidden LIMIT 1)) FROM orders",
+                "SELECT TRIM(BOTH 'x' FROM (SELECT secret FROM orders LIMIT 1)) FROM orders",
+                "SELECT TRIM(LEADING 'x' FROM LOAD_FILE('/etc/passwd')) FROM orders",
+                "SELECT TRIM(TRAILING 'x' FROM @shared) FROM orders",
+                "SELECT NEXT VALUE FOR secret_sequence FROM orders",
+                "SELECT ARRAY[1] FROM orders",
+                "SELECT ? FROM orders",
+                "SELECT DATE_ADD(id, INTERVAL (SELECT secret FROM forbidden) DAY) FROM orders",
+                "SELECT CAST((SELECT secret FROM forbidden) AS CHAR) FROM orders",
+                "SELECT EXTRACT(YEAR FROM (SELECT secret FROM forbidden)) FROM orders",
+                "SELECT id FROM orders WHERE id = ANY (SELECT LOAD_FILE('/etc/passwd'))"
+            })
+    void rejectsOmittedChildrenAndUnsupportedExpressionTypes(String sql) {
+        var exception =
+                assertThrows(
+                        BusinessException.class,
+                        () -> executor.authorizeSelect(datasource, sql, 7));
+        assertEquals(ErrorCode.FORBIDDEN, exception.getErrorCode());
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT id FROM orders WHERE id = ANY (SELECT id FROM orders)",
+                "SELECT id FROM orders WHERE id = ALL (SELECT id FROM orders)",
+                "SELECT id FROM orders WHERE id = SOME (SELECT id FROM orders)",
+                "SELECT TRIM('x' FROM (SELECT id FROM orders LIMIT 1)) FROM orders",
+                "SELECT TRIM(BOTH 'x' FROM id) FROM orders",
+                "SELECT CASE WHEN id BETWEEN 1 AND 2 THEN ABS(-id) ELSE 0 END FROM orders",
+                "SELECT GROUP_CONCAT(id ORDER BY id SEPARATOR ',') FROM orders",
+                "SELECT COUNT(*), SUM(id + 1) FROM orders WHERE id IN (1, 2)",
+                "SELECT CAST(id AS CHAR), EXTRACT(YEAR FROM id), DATE_ADD(id, INTERVAL 1 DAY) FROM"
+                        + " orders",
+                "SELECT id FROM orders WHERE id LIKE 'x' ESCAPE 'y'"
+            })
+    void supportedExpressionsKeepAuthorizationAndTheColumnSnapshot(String sql) {
+        var authorized = executor.authorizeSelect(datasource, sql, 7);
+        assertTrue(authorized.select().toString().contains("SELECT \"id\" FROM \"orders\""));
+        assertEquals(Map.of("orders", Set.of("id")), authorized.authorizedColumns());
     }
 }

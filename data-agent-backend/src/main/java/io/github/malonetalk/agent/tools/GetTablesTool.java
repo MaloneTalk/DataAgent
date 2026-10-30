@@ -91,14 +91,10 @@ public class GetTablesTool implements MarkAgentTool {
                 table.relations().stream()
                         .filter(
                                 rel ->
-                                        scope.canTable(rel.sourceTableName())
-                                                && scope.canTable(rel.targetTableName()))
-                        .filter(
-                                rel ->
-                                        !scope.hasHiddenColumns(
+                                        scope.canColumns(
                                                         rel.sourceTableName(),
                                                         rel.sourceColumnNames())
-                                                && !scope.hasHiddenColumns(
+                                                && scope.canColumns(
                                                         rel.targetTableName(),
                                                         rel.targetColumnNames()))
                         .toList();

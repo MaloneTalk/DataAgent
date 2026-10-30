@@ -21,7 +21,7 @@ import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
@@ -42,7 +42,15 @@ public record DataPermissionScopeBo(
         return hiddenColumns.getOrDefault(normalizeIdentifier(table), Set.of());
     }
 
-    public boolean hasHiddenColumns(String table, List<String> columns) {
+    public boolean canColumn(String table, String column) {
+        return canTable(table) && !hidden(table).contains(normalizeIdentifier(column));
+    }
+
+    public boolean canColumns(String table, Collection<String> columns) {
+        return canTable(table) && !hasHiddenColumns(table, columns);
+    }
+
+    public boolean hasHiddenColumns(String table, Collection<String> columns) {
         var hidden = hidden(table);
         return columns.stream().map(c -> normalizeIdentifier(c)).anyMatch(hidden::contains);
     }

@@ -91,7 +91,13 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 
 表、关系、领域过滤和 SQL 授权在每次操作开始时批量读取表白名单与隐藏列，在同一个可重复读事务中获得一致快照，随后仅在内存中匹配，不按表或关系循环查询权限，也不跨请求缓存。
 
+SQL 授权同时返回改写后的查询与本次可见列快照。查询和导出把这份快照随服务端工具结果交给证据生成，证据只在该范围内解析原始 SQL 的表列来源，不重新根据最新授权或全量元数据展开通配符。导出证据记录实际执行的改写 SQL。即使执行后发生撤权或增加新列，本次证据也不会扩大范围；缺少执行时快照的旧工具结果只保留 SQL 执行记录并注明原因，不生成表列证据。已经保存的历史证据不自动回写。
+
+表结构工具同样只调用一次 `loadScope()`，表授权检查和列过滤共用该快照，避免并发撤权时将清理后的空隐藏列配置误判为全部可见。
+
 表达式中的子查询也经过相同授权，包括 `GROUP_CONCAT` 的参数和排序表达式。普通用户不能读取或赋值 MySQL 用户变量（如 `@v`、`@v := ...`），避免共享连接池的会话变量在用户之间残留。
+
+表达式检查只接受显式支持的语法树节点，未知节点默认拒绝。`ANY`、`ALL`、`SOME` 的子查询和 `TRIM` 的裁剪表达式、`FROM` 表达式都递归检查表列及函数权限，不能依靠通用访问器的默认遍历跳过授权。
 
 `JSON_OBJECT`、`JSON_ARRAY`、`JSON_OBJECTAGG`、`JSON_ARRAYAGG` 使用独立的语法树节点，默认访问器不能完整检查其对象值，因此普通用户暂不允许使用；函数白名单内的 `JSON_EXTRACT`、`JSON_UNQUOTE`、`JSON_LENGTH`、`JSON_CONTAINS` 仍可使用。这样对象函数内部的子查询无法绕过表列授权。标识符引用跟随目标数据源类型：MySQL、OceanBase、ClickHouse 使用反引号，PostgreSQL 等使用双引号，并保留原查询的表别名与引用方式。
 
@@ -116,7 +122,7 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 | `GET /api/sys/permissions` | 权限目录 |
 | `GET /api/sys/role/{id}/capabilities` | 角色功能权限 |
 | `PUT /api/sys/role/{id}/capabilities` | 全量替换功能权限，提交 `{ "codes": [] }` |
-| `PUT /api/sys/role/{id}/data-scope` | 全量替换指定数据源的表白名单与隐藏列，ServiceImpl 负责事务编排 |
+| `PUT /api/sys/role/{id}/data-scope` | 全量替换指定数据源的表白名单与隐藏列，Service 负责事务编排 |
 | `PUT /api/sys/role/{id}/permissions` | 兼容接口：替换表白名单，保留仍被授权表的隐藏列，清理被移除表的隐藏列 |
 | `PUT /api/sys/role/{id}/columns` | 兼容接口：替换单张已授权表的隐藏列，保留表白名单和其他表的隐藏列 |
 | `GET /api/auth/me` | 当前角色、超级管理员标记、有效权限编码 |
@@ -125,7 +131,7 @@ Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依
 
 角色 `GET permissions` 和 `GET columns` 接口继续读取表白名单、隐藏列；原有两个 PUT 接口保留原路径和请求结构，新配置页面使用 `PUT /api/sys/role/{id}/data-scope` 一次提交。三个写接口都要求超级管理员身份。用户资料更新接口只更新 `displayName`；原来依赖该接口修改 `roleId` 的客户端需改用独立角色分配接口。
 
-权限配置页面使用 `data-scope` 一次提交 `{ "datasourceId": 1, "tableNames": ["orders"], "hiddenColumns": { "orders": ["secret"] } }`。每张授权表都必须有隐藏列条目，无隐藏列时提交空数组；空表列表和空对象表示撤销该数据源的全部表列权限。`RolePermissionServiceImpl` 在事务中锁定角色记录、校验并批量保存授权，任一步骤失败则全部回滚。Mapper 只执行各自表的单条查询或批量 SQL，不包含事务编排与业务判断。
+权限配置页面使用 `data-scope` 一次提交 `{ "datasourceId": 1, "tableNames": ["orders"], "hiddenColumns": { "orders": ["secret"] } }`。每张授权表都必须有隐藏列条目，无隐藏列时提交空数组；空表列表和空对象表示撤销该数据源的全部表列权限。`RolePermissionService` 在事务中锁定角色记录、校验并批量保存授权，任一步骤失败则全部回滚。Mapper 只执行各自表的单条查询或批量 SQL，不包含事务编排与业务判断。
 
 配置页面只有完整加载当前角色、当前数据源的表列及已有授权后才允许保存。加载失败、切换角色或数据源、关闭对话框都会使已加载状态失效；加载失败不能被当作空授权保存。
 

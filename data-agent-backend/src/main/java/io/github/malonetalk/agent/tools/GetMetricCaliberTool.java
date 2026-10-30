@@ -23,16 +23,15 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.MetricService;
 import io.github.malonetalk.service.PermissionService;
 import java.util.Map;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @AllArgsConstructor
 public class GetMetricCaliberTool implements MarkAgentTool {
@@ -41,6 +40,7 @@ public class GetMetricCaliberTool implements MarkAgentTool {
 
     private final MetricService metricService;
     private final DatasourceService datasourceService;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "get_metric_caliber",
@@ -66,25 +66,24 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                     String hint,
             ToolCallContext ctx) {
         permissions.require(ctx.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
-        try {
-            Integer dsId = datasourceService.getDatasourceForSession(ctx.sessionId()).getId();
-            MetricService.MetricLookup lookup = metricService.lookupCaliber(dsId, hint);
-            return ToolResultBlock.of(
-                    TextBlock.builder().text(lookup.text()).build(),
-                    Map.of(
-                            "metrics",
-                            lookup.candidates().stream()
-                                    .map(
-                                            metric ->
-                                                    new MetricUse(
-                                                            metric.getMetricKey(),
-                                                            metric.getName(),
-                                                            metric.getMeasureExpr(),
-                                                            metric.getFilters()))
-                                    .toList()));
-        } catch (Exception e) {
-            log.error("Failed to get metric caliber: " + hint, e);
-            return ToolResultBlock.text("Failed to get metric caliber: " + e.getMessage());
-        }
+        return toolExceptionMapper.run(
+                () -> {
+                    Integer dsId =
+                            datasourceService.getDatasourceForSession(ctx.sessionId()).getId();
+                    MetricService.MetricLookup lookup = metricService.lookupCaliber(dsId, hint);
+                    return ToolResultBlock.of(
+                            TextBlock.builder().text(lookup.text()).build(),
+                            Map.of(
+                                    "metrics",
+                                    lookup.candidates().stream()
+                                            .map(
+                                                    metric ->
+                                                            new MetricUse(
+                                                                    metric.getMetricKey(),
+                                                                    metric.getName(),
+                                                                    metric.getMeasureExpr(),
+                                                                    metric.getFilters()))
+                                            .toList()));
+                });
     }
 }

@@ -37,7 +37,7 @@ public class PermissionService {
 
     public UserContextBo user(Integer userId) {
         return Optional.ofNullable(userId)
-                .map(sysUserService::selectAuthProjection)
+                .flatMap(sysUserService::selectAuthProjection)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.UNAUTHORIZED));
     }
 

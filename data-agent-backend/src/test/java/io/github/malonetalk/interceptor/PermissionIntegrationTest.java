@@ -54,6 +54,7 @@ import io.github.malonetalk.utils.JwtUtil;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
@@ -75,7 +76,8 @@ class PermissionIntegrationTest {
     void legacyAndAtomicGrantEndpointsRemainProtectedAndCompatible() throws Exception {
         var users = mock(SysUserService.class);
         when(users.selectAuthProjection(7))
-                .thenReturn(UserContextBo.builder().userId(7).superAdmin(true).build());
+                .thenReturn(
+                        Optional.of(UserContextBo.builder().userId(7).superAdmin(true).build()));
         var jwt = mock(JwtUtil.class);
         when(jwt.parseUserId("valid")).thenReturn(7);
         var grants = mock(RolePermissionService.class);
@@ -112,7 +114,13 @@ class PermissionIntegrationTest {
                                 1, List.of("orders"), Map.of("orders", List.of("phone"))));
         clearInvocations(grants);
         when(users.selectAuthProjection(7))
-                .thenReturn(UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build());
+                .thenReturn(
+                        Optional.of(
+                                UserContextBo.builder()
+                                        .userId(7)
+                                        .roleId(2)
+                                        .superAdmin(false)
+                                        .build()));
         mvc.perform(put("/api/sys/role/2/permissions").content(tableBody))
                 .andExpect(status().isForbidden());
         mvc.perform(put("/api/sys/role/2/columns").content(columnBody))
@@ -130,7 +138,13 @@ class PermissionIntegrationTest {
         var holder = new UserContextHolder();
         when(jwt.parseUserId("valid")).thenReturn(7);
         when(users.selectAuthProjection(7))
-                .thenReturn(UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build());
+                .thenReturn(
+                        Optional.of(
+                                UserContextBo.builder()
+                                        .userId(7)
+                                        .roleId(2)
+                                        .superAdmin(false)
+                                        .build()));
         when(capabilities.selectCodes(2)).thenReturn(List.of("sys:user:read"));
         try (var context = new AnnotationConfigWebApplicationContext()) {
             context.setServletContext(new MockServletContext());

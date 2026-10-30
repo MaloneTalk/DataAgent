@@ -23,11 +23,12 @@ import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.UserCreateDto;
 import io.github.malonetalk.model.dto.UserUpdateDto;
+import java.util.Optional;
 
 /** 用户业务：以 {@link SysUserBo} 作为领域对象，异常与校验在此层完成。 */
 public interface SysUserService {
 
-    UserContextBo selectAuthProjection(Integer userId);
+    Optional<UserContextBo> selectAuthProjection(Integer userId);
 
     /**
      * 启动引导：无任何用户时创建初始超级管理员 admin；已有用户返回 null。

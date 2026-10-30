@@ -63,20 +63,16 @@ public class GetTableSchemaTool implements MarkAgentTool {
                     Datasource datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
 
-                    dataPermissions.requireTable(user, datasource.getId(), tableName);
-                    var hidden = dataPermissions.hidden(user, datasource.getId(), tableName);
+                    var scope = dataPermissions.loadScope(user, datasource.getId());
+                    String authorizedTable = scope.requireTable(tableName);
                     List<ColumnPromptResponse> columns =
                             columnSemanticService
-                                    .getMergedTableSchema(datasource.getId(), tableName)
+                                    .getMergedTableSchema(datasource.getId(), authorizedTable)
                                     .stream()
-                                    .filter(
-                                            c ->
-                                                    !hidden.contains(
-                                                            SemanticUtils.normalizeIdentifier(
-                                                                    c.name())))
+                                    .filter(c -> scope.canColumn(authorizedTable, c.name()))
                                     .toList();
                     return ToolResultBlock.text(
-                            SemanticUtils.formatTableSchema(tableName, columns)
+                            SemanticUtils.formatTableSchema(authorizedTable, columns)
                                     + ToolCallConstants.METRIC_CALIBER_REMINDER);
                 });
     }

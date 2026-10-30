@@ -62,14 +62,16 @@ public class ExportTableTool implements MarkAgentTool {
                 () -> {
                     Datasource datasource =
                             datasourceService.getDatasourceForSession(ctx.sessionId());
-                    TableExportResponse export =
+                    var result =
                             tableExportService.create(
                                     ctx.sessionId(), datasource, title, sql, ctx.userId());
+                    var export = result.export();
                     Map<String, Object> metadata = new HashMap<>();
                     metadata.put("datasourceId", datasource.getId());
                     metadata.put("datasourceName", datasource.getName());
                     metadata.put("databaseName", datasource.getDatabaseName());
-                    metadata.put("executedSql", sql);
+                    metadata.put("executedSql", result.executedSql());
+                    metadata.put("authorizedColumns", result.authorizedColumns());
                     metadata.put("returnedRows", export.rowCount());
                     metadata.put("truncated", false);
                     return ToolResultBlock.of(

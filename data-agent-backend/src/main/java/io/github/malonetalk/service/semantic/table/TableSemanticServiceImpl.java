@@ -194,8 +194,8 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                                 "Missing tableName for batch table semantic"
                                                         + " reset."))
                         .collect(Collectors.toCollection(LinkedHashSet::new));
-        normalizedNames.forEach(
-                name -> dataPermissions.requireTable(holder.checkAndGet(), datasourceId, name));
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        normalizedNames.forEach(scope::requireTable);
         List<TableInfo> matchedTables =
                 tableInfoMapper.selectByDatasourceIdAndTableNames(
                         datasourceId, List.copyOf(normalizedNames));

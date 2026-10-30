@@ -31,7 +31,9 @@ import static org.mockito.Mockito.when;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.bo.AuthorizedSqlBo;
 import io.github.malonetalk.service.SqlPermissionService;
+import java.util.Map;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -50,10 +52,12 @@ class SqlExecutorTest {
     void sharedSelectEntryPassesParsedSelectToDataAuthorization() {
         Datasource datasource = new Datasource();
         when(permissions.authorize(eq(7), same(datasource), any(Select.class)))
-                .thenAnswer(invocation -> invocation.getArgument(2));
+                .thenAnswer(invocation -> new AuthorizedSqlBo(invocation.getArgument(2), Map.of()));
         assertEquals(
                 "SELECT id FROM orders",
-                executor.authorizeSelectSql(datasource, "SELECT id FROM orders;", 7));
+                executor.authorizeSelect(datasource, "SELECT id FROM orders;", 7)
+                        .select()
+                        .toString());
         verify(permissions).authorize(eq(7), same(datasource), any(Select.class));
     }
 
@@ -61,7 +65,7 @@ class SqlExecutorTest {
     void sharedSelectEntryRejectsWritesBeforeAuthorization() {
         assertThrows(
                 BusinessException.class,
-                () -> executor.authorizeSelectSql(new Datasource(), "DELETE FROM orders", 7));
+                () -> executor.authorizeSelect(new Datasource(), "DELETE FROM orders", 7));
         verifyNoInteractions(permissions);
     }
 

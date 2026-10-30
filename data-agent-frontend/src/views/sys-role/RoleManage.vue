@@ -17,15 +17,16 @@
  -->
 
 <script setup lang="ts">
-  import { ref, reactive, onMounted } from 'vue';
+  import { computed, ref, reactive, onMounted } from 'vue';
   import RoleDataScopeDialog from './RoleDataScopeDialog.vue';
   import RoleCapabilitiesDialog from './RoleCapabilitiesDialog.vue';
-  const capabilitiesVisible = ref(false);
-  const capabilitiesRoleId = ref<number | null>(null);
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
   import * as sysRoleApi from '@/api/sysRole';
   import type { RoleResponse } from '@/api/sysRole';
   import { formatDateTime } from '@/utils/dateTime';
+
+  const capabilitiesVisible = ref(false);
+  const capabilitiesRoleId = ref<number | null>(null);
 
   const loading = ref(false);
   const roles = ref<RoleResponse[]>([]);
@@ -41,8 +42,8 @@
 
   // ── Create / Edit dialog ──
   const formVisible = ref(false);
-  const isEdit = ref(false);
   const editingId = ref<number | null>(null);
+  const isEdit = computed(() => editingId.value !== null);
   const formRef = ref<FormInstance>();
   const form = reactive({ name: '', description: '' });
   const rules: FormRules<typeof form> = {
@@ -50,13 +51,12 @@
   };
 
   function openCreate() {
-    isEdit.value = false;
+    editingId.value = null;
     form.name = '';
     form.description = '';
     formVisible.value = true;
   }
   function openEdit(role: RoleResponse) {
-    isEdit.value = true;
     editingId.value = role.id;
     form.name = role.name;
     form.description = role.description;
@@ -66,7 +66,7 @@
     if (!formRef.value) return;
     if (!(await formRef.value.validate().catch(() => false))) return;
     try {
-      if (isEdit.value && editingId.value != null) {
+      if (editingId.value != null) {
         await sysRoleApi.updateRole(editingId.value, { ...form });
         ElMessage.success('更新成功');
       } else {

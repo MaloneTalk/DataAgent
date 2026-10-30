@@ -39,6 +39,7 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
@@ -122,23 +123,13 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
         Set<Integer> currentPageTableIds =
                 page.getRecords().stream().map(TableInfo::getId).collect(Collectors.toSet());
-        Map<String, Set<String>> hiddenByTable =
-                dataPermissions.hiddenByTable(holder.checkAndGet(), query.datasourceId());
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), query.datasourceId());
         // 列记录已持有 table_id，按主键分组可直接关联当前页的表。
         Map<Integer, List<ColumnInfo>> columnsByTableId =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableIds(query.datasourceId(), currentPageTableIds)
                         .stream()
-                        .filter(
-                                c ->
-                                        !hiddenByTable
-                                                .getOrDefault(
-                                                        SemanticUtils.normalizeIdentifier(
-                                                                c.getTableName()),
-                                                        Set.of())
-                                                .contains(
-                                                        SemanticUtils.normalizeIdentifier(
-                                                                c.getColumnName())))
+                        .filter(c -> scope.canColumn(c.getTableName(), c.getColumnName()))
                         .collect(Collectors.groupingBy(ColumnInfo::getTableId));
         List<RelationWorkspaceTableResponse> nodes =
                 page.getRecords().stream()
@@ -158,7 +149,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         .filter(
                                 relation ->
                                         currentPageTableIds.contains(relation.getTargetTableId()))
-                        .filter(rel -> visibleRelation(hiddenByTable, rel))
+                        .filter(rel -> visibleRelation(scope, rel))
                         .map(semanticConverter::toResponse)
                         .toList();
 
@@ -166,24 +157,15 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 PageResponse.of(nodes, page.getTotal(), pageNumber, pageSize), relations);
     }
 
-    private boolean visibleRelation(
-            Map<String, Set<String>> hiddenByTable, LogicalTableRelation relation) {
-        var sourceHidden =
-                hiddenByTable.getOrDefault(
-                        SemanticUtils.normalizeIdentifier(relation.getSourceTableName()), Set.of());
-        var targetHidden =
-                hiddenByTable.getOrDefault(
-                        SemanticUtils.normalizeIdentifier(relation.getTargetTableName()), Set.of());
-        return logicalTableRelationHelper
-                        .fromJson(relation.getSourceColumnNamesJson(), "sourceColumnNames")
-                        .stream()
-                        .map(SemanticUtils::normalizeIdentifier)
-                        .noneMatch(sourceHidden::contains)
-                && logicalTableRelationHelper
-                        .fromJson(relation.getTargetColumnNamesJson(), "targetColumnNames")
-                        .stream()
-                        .map(SemanticUtils::normalizeIdentifier)
-                        .noneMatch(targetHidden::contains);
+    private boolean visibleRelation(DataPermissionScopeBo scope, LogicalTableRelation relation) {
+        return scope.canColumns(
+                        relation.getSourceTableName(),
+                        logicalTableRelationHelper.fromJson(
+                                relation.getSourceColumnNamesJson(), "sourceColumnNames"))
+                && scope.canColumns(
+                        relation.getTargetTableName(),
+                        logicalTableRelationHelper.fromJson(
+                                relation.getTargetColumnNamesJson(), "targetColumnNames"));
     }
 
     @Override
@@ -362,10 +344,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private void ensureColumnsOperable(
             Integer datasourceId, String tableName, List<String> columnNames, String fieldName) {
-        var hidden = dataPermissions.hidden(holder.checkAndGet(), datasourceId, tableName);
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        if (!scope.canColumns(tableName, columnNames)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
         for (String columnName : columnNames) {
-            if (hidden.contains(SemanticUtils.normalizeIdentifier(columnName)))
-                throw BusinessException.of(ErrorCode.FORBIDDEN);
             ColumnInfo columnInfo =
                     columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                             datasourceId, tableName, columnName);
@@ -423,10 +406,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Logical relation does not exist.");
         }
-        var user = holder.checkAndGet();
-        dataPermissions.requireTable(user, datasourceId, relation.getSourceTableName());
-        dataPermissions.requireTable(user, datasourceId, relation.getTargetTableName());
-        if (!visibleRelation(dataPermissions.hiddenByTable(user, datasourceId), relation)) {
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        if (!visibleRelation(scope, relation)) {
             throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
         return relation;

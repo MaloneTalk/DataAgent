@@ -39,6 +39,7 @@ import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -98,7 +99,8 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String normalizedColumnName =
                 SemanticUtils.normalizeObjectName(
                         request.columnName(), "Missing columnName for column semantic update.");
-        requireColumnAccess(request.datasourceId(), normalizedTableName, normalizedColumnName);
+        requireColumnAccess(
+                request.datasourceId(), normalizedTableName, List.of(normalizedColumnName));
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
@@ -141,7 +143,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
     @Transactional
     public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
         requireDatasource(datasourceId);
-        requireColumnAccess(datasourceId, tableName, columnName);
+        requireColumnAccess(datasourceId, tableName, List.of(columnName));
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName);
@@ -172,8 +174,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                 "Missing columnName for batch column semantic"
                                                         + " reset."))
                         .collect(Collectors.toCollection(LinkedHashSet::new));
-        normalizedColumnNames.forEach(
-                name -> requireColumnAccess(datasourceId, normalizedTableName, name));
+        requireColumnAccess(datasourceId, normalizedTableName, normalizedColumnNames);
         List<ColumnInfo> matchedColumns =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableName(datasourceId, normalizedTableName)
@@ -228,12 +229,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         return datasource;
     }
 
-    private void requireColumnAccess(Integer datasourceId, String table, String column) {
-        var user = holder.checkAndGet();
-        dataPermissions.requireTable(user, datasourceId, table);
-        if (dataPermissions
-                .hidden(user, datasourceId, table)
-                .contains(SemanticUtils.normalizeIdentifier(column))) {
+    private void requireColumnAccess(
+            Integer datasourceId, String table, Collection<String> columns) {
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        if (!scope.canColumns(table, columns)) {
             throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
     }

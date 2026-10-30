@@ -85,7 +85,7 @@ public class DataPermissionService {
             throw BusinessException.of(ErrorCode.FORBIDDEN, "Datasource access denied.");
     }
 
-    public Map<String, Set<String>> hiddenByTable(UserContextBo user, Integer datasourceId) {
+    private Map<String, Set<String>> hiddenByTable(UserContextBo user, Integer datasourceId) {
         if (Boolean.TRUE.equals(user.superAdmin())) return Map.of();
         return columns.selectByRoleAndDatasource(user.roleId(), datasourceId).stream()
                 .collect(
@@ -94,10 +94,6 @@ public class DataPermissionService {
                                 Collectors.mapping(
                                         p -> normalizeIdentifier(p.getColumnName()),
                                         Collectors.toSet())));
-    }
-
-    public Set<String> hidden(UserContextBo user, Integer datasourceId, String table) {
-        return hiddenByTable(user, datasourceId).getOrDefault(normalizeIdentifier(table), Set.of());
     }
 
     public Optional<Integer> roleScope(UserContextBo user) {

@@ -33,11 +33,13 @@ import io.github.malonetalk.model.dto.UserUpdateDto;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.utils.PasswordUtil;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@lombok.extern.slf4j.Slf4j
+@Slf4j
 @Service
 @AllArgsConstructor
 public class SysUserServiceImpl implements SysUserService {
@@ -48,12 +50,10 @@ public class SysUserServiceImpl implements SysUserService {
     private final UserConverter userConverter;
 
     @Override
-    public UserContextBo selectAuthProjection(Integer userId) {
-        SysUserPo sysUser = sysUserMapper.selectById(userId);
-        if (sysUser == null || sysUser.getStatus() == null || sysUser.getStatus() != 1) {
-            return null;
-        }
-        return userConverter.toContextBo(sysUser);
+    public Optional<UserContextBo> selectAuthProjection(Integer userId) {
+        return Optional.ofNullable(sysUserMapper.selectById(userId))
+                .filter(user -> Integer.valueOf(1).equals(user.getStatus()))
+                .map(userConverter::toContextBo);
     }
 
     @Override

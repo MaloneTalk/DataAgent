@@ -20,6 +20,7 @@ package io.github.malonetalk.agent.datasource;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.bo.AuthorizedSqlBo;
 import io.github.malonetalk.service.SqlPermissionService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -31,6 +32,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.JSQLParserException;
@@ -55,13 +57,14 @@ public class SqlExecutor {
     private final SqlPermissionService sqlPermissions;
 
     public SqlExecution executeDetailed(Datasource datasource, String sql, Integer userId) {
-        Select select = sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
-        String validatedSql = applyRowLimit(select);
+        var authorized = authorizeSelect(datasource, sql, userId);
+        String validatedSql = applyRowLimit(authorized.select());
 
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            return new SqlExecution(validatedSql, doExecute(conn, validatedSql));
+            return new SqlExecution(
+                    validatedSql, doExecute(conn, validatedSql), authorized.authorizedColumns());
         } catch (SQLException e) {
             log.error("SQL execution failed: {}", e.getMessage(), e);
             throw BusinessException.of(
@@ -71,7 +74,8 @@ public class SqlExecutor {
         }
     }
 
-    public record SqlExecution(String executedSql, QueryResult result) {}
+    public record SqlExecution(
+            String executedSql, QueryResult result, Map<String, Set<String>> authorizedColumns) {}
 
     static String truncate(String message) {
         if (message == null || message.isBlank()) {
@@ -80,8 +84,8 @@ public class SqlExecutor {
         return message.length() > 200 ? message.substring(0, 200) + "..." : message;
     }
 
-    public String authorizeSelectSql(Datasource datasource, String sql, Integer userId) {
-        return sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql)).toString();
+    public AuthorizedSqlBo authorizeSelect(Datasource datasource, String sql, Integer userId) {
+        return sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
     }
 
     public String validateSelectSql(String sql) {

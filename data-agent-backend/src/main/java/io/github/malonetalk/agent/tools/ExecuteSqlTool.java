@@ -62,6 +62,7 @@ public class ExecuteSqlTool implements MarkAgentTool {
                     metadata.put("datasourceName", datasource.getName());
                     metadata.put("databaseName", datasource.getDatabaseName());
                     metadata.put("executedSql", execution.executedSql());
+                    metadata.put("authorizedColumns", execution.authorizedColumns());
                     metadata.put("returnedRows", execution.result().rows().size());
                     metadata.put("truncated", execution.result().truncated());
                     return ToolResultBlock.of(

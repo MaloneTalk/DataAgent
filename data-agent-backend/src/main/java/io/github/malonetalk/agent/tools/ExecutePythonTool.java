@@ -32,10 +32,11 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@lombok.RequiredArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 @Component
 public class ExecutePythonTool implements MarkAgentTool {

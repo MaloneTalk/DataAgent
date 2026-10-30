@@ -60,10 +60,6 @@
     }
   }
 
-  function onColumnBlacklistChange(tableName: string, vals: string[]) {
-    blacklistedColumns.value[tableName] = vals;
-  }
-
   function resetPermissions() {
     loadedScope.value = null;
     allTables.value = [];
@@ -211,10 +207,7 @@
           <div style="font-size: 12px; color: var(--app-text-muted); margin-bottom: 4px">
             隐藏列（勾选即不可见，新增列默认可见）：
           </div>
-          <el-checkbox-group
-            :model-value="blacklistedColumns[tableName] || []"
-            @update:model-value="(vals: string[]) => onColumnBlacklistChange(tableName, vals)"
-          >
+          <el-checkbox-group v-model="blacklistedColumns[tableName]">
             <el-checkbox
               v-for="col in tableColumns[tableName]"
               :key="col"
