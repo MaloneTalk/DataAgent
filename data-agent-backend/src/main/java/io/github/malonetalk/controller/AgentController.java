@@ -62,6 +62,7 @@ public class AgentController {
             @Valid @RequestBody ChatRequest request) {
         // Read userId before Reactor switches threads.
         int userId = userContextHolder.checkAndGet().userId();
+        sessionService.requireOwnership(userId, request.sessionId());
         log.info("SSE chat stream started: sessionId={}, userId={}", request.sessionId(), userId);
         return agentService
                 .chatStream(
@@ -111,6 +112,12 @@ public class AgentController {
         Integer userId = userContextHolder.requireScopedUserId();
         List<SessionInfo> sessions = sessionService.listSessions(userId);
         return Result.success(sessions);
+    }
+
+    @PostMapping("/session")
+    public Result<String> createSession() {
+        int userId = userContextHolder.checkAndGet().userId();
+        return Result.success(sessionService.createSession(userId));
     }
 
     @RequirePermission

@@ -50,6 +50,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
@@ -94,9 +95,11 @@ public class SessionService {
         }
     }
 
-    /** 声明会话归属（INSERT IGNORE），首次访问时由 chatStream 调用。 */
-    public void bindUserSession(int userId, String sessionId) {
+    /** 创建会话：后端生成 UUID，并登记用户归属。 */
+    public String createSession(int userId) {
+        String sessionId = UUID.randomUUID().toString();
         userSessionMapper.insertIgnore(userId, sessionId);
+        return sessionId;
     }
 
     public void requireOwnership(Integer userId, String sessionId) {
