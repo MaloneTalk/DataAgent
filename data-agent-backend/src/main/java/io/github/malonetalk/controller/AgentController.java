@@ -117,7 +117,7 @@ public class AgentController {
     @PostMapping("/session")
     public Result<String> createSession() {
         int userId = userContextHolder.checkAndGet().userId();
-        return Result.success(sessionService.createSession(userId));
+        return Result.success(sessionService.createAgentScopeSession(userId));
     }
 
     @RequirePermission
