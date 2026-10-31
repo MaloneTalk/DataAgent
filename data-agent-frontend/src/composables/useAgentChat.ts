@@ -16,7 +16,12 @@
  */
 
 import { ref, shallowRef } from 'vue';
-import { streamChat, fetchSessionHistory, type ChatStreamEventType } from '@/api/agent';
+import {
+  streamChat,
+  fetchSessionHistory,
+  createSession,
+  type ChatStreamEventType,
+} from '@/api/agent';
 import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
 export interface PendingQuestion {
@@ -47,14 +52,11 @@ function nextId(): string {
   return `msg_${Date.now()}_${++seq}`;
 }
 
-function generateSessionId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 export function useAgentChat(initialSessionId?: string) {
   const messages = shallowRef<ChatMessage[]>([]);
   const isStreaming = ref(false);
-  const sessionId = ref(initialSessionId || generateSessionId());
+  const sessionId = ref<string | null>(initialSessionId || null);
+  let sessionCreation: Promise<string> | null = null;
   // 待绑定/已绑定的数据源 id；新会话选源后设置，首条消息随请求落库。
   const datasourceId = ref<number | null>(null);
   const abortController = shallowRef<AbortController | null>(null);
@@ -112,10 +114,25 @@ export function useAgentChat(initialSessionId?: string) {
     }));
   }
 
+  async function ensureSession(): Promise<string> {
+    if (sessionId.value) return sessionId.value;
+    if (!sessionCreation) {
+      sessionCreation = createSession()
+        .then(sid => {
+          sessionId.value = sid;
+          return sid;
+        })
+        .finally(() => {
+          sessionCreation = null;
+        });
+    }
+    return sessionCreation;
+  }
+
   async function sendMessage(text: string) {
     if (isStreaming.value || !text.trim()) return;
 
-    const currentSessionId = sessionId.value;
+    const currentSessionId = await ensureSession();
     addUserMessage(text);
     const agentMsg = addAgentMessage();
     isStreaming.value = true;
@@ -229,7 +246,7 @@ export function useAgentChat(initialSessionId?: string) {
   function newSession() {
     stopStreaming();
     messages.value = [];
-    sessionId.value = generateSessionId();
+    sessionId.value = null;
     datasourceId.value = null;
   }
 
@@ -241,6 +258,7 @@ export function useAgentChat(initialSessionId?: string) {
     pendingQuestion,
     lastReportContent,
     loadHistory,
+    ensureSession,
     sendMessage,
     stopStreaming,
     newSession,

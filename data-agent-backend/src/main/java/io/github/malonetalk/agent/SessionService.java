@@ -42,6 +42,7 @@ import io.github.malonetalk.mapper.UserSessionMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
@@ -82,12 +84,36 @@ public class SessionService {
     }
 
     private MysqlSession createMysqlSession() {
-        return new MysqlSession(dataSource, "data_agent", "agentscope_sessions", false);
+        return new MysqlSession(dataSource, currentDatabaseName(), "agentscope_sessions", false);
     }
 
-    /** 声明会话归属（INSERT IGNORE），首次访问时由 chatStream 调用。 */
-    public void bindUserSession(int userId, String sessionId) {
-        userSessionMapper.insertIgnore(userId, sessionId);
+    private String currentDatabaseName() {
+        try (Connection conn = dataSource.getConnection()) {
+            return conn.getCatalog();
+        } catch (SQLException e) {
+            throw new IllegalStateException("无法获取当前数据库名", e);
+        }
+    }
+
+    public String createAgentScopeSession(int userId) {
+        return createSession(userId, SessionIdFactory.AGENT_SCOPE, null);
+    }
+
+    /** 创建会话：按 Agent 类型生成前缀化 ID，并登记用户归属。 */
+    public String createSession(int userId, String agentCode, String externalSessionId) {
+        String base = SessionIdFactory.build(agentCode, userId, externalSessionId);
+        String sessionId = base;
+        for (int i = 0; i < 5; i++) {
+            if (userSessionMapper.insertIgnore(userId, sessionId) > 0) {
+                return sessionId;
+            }
+            sessionId = base + "_" + System.currentTimeMillis() + "_" + collisionToken();
+        }
+        throw new IllegalStateException("Failed to allocate unique session id: " + base);
+    }
+
+    private static String collisionToken() {
+        return Integer.toHexString(ThreadLocalRandom.current().nextInt(0x10000));
     }
 
     public void requireOwnership(Integer userId, String sessionId) {
@@ -322,7 +348,8 @@ public class SessionService {
         List<SessionInfo> result = new ArrayList<>();
         for (SessionKey key : keys) {
             String sid = key.toIdentifier();
-            if (!visibleIds.contains(sid)) {
+            if (!SessionIdFactory.isAgent(sid, SessionIdFactory.AGENT_SCOPE)
+                    || !visibleIds.contains(sid)) {
                 continue;
             }
             List<Msg> messages = session.getList(key, "memory_messages", Msg.class);

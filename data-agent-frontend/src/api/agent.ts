@@ -162,6 +162,10 @@ async function fetchJson<T>(url: string, fallback: string, init?: RequestInit): 
   return body.data as T;
 }
 
+export async function createSession(): Promise<string> {
+  return fetchJson<string>('/api/agent/session', 'Failed to create session', { method: 'POST' });
+}
+
 export async function fetchSessionList(): Promise<SessionInfo[]> {
   return fetchJson<SessionInfo[]>('/api/agent/sessions', 'Failed to fetch session list');
 }

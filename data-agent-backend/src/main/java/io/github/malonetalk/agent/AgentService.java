@@ -104,8 +104,6 @@ public class AgentService {
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
             Integer datasourceId) {
-        // 首次访问声明归属；已绑定会被 INSERT IGNORE 忽略
-        sessionService.bindUserSession(userId, sessionId);
         if (datasourceId != null) {
             datasourceService.bindSessionDatasource(sessionId, datasourceId);
         }

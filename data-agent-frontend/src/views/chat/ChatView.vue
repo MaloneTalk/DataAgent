@@ -42,6 +42,7 @@
     stopStreaming,
     newSession,
     loadHistory,
+    ensureSession,
   } = useAgentChat();
 
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
@@ -157,16 +158,17 @@
     }
   });
 
-  function handleSend(text: string) {
+  async function handleSend(text: string) {
+    const sid = await ensureSession();
     sendMessage(text);
     if (!activeSessionId.value) {
-      router.replace(`/chat/${sessionId.value}`);
+      router.replace(`/chat/${sid}`);
     }
   }
 
   function handleNewSession() {
     newSession();
-    router.push(`/chat/${sessionId.value}`);
+    router.push('/chat');
   }
 </script>
 
@@ -246,7 +248,7 @@
       </div>
 
       <ChatInput
-        :key="sessionId"
+        :key="sessionId ?? 'new'"
         :is-streaming="isStreaming"
         :pending-question="pendingQuestion"
         :user-messages="userMessages"
@@ -267,7 +269,7 @@
         top="30px"
         destroy-on-close
       >
-        <ReportList :fixed-session-id="sessionId" embedded />
+        <ReportList :fixed-session-id="sessionId ?? undefined" embedded />
       </el-dialog>
 
       <el-dialog
@@ -277,7 +279,7 @@
         top="30px"
         destroy-on-close
       >
-        <EvidenceList :fixed-session-id="sessionId" />
+        <EvidenceList :fixed-session-id="sessionId ?? undefined" />
       </el-dialog>
     </div>
   </div>
