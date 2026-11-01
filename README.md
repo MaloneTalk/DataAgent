@@ -91,10 +91,12 @@ cd data-agent-frontend
 pnpm install && pnpm dev
 ```
 
-已有数据库升级时，先备份数据库并在启动新版后端前执行最新迁移脚本。已完成主键关联升级的旧库也需执行，以补齐指标的计算方式、结果类型、单位、倍率和币种：
+SQL 只保留两份：`sql/data_source.sql` 用于新库初始化，`sql/migration.sql` 用于已有数据库升级。
+
+已有数据库升级时，先备份数据库并在启动新版后端前执行最新迁移脚本。已完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源表、角色功能权限和会话归属唯一约束。迁移前的会话归属冲突检查见[权限升级说明](docs/permissions.md#升级现有数据库)：
 
 ```bash
-mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
+mysql -u root -p data_agent < sql/migration.sql
 ```
 
 五个指标属性的默认值、校验与配置示例见[指标业务属性](docs/semantic-layer.md#5-指标业务属性)。

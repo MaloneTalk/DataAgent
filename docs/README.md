@@ -30,6 +30,6 @@ DataAgent/
 ├── data-agent-backend/       # Spring Boot 后端
 ├── data-agent-frontend/      # Vue 3 + TS + Vite 前端
 ├── skills/                   # Skill 目录（内置 + 自定义，放入即生效）
-├── sql/                      # 元数据库初始化脚本（data_source.sql）
+├── sql/                      # 主文件 data_source.sql + 迁移文件 migration.sql
 └── docs/                     # 本文档集
 ```

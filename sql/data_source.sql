@@ -1,3 +1,4 @@
+-- MySQL 5.7: initialize a new metadata database; use migration.sql for existing databases.
 CREATE TABLE IF NOT EXISTS `datasource` (
     `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `name` VARCHAR(255) DEFAULT NULL COMMENT '数据源名称',

@@ -92,17 +92,17 @@ mysql -u root -p -e "CREATE DATABASE data_agent CHARACTER SET utf8mb4;"
 mysql -u root -p data_agent < sql/data_source.sql
 ```
 
-> `sql/data_source.sql` 包含全部元数据库初始化表结构，导入这一份即可。
+> SQL 只保留两份：主文件 `sql/data_source.sql` 包含全部元数据库初始化表结构，新库导入这一份即可；迁移文件 `sql/migration.sql` 用于已有数据库升级。
 
 已有数据库升级时，不要重复初始化；请先备份数据库，再执行最新迁移脚本。已经完成主键关联升级的旧库也需执行，以补齐指标业务属性及回答溯源表：
 
 ```bash
-mysql -u root -p data_agent < sql/migration_primary_key_relations.sql
+mysql -u root -p data_agent < sql/migration.sql
 ```
 
 迁移必须在启动新版后端前完成。该脚本会补齐旧库缺少的字段、索引和回答溯源表，并将列和逻辑关系中的表名引用转换为
 `table_info.id` 外键；脚本会在改表前检查无法匹配的引用、同一数据源内重复的表名，
-以及同一表内重复的列名。脚本还会补齐指标的计算方式、结果类型、单位、倍率及币种，保留旧表达式；新增字段逐列检查是否存在。若检查失败，修复数据后重新执行整份脚本即可。
+以及同一表内重复的列名。脚本还会补齐指标的计算方式、结果类型、单位、倍率及币种，保留旧表达式；新增字段逐列检查是否存在，并创建角色功能权限表和会话归属唯一约束。执行前按[权限升级说明](permissions.md#升级现有数据库)检查会话归属冲突。若检查失败，修复数据后重新执行整份脚本即可。
 
 ### 3. 配置并启动后端
 

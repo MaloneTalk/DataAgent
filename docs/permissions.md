@@ -4,9 +4,9 @@
 
 ## 升级现有数据库
 
-部署应用前，备份元数据库并执行 `sql/migration_permission_points.sql`。新建环境直接使用 `sql/data_source.sql`。
+部署应用前，备份元数据库并执行统一迁移文件 `sql/migration.sql`。新建环境直接使用主文件 `sql/data_source.sql`，无需额外执行迁移。
 
-迁移增加 `sys_role_permission`，并为 `user_session.session_id` 增加唯一约束。先执行以下查询：
+统一迁移包含旧库结构升级和权限升级：创建 `sys_role_permission`，并在尚不存在时为 `user_session.session_id` 增加唯一约束，可重复执行。先执行以下查询：
 
 ```sql
 SELECT session_id, COUNT(*)

@@ -1,4 +1,4 @@
--- MySQL 5.7: upgrade legacy metadata and migrate semantic references to table_info.id.
+-- MySQL 5.7: upgrade existing metadata, semantic references and role permissions.
 -- Back up the database and stop writes before running this single migration script.
 -- ALTER TABLE commits implicitly. Every schema step is conditional so an interrupted
 -- migration can be rerun after the cause of failure has been fixed.
@@ -621,3 +621,26 @@ CREATE TABLE IF NOT EXISTS `answer_provenance` (
     PRIMARY KEY (`answer_id`),
     KEY `idx_answer_provenance_session` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='回答数据证据';
+
+-- Role permissions: no automatic grants; super administrators configure existing roles.
+CREATE TABLE IF NOT EXISTS sys_role_permission (
+    role_id INT NOT NULL,
+    permission_code VARCHAR(100) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_id, permission_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色功能权限';
+
+-- Resolve duplicate owners before adding the constraint; never choose an owner automatically.
+-- SELECT session_id, COUNT(*) FROM user_session GROUP BY session_id HAVING COUNT(*) > 1;
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_session'
+          AND INDEX_NAME = 'uk_session_id' AND NON_UNIQUE = 0
+    ),
+    'SELECT 1',
+    'ALTER TABLE `user_session` ADD UNIQUE KEY `uk_session_id` (`session_id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
