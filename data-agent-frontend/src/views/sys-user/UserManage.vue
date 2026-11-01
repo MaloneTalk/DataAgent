@@ -105,10 +105,15 @@
     if (!valid) return;
     try {
       if (editingId.value != null) {
-        await sysUserApi.updateUser(editingId.value, {
-          displayName: form.displayName,
-        });
-        if (userStore.userInfo?.superAdmin && form.roleId !== originalRoleId.value) {
+        if (userStore.hasPermission('sys:user:update')) {
+          await sysUserApi.updateUser(editingId.value, {
+            displayName: form.displayName,
+          });
+        }
+        if (
+          userStore.hasPermission('sys:user:assign-role') &&
+          form.roleId !== originalRoleId.value
+        ) {
           await sysUserApi.assignRole(editingId.value, form.roleId);
         }
         ElMessage.success('更新成功');
@@ -177,7 +182,7 @@
 
   onMounted(() => {
     reload();
-    if (!userStore.hasPermission('sys:role:read')) return;
+    if (!userStore.hasPermission(['sys:role:read', 'sys:user:assign-role'])) return;
     listRoles()
       .then(list => {
         roleOptions.value = list;
@@ -224,7 +229,11 @@
       </el-table-column>
       <el-table-column label="操作" width="280" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button v-permission="'sys:user:update'" size="small" @click="openEdit(row)">
+          <el-button
+            v-permission="['sys:user:update', 'sys:user:assign-role']"
+            size="small"
+            @click="openEdit(row)"
+          >
             编辑
           </el-button>
           <el-button
@@ -274,11 +283,15 @@
           <el-input v-model="form.password" type="password" show-password placeholder="6-64 位" />
         </el-form-item>
         <el-form-item label="显示名" prop="displayName">
-          <el-input v-model="form.displayName" placeholder="请输入显示名" />
+          <el-input
+            v-model="form.displayName"
+            :disabled="isEdit && !userStore.hasPermission('sys:user:update')"
+            placeholder="请输入显示名"
+          />
         </el-form-item>
         <el-form-item label="角色">
           <el-select
-            :disabled="!userStore.userInfo?.superAdmin"
+            :disabled="!userStore.hasPermission('sys:user:assign-role')"
             v-model="form.roleId"
             placeholder="请选择角色"
             style="width: 100%"

@@ -57,7 +57,9 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 
 `analysis:session:read` 可独立打开聊天页面查阅历史，无需聊天使用权限。输入框、新建会话和数据源选择只对拥有 `analysis:chat:use` 的用户显示；会话删除、报告和数据证据各自检查对应权限。前端收到撤权响应后刷新权限，并强制重新经过当前页面的路由守卫。
 
-第一版仅超级管理员能够配置角色授权、分配角色，以及同步表结构和刷新物理状态。`semantic:table:sync` 覆盖全数据源的结构读取与同步，暂不授予普通角色。Python 当前直接启动本机子进程，因此 `analysis:python:execute` 也仅限超级管理员；开放前需要实际的操作系统或容器隔离。这些能力在权限目录中以「仅超管」显示，数据库中已有的普通角色同步授权也不会生效。
+仅角色授权管理（`sys:role:grant`，包括功能权限与表列数据范围配置）限超级管理员，其余权限点均可授予普通角色。角色分配由 `sys:user:assign-role` 控制，创建用户时指定非零角色也需要该权限；表结构同步与物理状态刷新由 `semantic:table:sync` 控制，Python 执行由 `analysis:python:execute` 控制。未授权仍默认拒绝。普通角色不能修改超级管理员账号。
+
+`semantic:table:sync` 包含全数据源的结构读取与同步；Python 在后端主机启动本机子进程。这两个权限应仅授予可信角色，授权后不会额外检查超级管理员身份。
 
 ## 后端执行规则
 
@@ -120,6 +122,7 @@ SQL 授权同时返回改写后的查询与本次可见列快照。查询和导�
 | 接口 | 用途 |
 | --- | --- |
 | `GET /api/sys/permissions` | 权限目录 |
+| `GET /api/sys/role` | 角色列表；具备角色查看或角色分配权限即可访问，供分配角色时选择 |
 | `GET /api/sys/role/{id}/capabilities` | 角色功能权限 |
 | `PUT /api/sys/role/{id}/capabilities` | 全量替换功能权限，提交 `{ "codes": [] }` |
 | `PUT /api/sys/role/{id}/data-scope` | 全量替换指定数据源的表白名单与隐藏列，Service 负责事务编排 |

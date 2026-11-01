@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 import io.github.malonetalk.convertor.RoleConverter;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
@@ -47,9 +48,11 @@ import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import java.sql.Connection;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -118,6 +121,22 @@ class RolePermissionServiceTest {
                 BusinessException.class,
                 () -> service.saveCapabilities(2, Set.of("sys:role:grant")));
         verify(capabilities, never()).deleteByRoleId(2);
+    }
+
+    @Test
+    void everyPermissionExceptAuthorizationManagementCanBeGranted() {
+        holder.set(UserContextBo.builder().userId(1).superAdmin(true).build());
+        when(roles.lockById(2)).thenReturn(2);
+        Set<String> codes =
+                Arrays.stream(PermissionEnum.values())
+                        .filter(permission -> permission != PermissionEnum.SYS_ROLE_GRANT)
+                        .map(PermissionEnum::getCode)
+                        .collect(Collectors.toSet());
+
+        service.saveCapabilities(2, codes);
+
+        verify(capabilities).deleteByRoleId(2);
+        codes.forEach(code -> verify(capabilities).insert(2, code));
     }
 
     @Test

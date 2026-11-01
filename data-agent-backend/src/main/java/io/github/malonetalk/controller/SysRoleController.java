@@ -55,7 +55,9 @@ public class SysRoleController {
     private final RolePermissionService permissions;
 
     @GetMapping
-    @RequirePermission(PermissionEnum.SYS_ROLE_READ)
+    @RequirePermission(
+            value = {PermissionEnum.SYS_ROLE_READ, PermissionEnum.SYS_USER_ASSIGN_ROLE},
+            anyOf = true)
     public Result<List<RoleResponse>> listAll() {
         return Result.success(sysRoleService.listAll());
     }

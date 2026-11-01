@@ -20,6 +20,7 @@ package io.github.malonetalk.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.SysRoleMapper;
@@ -36,6 +37,7 @@ import io.github.malonetalk.utils.PasswordUtil;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +50,8 @@ public class SysUserServiceImpl implements SysUserService {
     private final UserContextHolder holder;
     private final SysRoleMapper sysRoleMapper;
     private final UserConverter userConverter;
+    // PermissionService reads identity through this service, so resolve it on use.
+    private final ObjectProvider<PermissionService> permissions;
 
     @Override
     public Optional<UserContextBo> selectAuthProjection(Integer userId) {
@@ -102,7 +106,7 @@ public class SysUserServiceImpl implements SysUserService {
         if (selectLocalByUsername(dto.username()) != null) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "用户名 '" + dto.username() + "' 已存在");
         }
-        if (dto.roleId() != 0) requireAdminForRoleAssignment();
+        if (dto.roleId() != 0) requireRoleAssignment();
         lockRoleIfAssigned(dto.roleId());
         SysUserPo user = new SysUserPo();
         user.setUsername(dto.username());
@@ -130,9 +134,10 @@ public class SysUserServiceImpl implements SysUserService {
     @Override
     @Transactional
     public void assignRole(Integer id, Integer roleId) {
-        requireAdminForRoleAssignment();
+        requireRoleAssignment();
         lockRoleIfAssigned(roleId);
         SysUserPo user = requireUser(id);
+        protectAdmin(user);
         Integer previous = user.getRoleId();
         SysUserPo patch = new SysUserPo();
         patch.setId(id);
@@ -204,11 +209,8 @@ public class SysUserServiceImpl implements SysUserService {
         }
     }
 
-    private void requireAdminForRoleAssignment() {
-        if (!Boolean.TRUE.equals(holder.checkAndGet().superAdmin())) {
-            throw BusinessException.of(
-                    ErrorCode.FORBIDDEN, "Only super administrators can assign roles.");
-        }
+    private void requireRoleAssignment() {
+        permissions.getObject().require(holder.checkAndGet(), PermissionEnum.SYS_USER_ASSIGN_ROLE);
     }
 
     private void protectAdmin(SysUserPo target) {

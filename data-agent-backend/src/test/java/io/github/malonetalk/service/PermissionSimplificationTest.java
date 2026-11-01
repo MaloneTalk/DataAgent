@@ -47,6 +47,9 @@ import java.util.Optional;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.Select;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
 class PermissionSimplificationTest {
     private final SysUserService users = mock(SysUserService.class);
@@ -65,7 +68,11 @@ class PermissionSimplificationTest {
         var converter = mock(UserConverter.class);
         var service =
                 new SysUserServiceImpl(
-                        mapper, new UserContextHolder(), mock(SysRoleMapper.class), converter);
+                        mapper,
+                        new UserContextHolder(),
+                        mock(SysRoleMapper.class),
+                        converter,
+                        new StaticListableBeanFactory().getBeanProvider(PermissionService.class));
         assertTrue(service.selectAuthProjection(7).isEmpty());
         var stored = new SysUserPo();
         when(mapper.selectById(7)).thenReturn(stored);
@@ -162,5 +169,20 @@ class PermissionSimplificationTest {
                 data.loadScope(user, 1)
                         .hasHiddenColumns("orders", List.of("id", "amount", "`PHONE`")));
         verify(columns, times(1)).selectByRoleAndDatasource(2, 1);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = PermissionEnum.class,
+            names = "SYS_ROLE_GRANT",
+            mode = EnumSource.Mode.EXCLUDE)
+    void everyPermissionExceptAuthorizationManagementCanBeUsedByAnAssignedRole(
+            PermissionEnum permission) {
+        when(users.selectAuthProjection(7)).thenReturn(Optional.of(user));
+        when(capabilities.selectCodes(2)).thenReturn(List.of(permission.getCode()));
+
+        assertSame(user, permissions.require(7, permission));
+        when(capabilities.selectCodes(2)).thenReturn(List.of());
+        assertThrows(BusinessException.class, () -> permissions.require(7, permission));
     }
 }

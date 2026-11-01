@@ -118,6 +118,13 @@ public enum ErrorCode {
             HttpStatus.SERVICE_UNAVAILABLE,
             "Model provider is unavailable."),
 
+    /** 模型服务拒绝后端凭证，与当前用户的登录状态无关。 */
+    MODEL_AUTHENTICATION_FAILED(
+            "MODEL_AUTHENTICATION_FAILED",
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Model authentication failed. Please ask the administrator to check the model API"
+                    + " key."),
+
     /** 数据服务暂时不可用，通常用于瞬时数据库访问异常。 */
     DATA_SERVICE_UNAVAILABLE(
             "DATA_SERVICE_UNAVAILABLE",
