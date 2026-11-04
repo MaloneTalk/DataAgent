@@ -24,12 +24,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 import org.junit.jupiter.api.Test;
 
 /** 池初始化失败的转译逻辑：缺驱动必须给出可操作的 pom.xml 指引，而不是裸 INTERNAL_ERROR。 */
 class DynamicDataSourceManagerTest {
 
-    private final DynamicDataSourceManager manager = new DynamicDataSourceManager();
+    private final DynamicDataSourceManager manager =
+            new DynamicDataSourceManager(JdbcTelemetry.create(OpenTelemetry.noop()));
 
     @Test
     void missingDriverYieldsActionableBusinessException() {

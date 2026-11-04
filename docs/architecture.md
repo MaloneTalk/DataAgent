@@ -88,3 +88,24 @@
 > 前端导航当前收敛为「AI 智能分析」「数据源管理」「语义管理」「资产管理」「系统管理」。「语义管理」包含数据领域、表语义、指标口径与逻辑外键；「资产管理」包含报告管理与表格导出；「系统管理」包含用户管理与角色管理。旧路由 `/metric`、`/report`、`/table-export`、`/sys-user`、`/sys-role` 会重定向到对应新入口。
 
 > 更完整的字段与请求/响应结构，建议直接阅读后端 `controller` 与 `dto` 包源码。
+
+## 6. 可观测性（OpenTelemetry）
+
+后端通过 OpenTelemetry 把一次请求的完整链路串起来：
+
+```
+HTTP server span
+  └─ invoke_agent
+       ├─ chat <model>          # LLM 调用
+       ├─ execute_tool <name>   # 工具调用
+       │    └─ db.* span        # MyBatis / 动态数据源 SQL
+       └─ ...
+```
+
+- **同一 traceId**：入口把 OTel context 种入 Reactor context，agentscope 的 `TelemetryTracer` 在异步线程继续沿用，HTTP、Agent、LLM、工具与 SQL 共享一条 trace。
+- **JDBC span**：主库与动态数据源都用 `JdbcTelemetry` 包装，SQL 调用产出 `db.*` span；Hikari 池指标通过解包仍可用。
+- **日志与指标**：Logback `OTEL` appender 让日志携带 trace/span；Micrometer 指标经 OTLP 导出。
+- **默认行为**：只写终端，trace/metrics/logs 导出默认关闭，由环境变量控制。
+- **后端无关**：导出是标准 OTLP/HTTP，可对接 Jaeger、Tempo、SigNoz、Uptrace、Honeycomb、Langfuse 等任意 OTel 后端；仓库内的 Grafana LGTM 只是本地示例。
+
+本地查看与配置说明见 [observability.md](observability.md)。

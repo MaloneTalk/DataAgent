@@ -17,47 +17,42 @@
  */
 package io.github.malonetalk.web;
 
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.UUID;
-import org.slf4j.MDC;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * 为每个请求生成（或复用入站 X-Trace-Id）traceId：放入 MDC 供日志串联，
- * 并通过响应头 X-Trace-Id 回传给调用方（含 SSE 流与异常响应）。
- * <p>
- * TODO: 改用 Micrometer Tracing + {@code micrometer-tracing-bridge-otel} 自动处理链路追踪
+ * 将当前链路的 traceId 通过响应头 X-Trace-Id 回传给调用方（含 SSE 与异常响应）。
+ *
+ * <p>traceId 由 Micrometer Tracing / OTel 自动生成并写入 MDC，本类只做响应头回显；
+ * 需排在 {@code ServerHttpObservationFilter}（{@code HIGHEST_PRECEDENCE + 1}）之后执行。
  */
 @Component
-public class TraceIdFilter extends OncePerRequestFilter {
+@Order(Ordered.HIGHEST_PRECEDENCE + 2)
+@RequiredArgsConstructor
+public class TraceIdHeaderFilter extends OncePerRequestFilter {
 
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
-    public static final String TRACE_ID_MDC_KEY = "traceId";
+
+    private final Tracer tracer;
 
     @Override
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String traceId = resolveTraceId(request);
-        MDC.put(TRACE_ID_MDC_KEY, traceId);
-        response.setHeader(TRACE_ID_HEADER, traceId);
-        try {
-            filterChain.doFilter(request, response);
-        } finally {
-            MDC.remove(TRACE_ID_MDC_KEY);
+        Span span = tracer.currentSpan();
+        if (span != null) {
+            response.setHeader(TRACE_ID_HEADER, span.context().traceId());
         }
-    }
-
-    private String resolveTraceId(HttpServletRequest request) {
-        String incoming = request.getHeader(TRACE_ID_HEADER);
-        if (incoming != null && !incoming.isBlank()) {
-            return incoming;
-        }
-        return UUID.randomUUID().toString();
+        filterChain.doFilter(request, response);
     }
 }
