@@ -40,7 +40,8 @@ public interface LogicalTableRelationMapper {
     IPage<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
             IPage<LogicalTableRelation> page,
             @Param("query") RelationSemanticPageQuery query,
-            @Param("sortDescending") boolean sortDescending);
+            @Param("sortDescending") boolean sortDescending,
+            @Param("roleId") Integer roleId);
 
     int insert(LogicalTableRelation logicalTableRelation);
 

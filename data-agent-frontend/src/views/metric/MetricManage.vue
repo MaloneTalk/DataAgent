@@ -188,7 +188,12 @@
             clearable
             placeholder="按名称 / key / 同义词搜索"
           />
-          <el-button v-if="!datasourceEmpty" type="primary" @click="handleOpenCreate">
+          <el-button
+            v-permission="'semantic:metric:create'"
+            v-if="!datasourceEmpty"
+            type="primary"
+            @click="handleOpenCreate"
+          >
             新增指标
           </el-button>
           <el-tag v-if="!datasourceEmpty" type="primary" effect="plain">
@@ -262,8 +267,22 @@
           </el-table-column>
           <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="handleOpenEdit(row)">编辑</el-button>
-              <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button
+                v-permission="'semantic:metric:update'"
+                link
+                type="primary"
+                @click="handleOpenEdit(row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                v-permission="'semantic:metric:delete'"
+                link
+                type="danger"
+                @click="handleDelete(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>

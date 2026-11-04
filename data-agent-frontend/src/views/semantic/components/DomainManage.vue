@@ -183,7 +183,13 @@
 
     <div class="section-header">
       <div class="section-header-actions">
-        <el-button type="primary" @click="handleOpenDomainCreate">新增领域</el-button>
+        <el-button
+          v-permission="'semantic:domain:create'"
+          type="primary"
+          @click="handleOpenDomainCreate"
+        >
+          新增领域
+        </el-button>
         <el-tag type="primary" effect="plain">共 {{ domainPage.total }} 个领域</el-tag>
       </div>
     </div>
@@ -207,8 +213,22 @@
       </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleOpenDomainEdit(row)">编辑</el-button>
-          <el-button link type="danger" @click="handleDeleteDomain(row)">删除</el-button>
+          <el-button
+            v-permission="'semantic:domain:update'"
+            link
+            type="primary"
+            @click="handleOpenDomainEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'semantic:domain:delete'"
+            link
+            type="danger"
+            @click="handleDeleteDomain(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

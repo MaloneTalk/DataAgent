@@ -65,17 +65,13 @@ service.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-function clearAuthAndRedirectLogin() {
+/** SSE/原生 fetch 链路复用：401 时清凭证并跳登录。 */
+export function handleUnauthorized() {
   localStorage.removeItem('token');
   localStorage.removeItem('userInfo');
   if (window.location.pathname !== '/login') {
     window.location.href = '/login';
   }
-}
-
-/** SSE/原生 fetch 链路复用：401 时清凭证并跳登录。 */
-export function handleUnauthorized() {
-  clearAuthAndRedirectLogin();
 }
 
 service.interceptors.response.use(
@@ -98,12 +94,13 @@ service.interceptors.response.use(
       const responseBody = error.response?.data as ApiResponse | undefined;
       const apiError = toApiError(responseBody, '登录已过期，请重新登录');
       if (window.location.pathname !== '/login') {
-        clearAuthAndRedirectLogin();
+        handleUnauthorized();
       } else {
         showApiError(apiError);
       }
       return Promise.reject(apiError);
     }
+    if (status === 403) window.dispatchEvent(new Event('permissions-changed'));
     const responseBody = error.response?.data as ApiResponse | undefined;
     const apiError = toApiError(responseBody, error.message || '网络错误');
     showApiError(apiError);

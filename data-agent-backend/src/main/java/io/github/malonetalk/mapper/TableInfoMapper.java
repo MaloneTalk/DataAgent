@@ -48,7 +48,8 @@ public interface TableInfoMapper {
     IPage<TableInfo> selectPageByDatasourceId(
             IPage<TableInfo> page,
             @Param("query") TableSemanticPageQuery query,
-            @Param("sortDescending") boolean sortDescending);
+            @Param("sortDescending") boolean sortDescending,
+            @Param("roleId") Integer roleId);
 
     TableInfo selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);

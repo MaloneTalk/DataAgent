@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.exception;
 
+import io.agentscope.core.model.exception.AuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.springframework.dao.DataAccessException;
@@ -48,6 +49,9 @@ public class ExceptionResponseMapper {
     private ErrorResponse map(Throwable current) {
         if (current instanceof BusinessException businessException) {
             return fromBusinessException(businessException);
+        }
+        if (current instanceof AuthenticationException) {
+            return of(ErrorCode.MODEL_AUTHENTICATION_FAILED);
         }
         if (current instanceof IllegalArgumentException) {
             // 未迁移的裸参数断言统一视为请求参数错误，避免落成 500；

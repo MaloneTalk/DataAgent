@@ -31,6 +31,7 @@ import io.github.malonetalk.entity.TableExport;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableExportMapper;
+import io.github.malonetalk.model.bo.TableExportResultBo;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
@@ -65,8 +66,8 @@ public class TableExportServiceImpl implements TableExportService {
     private final SessionService sessionService;
 
     @Override
-    public TableExportResponse create(
-            String sessionId, Datasource datasource, String title, String sql) {
+    public TableExportResultBo create(
+            String sessionId, Datasource datasource, String title, String sql, Integer userId) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -74,7 +75,9 @@ public class TableExportServiceImpl implements TableExportService {
         if (exportTitle.length() > MAX_TITLE_LENGTH) {
             exportTitle = exportTitle.substring(0, MAX_TITLE_LENGTH);
         }
-        String safeSql = sqlExecutor.validateSelectSql(sql);
+        sessionService.requireOwnership(userId, exportSessionId);
+        var authorized = sqlExecutor.authorizeSelect(datasource, sql, userId);
+        String safeSql = authorized.select().toString();
 
         String exportId = UUID.randomUUID().toString();
         CsvResult csv = writeCsv(datasource, safeSql);
@@ -88,7 +91,8 @@ public class TableExportServiceImpl implements TableExportService {
         if (tableExportMapper.insert(tableExport) <= 0) {
             throw BusinessException.of(ErrorCode.OPERATION_FAILED, "Failed to save table export.");
         }
-        return toResponse(tableExport);
+        return new TableExportResultBo(
+                toResponse(tableExport), safeSql, authorized.authorizedColumns());
     }
 
     @Override

@@ -17,12 +17,15 @@
  -->
 
 <script setup lang="ts">
-  import { ref, reactive, onMounted } from 'vue';
+  import { computed, ref, reactive, onMounted } from 'vue';
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
   import * as sysUserApi from '@/api/sysUser';
   import { listRoles, type RoleResponse } from '@/api/sysRole';
   import type { UserResponse } from '@/api/sysUser';
+  import { useUserStore } from '@/stores/user';
   import { formatDateTime } from '@/utils/dateTime';
+
+  const userStore = useUserStore();
 
   const loading = ref(false);
   const users = ref<UserResponse[]>([]);
@@ -59,9 +62,10 @@
 
   // ── Create / Edit dialog ──
   const formVisible = ref(false);
-  const formTitle = ref('新建用户');
-  const isEdit = ref(false);
   const editingId = ref<number | null>(null);
+  const isEdit = computed(() => editingId.value !== null);
+  const formTitle = computed(() => (isEdit.value ? '编辑用户' : '新建用户'));
+  const originalRoleId = ref(0);
   const formRef = ref<FormInstance>();
   const form = reactive({ username: '', password: '', displayName: '', roleId: 0 });
 
@@ -79,8 +83,7 @@
   };
 
   function openCreate() {
-    isEdit.value = false;
-    formTitle.value = '新建用户';
+    editingId.value = null;
     form.username = '';
     form.password = '';
     form.displayName = '';
@@ -89,11 +92,10 @@
   }
 
   function openEdit(user: UserResponse) {
-    isEdit.value = true;
-    formTitle.value = '编辑用户';
     editingId.value = user.id;
     form.displayName = user.displayName;
     form.roleId = user.roleId;
+    originalRoleId.value = user.roleId;
     formVisible.value = true;
   }
 
@@ -102,11 +104,18 @@
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
     try {
-      if (isEdit.value && editingId.value != null) {
-        await sysUserApi.updateUser(editingId.value, {
-          displayName: form.displayName,
-          roleId: form.roleId,
-        });
+      if (editingId.value != null) {
+        if (userStore.hasPermission('sys:user:update')) {
+          await sysUserApi.updateUser(editingId.value, {
+            displayName: form.displayName,
+          });
+        }
+        if (
+          userStore.hasPermission('sys:user:assign-role') &&
+          form.roleId !== originalRoleId.value
+        ) {
+          await sysUserApi.assignRole(editingId.value, form.roleId);
+        }
         ElMessage.success('更新成功');
       } else {
         await sysUserApi.createUser({ ...form });
@@ -173,6 +182,7 @@
 
   onMounted(() => {
     reload();
+    if (!userStore.hasPermission(['sys:role:read', 'sys:user:assign-role'])) return;
     listRoles()
       .then(list => {
         roleOptions.value = list;
@@ -188,7 +198,9 @@
     </div>
 
     <div class="table-actions">
-      <el-button type="primary" @click="openCreate">新建用户</el-button>
+      <el-button v-permission="'sys:user:create'" type="primary" @click="openCreate">
+        新建用户
+      </el-button>
     </div>
 
     <el-table v-loading="loading" :data="users" border stripe style="width: 100%">
@@ -217,9 +229,22 @@
       </el-table-column>
       <el-table-column label="操作" width="280" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" @click="openResetPwd(row)">重置密码</el-button>
           <el-button
+            v-permission="['sys:user:update', 'sys:user:assign-role']"
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'sys:user:reset-password'"
+            size="small"
+            @click="openResetPwd(row)"
+          >
+            重置密码
+          </el-button>
+          <el-button
+            v-permission="'sys:user:set-status'"
             size="small"
             :type="row.status === 1 ? 'warning' : 'success'"
             @click="onToggleStatus(row)"
@@ -258,10 +283,19 @@
           <el-input v-model="form.password" type="password" show-password placeholder="6-64 位" />
         </el-form-item>
         <el-form-item label="显示名" prop="displayName">
-          <el-input v-model="form.displayName" placeholder="请输入显示名" />
+          <el-input
+            v-model="form.displayName"
+            :disabled="isEdit && !userStore.hasPermission('sys:user:update')"
+            placeholder="请输入显示名"
+          />
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="form.roleId" placeholder="请选择角色" style="width: 100%">
+          <el-select
+            :disabled="!userStore.hasPermission('sys:user:assign-role')"
+            v-model="form.roleId"
+            placeholder="请选择角色"
+            style="width: 100%"
+          >
             <el-option :value="0" label="未分配" />
             <el-option v-for="r in roleOptions" :key="r.id" :value="r.id" :label="r.name" />
           </el-select>

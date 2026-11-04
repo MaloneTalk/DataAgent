@@ -15,8 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import java.time.LocalDateTime;
-
-public record RoleResponse(Integer id, String name, String description, LocalDateTime createTime) {}
+public record DatasourceOptionVo(Integer id, String name, String type, String status) {}

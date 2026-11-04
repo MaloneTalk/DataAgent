@@ -20,6 +20,7 @@ package io.github.malonetalk.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.SysRoleMapper;
@@ -30,26 +31,33 @@ import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.UserCreateDto;
 import io.github.malonetalk.model.dto.UserUpdateDto;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.utils.PasswordUtil;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class SysUserServiceImpl implements SysUserService {
 
     private final SysUserMapper sysUserMapper;
+    private final UserContextHolder holder;
     private final SysRoleMapper sysRoleMapper;
     private final UserConverter userConverter;
+    // PermissionService reads identity through this service, so resolve it on use.
+    private final ObjectProvider<PermissionService> permissions;
 
     @Override
-    public UserContextBo selectAuthProjection(Integer userId) {
-        SysUserPo sysUser = sysUserMapper.selectById(userId);
-        if (sysUser == null || sysUser.getStatus() == null || sysUser.getStatus() != 1) {
-            return null;
-        }
-        return userConverter.toContextBo(sysUser);
+    public Optional<UserContextBo> selectAuthProjection(Integer userId) {
+        return Optional.ofNullable(sysUserMapper.selectById(userId))
+                .filter(user -> Integer.valueOf(1).equals(user.getStatus()))
+                .map(userConverter::toContextBo);
     }
 
     @Override
@@ -93,11 +101,13 @@ public class SysUserServiceImpl implements SysUserService {
     }
 
     @Override
+    @Transactional
     public SysUserBo create(UserCreateDto dto) {
         if (selectLocalByUsername(dto.username()) != null) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "用户名 '" + dto.username() + "' 已存在");
         }
-        requireRoleIfAssigned(dto.roleId());
+        if (dto.roleId() != 0) requireRoleAssignment();
+        lockRoleIfAssigned(dto.roleId());
         SysUserPo user = new SysUserPo();
         user.setUsername(dto.username());
         user.setPasswordHash(PasswordUtil.hash(dto.password()));
@@ -112,13 +122,33 @@ public class SysUserServiceImpl implements SysUserService {
     @Override
     public SysUserBo update(Integer id, UserUpdateDto dto) {
         SysUserPo user = requireUser(id);
+        protectAdmin(user);
         user.setDisplayName(dto.displayName());
-        if (dto.roleId() != null) {
-            requireRoleIfAssigned(dto.roleId());
-            user.setRoleId(dto.roleId());
-        }
-        sysUserMapper.updateById(user);
+        SysUserPo patch = new SysUserPo();
+        patch.setId(id);
+        patch.setDisplayName(dto.displayName());
+        sysUserMapper.updateById(patch);
         return userConverter.toBo(user);
+    }
+
+    @Override
+    @Transactional
+    public void assignRole(Integer id, Integer roleId) {
+        requireRoleAssignment();
+        lockRoleIfAssigned(roleId);
+        SysUserPo user = requireUser(id);
+        protectAdmin(user);
+        Integer previous = user.getRoleId();
+        SysUserPo patch = new SysUserPo();
+        patch.setId(id);
+        patch.setRoleId(roleId);
+        sysUserMapper.updateById(patch);
+        log.info(
+                "Role assignment: actor={}, user={}, before={}, after={}",
+                holder.checkAndGet().userId(),
+                id,
+                previous,
+                roleId);
     }
 
     @Override
@@ -134,6 +164,7 @@ public class SysUserServiceImpl implements SysUserService {
     @Override
     public void resetPassword(Integer id, String newPassword) {
         SysUserPo user = requireUser(id);
+        protectAdmin(user);
         if (user.getPasswordHash() == null) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "外部身份源用户无法重置密码");
         }
@@ -142,7 +173,7 @@ public class SysUserServiceImpl implements SysUserService {
 
     @Override
     public void updateStatus(Integer id, Integer status) {
-        requireUser(id);
+        protectAdmin(requireUser(id));
         SysUserPo patch = new SysUserPo();
         patch.setId(id);
         patch.setStatus(status);
@@ -171,10 +202,21 @@ public class SysUserServiceImpl implements SysUserService {
         return user;
     }
 
-    private void requireRoleIfAssigned(Integer roleId) {
+    private void lockRoleIfAssigned(Integer roleId) {
         if (roleId == 0) return; // 0 = 未分配角色
-        if (sysRoleMapper.selectById(roleId) == null) {
+        if (sysRoleMapper.lockById(roleId) == null) {
             throw BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND, "角色ID " + roleId + " 不存在");
+        }
+    }
+
+    private void requireRoleAssignment() {
+        permissions.getObject().require(holder.checkAndGet(), PermissionEnum.SYS_USER_ASSIGN_ROLE);
+    }
+
+    private void protectAdmin(SysUserPo target) {
+        if (Boolean.TRUE.equals(target.getSuperAdmin())
+                && !Boolean.TRUE.equals(holder.checkAndGet().superAdmin())) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
     }
 }

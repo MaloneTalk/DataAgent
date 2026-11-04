@@ -36,18 +36,13 @@ export interface TablePermissionResponse {
   tableNames: string[];
 }
 
-export interface SaveTablePermissionRequest {
+export interface RoleDataScopeRequest {
   datasourceId: number;
   tableNames: string[];
+  hiddenColumns: Record<string, string[]>;
 }
 
 export interface ColumnPermissionResponse {
-  tableName: string;
-  columnNames: string[];
-}
-
-export interface SaveColumnPermissionRequest {
-  datasourceId: number;
   tableName: string;
   columnNames: string[];
 }
@@ -76,9 +71,9 @@ export function getPermissions(roleId: number) {
     .then(res => res.data.data);
 }
 
-export function savePermissions(roleId: number, payload: SaveTablePermissionRequest) {
+export function saveDataScope(roleId: number, payload: RoleDataScopeRequest) {
   return request
-    .put<ApiResponse<boolean>>(`/sys/role/${roleId}/permissions`, payload)
+    .put<ApiResponse<boolean>>(`/sys/role/${roleId}/data-scope`, payload)
     .then(res => res.data.data);
 }
 
@@ -90,15 +85,27 @@ export function getColumnPermissions(roleId: number, datasourceId: number) {
     .then(res => res.data.data);
 }
 
-export function saveColumnPermissions(roleId: number, payload: SaveColumnPermissionRequest) {
-  return request
-    .put<ApiResponse<boolean>>(`/sys/role/${roleId}/columns`, payload)
-    .then(res => res.data.data);
-}
-
 /** 一次性获取数据源下所有表的列名，避免 N 次请求。 */
 export function getAllTableColumns(datasourceId: number) {
   return request
     .get<ApiResponse<Record<string, string[]>>>(`/datasource/${datasourceId}/columns`)
     .then(res => res.data.data);
+}
+
+export interface PermissionDefinition {
+  code: string;
+  name: string;
+  module: string;
+  superAdminOnly: boolean;
+}
+export function getPermissionCatalog() {
+  return request
+    .get<ApiResponse<PermissionDefinition[]>>('/sys/permissions')
+    .then(r => r.data.data);
+}
+export function getCapabilities(id: number) {
+  return request.get<ApiResponse<string[]>>(`/sys/role/${id}/capabilities`).then(r => r.data.data);
+}
+export function saveCapabilities(id: number, codes: string[]) {
+  return request.put(`/sys/role/${id}/capabilities`, { codes });
 }

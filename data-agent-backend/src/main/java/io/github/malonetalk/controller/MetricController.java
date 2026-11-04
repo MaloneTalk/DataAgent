@@ -19,6 +19,7 @@ package io.github.malonetalk.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.annotation.RequirePermission;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.converter.BatchQueryConverter;
 import io.github.malonetalk.model.converter.MetricConverter;
 import io.github.malonetalk.model.dto.MetricCreateDto;
@@ -50,33 +51,35 @@ public class MetricController {
     private final MetricService metricService;
     private final MetricConverter metricConverter;
 
-    @RequirePermission
     @PostMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_METRIC_CREATE)
     public MetricInfoVo create(@Valid @RequestBody MetricCreateDto dto) {
         return metricConverter.toVo(metricService.create(dto));
     }
 
-    @RequirePermission
     @PutMapping("/{id}")
+    @RequirePermission(PermissionEnum.SEMANTIC_METRIC_UPDATE)
     public MetricInfoVo update(
             @PathVariable @Positive(message = "id 必须为正数") Integer id,
             @Valid @RequestBody MetricUpdateDto dto) {
         return metricConverter.toVo(metricService.update(id, dto));
     }
 
-    @RequirePermission
     @DeleteMapping("/{id}")
+    @RequirePermission(PermissionEnum.SEMANTIC_METRIC_DELETE)
     public BooleanVo delete(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
         metricService.delete(id);
         return BooleanVo.TRUE;
     }
 
     @GetMapping("/{id}")
+    @RequirePermission(PermissionEnum.SEMANTIC_METRIC_READ)
     public MetricInfoVo getById(@PathVariable @Positive(message = "id 必须为正数") Integer id) {
         return metricConverter.toVo(metricService.getById(id));
     }
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_METRIC_READ)
     public BatchQueryVo<MetricInfoVo> list(@Valid MetricQueryDto dto) {
         IPage<MetricInfoVo> page = metricService.page(dto).convert(metricConverter::toVo);
         return BatchQueryConverter.toVo(page);

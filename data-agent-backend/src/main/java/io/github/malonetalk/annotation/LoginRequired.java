@@ -15,17 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.annotation;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@Data
-public class RoleHiddenColumn {
-    private Integer id;
-    private Integer roleId;
-    private Integer datasourceId;
-    private String tableName;
-    private String columnName;
-    private LocalDateTime createTime;
-}
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface LoginRequired {}

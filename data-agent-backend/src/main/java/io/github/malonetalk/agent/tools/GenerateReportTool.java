@@ -21,7 +21,9 @@ import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.ReportService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,8 @@ import org.springframework.util.StringUtils;
 @Component
 @AllArgsConstructor
 public class GenerateReportTool implements MarkAgentTool {
+
+    private final PermissionService permissions;
 
     private final ReportService reportService;
     private final ToolExceptionMapper toolExceptionMapper;
@@ -81,6 +85,7 @@ public class GenerateReportTool implements MarkAgentTool {
                                     """)
                     String markdownText,
             ToolCallContext ctx) {
+        permissions.require(ctx.userId(), PermissionEnum.ASSET_REPORT_GENERATE);
         String sessionId = ctx.sessionId();
         if (!StringUtils.hasText(sessionId)) {
             log.warn("工具上下文中不存在session_id，使用默认session存储");

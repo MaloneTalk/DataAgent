@@ -17,5 +17,15 @@
  */
 package io.github.malonetalk.model.vo;
 
-/** 当前用户信息；角色/是否管理员字段随权限轮次补充。 */
-public record UserInfoVo(Integer userId, String username, String displayName) implements BaseVo {}
+import java.util.Set;
+import lombok.Builder;
+
+@Builder
+public record UserInfoVo(
+        Integer userId,
+        String username,
+        String displayName,
+        Integer roleId,
+        boolean superAdmin,
+        Set<String> permissions)
+        implements BaseVo {}

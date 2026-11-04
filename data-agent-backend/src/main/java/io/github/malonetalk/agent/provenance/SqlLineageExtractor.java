@@ -28,8 +28,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import net.sf.jsqlparser.expression.AnyComparisonExpression;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
+import net.sf.jsqlparser.expression.TrimFunction;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
@@ -264,6 +266,18 @@ public class SqlLineageExtractor {
                                 warnings,
                                 visibleAliases(inheritedAliases, aliases));
                         return null;
+                    }
+
+                    @Override
+                    public <S> Void visit(AnyComparisonExpression comparison, S context) {
+                        return visit(comparison.getSelect(), context);
+                    }
+
+                    @Override
+                    public <S> Void visit(TrimFunction trim, S context) {
+                        if (trim.getFromExpression() != null)
+                            trim.getFromExpression().accept(this, context);
+                        return super.visit(trim, context);
                     }
 
                     @Override

@@ -28,6 +28,9 @@
         SELECT * FROM report
         <where>
             is_deleted = 0
+            <if test="userId != null">
+                AND EXISTS (SELECT 1 FROM user_session us WHERE us.session_id = report.session_id AND us.user_id = #{userId})
+            </if>
             <if test="query.sessionId != null and query.sessionId != ''">
                 AND session_id = #{query.sessionId}
             </if>

@@ -49,42 +49,32 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
-import javax.sql.DataSource;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SessionService {
 
-    private final DataSource dataSource;
+    private final javax.sql.DataSource dataSource;
     private final SessionDatasourceMapper sessionDatasourceMapper;
     private final UserSessionMapper userSessionMapper;
     private final AnswerProvenanceService answerProvenanceService;
-    private final Map<String, Session> sessionCache = new ConcurrentHashMap<>();
 
-    public SessionService(
-            DataSource dataSource,
-            SessionDatasourceMapper sessionDatasourceMapper,
-            UserSessionMapper userSessionMapper,
-            AnswerProvenanceService answerProvenanceService) {
-        this.dataSource = dataSource;
-        this.sessionDatasourceMapper = sessionDatasourceMapper;
-        this.userSessionMapper = userSessionMapper;
-        this.answerProvenanceService = answerProvenanceService;
-    }
+    @Getter(lazy = true)
+    private final MysqlSession session =
+            new MysqlSession(dataSource, currentDatabaseName(), "agentscope_sessions", false);
 
-    public Session getOrCreateSession(String sessionId) {
-        return sessionCache.computeIfAbsent(sessionId, k -> createMysqlSession());
-    }
-
-    private MysqlSession createMysqlSession() {
-        return new MysqlSession(dataSource, currentDatabaseName(), "agentscope_sessions", false);
+    public boolean hasDatasourceBinding(String sessionId) {
+        return sessionDatasourceMapper.selectBySessionId(sessionId) != null;
     }
 
     private String currentDatabaseName() {
@@ -133,19 +123,20 @@ public class SessionService {
     }
 
     private List<Msg> loadMessages(String sessionId) {
-        Session session = getOrCreateSession(sessionId);
+        Session session = getSession();
         if (!session.exists(SimpleSessionKey.of(sessionId))) {
             return Collections.emptyList();
         }
         return session.getList(SimpleSessionKey.of(sessionId), "memory_messages", Msg.class);
     }
 
-    public String getLatestUserMessageId(String sessionId) {
+    public Optional<String> getLatestUserMessageId(String sessionId) {
         List<Msg> messages = loadMessages(sessionId);
         for (int i = messages.size() - 1; i >= 0; i--) {
-            if (messages.get(i).getRole() == MsgRole.USER) return messages.get(i).getId();
+            if (messages.get(i).getRole() == MsgRole.USER)
+                return Optional.ofNullable(messages.get(i).getId());
         }
-        return null;
+        return Optional.empty();
     }
 
     private List<TurnItem> buildTurnItems(List<Msg> messages) {
@@ -258,44 +249,22 @@ public class SessionService {
     }
 
     private void doClearSession(String sessionId) {
-        Session session = sessionCache.remove(sessionId);
-        if (session == null) {
-            session = createMysqlSession();
-        }
-        session.delete(SimpleSessionKey.of(sessionId));
+        getSession().delete(SimpleSessionKey.of(sessionId));
         answerProvenanceService.deleteSession(sessionId);
         sessionDatasourceMapper.deleteBySessionId(sessionId);
         userSessionMapper.deleteBySessionId(sessionId);
     }
 
-    /**
-     * 清空全部会话：admin 清全量，普通用户清自己名下。
-     *
-     * @param userId null 表示 admin（清全量），非 null 表示指定用户
-     */
+    /** 清空全部会话；调用入口要求 analysis:session:delete-all。 */
     @Transactional
-    public void clearAllSessions(Integer userId) {
-        if (userId == null) {
-            // admin: clear everything — query db for session IDs, not local cache
-            MysqlSession session = createMysqlSession();
-            Set<SessionKey> keys = session.listSessionKeys();
-            if (keys != null) {
-                for (SessionKey key : keys) {
-                    doClearSession(key.toIdentifier());
-                }
+    public void clearAllSessions() {
+        MysqlSession session = getSession();
+        Set<SessionKey> keys = session.listSessionKeys();
+        if (keys != null) {
+            for (SessionKey key : keys) {
+                doClearSession(key.toIdentifier());
             }
-            return;
         }
-
-        List<String> userSessionIds = userSessionMapper.selectSessionIdsByUserId(userId);
-        for (String sessionId : userSessionIds) {
-            sessionCache.remove(sessionId);
-            MysqlSession session = createMysqlSession();
-            session.delete(SimpleSessionKey.of(sessionId));
-            answerProvenanceService.deleteSession(sessionId);
-            sessionDatasourceMapper.deleteBySessionId(sessionId);
-        }
-        userSessionMapper.deleteByUserId(userId);
     }
 
     /**
@@ -304,7 +273,7 @@ public class SessionService {
      * @param userId null 表示 admin（全量），非 null 表示只查该用户的会话
      */
     public List<SessionInfo> listSessions(Integer userId) {
-        MysqlSession session = createMysqlSession();
+        MysqlSession session = getSession();
         Set<SessionKey> keys = session.listSessionKeys();
 
         if (keys == null || keys.isEmpty()) {

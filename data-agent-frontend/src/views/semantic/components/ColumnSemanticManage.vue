@@ -261,8 +261,17 @@
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
           <el-button
+            v-permission="'semantic:column:update'"
+            link
+            type="primary"
+            size="small"
+            @click="handleOpenEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'semantic:column:update'"
             v-if="row.id !== null"
             link
             type="warning"

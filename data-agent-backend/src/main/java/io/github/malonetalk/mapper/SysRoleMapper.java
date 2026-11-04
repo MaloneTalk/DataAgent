@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.entity.SysRole;
+import io.github.malonetalk.model.po.SysRole;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -29,11 +29,11 @@ public interface SysRoleMapper {
 
     SysRole selectById(@Param("id") Integer id);
 
+    Integer lockById(@Param("id") Integer id);
+
     int insert(SysRole role);
 
     int update(SysRole role);
 
     int deleteById(@Param("id") Integer id);
-
-    int countAll();
 }

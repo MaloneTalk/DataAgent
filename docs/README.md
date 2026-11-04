@@ -13,6 +13,8 @@
 | 5 | [skills.md](skills.md) | 要扩展 Agent 能力的人 | Skill 是什么、怎么写、怎么加自定义 Skill |
 | 6 | [observability.md](observability.md) | 要观测/排障的人 | OpenTelemetry trace/metrics/logs、配置开关、任意 OTLP 后端（Grafana LGTM 示例） |
 
+| 6 | [permissions.md](permissions.md) | 要配置权限的人 | 权限点、角色授权、数据范围与数据库升级 |
+
 ## 贡献相关
 
 | 文档 | 说明 |
@@ -30,6 +32,6 @@ DataAgent/
 ├── data-agent-frontend/      # Vue 3 + TS + Vite 前端
 ├── docker/                   # Docker Compose（含 observability/ 观测栈）
 ├── skills/                   # Skill 目录（内置 + 自定义，放入即生效）
-├── sql/                      # 元数据库初始化脚本（data_source.sql）
+├── sql/                      # 主文件 data_source.sql + 迁移文件 migration.sql
 └── docs/                     # 本文档集
 ```

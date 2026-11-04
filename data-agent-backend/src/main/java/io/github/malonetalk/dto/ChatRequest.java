@@ -17,14 +17,18 @@
  */
 package io.github.malonetalk.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record ChatRequest(
-        @NotBlank(message = "sessionId 不能为空") String sessionId,
+        @NotBlank(message = "sessionId 不能为空") @Size(max = 255) String sessionId,
         String message,
-        List<ToolResultInput> toolResults,
+        @Size(max = 20) List<@Valid ToolResultInput> toolResults,
         Integer datasourceId) {
 
-    public record ToolResultInput(String toolCallId, String toolName, String output) {}
+    public record ToolResultInput(
+            @NotBlank String toolCallId, @NotBlank String toolName, @NotNull String output) {}
 }

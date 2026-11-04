@@ -35,7 +35,4 @@ public interface UserSessionMapper {
 
     /** 删除指定会话的归属记录。 */
     int deleteBySessionId(@Param("sessionId") String sessionId);
-
-    /** 删除用户的所有归属记录。 */
-    int deleteByUserId(@Param("userId") int userId);
 }

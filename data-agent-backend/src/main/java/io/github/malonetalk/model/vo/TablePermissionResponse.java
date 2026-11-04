@@ -15,16 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.vo;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import java.util.List;
 
-@Data
-public class SysRole {
-    private Integer id;
-    private String name;
-    private String description;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+public record TablePermissionResponse(Integer datasourceId, List<String> tableNames) {}

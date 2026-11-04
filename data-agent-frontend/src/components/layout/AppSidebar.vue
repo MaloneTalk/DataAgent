@@ -16,10 +16,13 @@
  -->
 
 <script setup lang="ts">
-  import { ref } from 'vue';
-  import { useRoute } from 'vue-router';
+  import { ref, computed } from 'vue';
+  import { useUserStore } from '@/stores/user';
+  import { useRoute, useRouter } from 'vue-router';
 
   const route = useRoute();
+  const router = useRouter();
+  const userStore = useUserStore();
 
   const isCollapse = ref(false);
 
@@ -55,6 +58,20 @@
     },
   ];
 
+  function canVisit(path: string) {
+    const permission = router.resolve(path).meta.permission;
+    return Boolean(permission && userStore.hasPermission(permission));
+  }
+
+  const visibleItems = computed(() =>
+    menuItems
+      .map(item => ({
+        ...item,
+        children: item.children?.filter(child => canVisit(child.path)),
+      }))
+      .filter(item => (item.children ? item.children.length > 0 : canVisit(item.path))),
+  );
+
   const toggleSidebar = () => {
     isCollapse.value = !isCollapse.value;
   };
@@ -63,7 +80,7 @@
 <template>
   <aside class="app-sidebar" :class="{ collapsed: isCollapse }">
     <el-menu :default-active="route.path" :collapse="isCollapse" router>
-      <template v-for="item in menuItems" :key="item.path">
+      <template v-for="item in visibleItems" :key="item.path">
         <el-sub-menu v-if="item.children" :index="item.path">
           <template #title>
             <span>{{ item.title }}</span>

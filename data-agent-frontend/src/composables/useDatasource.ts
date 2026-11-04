@@ -16,9 +16,9 @@
  */
 
 import { ref } from 'vue';
-import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
+import { getDatasourceOptions, type DatasourceResponse } from '@/api/datasource';
 
-export function useDatasource() {
+export function useDatasource(load: () => Promise<DatasourceResponse[]> = getDatasourceOptions) {
   const list = ref<DatasourceResponse[]>([]);
   const loading = ref(false);
   const error = ref<Error | null>(null);
@@ -27,7 +27,7 @@ export function useDatasource() {
     loading.value = true;
     error.value = null;
     try {
-      list.value = await getDatasourceList();
+      list.value = await load();
     } catch (e) {
       error.value = e as Error;
     } finally {

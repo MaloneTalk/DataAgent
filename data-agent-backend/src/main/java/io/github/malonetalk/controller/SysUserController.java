@@ -19,8 +19,10 @@ package io.github.malonetalk.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.annotation.RequirePermission;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.converter.BatchQueryConverter;
 import io.github.malonetalk.model.converter.UserConverter;
+import io.github.malonetalk.model.dto.AssignRoleDto;
 import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.ResetPasswordDto;
 import io.github.malonetalk.model.dto.UserCreateDto;
@@ -48,7 +50,6 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>username 唯一性由 Service 层保证；password 不允许通过 update 接口修改（需调用重置密码）。
  */
-@RequirePermission
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/sys/user")
@@ -59,23 +60,27 @@ public class SysUserController {
     private final UserConverter userConverter;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SYS_USER_READ)
     public BatchQueryVo<UserVo> list(@Valid BaseBatchQueryDto dto) {
         IPage<UserVo> page = sysUserService.page(dto).convert(userConverter::toVo);
         return BatchQueryConverter.toVo(page);
     }
 
     @PostMapping
+    @RequirePermission(PermissionEnum.SYS_USER_CREATE)
     public UserVo create(@Valid @RequestBody UserCreateDto dto) {
         return userConverter.toVo(sysUserService.create(dto));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission(PermissionEnum.SYS_USER_UPDATE)
     public UserVo update(@PathVariable Integer id, @Valid @RequestBody UserUpdateDto dto) {
         return userConverter.toVo(sysUserService.update(id, dto));
     }
 
     /** 管理员重置用户密码（不需旧密码）。 */
     @PutMapping("/{id}/password")
+    @RequirePermission(PermissionEnum.SYS_USER_RESET_PASSWORD)
     public BooleanVo resetPassword(
             @PathVariable Integer id, @Valid @RequestBody ResetPasswordDto dto) {
         sysUserService.resetPassword(id, dto.newPassword());
@@ -84,9 +89,17 @@ public class SysUserController {
 
     /** 启 / 停用户。 */
     @PutMapping("/{id}/status")
+    @RequirePermission(PermissionEnum.SYS_USER_SET_STATUS)
     public BooleanVo updateStatus(
             @PathVariable Integer id, @RequestParam @Min(0) @Max(1) Integer status) {
         sysUserService.updateStatus(id, status);
+        return BooleanVo.TRUE;
+    }
+
+    @RequirePermission(PermissionEnum.SYS_USER_ASSIGN_ROLE)
+    @PutMapping("/{id}/role")
+    public BooleanVo assignRole(@PathVariable Integer id, @RequestBody @Valid AssignRoleDto dto) {
+        sysUserService.assignRole(id, dto.roleId());
         return BooleanVo.TRUE;
     }
 }

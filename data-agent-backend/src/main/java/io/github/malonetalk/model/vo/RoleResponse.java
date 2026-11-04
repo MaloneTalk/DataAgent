@@ -15,8 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import java.util.List;
+import java.time.LocalDateTime;
 
-public record ColumnPermissionResponse(String tableName, List<String> columnNames) {}
+public record RoleResponse(Integer id, String name, String description, LocalDateTime createTime) {}

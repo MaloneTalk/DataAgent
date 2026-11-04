@@ -15,8 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 
-public record RoleRequest(@NotBlank(message = "name 不能为空") String name, String description) {}
+public record ColumnPermissionResponse(String tableName, List<String> columnNames) {}

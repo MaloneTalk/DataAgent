@@ -19,6 +19,7 @@ package io.github.malonetalk.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.github.malonetalk.agent.SessionService;
 import io.github.malonetalk.convertor.ReportConverter;
 import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.dto.ReportResponse;
@@ -27,6 +28,7 @@ import io.github.malonetalk.entity.Report;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ReportMapper;
+import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
@@ -39,6 +41,8 @@ import org.springframework.stereotype.Service;
 public class ReportServiceImpl implements ReportService {
 
     private final ReportMapper reportMapper;
+    private final UserContextHolder holder;
+    private final SessionService sessions;
     private final ReportConverter reportConverter;
 
     @Override
@@ -73,7 +77,8 @@ public class ReportServiceImpl implements ReportService {
                                 pageSize,
                                 SemanticUtils.trimToNull(query.keyword()),
                                 query.sortOrder()),
-                        sortDescending);
+                        sortDescending,
+                        holder.requireScopedUserId());
         List<ReportResponse> responses =
                 page.getRecords().stream().map(reportConverter::toResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
@@ -92,6 +97,7 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public void deleteById(Integer id) {
         RequestAssert.requireNonNull(id, "id cannot be null.");
+        sessions.requireOwnership(holder.requireScopedUserId(), findById(id).sessionId());
         int affected = reportMapper.deleteById(id);
         if (affected == 0) {
             throw reportNotFound(id);

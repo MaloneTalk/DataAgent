@@ -25,6 +25,7 @@ import io.github.malonetalk.dto.semantic.PhysicalTableCandidateResponse;
 import io.github.malonetalk.dto.semantic.RefreshPhysicalStatusRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @RequestMapping("/api/semantic/tables/sync")
 @RequiredArgsConstructor
@@ -43,18 +43,21 @@ public class TableSemanticSyncController {
     private final SemanticSyncService semanticSyncService;
 
     @GetMapping("/candidates")
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_SYNC)
     public Result<PageResponse<PhysicalTableCandidateResponse>> getPhysicalTableCandidates(
             @Valid PhysicalTableCandidatePageQuery query) {
         return Result.success(semanticSyncService.getPhysicalTableCandidates(query));
     }
 
     @PostMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_SYNC)
     public Result<SyncTableSemanticsResponse> syncTables(
             @Valid @RequestBody SyncTableSemanticsRequest request) {
         return Result.success(semanticSyncService.syncTables(request));
     }
 
     @PostMapping("/physical-status")
+    @RequirePermission(PermissionEnum.SEMANTIC_TABLE_SYNC)
     public Result<SyncTableSemanticsResponse> refreshPhysicalStatus(
             @Valid @RequestBody RefreshPhysicalStatusRequest request) {
         return Result.success(semanticSyncService.refreshPhysicalStatus(request));

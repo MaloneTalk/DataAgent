@@ -18,7 +18,9 @@
 package io.github.malonetalk.model.vo;
 
 import java.util.List;
+import lombok.Builder;
 
+@Builder
 public record AnswerProvenanceVo(
         String status,
         List<DatasourceUse> datasources,
@@ -32,6 +34,7 @@ public record AnswerProvenanceVo(
 
     public record DatasourceUse(Integer id, String name, String databaseName) {}
 
+    @Builder
     public record SqlUse(
             String callId,
             String sql,

@@ -23,6 +23,7 @@ import io.github.malonetalk.convertor.McpServerConverter;
 import io.github.malonetalk.dto.McpServerRequest;
 import io.github.malonetalk.dto.McpServerResponse;
 import io.github.malonetalk.entity.McpServer;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -39,7 +40,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/mcp-server")
@@ -49,6 +49,7 @@ public class McpServerController {
     private final McpServerConverter mcpServerConverter;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SYS_MCP_READ)
     public Result<List<McpServerResponse>> findAll() {
         List<McpServer> list = mcpServerService.findAll();
         List<McpServerResponse> responses =
@@ -57,11 +58,13 @@ public class McpServerController {
     }
 
     @GetMapping("/{id}")
+    @RequirePermission(PermissionEnum.SYS_MCP_READ)
     public Result<McpServerResponse> findById(@PathVariable Integer id) {
         return Result.success(mcpServerConverter.toResponse(requireMcpServer(id)));
     }
 
     @PostMapping
+    @RequirePermission(PermissionEnum.SYS_MCP_UPDATE)
     public Result<McpServerResponse> save(@Valid @RequestBody McpServerRequest request) {
         if (mcpServerService.findByName(request.name()) != null) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "MCP server name already exists.");
@@ -75,6 +78,7 @@ public class McpServerController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission(PermissionEnum.SYS_MCP_UPDATE)
     public Result<McpServerResponse> update(
             @PathVariable Integer id, @Valid @RequestBody McpServerRequest request) {
         McpServer existing = requireMcpServer(id);
@@ -93,6 +97,7 @@ public class McpServerController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission(PermissionEnum.SYS_MCP_UPDATE)
     public Result<Boolean> deleteById(@PathVariable Integer id) {
         requireMcpServer(id);
         requireOperationSuccess(
@@ -101,6 +106,7 @@ public class McpServerController {
     }
 
     @PutMapping("/{id}/enable")
+    @RequirePermission(PermissionEnum.SYS_MCP_SET_STATUS)
     public Result<Boolean> enable(@PathVariable Integer id) {
         McpServer mcpServer = requireMcpServer(id);
         mcpServer.setStatus(Status.ACTIVE.getCode());
@@ -110,6 +116,7 @@ public class McpServerController {
     }
 
     @PutMapping("/{id}/disable")
+    @RequirePermission(PermissionEnum.SYS_MCP_SET_STATUS)
     public Result<Boolean> disable(@PathVariable Integer id) {
         McpServer mcpServer = requireMcpServer(id);
         mcpServer.setStatus(Status.INACTIVE.getCode());
@@ -119,6 +126,7 @@ public class McpServerController {
     }
 
     @GetMapping("/status/{status}")
+    @RequirePermission(PermissionEnum.SYS_MCP_READ)
     public Result<List<McpServerResponse>> findByStatus(@PathVariable String status) {
         List<McpServer> list = mcpServerService.findByStatus(status);
         List<McpServerResponse> responses =

@@ -45,6 +45,8 @@ export interface DatasourceResponse {
   description?: string;
 }
 
+export type DatasourceOption = Pick<DatasourceResponse, 'id' | 'name' | 'type' | 'status'>;
+
 export function getDatasourceList() {
   return request.get<ApiResponse<DatasourceResponse[]>>('/datasource').then(res => res.data.data);
 }
@@ -74,5 +76,11 @@ export function activateDatasource(id: number) {
 export function deactivateDatasource(id: number) {
   return request
     .put<ApiResponse<boolean>>(`/datasource/${id}/deactivate`)
+    .then(res => res.data.data);
+}
+
+export function getDatasourceOptions() {
+  return request
+    .get<ApiResponse<DatasourceOption[]>>('/datasource/options')
     .then(res => res.data.data);
 }

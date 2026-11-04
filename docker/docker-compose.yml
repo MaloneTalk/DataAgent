@@ -22,8 +22,8 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - data-agent-mysql:/var/lib/mysql
-      # 自动挂载项目根目录的 sql/ 文件夹进行初始化
-      - ../sql:/docker-entrypoint-initdb.d:ro
+      # 新库仅执行主文件；已有数据库升级时手动执行 sql/migration.sql
+      - ../sql/data_source.sql:/docker-entrypoint-initdb.d/data_source.sql:ro
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci

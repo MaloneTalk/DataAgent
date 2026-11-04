@@ -41,10 +41,7 @@ public class UserContextHolder implements ThreadLocalHolder<UserContextBo> {
     }
 
     public Integer requireScopedUserId() {
-        UserContextBo bo = checkAndGet();
-        if (Boolean.TRUE.equals(bo.superAdmin())) {
-            return null;
-        }
-        return bo.userId();
+        UserContextBo user = checkAndGet();
+        return Boolean.TRUE.equals(user.superAdmin()) ? null : user.userId();
     }
 }
