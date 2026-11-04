@@ -17,22 +17,31 @@
  */
 package io.github.malonetalk.interceptor;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import io.github.malonetalk.agent.AgentService;
+import io.github.malonetalk.agent.SessionService;
+import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.annotation.LoginRequired;
 import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.config.WebMvcConfig;
+import io.github.malonetalk.controller.AgentController;
 import io.github.malonetalk.controller.SysRoleController;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
@@ -40,7 +49,9 @@ import io.github.malonetalk.exception.GlobalExceptionHandler;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
+import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import io.github.malonetalk.mapper.SysRoleMapper;
+import io.github.malonetalk.mapper.UserSessionMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.dto.RoleDataScopeDto;
 import io.github.malonetalk.model.dto.SaveColumnPermissionRequest;
@@ -71,6 +82,59 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 class PermissionIntegrationTest {
+
+    @Test
+    void sessionCreationRequiresChatPermissionAndChatRequiresRegisteredOwnership()
+            throws Exception {
+        var users = mock(SysUserService.class);
+        when(users.selectAuthProjection(7))
+                .thenReturn(
+                        Optional.of(
+                                UserContextBo.builder()
+                                        .userId(7)
+                                        .roleId(2)
+                                        .superAdmin(false)
+                                        .build()));
+        var capabilities = mock(RoleCapabilityMapper.class);
+        var permissions = new PermissionService(users, capabilities);
+        var jwt = mock(JwtUtil.class);
+        when(jwt.parseUserId("valid")).thenReturn(7);
+        var holder = new UserContextHolder();
+        var database = mock(javax.sql.DataSource.class);
+        var ownership = mock(UserSessionMapper.class);
+        when(ownership.insertIgnore(eq(7), anyString())).thenReturn(1);
+        var provenance = mock(AnswerProvenanceService.class);
+        var sessions =
+                new SessionService(
+                        database, mock(SessionDatasourceMapper.class), ownership, provenance);
+        var agent = mock(AgentService.class);
+        var mvc =
+                MockMvcBuilders.standaloneSetup(
+                                new AgentController(
+                                        agent, permissions, sessions, holder, provenance))
+                        .addInterceptors(new AuthInterceptor(permissions, jwt, holder))
+                        .setControllerAdvice(
+                                new GlobalExceptionHandler(new ExceptionResponseMapper()))
+                        .defaultRequest(
+                                post("/")
+                                        .header("Authorization", "Bearer valid")
+                                        .contentType(MediaType.APPLICATION_JSON))
+                        .build();
+
+        mvc.perform(post("/api/agent/session")).andExpect(status().isForbidden());
+        verifyNoInteractions(ownership);
+        when(capabilities.selectCodes(2)).thenReturn(List.of("analysis:chat:use"));
+        mvc.perform(post("/api/agent/session"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(startsWith("AGENTSCOPE_7_")));
+        verify(ownership).insertIgnore(eq(7), anyString());
+        mvc.perform(
+                        post("/api/agent/chat/stream")
+                                .content("{\"sessionId\":\"unowned\",\"message\":\"hello\"}"))
+                .andExpect(status().isNotFound());
+        verifyNoInteractions(agent, database);
+        assertNull(holder.get());
+    }
 
     @Test
     void legacyAndAtomicGrantEndpointsRemainProtectedAndCompatible() throws Exception {
