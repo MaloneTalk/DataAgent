@@ -138,14 +138,7 @@ public class SqlLineageExtractor {
                     .forEach(
                             item -> {
                                 Expression selected = item.getExpression();
-                                if (selected instanceof AllColumns) {
-                                    aliases.values().stream()
-                                            .distinct()
-                                            .forEach(
-                                                    table ->
-                                                            expandStar(
-                                                                    table, used, known, warnings));
-                                } else if (selected instanceof AllTableColumns allTableColumns) {
+                                if (selected instanceof AllTableColumns allTableColumns) {
                                     String table =
                                             aliases.get(key(allTableColumns.getTable().getName()));
                                     if (table == null) {
@@ -155,6 +148,13 @@ public class SqlLineageExtractor {
                                     }
                                     if (table == null) warnings.add("无法识别通配符来源：" + selected);
                                     else expandStar(table, used, known, warnings);
+                                } else if (selected instanceof AllColumns) {
+                                    aliases.values().stream()
+                                            .distinct()
+                                            .forEach(
+                                                    table ->
+                                                            expandStar(
+                                                                    table, used, known, warnings));
                                 } else {
                                     collect(
                                             selected,

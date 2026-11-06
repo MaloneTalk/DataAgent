@@ -62,10 +62,10 @@
 
   // ── Create / Edit dialog ──
   const formVisible = ref(false);
+  const formSaving = ref(false);
   const editingId = ref<number | null>(null);
   const isEdit = computed(() => editingId.value !== null);
   const formTitle = computed(() => (isEdit.value ? '编辑用户' : '新建用户'));
-  const originalRoleId = ref(0);
   const formRef = ref<FormInstance>();
   const form = reactive({ username: '', password: '', displayName: '', roleId: 0 });
 
@@ -93,30 +93,21 @@
 
   function openEdit(user: UserResponse) {
     editingId.value = user.id;
+    form.username = user.username;
     form.displayName = user.displayName;
-    form.roleId = user.roleId;
-    originalRoleId.value = user.roleId;
     formVisible.value = true;
   }
 
   async function onSubmitForm() {
-    if (!formRef.value) return;
-    const valid = await formRef.value.validate().catch(() => false);
-    if (!valid) return;
+    if (!formRef.value || formSaving.value) return;
+    if (!userStore.hasPermission(isEdit.value ? 'sys:user:update' : 'sys:user:create')) return;
+    formSaving.value = true;
     try {
+      const valid = await formRef.value.validate().catch(() => false);
+      if (!valid) return;
       if (editingId.value != null) {
-        if (userStore.hasPermission('sys:user:update')) {
-          await sysUserApi.updateUser(editingId.value, {
-            displayName: form.displayName,
-          });
-        }
-        if (
-          userStore.hasPermission('sys:user:assign-role') &&
-          form.roleId !== originalRoleId.value
-        ) {
-          await sysUserApi.assignRole(editingId.value, form.roleId);
-        }
-        ElMessage.success('更新成功');
+        await sysUserApi.updateUser(editingId.value, { displayName: form.displayName });
+        ElMessage.success('资料保存成功');
       } else {
         await sysUserApi.createUser({ ...form });
         ElMessage.success('创建成功');
@@ -125,6 +116,36 @@
       await reload();
     } catch {
       // 请求层已 toast
+    } finally {
+      formSaving.value = false;
+    }
+  }
+
+  // ── Assign role dialog ──
+  const roleVisible = ref(false);
+  const roleSaving = ref(false);
+  const roleUser = ref<UserResponse>();
+  const assignedRoleId = ref(0);
+
+  function openAssignRole(user: UserResponse) {
+    roleUser.value = user;
+    assignedRoleId.value = user.roleId;
+    roleVisible.value = true;
+  }
+
+  async function onAssignRole() {
+    if (!roleUser.value || roleSaving.value || !userStore.hasPermission('sys:user:assign-role'))
+      return;
+    roleSaving.value = true;
+    try {
+      await sysUserApi.assignRole(roleUser.value.id, assignedRoleId.value);
+      ElMessage.success('角色分配成功');
+      roleVisible.value = false;
+      await reload();
+    } catch {
+      // 请求层已 toast
+    } finally {
+      roleSaving.value = false;
     }
   }
 
@@ -227,14 +248,17 @@
           {{ formatDateTime(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" align="center" fixed="right">
+      <el-table-column label="操作" width="360" align="center" fixed="right">
         <template #default="{ row }">
+          <el-button v-permission="'sys:user:update'" size="small" @click="openEdit(row)">
+            编辑资料
+          </el-button>
           <el-button
-            v-permission="['sys:user:update', 'sys:user:assign-role']"
+            v-permission="'sys:user:assign-role'"
             size="small"
-            @click="openEdit(row)"
+            @click="openAssignRole(row)"
           >
-            编辑
+            分配角色
           </el-button>
           <el-button
             v-permission="'sys:user:reset-password'"
@@ -268,11 +292,19 @@
     </div>
 
     <!-- Create / Edit dialog -->
-    <el-dialog v-model="formVisible" :title="formTitle" width="420px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="formVisible"
+      :title="formTitle"
+      width="420px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="!formSaving"
+      :show-close="!formSaving"
+    >
       <el-form
         ref="formRef"
         :model="form"
         :rules="isEdit ? editRules : createRules"
+        :disabled="formSaving"
         label-width="80px"
         @submit.prevent="onSubmitForm"
       >
@@ -283,13 +315,9 @@
           <el-input v-model="form.password" type="password" show-password placeholder="6-64 位" />
         </el-form-item>
         <el-form-item label="显示名" prop="displayName">
-          <el-input
-            v-model="form.displayName"
-            :disabled="isEdit && !userStore.hasPermission('sys:user:update')"
-            placeholder="请输入显示名"
-          />
+          <el-input v-model="form.displayName" placeholder="请输入显示名" />
         </el-form-item>
-        <el-form-item label="角色">
+        <el-form-item v-if="!isEdit" label="角色">
           <el-select
             :disabled="!userStore.hasPermission('sys:user:assign-role')"
             v-model="form.roleId"
@@ -302,8 +330,33 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="formVisible = false">取消</el-button>
-        <el-button type="primary" @click="onSubmitForm">确定</el-button>
+        <el-button :disabled="formSaving" @click="formVisible = false">取消</el-button>
+        <el-button type="primary" :loading="formSaving" @click="onSubmitForm">
+          {{ isEdit ? '保存资料' : '创建用户' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Assign role dialog -->
+    <el-dialog
+      v-model="roleVisible"
+      :title="`分配角色 - ${roleUser?.username ?? ''}`"
+      width="420px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="!roleSaving"
+      :show-close="!roleSaving"
+    >
+      <el-form label-width="80px" :disabled="roleSaving" @submit.prevent="onAssignRole">
+        <el-form-item label="角色">
+          <el-select v-model="assignedRoleId" placeholder="请选择角色" style="width: 100%">
+            <el-option :value="0" label="未分配" />
+            <el-option v-for="r in roleOptions" :key="r.id" :value="r.id" :label="r.name" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="roleSaving" @click="roleVisible = false">取消</el-button>
+        <el-button type="primary" :loading="roleSaving" @click="onAssignRole">分配角色</el-button>
       </template>
     </el-dialog>
 

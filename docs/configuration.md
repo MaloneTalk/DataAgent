@@ -91,6 +91,8 @@ export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 
 > **表格导出限制**：`export_table` 会把 SELECT 结果导出为 CSV，CSV 内容保存在元数据库中，单次最多 10000 行。当前大批量导出的流式读取按 MySQL 路径处理；PostgreSQL 虽可接入查询，但大批量导出前需在实现中补 cursor/事务设置（例如关闭 auto-commit），否则驱动可能一次性拉取结果集。
 
+CSV 按 JDBC 类型转换：布尔、数值、字符和日期时间类型使用驱动提供的文本表示；`BINARY`、`VARBINARY`、`LONGVARBINARY` 和 `BLOB` 读取实际字节，输出为带 `0x` 前缀的小写十六进制（例如 `0x00ff`，空字节串为 `0x`）；`CLOB`、`NCLOB` 读取完整文本。SQL `NULL` 输出为空单元格。其他类型（如 `ARRAY`、`STRUCT`、`SQLXML`、`OTHER`）遇到数据时会终止导出并报错，需先在查询中显式转换为支持的标量类型。所有文本继续按 CSV 规则转义，并对可能触发电子表格公式的内容添加单引号前缀。
+
 > 上述列表之外的其他 JDBC 兼容数据库，可通过扩展 `DataSourceType` 枚举接入（见 [contributing.md](contributing.md)）。
 
 > 连接信息（host/port/database/username/password）保存在元数据库中，属敏感信息，请妥善管理元数据库访问权限。

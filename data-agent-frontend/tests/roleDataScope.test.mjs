@@ -90,7 +90,7 @@ function userEditor(t, permissions) {
   );
   const script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
   const code = ts.transpileModule(
-    `${script}\nmodule.exports = { form, formRef, editingId, originalRoleId, onSubmitForm };`,
+    `${script}\nmodule.exports = { form, formRef, editingId, roleUser, assignedRoleId, onSubmitForm, onAssignRole };`,
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } },
   ).outputText;
   const calls = [];
@@ -117,14 +117,14 @@ function userEditor(t, permissions) {
   const state = module.exports;
   state.formRef.value = { validate: async () => true };
   state.editingId.value = 9;
-  state.originalRoleId.value = 0;
-  state.form.roleId = 8;
+  state.roleUser.value = { id: 9, roleId: 0 };
+  state.assignedRoleId.value = 8;
   return { ...state, calls };
 }
 
 test('ordinary users with assignment permission can assign without profile update permission', async t => {
   const state = userEditor(t, ['sys:user:assign-role']);
-  await state.onSubmitForm();
+  await state.onAssignRole();
   assert.deepEqual(state.calls, [['assign', 9, 8]]);
 });
 
