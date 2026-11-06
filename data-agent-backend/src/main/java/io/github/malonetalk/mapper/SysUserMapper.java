@@ -17,8 +17,24 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.model.po.SysUserPo;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface SysUserMapper extends AuditableMapper<SysUserPo> {}
+public interface SysUserMapper extends AuditableMapper<SysUserPo> {
+
+    /** 只查询身份字段和状态，账号可用性由 Service 判断。 */
+    default SysUserPo selectAuthProjection(Integer userId) {
+        return selectOne(
+                Wrappers.<SysUserPo>lambdaQuery()
+                        .select(
+                                SysUserPo::getId,
+                                SysUserPo::getUsername,
+                                SysUserPo::getDisplayName,
+                                SysUserPo::getRoleId,
+                                SysUserPo::getSuperAdmin,
+                                SysUserPo::getStatus)
+                        .eq(SysUserPo::getId, userId));
+    }
+}

@@ -32,18 +32,20 @@ import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
-import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.mapper.SysUserMapper;
+import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
+import io.github.malonetalk.model.po.SysUserPo;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mapstruct.factory.Mappers;
 
 class SqlAuthorizationRegressionTest {
     private final DatasourcePo datasource = new DatasourcePo();
@@ -51,19 +53,17 @@ class SqlAuthorizationRegressionTest {
 
     @BeforeEach
     void setup() {
-        var users = mock(SysUserService.class);
+        var users = mock(SysUserMapper.class);
         var capabilities = mock(RoleCapabilityMapper.class);
         var tables = mock(RoleTablePermissionMapper.class);
         var columns = mock(RoleHiddenColumnMapper.class);
         var metadata = mock(ColumnSemanticInfoMapper.class);
-        when(users.selectAuthProjection(7))
-                .thenReturn(
-                        Optional.of(
-                                UserContextBo.builder()
-                                        .userId(7)
-                                        .roleId(2)
-                                        .superAdmin(false)
-                                        .build()));
+        var storedUser = new SysUserPo();
+        storedUser.setId(7);
+        storedUser.setRoleId(2);
+        storedUser.setSuperAdmin(false);
+        storedUser.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(storedUser);
         when(capabilities.selectCodes(2)).thenReturn(List.of("analysis:sql:execute"));
         var grant = new RoleTablePermission();
         grant.setTableName("orders");
@@ -77,7 +77,8 @@ class SqlAuthorizationRegressionTest {
         when(metadata.selectByDatasourceIdAndTableName(1, "orders")).thenReturn(List.of(id));
         var permissions =
                 new SqlPermissionService(
-                        new PermissionService(users, capabilities),
+                        new PermissionService(
+                                users, capabilities, Mappers.getMapper(UserConverter.class)),
                         new DataPermissionService(tables, columns),
                         metadata);
         executor = new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);

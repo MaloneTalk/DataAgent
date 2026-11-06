@@ -41,6 +41,7 @@ import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.dto.RoleDataScopeDto;
 import io.github.malonetalk.model.dto.SaveColumnPermissionRequest;
 import io.github.malonetalk.model.dto.SaveTablePermissionRequest;
@@ -68,7 +69,8 @@ class RolePermissionServiceTest {
     private final ColumnSemanticInfoMapper columnMetadata = mock(ColumnSemanticInfoMapper.class);
     private final SysRoleMapper roles = mock(SysRoleMapper.class);
     private final PermissionService permissions =
-            new PermissionService(mock(SysUserService.class), capabilities);
+            new PermissionService(
+                    mock(SysUserMapper.class), capabilities, mock(UserConverter.class));
     private final UserContextHolder holder = new UserContextHolder();
     private final RolePermissionService service =
             new RolePermissionService(
