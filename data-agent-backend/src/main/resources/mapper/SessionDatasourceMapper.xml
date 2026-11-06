@@ -27,7 +27,7 @@
                sd.datasource_id AS datasourceId,
                d.name          AS datasourceName
         FROM session_datasource sd
-        LEFT JOIN datasource d ON sd.datasource_id = d.id
+        LEFT JOIN datasource d ON sd.datasource_id = d.id AND d.is_deleted = 0
     </select>
 
 </mapper>

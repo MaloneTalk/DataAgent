@@ -15,22 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.List;
+import java.util.Map;
 
-public record DatasourceResponse(
-        Integer id,
-        String name,
-        String type,
-        String host,
-        Integer port,
-        String databaseName,
-        String username,
-        String connectionUrl,
-        String status,
-        String testStatus,
-        String description,
-        Long creatorId,
-        LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+public record DatasourceColumnsVo(@JsonValue Map<String, List<String>> columns) implements BaseVo {}

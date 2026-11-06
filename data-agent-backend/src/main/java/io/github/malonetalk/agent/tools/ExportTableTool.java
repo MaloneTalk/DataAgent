@@ -25,10 +25,10 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.TableExportResponse;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.TableExportService;
@@ -62,7 +62,7 @@ public class ExportTableTool implements MarkAgentTool {
         permissions.require(ctx.userId(), PermissionEnum.ASSET_EXPORT_CREATE);
         return toolExceptionMapper.run(
                 () -> {
-                    Datasource datasource =
+                    DatasourcePo datasource =
                             datasourceService.getDatasourceForSession(ctx.sessionId());
                     var result =
                             tableExportService.create(

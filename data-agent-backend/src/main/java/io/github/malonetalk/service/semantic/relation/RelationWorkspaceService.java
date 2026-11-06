@@ -59,7 +59,7 @@ public class RelationWorkspaceService {
 
     public RelationWorkspaceResponse getRelationWorkspace(RelationWorkspacePageQuery query) {
         RequestAssert.requireNonNull(query.datasourceId(), "datasourceId cannot be null.");
-        if (datasourceService.findById(query.datasourceId()) == null) {
+        if (datasourceService.findById(query.datasourceId()).isEmpty()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND,
                     "Datasource does not exist: " + query.datasourceId());

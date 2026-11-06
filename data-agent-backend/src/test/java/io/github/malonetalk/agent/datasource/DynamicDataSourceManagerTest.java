@@ -21,9 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class DynamicDataSourceManagerTest {
 
     @Test
     void missingDriverYieldsActionableBusinessException() {
-        Datasource ds = new Datasource();
+        DatasourcePo ds = new DatasourcePo();
         ds.setId(1);
         ds.setName("pg-without-driver");
         ds.setType("postgresql");

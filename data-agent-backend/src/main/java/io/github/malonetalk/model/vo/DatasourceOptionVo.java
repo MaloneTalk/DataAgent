@@ -17,4 +17,5 @@
  */
 package io.github.malonetalk.model.vo;
 
-public record DatasourceOptionVo(Integer id, String name, String type, String status) {}
+public record DatasourceOptionVo(Integer id, String name, String type, String status)
+        implements BaseVo {}

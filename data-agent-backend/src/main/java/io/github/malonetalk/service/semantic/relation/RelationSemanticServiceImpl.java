@@ -182,7 +182,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private void requireDatasource(Integer datasourceId) {
         RequestAssert.requireNonNull(datasourceId, "datasourceId cannot be null.");
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }

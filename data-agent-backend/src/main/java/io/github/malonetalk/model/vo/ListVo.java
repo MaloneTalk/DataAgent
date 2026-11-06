@@ -15,17 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.List;
 
-public record DatasourceRequest(
-        @NotBlank(message = "name 不能为空") String name,
-        @NotBlank(message = "type 不能为空") String type,
-        String host,
-        Integer port,
-        String databaseName,
-        String username,
-        String password,
-        String connectionUrl,
-        String description) {}
+/** 保留列表接口的 JSON 数组格式，由统一响应切面包装。 */
+public record ListVo<T>(@JsonValue List<T> items) implements BaseVo {}

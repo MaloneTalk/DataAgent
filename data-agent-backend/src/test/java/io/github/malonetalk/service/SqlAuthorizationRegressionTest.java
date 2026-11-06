@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
@@ -34,6 +33,7 @@ import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.List;
@@ -46,7 +46,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class SqlAuthorizationRegressionTest {
-    private final Datasource datasource = new Datasource();
+    private final DatasourcePo datasource = new DatasourcePo();
     private SqlExecutor executor;
 
     @BeforeEach

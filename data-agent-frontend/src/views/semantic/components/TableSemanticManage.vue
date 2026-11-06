@@ -16,60 +16,25 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref } from 'vue';
-  import type { FormInstance, FormRules } from 'element-plus';
+  import { onMounted, ref } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
-  import { useFieldErrors } from '@/composables/useFieldErrors';
-  import { useUserStore } from '@/stores/user';
   import { formatDateTime } from '@/utils/dateTime';
-  import { getDomainNames } from '@/api/domain';
   import {
     getActiveDatasourceId,
     getTableSemanticPage,
     refreshPhysicalStatus,
     resetTableSemantic,
-    updateTableSemantic,
     type TableSemanticInfo,
   } from '@/api/semantic';
+  import { useSemanticPage } from '../composables/useSemanticPage';
+  import TableSemanticEditDialog from './TableSemanticEditDialog.vue';
   import ColumnSemanticManage from './ColumnSemanticManage.vue';
   import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
   import { buildSyncSummary, physicalStatusSyncSummaryFields } from '../utils';
 
-  interface TableEditForm {
-    tableName: string;
-    domain: string;
-    tableDescription: string;
-    dataGranularity: string;
-    isVisible: boolean;
-  }
-
-  const loading = ref(false);
-  const error = ref('');
-  const rows = ref<TableSemanticInfo[]>([]);
   const datasourceId = ref<number | null>(null);
-  const domainOptions = ref<string[]>([]);
-  const userStore = useUserStore();
-  const page = reactive({
-    page: 1,
-    pageSize: 10,
-    total: 0,
-  });
-
-  const dialogVisible = ref(false);
-  const submitLoading = ref(false);
-  const formRef = ref<FormInstance>();
-  const form = reactive<TableEditForm>({
-    tableName: '',
-    domain: '',
-    tableDescription: '',
-    dataGranularity: '',
-    isVisible: true,
-  });
-  const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
-  const rules: FormRules<TableEditForm> = {
-    tableName: [{ required: true, message: '表名不能为空', trigger: 'blur' }],
-  };
+  const editingTable = ref<TableSemanticInfo | null>(null);
 
   const columnDrawerVisible = ref(false);
   const selectedTableForColumns = ref('');
@@ -77,104 +42,25 @@
 
   const syncDialogVisible = ref(false);
   const refreshingPhysicalStatus = ref(false);
+  let datasourceRequest: Promise<number | null> | undefined;
 
   const ensureDatasourceId = async () => {
     if (datasourceId.value !== null) {
       return datasourceId.value;
     }
-    datasourceId.value = await getActiveDatasourceId();
-    if (datasourceId.value === null) {
-      error.value = '请先激活一个数据源';
-      rows.value = [];
-      page.total = 0;
-    }
+    datasourceRequest ??= getActiveDatasourceId().finally(() => {
+      datasourceRequest = undefined;
+    });
+    datasourceId.value = await datasourceRequest;
     return datasourceId.value;
   };
 
-  const loadDomainOptions = async () => {
-    if (!userStore.hasPermission('semantic:domain:read')) return;
-    try {
-      domainOptions.value = await getDomainNames();
-    } catch {
-      domainOptions.value = [];
-    }
-  };
-
-  const loadPage = async () => {
-    loading.value = true;
-    error.value = '';
-    try {
+  const { loading, error, rows, page, loadPage, handlePageChange, handleSizeChange } =
+    useSemanticPage<TableSemanticInfo>(async pagination => {
       const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) {
-        return;
-      }
-      const pageData = await getTableSemanticPage({
-        datasourceId: activeDatasourceId,
-        page: page.page,
-        pageSize: page.pageSize,
-      });
-      rows.value = pageData.items;
-      page.total = pageData.total;
-    } catch (err) {
-      error.value = (err as Error).message;
-      rows.value = [];
-      page.total = 0;
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const handlePageChange = async (p: number) => {
-    page.page = p;
-    await loadPage();
-  };
-
-  const handleSizeChange = async (pageSize: number) => {
-    page.pageSize = pageSize;
-    page.page = 1;
-    await loadPage();
-  };
-
-  const handleOpenEdit = (row: TableSemanticInfo) => {
-    clearFieldErrors();
-    Object.assign(form, {
-      tableName: row.tableName,
-      domain: row.domain,
-      tableDescription: row.tableDescription ?? '',
-      dataGranularity: row.dataGranularity ?? '',
-      isVisible: row.isVisible,
+      if (activeDatasourceId === null) throw new Error('请先激活一个数据源');
+      return getTableSemanticPage({ datasourceId: activeDatasourceId, ...pagination });
     });
-    // 加载领域选项
-    loadDomainOptions();
-    dialogVisible.value = true;
-  };
-
-  const handleSubmit = async () => {
-    if (!formRef.value) return;
-    clearFieldErrors();
-    const valid = await formRef.value.validate().catch(() => false);
-    if (!valid) return;
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) return;
-    submitLoading.value = true;
-    try {
-      await updateTableSemantic({
-        datasourceId: activeDatasourceId,
-        tableName: form.tableName,
-        domain: form.domain.trim() || undefined,
-        tableDescription: form.tableDescription.trim() || undefined,
-        dataGranularity: form.dataGranularity.trim() || undefined,
-        isVisible: form.isVisible,
-      });
-      ElMessage.success('更新成功');
-      dialogVisible.value = false;
-      await loadPage();
-    } catch (err) {
-      applyFieldErrors(err);
-    } finally {
-      submitLoading.value = false;
-    }
-  };
 
   const handleReset = async (row: TableSemanticInfo) => {
     try {
@@ -328,7 +214,7 @@
             link
             type="primary"
             size="small"
-            @click="handleOpenEdit(row)"
+            @click="editingTable = row"
           >
             编辑
           </el-button>
@@ -368,62 +254,13 @@
       />
     </div>
 
-    <el-dialog
-      v-model="dialogVisible"
-      title="编辑表语义"
-      width="600px"
-      :close-on-click-modal="false"
-    >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="表名" prop="tableName" :error="fieldErrors.tableName">
-          <el-input v-model="form.tableName" disabled placeholder="请输入表名" />
-        </el-form-item>
-        <el-form-item label="领域" prop="domain" :error="fieldErrors.domain">
-          <el-select
-            v-model="form.domain"
-            placeholder="请选择领域"
-            filterable
-            allow-create
-            default-first-option
-            clearable
-          >
-            <el-option
-              v-for="domain in domainOptions"
-              :key="domain"
-              :label="domain"
-              :value="domain"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item
-          label="语义描述"
-          prop="tableDescription"
-          :error="fieldErrors.tableDescription"
-        >
-          <el-input
-            v-model="form.tableDescription"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入表的语义描述信息"
-          />
-        </el-form-item>
-        <el-form-item label="数据粒度" prop="dataGranularity" :error="fieldErrors.dataGranularity">
-          <el-input
-            v-model="form.dataGranularity"
-            type="textarea"
-            :rows="2"
-            placeholder="说明一行代表什么，例如：每行代表一份订单"
-          />
-        </el-form-item>
-        <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">
-          <el-switch v-model="form.isVisible" active-text="可见" inactive-text="隐藏" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+    <TableSemanticEditDialog
+      v-if="editingTable && datasourceId !== null"
+      :table="editingTable"
+      :datasource-id="datasourceId"
+      @close="editingTable = null"
+      @saved="loadPage"
+    />
 
     <el-drawer
       v-model="columnDrawerVisible"

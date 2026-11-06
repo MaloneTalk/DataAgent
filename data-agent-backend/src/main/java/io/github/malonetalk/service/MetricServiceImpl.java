@@ -212,7 +212,7 @@ public class MetricServiceImpl implements MetricService {
     }
 
     private Integer requireDatasource(Integer datasourceId) {
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "数据源不存在: " + datasourceId);
         }
         return datasourceId;

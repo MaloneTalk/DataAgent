@@ -15,17 +15,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.convertor;
+package io.github.malonetalk.model.vo;
 
-import io.github.malonetalk.dto.DatasourceRequest;
-import io.github.malonetalk.dto.DatasourceResponse;
-import io.github.malonetalk.entity.Datasource;
-import org.mapstruct.Mapper;
+import java.time.LocalDateTime;
+import lombok.Builder;
 
-@Mapper(componentModel = "spring")
-public interface DatasourceConverter {
-
-    Datasource toEntity(DatasourceRequest request);
-
-    DatasourceResponse toResponse(Datasource datasource);
-}
+@Builder
+public record DatasourceVo(
+        Integer id,
+        String name,
+        String type,
+        String host,
+        Integer port,
+        String databaseName,
+        String username,
+        String connectionUrl,
+        String status,
+        String testStatus,
+        String description,
+        Long creatorId,
+        LocalDateTime createTime,
+        LocalDateTime updateTime)
+        implements BaseVo {}

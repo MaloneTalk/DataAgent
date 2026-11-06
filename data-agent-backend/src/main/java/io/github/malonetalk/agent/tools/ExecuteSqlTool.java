@@ -27,9 +27,9 @@ import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -55,7 +55,7 @@ public class ExecuteSqlTool implements MarkAgentTool {
             ToolCallContext ctx) {
         return toolExceptionMapper.run(
                 () -> {
-                    Datasource datasource =
+                    DatasourcePo datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
                     SqlExecution execution =
                             sqlExecutor.executeDetailed(datasource, sql, ctx.userId());

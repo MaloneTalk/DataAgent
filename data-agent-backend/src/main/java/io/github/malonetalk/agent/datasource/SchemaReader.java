@@ -19,9 +19,9 @@ package io.github.malonetalk.agent.datasource;
 
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -46,7 +46,7 @@ public class SchemaReader {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
 
-    public List<PhysicalTableInfo> getTables(Datasource datasource) {
+    public List<PhysicalTableInfo> getTables(DatasourcePo datasource) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
@@ -60,7 +60,7 @@ public class SchemaReader {
         }
     }
 
-    public List<PhysicalColumnInfo> getTableSchema(Datasource datasource, String tableName) {
+    public List<PhysicalColumnInfo> getTableSchema(DatasourcePo datasource, String tableName) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
@@ -78,7 +78,7 @@ public class SchemaReader {
     }
 
     public Map<String, Set<String>> getTableColumnNames(
-            Datasource datasource, Collection<String> tableNames) {
+            DatasourcePo datasource, Collection<String> tableNames) {
         if (tableNames == null || tableNames.isEmpty()) {
             return Map.of();
         }

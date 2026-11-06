@@ -27,7 +27,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
@@ -39,6 +38,7 @@ import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import io.github.malonetalk.model.po.SysUserPo;
@@ -99,7 +99,7 @@ class PermissionSimplificationTest {
         ColumnInfo id = new ColumnInfo();
         id.setColumnName("id");
         when(metadata.selectByDatasourceIdAndTableName(1, "orders")).thenReturn(List.of(id));
-        Datasource datasource = new Datasource();
+        DatasourcePo datasource = new DatasourcePo();
         datasource.setId(1);
         datasource.setType("mysql");
         SqlPermissionService sql = new SqlPermissionService(permissions, data, metadata);

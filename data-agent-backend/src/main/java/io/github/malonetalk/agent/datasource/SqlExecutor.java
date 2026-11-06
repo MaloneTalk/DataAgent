@@ -17,10 +17,10 @@
  */
 package io.github.malonetalk.agent.datasource;
 
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.AuthorizedSqlBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.SqlPermissionService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -56,7 +56,7 @@ public class SqlExecutor {
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlPermissionService sqlPermissions;
 
-    public SqlExecution executeDetailed(Datasource datasource, String sql, Integer userId) {
+    public SqlExecution executeDetailed(DatasourcePo datasource, String sql, Integer userId) {
         var authorized = authorizeSelect(datasource, sql, userId);
         String validatedSql = applyRowLimit(authorized.select());
 
@@ -84,7 +84,7 @@ public class SqlExecutor {
         return message.length() > 200 ? message.substring(0, 200) + "..." : message;
     }
 
-    public AuthorizedSqlBo authorizeSelect(Datasource datasource, String sql, Integer userId) {
+    public AuthorizedSqlBo authorizeSelect(DatasourcePo datasource, String sql, Integer userId) {
         return sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
     }
 

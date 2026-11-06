@@ -23,10 +23,10 @@ import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.DataPermissionScopeBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
@@ -68,7 +68,7 @@ public class GetTablesTool implements MarkAgentTool {
         var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
         return toolExceptionMapper.run(
                 () -> {
-                    Datasource dataSource =
+                    DatasourcePo dataSource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
                     var scope = dataPermissions.loadScope(user, dataSource.getId());
 

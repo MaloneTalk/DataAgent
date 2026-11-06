@@ -28,10 +28,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.AuthorizedSqlBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.SqlPermissionService;
 import java.util.Map;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -50,7 +50,7 @@ class SqlExecutorTest {
 
     @Test
     void sharedSelectEntryPassesParsedSelectToDataAuthorization() {
-        Datasource datasource = new Datasource();
+        DatasourcePo datasource = new DatasourcePo();
         when(permissions.authorize(eq(7), same(datasource), any(Select.class)))
                 .thenAnswer(invocation -> new AuthorizedSqlBo(invocation.getArgument(2), Map.of()));
         assertEquals(
@@ -65,7 +65,7 @@ class SqlExecutorTest {
     void sharedSelectEntryRejectsWritesBeforeAuthorization() {
         assertThrows(
                 BusinessException.class,
-                () -> executor.authorizeSelect(new Datasource(), "DELETE FROM orders", 7));
+                () -> executor.authorizeSelect(new DatasourcePo(), "DELETE FROM orders", 7));
         verifyNoInteractions(permissions);
     }
 

@@ -26,12 +26,12 @@ import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableExport;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableExportMapper;
 import io.github.malonetalk.model.bo.TableExportResultBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
@@ -67,7 +67,7 @@ public class TableExportServiceImpl implements TableExportService {
 
     @Override
     public TableExportResultBo create(
-            String sessionId, Datasource datasource, String title, String sql, Integer userId) {
+            String sessionId, DatasourcePo datasource, String title, String sql, Integer userId) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -127,7 +127,7 @@ public class TableExportServiceImpl implements TableExportService {
         }
     }
 
-    private CsvResult writeCsv(Datasource datasource, String sql) {
+    private CsvResult writeCsv(DatasourcePo datasource, String sql) {
         DataSource dataSource = dynamicDataSourceManager.getOrCreateDataSource(datasource);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (Connection conn = dataSource.getConnection();

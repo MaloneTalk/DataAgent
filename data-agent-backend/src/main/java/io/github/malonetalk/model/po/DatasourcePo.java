@@ -15,15 +15,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.po;
 
-import java.time.LocalDateTime;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
-public class Datasource {
+@EqualsAndHashCode(callSuper = true)
+@TableName("datasource")
+public class DatasourcePo extends BasePo {
 
+    @TableId(type = IdType.AUTO)
     private Integer id;
+
     private String name;
     private String type;
     private String host;
@@ -35,7 +42,4 @@ public class Datasource {
     private String status;
     private String testStatus;
     private String description;
-    private Long creatorId;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
 }

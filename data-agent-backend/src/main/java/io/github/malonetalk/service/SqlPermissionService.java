@@ -21,13 +21,13 @@ import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
 import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.model.bo.AuthorizedSqlBo;
 import io.github.malonetalk.model.bo.DataPermissionScopeBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import java.util.HashMap;
 import java.util.List;
@@ -57,7 +57,7 @@ public class SqlPermissionService {
     private final DataPermissionService data;
     private final ColumnSemanticInfoMapper metadata;
 
-    public AuthorizedSqlBo authorize(Integer userId, Datasource datasource, Select select) {
+    public AuthorizedSqlBo authorize(Integer userId, DatasourcePo datasource, Select select) {
         var user = permissions.require(userId, PermissionEnum.ANALYSIS_SQL_EXECUTE);
         var scope = data.loadScope(user, datasource.getId());
         if (scope.unrestricted()) {
@@ -101,7 +101,7 @@ public class SqlPermissionService {
         private final String identifierQuote;
         private final Map<String, List<ColumnInfo>> visibleColumns = new HashMap<>();
 
-        Inspector(DataPermissionScopeBo scope, Datasource datasource) {
+        Inspector(DataPermissionScopeBo scope, DatasourcePo datasource) {
             this.scope = scope;
             this.datasourceId = datasource.getId();
             var type =

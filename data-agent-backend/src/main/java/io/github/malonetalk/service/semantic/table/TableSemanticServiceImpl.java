@@ -25,7 +25,6 @@ import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -61,8 +60,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         SemanticUtils.requireDatasourceId(query.datasourceId());
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        Datasource datasource = datasourceService.findById(query.datasourceId());
-        if (datasource == null) {
+        if (datasourceService.findById(query.datasourceId()).isEmpty()) {
             return PageResponse.empty(pageNumber, pageSize);
         }
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
@@ -85,7 +83,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public List<String> listTableNames(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             return List.of();
         }
         var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
@@ -102,7 +100,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public List<String> listAvailableDomains(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             return List.of();
         }
         var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
@@ -120,11 +118,13 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     public List<TablePromptResponse> listMergedTablesByDomains(
             Integer datasourceId, List<String> domains) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        Datasource datasource = datasourceService.findById(datasourceId);
-        if (datasource == null) {
-            return List.of();
-        }
-        return semanticMergeService.listVisibleTablesByDomains(datasource, domains);
+        return datasourceService
+                .findById(datasourceId)
+                .map(
+                        datasource ->
+                                semanticMergeService.listVisibleTablesByDomains(
+                                        datasource, domains))
+                .orElseGet(List::of);
     }
 
     @Override
@@ -232,7 +232,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
 
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }

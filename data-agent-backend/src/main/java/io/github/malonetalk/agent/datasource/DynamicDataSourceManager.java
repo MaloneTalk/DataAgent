@@ -19,9 +19,9 @@ package io.github.malonetalk.agent.datasource;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,14 +45,14 @@ public class DynamicDataSourceManager {
             new ConcurrentHashMap<>();
     private final JdbcTelemetry jdbcTelemetry;
 
-    public DataSource getOrCreateDataSource(Datasource datasource) {
+    public DataSource getOrCreateDataSource(DatasourcePo datasource) {
         HikariDataSource pool =
                 dataSourcePool.computeIfAbsent(
                         datasource.getId(), id -> createDataSource(datasource));
         return jdbcTelemetry.wrap(pool);
     }
 
-    private HikariDataSource createDataSource(Datasource datasource) {
+    private HikariDataSource createDataSource(DatasourcePo datasource) {
         DataSourceType type =
                 DataSourceType.fromCode(datasource.getType())
                         .orElseThrow(
@@ -112,7 +112,7 @@ public class DynamicDataSourceManager {
     }
 
     private static HikariConfig getHikariConfig(
-            Datasource datasource, String jdbcUrl, DataSourceType type) {
+            DatasourcePo datasource, String jdbcUrl, DataSourceType type) {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(jdbcUrl);
         config.setUsername(datasource.getUsername());
@@ -129,7 +129,7 @@ public class DynamicDataSourceManager {
         return config;
     }
 
-    private String resolveJdbcUrl(Datasource datasource, DataSourceType type) {
+    private String resolveJdbcUrl(DatasourcePo datasource, DataSourceType type) {
         if (datasource.getConnectionUrl() != null && !datasource.getConnectionUrl().isBlank()) {
             return datasource.getConnectionUrl();
         }
