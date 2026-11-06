@@ -51,6 +51,7 @@ import org.springframework.stereotype.Component;
 public class SqlExecutor {
 
     static final int MAX_ROWS = 200;
+    private static final int MAX_PROBE_ROWS = MAX_ROWS + 1;
     private static final int QUERY_TIMEOUT_SECONDS = 30;
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
@@ -100,9 +101,9 @@ public class SqlExecutor {
     private String applyRowLimit(Select select) {
         String safeSql = select.toString();
 
-        //  inject LIMIT if absent, to prevent full table scans
+        // 多取一行判断是否截断；保留查询原有的 LIMIT/FETCH 语义。
         if (!hasLimit(select)) {
-            return "SELECT * FROM (" + safeSql + ") AS _sandbox LIMIT " + MAX_ROWS;
+            return "SELECT * FROM (" + safeSql + ") AS _sandbox LIMIT " + MAX_PROBE_ROWS;
         }
         return safeSql;
     }
@@ -186,7 +187,8 @@ public class SqlExecutor {
                         sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
 
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
-            stmt.setFetchSize(MAX_ROWS);
+            stmt.setMaxRows(MAX_PROBE_ROWS);
+            stmt.setFetchSize(MAX_PROBE_ROWS);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 return mapResultSet(rs);
@@ -207,17 +209,16 @@ public class SqlExecutor {
         boolean truncated = false;
 
         while (rs.next()) {
+            if (rowCount == MAX_ROWS) {
+                truncated = true;
+                break;
+            }
             Map<String, Object> row = new LinkedHashMap<>();
             for (int i = 1; i <= columnCount; i++) {
                 row.put(metaData.getColumnLabel(i), rs.getObject(i));
             }
             builder.addRow(row);
             rowCount++;
-
-            if (rowCount >= MAX_ROWS) {
-                truncated = true;
-                break;
-            }
         }
 
         builder.totalRows(rowCount).truncated(truncated);

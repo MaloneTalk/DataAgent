@@ -85,7 +85,7 @@ class SqlExecutorTest {
 
         assertEquals(sql, executor.validateSelectSql(sql + ";"));
         assertEquals(
-                "SELECT * FROM (" + CCJSqlParserUtil.parse(sql) + ") AS _sandbox LIMIT 200",
+                "SELECT * FROM (" + CCJSqlParserUtil.parse(sql) + ") AS _sandbox LIMIT 201",
                 executor.validateAndTransform(sql));
     }
 
@@ -119,7 +119,7 @@ class SqlExecutorTest {
                         + "UNION ALL (SELECT operator_id FROM status_event LIMIT 10)";
 
         assertEquals(
-                "SELECT * FROM (" + sql + ") AS _sandbox LIMIT 200",
+                "SELECT * FROM (" + sql + ") AS _sandbox LIMIT 201",
                 executor.validateAndTransform(sql));
     }
 
