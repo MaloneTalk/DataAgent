@@ -34,8 +34,10 @@ import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -87,16 +89,27 @@ public class DomainServiceImpl implements DomainService {
     }
 
     @Override
+    @Transactional
     public DomainInfo update(Integer id, DomainUpdateRequest request) {
         RequestAssert.requireNonNull(id, "id must not be null.");
-        DomainInfo existing = findById(id);
-        if (existing == null) {
-            throw BusinessException.of(
-                    ErrorCode.RESOURCE_NOT_FOUND, "Domain does not exist: id=" + id);
-        }
+        DomainInfo existing =
+                Optional.ofNullable(domainInfoMapper.selectByIdForUpdate(id))
+                        .orElseThrow(
+                                () ->
+                                        BusinessException.of(
+                                                ErrorCode.RESOURCE_NOT_FOUND,
+                                                "Domain does not exist: id=" + id));
+        String previousName = existing.getName();
         String normalizedName =
                 SemanticUtils.normalizeObjectName(
                         request.name(), "Missing domain name for domain update.");
+        if (!normalizedName.equalsIgnoreCase(previousName)
+                && (SemanticConstants.DEFAULT_DOMAIN.equalsIgnoreCase(previousName)
+                        || SemanticConstants.DEFAULT_DOMAIN.equals(normalizedName))) {
+            throw BusinessException.of(
+                    ErrorCode.DATA_CONFLICT,
+                    "The default domain name is reserved and cannot be renamed.");
+        }
         DomainInfo nameConflict = domainInfoMapper.selectByName(normalizedName);
         if (nameConflict != null && !nameConflict.getId().equals(id)) {
             throw BusinessException.of(
@@ -106,6 +119,9 @@ public class DomainServiceImpl implements DomainService {
         existing.setDescription(SemanticUtils.trimToNull(request.description()));
         existing.setUpdateTime(LocalDateTime.now());
         domainInfoMapper.update(existing);
+        if (!normalizedName.equals(previousName)) {
+            tableInfoMapper.updateDomain(previousName, normalizedName, existing.getUpdateTime());
+        }
         return existing;
     }
 

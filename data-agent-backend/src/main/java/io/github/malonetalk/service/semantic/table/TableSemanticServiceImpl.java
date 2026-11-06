@@ -38,6 +38,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -130,9 +131,10 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName =
-                SemanticUtils.normalizeObjectName(
+        String tableName =
+                SemanticUtils.requireTrimmed(
                         request.tableName(), "Missing tableName for table semantic update.");
+        String normalizedTableName = tableName.toLowerCase(Locale.ROOT);
         dataPermissions.requireTable(
                 holder.checkAndGet(), request.datasourceId(), normalizedTableName);
         TableInfo existing =
@@ -141,7 +143,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         if (existing == null) {
             TableInfo tableInfo = new TableInfo();
             tableInfo.setDatasourceId(request.datasourceId());
-            tableInfo.setTableName(normalizedTableName);
+            tableInfo.setTableName(tableName);
             tableInfo.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
             tableInfo.setDataGranularity(SemanticUtils.trimToNull(request.dataGranularity()));
             tableInfo.setDomain(SemanticUtils.normalizeDomain(request.domain()));
@@ -152,7 +154,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             tableInfoMapper.insert(tableInfo);
             return;
         }
-        existing.setTableName(normalizedTableName);
         existing.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
         existing.setDataGranularity(SemanticUtils.trimToNull(request.dataGranularity()));
         existing.setDomain(SemanticUtils.normalizeDomain(request.domain()));

@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -95,9 +96,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String normalizedTableName =
                 SemanticUtils.normalizeObjectName(
                         tableName, "Missing tableName for column semantic update.");
-        String normalizedColumnName =
-                SemanticUtils.normalizeObjectName(
+        String columnName =
+                SemanticUtils.requireTrimmed(
                         request.columnName(), "Missing columnName for column semantic update.");
+        String normalizedColumnName = columnName.toLowerCase(Locale.ROOT);
         requireColumnAccess(
                 request.datasourceId(), normalizedTableName, List.of(normalizedColumnName));
         ColumnInfo existing =
@@ -115,7 +117,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             ColumnInfo columnInfo = new ColumnInfo();
             columnInfo.setDatasourceId(request.datasourceId());
             columnInfo.setTableId(tableInfo.getId());
-            columnInfo.setColumnName(normalizedColumnName);
+            columnInfo.setColumnName(columnName);
             columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setSemanticType(request.semanticType());
             columnInfo.setIsVisible(request.isVisible());
@@ -125,7 +127,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnSemanticInfoMapper.insert(columnInfo);
             return;
         }
-        existing.setColumnName(normalizedColumnName);
         existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setSemanticType(request.semanticType());
         existing.setIsVisible(request.isVisible());

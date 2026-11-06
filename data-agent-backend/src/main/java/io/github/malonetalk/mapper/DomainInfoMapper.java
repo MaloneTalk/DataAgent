@@ -42,5 +42,7 @@ public interface DomainInfoMapper {
 
     DomainInfo selectById(@Param("id") Integer id);
 
+    DomainInfo selectByIdForUpdate(@Param("id") Integer id);
+
     DomainInfo selectByName(@Param("name") String name);
 }
