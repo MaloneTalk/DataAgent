@@ -27,6 +27,7 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.MetricInfoMapper;
 import io.github.malonetalk.model.bo.MetricInfoBo;
 import io.github.malonetalk.model.converter.MetricConverter;
+import io.github.malonetalk.model.converter.MetricPromptConverter;
 import io.github.malonetalk.model.dto.MetricCreateDto;
 import io.github.malonetalk.model.dto.MetricQueryDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
@@ -40,7 +41,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +58,7 @@ public class MetricServiceImpl implements MetricService {
 
     private final MetricInfoMapper metricInfoMapper;
     private final MetricConverter metricConverter;
+    private final MetricPromptConverter metricPromptConverter;
     private final DatasourceService datasourceService;
 
     @Override
@@ -71,14 +72,16 @@ public class MetricServiceImpl implements MetricService {
         if (candidates.isEmpty()) {
             List<MetricInfoBo> suggestions = toBoList(metricInfoMapper.suggest(datasourceId));
             log.warn("指标口径未命中: hint={}", query);
-            return new MetricLookup(formatNotFound(query, suggestions), List.of());
+            return new MetricLookup(
+                    metricPromptConverter.formatNotFound(query, suggestions), List.of());
         }
         MetricInfoBo best = candidates.get(0);
         if (candidates.size() == 1) {
-            return new MetricLookup(best.toCaliberText(), candidates);
+            return new MetricLookup(metricPromptConverter.convert(best), candidates);
         }
         return new MetricLookup(
-                formatCaliberWithAlternatives(best, candidates.subList(1, candidates.size())),
+                metricPromptConverter.formatCaliberWithAlternatives(
+                        best, candidates.subList(1, candidates.size())),
                 candidates);
     }
 
@@ -123,31 +126,6 @@ public class MetricServiceImpl implements MetricService {
         boolean matched() {
             return length > 0;
         }
-    }
-
-    private String formatNotFound(String hint, List<MetricInfoBo> suggestions) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("未找到与\"%s\"匹配的指标口径。请确认指标名称,或在指标口径管理中定义它。%n", hint));
-        if (!suggestions.isEmpty()) {
-            sb.append("可选的已有指标: ");
-            sb.append(
-                    suggestions.stream()
-                            .map(m -> m.getName() + "(" + m.getMetricKey() + ")")
-                            .collect(Collectors.joining(", ")));
-        } else {
-            sb.append("当前尚未定义任何指标口径。");
-        }
-        return sb.toString();
-    }
-
-    private String formatCaliberWithAlternatives(MetricInfoBo best, List<MetricInfoBo> others) {
-        return best.toCaliberText()
-                + String.format(
-                        "%n（注意:有多个相近指标,请确认你要的是\"%s\"。其他候选: %s）%n",
-                        best.getName(),
-                        others.stream()
-                                .map(m -> m.getName() + "(" + m.getMetricKey() + ")")
-                                .collect(Collectors.joining(", ")));
     }
 
     @Override

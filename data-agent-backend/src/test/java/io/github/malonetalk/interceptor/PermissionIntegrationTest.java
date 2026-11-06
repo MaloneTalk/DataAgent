@@ -53,6 +53,7 @@ import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.mapper.UserSessionMapper;
+import io.github.malonetalk.model.converter.SessionHistoryConverter;
 import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.dto.RoleDataScopeDto;
 import io.github.malonetalk.model.dto.SaveColumnPermissionRequest;
@@ -106,7 +107,11 @@ class PermissionIntegrationTest {
         var provenance = mock(AnswerProvenanceService.class);
         var sessions =
                 new SessionService(
-                        database, mock(SessionDatasourceMapper.class), ownership, provenance);
+                        database,
+                        mock(SessionDatasourceMapper.class),
+                        ownership,
+                        provenance,
+                        new SessionHistoryConverter());
         var agent = mock(AgentService.class);
         var mvc =
                 MockMvcBuilders.standaloneSetup(

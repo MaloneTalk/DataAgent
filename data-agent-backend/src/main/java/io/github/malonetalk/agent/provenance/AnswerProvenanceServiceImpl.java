@@ -19,36 +19,28 @@ package io.github.malonetalk.agent.provenance;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.mapper.AnswerProvenanceMapper;
 import io.github.malonetalk.mapper.UserSessionMapper;
+import io.github.malonetalk.model.converter.AnswerProvenanceConverter;
 import io.github.malonetalk.model.dto.DataEvidencePageQuery;
 import io.github.malonetalk.model.po.AnswerProvenancePo;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo.DatasourceUse;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo.PythonUse;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo.SqlUse;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo.TableUse;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
 
     private final AnswerProvenanceMapper provenanceMapper;
-    private final ObjectMapper objectMapper;
+    private final AnswerProvenanceConverter provenanceConverter;
     private final AnswerProvenanceBuilder evidenceBuilder;
     private final UserSessionMapper userSessionMapper;
 
@@ -79,7 +71,8 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
                 page.getRecords().stream()
                         .flatMap(
                                 stored ->
-                                        read(stored)
+                                        provenanceConverter
+                                                .toVo(stored)
                                                 .map(
                                                         value ->
                                                                 new DataEvidenceVo(
@@ -100,63 +93,17 @@ public class AnswerProvenanceServiceImpl implements AnswerProvenanceService {
                         provenanceMapper.selectForUpdateBySessionIdAndAnswerId(
                                 sessionId, answerId));
         evidenceBuilder
-                .build(events, status, stored.flatMap(this::read))
+                .build(events, status, stored.flatMap(provenanceConverter::toVo))
                 .ifPresent(evidence -> persist(sessionId, answerId, evidence, stored.isPresent()));
     }
 
     private void persist(
             String sessionId, String answerId, AnswerProvenanceVo evidence, boolean exists) {
-        AnswerProvenancePo provenance = new AnswerProvenancePo();
-        provenance.setAnswerId(answerId);
-        provenance.setSessionId(sessionId);
-        provenance.setStatus(evidence.status());
-        provenance.setDatasourcesJson(write(evidence.datasources()));
-        provenance.setSqlExecutionsJson(write(evidence.sqlExecutions()));
-        provenance.setMetricReferencesJson(write(evidence.metricReferences()));
-        provenance.setPythonExecutionsJson(write(evidence.pythonExecutions()));
-        provenance.setTablesJson(write(evidence.tables()));
-        provenance.setWarningsJson(write(evidence.warnings()));
+        AnswerProvenancePo provenance = provenanceConverter.toPo(sessionId, answerId, evidence);
         if (exists) {
             provenanceMapper.updateBySessionIdAndAnswerId(provenance);
         } else {
             provenanceMapper.insert(provenance);
-        }
-    }
-
-    private Optional<AnswerProvenanceVo> read(AnswerProvenancePo provenance) {
-        try {
-            return Optional.of(
-                    AnswerProvenanceVo.builder()
-                            .status(provenance.getStatus())
-                            .datasources(
-                                    readList(provenance.getDatasourcesJson(), DatasourceUse.class))
-                            .sqlExecutions(
-                                    readList(provenance.getSqlExecutionsJson(), SqlUse.class))
-                            .metricReferences(
-                                    readList(provenance.getMetricReferencesJson(), MetricUse.class))
-                            .pythonExecutions(
-                                    readList(provenance.getPythonExecutionsJson(), PythonUse.class))
-                            .tables(readList(provenance.getTablesJson(), TableUse.class))
-                            .warnings(readList(provenance.getWarningsJson(), String.class))
-                            .build());
-        } catch (JsonProcessingException e) {
-            log.warn(
-                    "Skipping invalid answer provenance: answerId={}", provenance.getAnswerId(), e);
-            return Optional.empty();
-        }
-    }
-
-    private <T> List<T> readList(String json, Class<T> elementType) throws JsonProcessingException {
-        return objectMapper.readValue(
-                json,
-                objectMapper.getTypeFactory().constructCollectionType(List.class, elementType));
-    }
-
-    private String write(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Cannot save answer provenance", e);
         }
     }
 }
