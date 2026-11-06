@@ -20,8 +20,10 @@ package io.github.malonetalk.service.semantic.relation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.malonetalk.entity.LogicalTableRelation;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.utils.RequestAssert;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -59,6 +61,15 @@ public class LogicalTableRelationHelper {
             normalizedColumns.add(normalizedColumnName);
         }
         return List.copyOf(normalizedColumns);
+    }
+
+    public boolean isVisible(DataPermissionScopeBo scope, LogicalTableRelation relation) {
+        return scope.canColumns(
+                        relation.getSourceTableName(),
+                        fromJson(relation.getSourceColumnNamesJson(), "sourceColumnNames"))
+                && scope.canColumns(
+                        relation.getTargetTableName(),
+                        fromJson(relation.getTargetColumnNamesJson(), "targetColumnNames"));
     }
 
     public String toJson(List<String> columnNames, String fieldName) {

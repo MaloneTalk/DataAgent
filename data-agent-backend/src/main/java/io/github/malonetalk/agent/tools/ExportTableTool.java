@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
@@ -26,11 +28,10 @@ import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.TableExportService;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +44,7 @@ public class ExportTableTool implements MarkAgentTool {
     private final DatasourceService datasourceService;
     private final TableExportService tableExportService;
     private final ToolExceptionMapper toolExceptionMapper;
+    private final ObjectMapper objectMapper;
 
     @Tool(
             name = "export_table",
@@ -66,16 +68,19 @@ public class ExportTableTool implements MarkAgentTool {
                             tableExportService.create(
                                     ctx.sessionId(), datasource, title, sql, ctx.userId());
                     var export = result.export();
-                    Map<String, Object> metadata = new HashMap<>();
-                    metadata.put("datasourceId", datasource.getId());
-                    metadata.put("datasourceName", datasource.getName());
-                    metadata.put("databaseName", datasource.getDatabaseName());
-                    metadata.put("executedSql", result.executedSql());
-                    metadata.put("authorizedColumns", result.authorizedColumns());
-                    metadata.put("returnedRows", export.rowCount());
-                    metadata.put("truncated", false);
+                    var metadata =
+                            SqlToolMetadataBo.builder()
+                                    .datasourceId(datasource.getId())
+                                    .datasourceName(datasource.getName())
+                                    .databaseName(datasource.getDatabaseName())
+                                    .executedSql(result.executedSql())
+                                    .authorizedColumns(result.authorizedColumns())
+                                    .returnedRows(export.rowCount())
+                                    .truncated(false)
+                                    .build();
                     return ToolResultBlock.of(
-                            TextBlock.builder().text(formatResult(export)).build(), metadata);
+                            TextBlock.builder().text(formatResult(export)).build(),
+                            objectMapper.convertValue(metadata, new TypeReference<>() {}));
                 });
     }
 
