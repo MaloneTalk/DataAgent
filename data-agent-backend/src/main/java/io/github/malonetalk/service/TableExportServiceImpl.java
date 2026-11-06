@@ -31,27 +31,22 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableExportMapper;
 import io.github.malonetalk.model.bo.TableExportResultBo;
+import io.github.malonetalk.model.converter.JdbcCsvValueConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.time.LocalDateTime;
-import java.util.HexFormat;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -69,6 +64,7 @@ public class TableExportServiceImpl implements TableExportService {
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlExecutor sqlExecutor;
     private final SessionService sessionService;
+    private final JdbcCsvValueConverter jdbcCsvValueConverter;
 
     @Override
     public TableExportResultBo create(
@@ -187,69 +183,12 @@ public class TableExportServiceImpl implements TableExportService {
                 if (i > 1) {
                     writer.write(',');
                 }
-                writer.write(csvCell(readCsvValue(rs, metaData, i)));
+                writer.write(csvCell(jdbcCsvValueConverter.convert(rs, metaData, i)));
             }
             writer.newLine();
             rowCount++;
         }
         return rowCount;
-    }
-
-    private String readCsvValue(ResultSet rs, ResultSetMetaData metaData, int column)
-            throws SQLException, IOException {
-        return switch (metaData.getColumnType(column)) {
-            case Types.NULL -> "";
-            case Types.BOOLEAN,
-                    Types.BIT,
-                    Types.TINYINT,
-                    Types.SMALLINT,
-                    Types.INTEGER,
-                    Types.BIGINT,
-                    Types.REAL,
-                    Types.FLOAT,
-                    Types.DOUBLE,
-                    Types.NUMERIC,
-                    Types.DECIMAL,
-                    Types.CHAR,
-                    Types.VARCHAR,
-                    Types.LONGVARCHAR,
-                    Types.NCHAR,
-                    Types.NVARCHAR,
-                    Types.LONGNVARCHAR,
-                    Types.DATE,
-                    Types.TIME,
-                    Types.TIMESTAMP,
-                    Types.TIME_WITH_TIMEZONE,
-                    Types.TIMESTAMP_WITH_TIMEZONE ->
-                    Objects.toString(rs.getString(column), "");
-            case Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY, Types.BLOB -> {
-                try (InputStream stream = rs.getBinaryStream(column)) {
-                    // A prefix distinguishes empty binary data from NULL and avoids CSV formulas.
-                    yield stream == null
-                            ? ""
-                            : "0x" + HexFormat.of().formatHex(stream.readAllBytes());
-                }
-            }
-            case Types.CLOB, Types.NCLOB -> {
-                try (Reader reader =
-                        metaData.getColumnType(column) == Types.NCLOB
-                                ? rs.getNCharacterStream(column)
-                                : rs.getCharacterStream(column)) {
-                    if (reader == null) yield "";
-                    StringWriter text = new StringWriter();
-                    reader.transferTo(text);
-                    yield text.toString();
-                }
-            }
-            default ->
-                    throw BusinessException.of(
-                            ErrorCode.BAD_REQUEST,
-                            "CSV export does not support JDBC type "
-                                    + metaData.getColumnTypeName(column)
-                                    + " for column "
-                                    + metaData.getColumnLabel(column)
-                                    + ". Cast it to a supported scalar type before exporting.");
-        };
     }
 
     private String csvCell(String value) {
