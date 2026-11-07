@@ -21,7 +21,7 @@
   import { useAgentChat } from '@/composables/useAgentChat';
   import { useUserStore } from '@/stores/user';
   import { fetchSessionList } from '@/api/agent';
-  import { getDatasourceOptions, type DatasourceOption } from '@/api/datasource';
+  import ChatDatasourceSelect from '@/views/chat/components/ChatDatasourceSelect.vue';
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
@@ -56,44 +56,11 @@
   const evidenceDialogVisible = ref(false);
   const previewVisible = ref(false);
   const previewContent = ref('');
-  const datasources = ref<DatasourceOption[]>([]);
-
-  // 已发过消息 = 绑定已落库 = 不可再切换数据源（锁定语义）。
-  const isBound = computed(() => messages.value.length > 0);
 
   // 用户在当前会话中发过的消息文本（用于输入框上下键历史导航）
   const userMessages = computed(() =>
     messages.value.filter(m => m.role === 'user').map(m => m.content),
   );
-
-  // 未绑定的旧会话实际跟随全局激活源，展示其名字以免用户误以为可自由选源。
-  const activeDatasourceName = computed(() => {
-    if (datasourceId.value != null) return null;
-    return datasources.value.find(d => d.status === 'ACTIVE')?.name ?? null;
-  });
-
-  const dsPlaceholder = computed(() => {
-    if (isBound.value) {
-      return activeDatasourceName.value
-        ? `跟随全局激活源（${activeDatasourceName.value}）`
-        : '跟随全局激活源';
-    }
-    return '选择数据源';
-  });
-
-  // 绑定源已被删除时下拉列表里没有对应项，补一个占位项。
-  const boundUnknown = computed(() => {
-    if (datasourceId.value == null) return false;
-    return !datasources.value.some(d => d.id === datasourceId.value);
-  });
-
-  async function loadDatasources() {
-    try {
-      datasources.value = (await getDatasourceOptions()) ?? [];
-    } catch {
-      datasources.value = [];
-    }
-  }
 
   // 重进会话时从会话列表回显绑定源；无绑定（旧会话/新会话未落库）也要重置为 null，
   // 避免残留上一个会话的绑定。
@@ -147,7 +114,6 @@
   watch(messages, () => scrollToBottom(), { deep: true });
 
   onMounted(async () => {
-    if (canChat.value) void loadDatasources();
     const sid = route.params.sessionId as string | undefined;
     if (sid) {
       await loadSession(sid);
@@ -211,23 +177,11 @@
           </button>
         </div>
         <div class="chat-view__header-right">
-          <el-select
+          <ChatDatasourceSelect
             v-if="canChat"
             v-model="datasourceId"
-            :disabled="isBound"
-            :placeholder="dsPlaceholder"
-            size="small"
-            style="width: 180px"
-            :title="isBound ? '会话已绑定数据源，不可切换' : undefined"
-          >
-            <el-option v-for="ds in datasources" :key="ds.id" :label="ds.name" :value="ds.id" />
-            <el-option
-              v-if="boundUnknown"
-              :key="datasourceId"
-              :label="`已删除数据源 #${datasourceId}`"
-              :value="datasourceId"
-            />
-          </el-select>
+            :message-count="messages.length"
+          />
           <el-button v-permission="'asset:report:read'" text @click="reportDialogVisible = true">
             会话报告
           </el-button>
