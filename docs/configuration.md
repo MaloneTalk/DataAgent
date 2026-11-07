@@ -17,7 +17,6 @@
 执行统一迁移文件 `sql/migration.sql`，其中包含旧库兼容、主键关联升级、指标业务属性扩展、回答溯源表、角色功能权限及会话归属唯一约束。迁移前按[权限升级说明](permissions.md#升级现有数据库)检查会话归属冲突。
 已经完成主键关联升级的旧库也需执行，以补齐计算方式、结果类型、单位、倍率、币种及回答溯源表；新增字段逐列检查是否存在，回答溯源表按需创建，可重复执行。
 数据源升级还会补齐 `updater_id` 和 `is_deleted`。删除数据源改为逻辑删除，保留原记录及关联元数据；列表、激活源选择和会话绑定解析会排除已删除的数据源，已有会话绑定不会自动切换到其他源。
-更新数据源时，`name`、`type` 仍为必填；可选字段传 `null` 或未传时保留原值。可选字符串字段允许用 `""` 清空，密码传空字符串仍保留原密码。写接口统一返回 `data: { "value": true }`，查询接口的数据结构保持不变。
 
 指标属性的配置规则与接口示例见 [语义层](semantic-layer.md#5-指标业务属性)。
 
@@ -47,10 +46,12 @@ export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 
 - **openai**：`provider=openai`，`base-url=https://api.openai.com/v1`
 - **ollama**（本地）：`provider=ollama`，`base-url=http://localhost:11434`，`api-key` 可留空
-- **dashscope**（通义）：`provider=dashscope`，`base-url=https://dashscope.aliyuncs.com/compatible-mode/v1`
+- **dashscope**（通义）：`provider=dashscope`，使用 `DashScopeChatModel`；当前实现读取 API Key、模型名和思考开关，不读取 `base-url`。需要自定义兼容端点时改用 `provider=openai`。
 - **anthropic**：`provider=anthropic`，`base-url=https://api.anthropic.com`
 
 > 切换底座模型只改这几项即可，已沉淀的语义层与指标口径等知识不受影响，可独立于模型底座维护。
+
+默认值需区分启动方式：`application.properties` 与 `docker/.env.example` 的模型示例为 `openai` / `deepseek-v4-flash` / `https://api.deepseek.com`；不提供 `.env` 时，Compose 的回退值为 `dashscope` / `qwen3-max`，思考开关为 `false`。部署时请显式配置模型参数。
 
 ## 3. 应用参数
 
@@ -93,9 +94,19 @@ export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 
 CSV 按 JDBC 类型转换：布尔、数值、字符和日期时间类型使用驱动提供的文本表示；`BINARY`、`VARBINARY`、`LONGVARBINARY` 和 `BLOB` 读取实际字节，输出为带 `0x` 前缀的小写十六进制（例如 `0x00ff`，空字节串为 `0x`）；`CLOB`、`NCLOB` 读取完整文本。SQL `NULL` 输出为空单元格。其他类型（如 `ARRAY`、`STRUCT`、`SQLXML`、`OTHER`）遇到数据时会终止导出并报错，需先在查询中显式转换为支持的标量类型。所有文本继续按 CSV 规则转义，并对可能触发电子表格公式的内容添加单引号前缀。
 
-> 上述列表之外的其他 JDBC 兼容数据库，可通过扩展 `DataSourceType` 枚举接入（见 [contributing.md](contributing.md)）。
+> 上述列表之外的 JDBC 数据库，需扩展 `DataSourceType` 枚举、添加驱动，并验证元数据、SQL 授权与分页行为（见 [contributing.md](contributing.md)）。
 
 > 连接信息（host/port/database/username/password）保存在元数据库中，属敏感信息，请妥善管理元数据库访问权限。
+
+### 数据源接口与会话绑定
+
+- 创建的数据源默认 `INACTIVE`。聊天页可在首条消息前显式选择数据源；未指定时使用当前激活源，并检查当前用户的数据范围。
+- 更新时 `name`、`type` 必填；可选字段未传或为 `null` 时保留原值，可选字符串可用 `""` 清空，密码传空字符串仍保留原密码。更新、删除会清理该源的连接池缓存。
+- 删除为逻辑删除，保留语义及会话绑定。已绑定数据源被删除或撤权后，原会话报错；切换到其他源需新建会话。
+- 数据源创建、更新、删除与启停接口返回 `data: { "value": true }`；列表与摘要选项的 `data` 仍是数组，字段查询仍是表名到列名数组的映射。读取接口不返回密码。
+- `GET /api/datasource/options` 供聊天、表语义、逻辑外键与指标页面共享，按表授权过滤，只含 `id`、`name`、`type`、`status`。
+
+普通查询最多返回 200 行、超时 30 秒；导出最多 10000 行、超时 120 秒。JDBC 驱动解决连接问题，实际 SQL 还需符合目标库方言及当前授权解析器支持范围，详见 [架构说明](architecture.md#7-agent-内置工具) 和 [权限规则](permissions.md#后端执行规则)。
 
 ## 5. Skill 加载源
 
@@ -124,14 +135,22 @@ io.github.malonetalk.skill.classpath[0].source=classpath-skills
 
 仓库内置示例：`skills/data-query/SKILL.md`。
 
-## 6. MCP Server 注册
+文件系统路径相对于后端进程的工作目录解析。进入 `data-agent-backend/` 启动时，需把路径设为 `../skills`：
 
-通过 API `/api/mcp-server` 注册外部 MCP Server，把外部工具纳入 Agent。两种形态：
+```bash
+mvn spring-boot:run "-Dspring-boot.run.arguments=--io.github.malonetalk.skill.filesystem[0].path=../skills"
+```
+
+Docker 后端工作目录为 `/app`，镜像已复制 `/app/skills`，默认 `./skills` 可直接使用。Skill 在 `AgentService` 初始化时加载并注册；新增或修改本地文件后重启后端，镜像内文件更新还需重新构建。Git 的 `auto-sync` 控制仓库同步，不代表应用会自动重新注册 Skill。
+
+## 6. MCP Server 配置管理
+
+通过 API `/api/mcp-server` 保存外部 MCP Server 配置，支持两种形态：
 
 - **STDIO**：填 `command`、`args`、`env`。
 - **HTTP/SSE**：填 `url`、`headers`、`queryParams`。
 
-注册后调用 `PUT /api/mcp-server/{id}/enable` 启用。详见 [architecture.md](architecture.md#5-mcp-集成)。
+`PUT /api/mcp-server/{id}/enable` 与 `/disable` 仅更新配置状态。当前 Agent 尚未连接这些 Server 或注册它们的工具，详见 [architecture.md](architecture.md#4-mcp-配置管理)。读取、编辑与启停分别要求 `sys:mcp:read`、`sys:mcp:update`、`sys:mcp:set-status`。
 
 ## 7. 认证配置（JWT + 管理员）
 
@@ -158,7 +177,8 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 - 后端启动时，`AdminBootstrapRunner` 检查 `sys_user` 表是否为空；若为空，用 `admin.init-password` 创建首个超级管理员（用户名固定为 `admin`，`displayName` 为「超级管理员」，`role_id=0`，`is_super_admin=1`）。
 - 登录接口 `POST /api/auth/login` 接受 `{ username, password }`，返回 `{ token, user }`。前端将 token 存入 `localStorage`，后续请求通过 `Authorization: Bearer <token>` 携带。
 - `AuthInterceptor` 拦截除 `/api/auth/login` 外的所有接口（含 SSE 流式端点），校验 token 签名与时效。
-- 登录后可访问基础功能；带 `@RequirePermission` 的管理接口要求用户具备相应权限，超级管理员（`is_super_admin=1`）直接放行。按角色、按业务类型的细粒度授权仍在实现中（Issue #150），当前非超级管理员访问受保护接口会被拒绝。后续可在「系统管理」中创建用户、维护角色、为角色配置表级白名单与列级黑名单、将用户绑定到角色——当前 Agent 推理链路尚未接入权限过滤，表/列权限仅作用于页面管理。
+- 本人资料、修改本人密码等基础接口使用 `@LoginRequired`；业务接口使用 `@RequirePermission`，按当前角色的权限点检查，未声明策略的接口默认拒绝。超级管理员由 `is_super_admin=1` 标记，角色 ID 不代表管理员身份。
+- 「系统管理」中可配置角色功能权限、表白名单与隐藏列黑名单，再为用户分配一个角色。Agent 语义工具、SQL 查询、导出与相关管理操作均执行后端权限校验；权限变更在后续请求和敏感工具调用时重新读取，不写入 JWT。`GET /api/auth/me` 返回当前用户、角色、超级管理员标记与有效权限编码，前端据此控制路由和按钮。完整授权规则见 [permissions.md](permissions.md)。
 
 ### 密码哈希与旧数据迁移
 

@@ -6,7 +6,7 @@
 
 部署应用前，备份元数据库并执行统一迁移文件 `sql/migration.sql`。新建环境直接使用主文件 `sql/data_source.sql`，无需额外执行迁移。
 
-统一迁移包含旧库结构升级和权限升级：创建 `sys_role_permission`，并在尚不存在时为 `user_session.session_id` 增加唯一约束，可重复执行。先执行以下查询：
+统一迁移包含旧库结构升级和权限升级：创建 `sys_role_permission`，并在尚不存在时为 `user_session.session_id` 增加唯一约束，可重复执行。最新迁移还为 `datasource` 补齐 `updater_id` 和 `is_deleted`，以支持审计及逻辑删除；已做过权限升级的旧库也需执行。先执行以下查询：
 
 ```sql
 SELECT session_id, COUNT(*)
@@ -47,6 +47,7 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 | --- | --- |
 | 智能问数 | `analysis:chat:use`、`data:schema:read`、`analysis:sql:execute`，以及目标表授权 |
 | 查阅会话 | `analysis:session:read` |
+| 查看数据证据 | `asset:evidence:read`；读取他人会话范围还需 `analysis:session:read-all` |
 | 查询指标口径 | `semantic:metric:read` |
 | 保存报告 | `asset:report:generate` |
 | 查看报告列表 | `asset:report:read` |
@@ -74,6 +75,7 @@ io.github.malonetalk/
   enums/        权限码目录
   interceptor/  HTTP 鉴权拦截器
   mapper/       角色、功能权限与表列授权存储
+  model/        po / dto / vo / bo、用户上下文及专用模型转换
   service/      功能权限判断、角色授权、数据范围与 SQL 授权
 ```
 
@@ -88,6 +90,8 @@ io.github.malonetalk/
 Agent 工具通过可信的 `ToolCallContext.userId` 检查当前权限，不依赖请求线程的 ThreadLocal。敏感工具执行前查询数据库，异步请求切换和请求完成时清理上下文。客户端只能提交属于该会话的 `ask_user` 响应，不能伪造 SQL、Python 或报告生成结果。
 
 普通用户的 SQL 会把每个物理表替换成只投影可见列的派生表。因此 `SELECT *`、JOIN、子查询和 UNION 都不能读到隐藏列。显式引用隐藏列时拒绝执行，包括 WHERE、ORDER BY、GROUP BY 和 HAVING。跨库引用、CTE、不支持的 FROM 结构、未列入安全名单的函数均拒绝。语法和 SELECT 限制仍由 `SqlExecutor` 检查，导出复用同一授权处理。
+
+`SqlPermissionService` 编排 SQL 授权和改写；`SqlQueryScope` 维护查询作用域、来源列与输出别名，`SqlExpressionInspector` 检查表达式及嵌套查询。三者共用解析后的 SELECT 语法树，返回执行 SQL 与授权列快照，供查询、导出和证据构建继续使用。
 
 投影会排除元数据中 `physicalStatus = false` 的列，已物理删除但保留语义信息的列不会影响其他列的查询。执行和导出都复用一次解析得到的 SELECT 语法树；普通查询仍受 200 行限制，导出沿用自身的行数上限。
 
@@ -129,10 +133,13 @@ SQL 授权同时返回改写后的查询与本次可见列快照。查询和导�
 | `PUT /api/sys/role/{id}/permissions` | 兼容接口：替换表白名单，保留仍被授权表的隐藏列，清理被移除表的隐藏列 |
 | `PUT /api/sys/role/{id}/columns` | 兼容接口：替换单张已授权表的隐藏列，保留表白名单和其他表的隐藏列 |
 | `GET /api/auth/me` | 当前角色、超级管理员标记、有效权限编码 |
+| `POST /api/agent/session` | 服务端生成会话 ID 并登记本人归属，需要 `analysis:chat:use` |
 | `PUT /api/sys/user/{id}/role` | 分配角色，提交 `{ "roleId": 0 }` 可取消分配 |
 | `GET /api/datasource/options` | 聊天、表语义、逻辑外键或指标查看权限任一满足即可访问，按表授权过滤，不含连接凭据 |
 
 角色 `GET permissions` 和 `GET columns` 接口继续读取表白名单、隐藏列；原有两个 PUT 接口保留原路径和请求结构，新配置页面使用 `PUT /api/sys/role/{id}/data-scope` 一次提交。三个写接口都要求超级管理员身份。用户资料更新接口只更新 `displayName`；原来依赖该接口修改 `roleId` 的客户端需改用独立角色分配接口。
+
+聊天客户端应先创建会话，再将返回的 ID 用于 SSE；发送自定义会话 ID 不会自动认领会话。ID 的 `AGENTSCOPE_<userId>_` 前缀用于命名空间区分，授权仍以数据库归属记录为准。会话列表仅包含该 Agent 命名空间下已保存内容的会话，详见 [会话协议](architecture.md#会话与数据源协议)。
 
 权限配置页面使用 `data-scope` 一次提交 `{ "datasourceId": 1, "tableNames": ["orders"], "hiddenColumns": { "orders": ["secret"] } }`。每张授权表都必须有隐藏列条目，无隐藏列时提交空数组；空表列表和空对象表示撤销该数据源的全部表列权限。`RolePermissionService` 在事务中锁定角色记录、校验并批量保存授权，任一步骤失败则全部回滚。Mapper 只执行各自表的单条查询或批量 SQL，不包含事务编排与业务判断。
 
