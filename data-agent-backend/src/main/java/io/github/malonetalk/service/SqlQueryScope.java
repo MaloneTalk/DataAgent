@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import net.sf.jsqlparser.expression.StringValue;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.AllColumns;
@@ -100,7 +101,11 @@ final class SqlQueryScope {
 
     void addOutput(SelectItem<?> item) {
         if (item.getAlias() != null) {
-            outputColumns.add(normalizeIdentifier(item.getAlias().getName()));
+            String alias = item.getAlias().getName();
+            if (alias.startsWith("'") && alias.endsWith("'")) {
+                alias = new StringValue(alias).getNotExcapedValue();
+            }
+            outputColumns.add(normalizeIdentifier(alias));
         } else if (item.getExpression() instanceof AllTableColumns all) {
             var columns =
                     Optional.ofNullable(sources.get(tableName(all.getTable())))
