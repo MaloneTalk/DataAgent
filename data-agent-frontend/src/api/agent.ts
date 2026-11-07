@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApiError, handleUnauthorized } from './request';
+import request, { handleApiError, type ApiResponse } from './request';
 
 export type ChatStreamEventType =
   | 'summary'
@@ -108,28 +108,6 @@ export interface TurnItem {
   traceSteps: ChatStreamEvent[];
 }
 
-interface ApiErrorBody {
-  code?: number;
-  errorCode?: string;
-  message?: string;
-  data?: unknown;
-}
-
-async function resolveApiError(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = (await response.json()) as ApiErrorBody;
-    return new ApiError(body.message || fallback, {
-      code: body.code,
-      errorCode: body.errorCode,
-      details: body.data,
-    });
-  } catch {
-    return new ApiError(fallback, {
-      code: response.status,
-    });
-  }
-}
-
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -139,55 +117,25 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
-async function requireSuccessfulResponse(response: Response, fallback: string): Promise<void> {
-  if (response.status === 401) {
-    handleUnauthorized();
-    throw new ApiError('登录已过期，请重新登录', { code: 401 });
-  }
-  if (response.status === 403) window.dispatchEvent(new Event('permissions-changed'));
-  if (!response.ok) {
-    throw await resolveApiError(response, `${fallback}: ${response.status} ${response.statusText}`);
-  }
-}
-
-async function fetchJson<T>(url: string, fallback: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) },
-  });
-  await requireSuccessfulResponse(response, fallback);
-  const body = await response.json();
-  if (body.code !== 200) {
-    throw new ApiError(body.message || fallback, {
-      code: body.code,
-      errorCode: body.errorCode,
-      details: body.data,
-    });
-  }
-  return body.data as T;
-}
-
 export async function createSession(): Promise<string> {
-  return fetchJson<string>('/api/agent/session', 'Failed to create session', { method: 'POST' });
+  const response = await request.post<ApiResponse<string>>('/agent/session');
+  return response.data.data;
 }
 
 export async function fetchSessionList(): Promise<SessionInfo[]> {
-  return fetchJson<SessionInfo[]>('/api/agent/sessions', 'Failed to fetch session list');
+  const response = await request.get<ApiResponse<SessionInfo[]>>('/agent/sessions');
+  return response.data.data;
 }
 
 export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]> {
-  return fetchJson<TurnItem[]>(
-    `/api/agent/session/${encodeURIComponent(sessionId)}/history`,
-    'Failed to fetch session history',
+  const response = await request.get<ApiResponse<TurnItem[]>>(
+    `/agent/session/${encodeURIComponent(sessionId)}/history`,
   );
+  return response.data.data;
 }
 
 export async function clearSession(sessionId: string): Promise<void> {
-  await fetchJson<boolean>(
-    `/api/agent/session/${encodeURIComponent(sessionId)}`,
-    'Failed to delete session',
-    { method: 'DELETE' },
-  );
+  await request.delete<ApiResponse<boolean>>(`/agent/session/${encodeURIComponent(sessionId)}`);
 }
 
 export async function* streamChat(
@@ -201,7 +149,14 @@ export async function* streamChat(
     signal: abortSignal,
   });
 
-  await requireSuccessfulResponse(response, 'Chat stream failed');
+  if (!response.ok) {
+    const body = (await response.json().catch(() => undefined)) as Partial<ApiResponse> | undefined;
+    throw handleApiError(
+      body,
+      `Chat stream failed: ${response.status} ${response.statusText}`,
+      response.status,
+    );
+  }
 
   const reader = response.body?.getReader();
   if (!reader) {

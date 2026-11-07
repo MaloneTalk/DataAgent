@@ -24,10 +24,6 @@ import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.BindLogicalTableRelationRequest;
 import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
-import io.github.malonetalk.dto.semantic.RelationWorkspacePageQuery;
-import io.github.malonetalk.dto.semantic.RelationWorkspaceResponse;
-import io.github.malonetalk.dto.semantic.RelationWorkspaceTableResponse;
-import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
 import io.github.malonetalk.entity.ColumnInfo;
@@ -48,9 +44,11 @@ import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,81 +97,12 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     @Override
-    public RelationWorkspaceResponse getRelationWorkspace(RelationWorkspacePageQuery query) {
-        requireDatasource(query.datasourceId());
-        int pageNumber = PageResponse.resolvePage(query.page());
-        int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-
-        IPage<TableInfo> page =
-                tableInfoMapper.selectPageByDatasourceId(
-                        new Page<>(pageNumber, pageSize),
-                        new TableSemanticPageQuery(
-                                query.datasourceId(),
-                                pageNumber,
-                                pageSize,
-                                SemanticUtils.trimToNull(query.keyword()),
-                                query.sortOrder()),
-                        sortDescending,
-                        dataPermissions.roleScope(holder.checkAndGet()).orElse(null));
-        if (page.getRecords().isEmpty()) {
-            return new RelationWorkspaceResponse(
-                    PageResponse.of(List.of(), page.getTotal(), pageNumber, pageSize), List.of());
-        }
-
-        Set<Integer> currentPageTableIds =
-                page.getRecords().stream().map(TableInfo::getId).collect(Collectors.toSet());
-        var scope = dataPermissions.loadScope(holder.checkAndGet(), query.datasourceId());
-        // 列记录已持有 table_id，按主键分组可直接关联当前页的表。
-        Map<Integer, List<ColumnInfo>> columnsByTableId =
-                columnSemanticInfoMapper
-                        .selectByDatasourceIdAndTableIds(query.datasourceId(), currentPageTableIds)
-                        .stream()
-                        .filter(c -> scope.canColumn(c.getTableName(), c.getColumnName()))
-                        .collect(Collectors.groupingBy(ColumnInfo::getTableId));
-        List<RelationWorkspaceTableResponse> nodes =
-                page.getRecords().stream()
-                        .map(
-                                table ->
-                                        semanticConverter.toWorkspaceTable(
-                                                table,
-                                                columnsByTableId.getOrDefault(
-                                                        table.getId(), List.of())))
-                        .toList();
-        // 来源表来自当前页查询，目标表也必须属于当前页。
-        List<LogicalTableRelationResponse> relations =
-                logicalTableRelationMapper
-                        .selectByDatasourceIdAndSourceTableIds(
-                                query.datasourceId(), currentPageTableIds)
-                        .stream()
-                        .filter(
-                                relation ->
-                                        currentPageTableIds.contains(relation.getTargetTableId()))
-                        .filter(rel -> visibleRelation(scope, rel))
-                        .map(semanticConverter::toResponse)
-                        .toList();
-
-        return new RelationWorkspaceResponse(
-                PageResponse.of(nodes, page.getTotal(), pageNumber, pageSize), relations);
-    }
-
-    private boolean visibleRelation(DataPermissionScopeBo scope, LogicalTableRelation relation) {
-        return scope.canColumns(
-                        relation.getSourceTableName(),
-                        logicalTableRelationHelper.fromJson(
-                                relation.getSourceColumnNamesJson(), "sourceColumnNames"))
-                && scope.canColumns(
-                        relation.getTargetTableName(),
-                        logicalTableRelationHelper.fromJson(
-                                relation.getTargetColumnNamesJson(), "targetColumnNames"));
-    }
-
-    @Override
     @Transactional
     public LogicalTableRelationResponse createRelationSemantic(
             String tableName, BindLogicalTableRelationRequest request) {
         requireDatasource(request.datasourceId());
-        LogicalTableRelation relation = buildRelation(request.datasourceId(), tableName, request);
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), request.datasourceId());
+        LogicalTableRelation relation = buildRelation(tableName, request, scope);
         logicalTableRelationMapper.insert(relation);
         return semanticConverter.toResponse(relation);
     }
@@ -183,9 +112,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public LogicalTableRelationResponse updateRelationSemantic(
             String tableName, UpdateLogicalTableRelationRequest request) {
         requireDatasource(request.datasourceId());
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), request.datasourceId());
         LogicalTableRelation existing =
-                requireRelation(request.datasourceId(), tableName, request.relationId());
-        applyRelationUpdate(existing, tableName, request);
+                requireRelation(request.datasourceId(), tableName, request.relationId(), scope);
+        applyRelationUpdate(existing, tableName, request, scope);
         existing.setUpdateTime(LocalDateTime.now());
         logicalTableRelationMapper.update(existing);
         return semanticConverter.toResponse(existing);
@@ -197,10 +127,11 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             String tableName, UpdateLogicalTableRelationEnabledRequest request) {
         requireDatasource(request.datasourceId());
         RequestAssert.requireNonNull(request.enabled(), "enabled cannot be null.");
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), request.datasourceId());
         LogicalTableRelation relation =
-                requireRelation(request.datasourceId(), tableName, request.relationId());
+                requireRelation(request.datasourceId(), tableName, request.relationId(), scope);
         if (Boolean.TRUE.equals(request.enabled())) {
-            ensureRelationEndpointsOperable(relation);
+            ensureRelationEndpointsOperable(relation, scope);
         }
         return logicalTableRelationMapper.updateEnabled(
                         request.relationId(),
@@ -216,7 +147,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     public boolean deleteRelationSemantic(
             Integer datasourceId, String tableName, Integer relationId) {
         requireDatasource(datasourceId);
-        LogicalTableRelation relation = requireRelation(datasourceId, tableName, relationId);
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        LogicalTableRelation relation = requireRelation(datasourceId, tableName, relationId, scope);
         return logicalTableRelationMapper.deleteById(
                         relationId, datasourceId, relation.getSourceTableId())
                 > 0;
@@ -231,8 +163,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         if (relationIds == null || relationIds.isEmpty()) {
             return 0;
         }
-        TableInfo sourceTable = requireTable(datasourceId, normalizedTableName, "sourceTable");
-        relationIds.forEach(id -> requireRelation(datasourceId, normalizedTableName, id));
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        TableInfo sourceTable =
+                requireTable(datasourceId, normalizedTableName, "sourceTable", scope);
+        relationIds.forEach(id -> requireRelation(datasourceId, normalizedTableName, id, scope));
         int deleted =
                 logicalTableRelationMapper.deleteByIdsAndSourceTable(
                         datasourceId, sourceTable.getId(), relationIds);
@@ -248,16 +182,18 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
 
     private void requireDatasource(Integer datasourceId) {
         RequestAssert.requireNonNull(datasourceId, "datasourceId cannot be null.");
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }
     }
 
     private LogicalTableRelation buildRelation(
-            Integer datasourceId, String tableName, BindLogicalTableRelationRequest request) {
+            String tableName,
+            BindLogicalTableRelationRequest request,
+            DataPermissionScopeBo scope) {
         LogicalTableRelation relation = new LogicalTableRelation();
-        relation.setDatasourceId(datasourceId);
+        relation.setDatasourceId(request.datasourceId());
         populateRelationFields(
                 relation,
                 tableName,
@@ -267,7 +203,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 request.relationType(),
                 request.description(),
                 request.enabled());
-        ensureRelationEndpointsOperable(relation);
+        ensureRelationEndpointsOperable(relation, scope);
         relation.setCreateTime(LocalDateTime.now());
         relation.setUpdateTime(LocalDateTime.now());
         return relation;
@@ -276,7 +212,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private void applyRelationUpdate(
             LogicalTableRelation relation,
             String tableName,
-            UpdateLogicalTableRelationRequest request) {
+            UpdateLogicalTableRelationRequest request,
+            DataPermissionScopeBo scope) {
         populateRelationFields(
                 relation,
                 tableName,
@@ -286,16 +223,26 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                 request.relationType(),
                 request.description(),
                 request.enabled());
-        ensureRelationEndpointsOperable(relation);
+        ensureRelationEndpointsOperable(relation, scope);
     }
 
-    private void ensureRelationEndpointsOperable(LogicalTableRelation relation) {
+    private void ensureRelationEndpointsOperable(
+            LogicalTableRelation relation, DataPermissionScopeBo scope) {
+        if (!logicalTableRelationHelper.isVisible(scope, relation)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
+        }
         TableInfo sourceTable =
                 ensureTableOperable(
-                        relation.getDatasourceId(), relation.getSourceTableName(), "sourceTable");
+                        relation.getDatasourceId(),
+                        relation.getSourceTableName(),
+                        "sourceTable",
+                        scope);
         TableInfo targetTable =
                 ensureTableOperable(
-                        relation.getDatasourceId(), relation.getTargetTableName(), "targetTable");
+                        relation.getDatasourceId(),
+                        relation.getTargetTableName(),
+                        "targetTable",
+                        scope);
         relation.setSourceTableId(sourceTable.getId());
         relation.setTargetTableId(targetTable.getId());
         List<String> sourceColumns =
@@ -304,21 +251,31 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
         List<String> targetColumns =
                 logicalTableRelationHelper.fromJson(
                         relation.getTargetColumnNamesJson(), "targetColumnNames");
+        var tableIds =
+                Stream.of(sourceTable.getId(), targetTable.getId()).collect(Collectors.toSet());
+        Map<Integer, Map<String, ColumnInfo>> columnsByTableId =
+                columnSemanticInfoMapper
+                        .selectByDatasourceIdAndTableIds(relation.getDatasourceId(), tableIds)
+                        .stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        ColumnInfo::getTableId,
+                                        Collectors.toMap(
+                                                c -> c.getColumnName().toLowerCase(Locale.ROOT),
+                                                c -> c)));
         ensureColumnsOperable(
-                relation.getDatasourceId(),
-                relation.getSourceTableName(),
+                columnsByTableId.getOrDefault(sourceTable.getId(), Map.of()),
                 sourceColumns,
                 "sourceColumnNames");
         ensureColumnsOperable(
-                relation.getDatasourceId(),
-                relation.getTargetTableName(),
+                columnsByTableId.getOrDefault(targetTable.getId(), Map.of()),
                 targetColumns,
                 "targetColumnNames");
     }
 
     private TableInfo ensureTableOperable(
-            Integer datasourceId, String tableName, String fieldName) {
-        TableInfo tableInfo = requireTable(datasourceId, tableName, fieldName);
+            Integer datasourceId, String tableName, String fieldName, DataPermissionScopeBo scope) {
+        TableInfo tableInfo = requireTable(datasourceId, tableName, fieldName, scope);
         if (SemanticAvailabilityHelper.isTableAvailable(tableInfo)) {
             return tableInfo;
         }
@@ -330,33 +287,35 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
                         SemanticAvailabilityHelper.tableInvalidReason(tableInfo)));
     }
 
-    private TableInfo requireTable(Integer datasourceId, String tableName, String fieldName) {
-        dataPermissions.requireTable(holder.checkAndGet(), datasourceId, tableName);
-        TableInfo tableInfo =
-                tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName);
-        if (tableInfo == null) {
-            throw BusinessException.of(
-                    ErrorCode.RESOURCE_NOT_FOUND,
-                    fieldName + " " + tableName + " semantic metadata does not exist.");
-        }
-        return tableInfo;
+    private TableInfo requireTable(
+            Integer datasourceId, String tableName, String fieldName, DataPermissionScopeBo scope) {
+        scope.requireTable(tableName);
+        return Optional.ofNullable(
+                        tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, tableName))
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.RESOURCE_NOT_FOUND,
+                                        fieldName
+                                                + " "
+                                                + tableName
+                                                + " semantic metadata does not exist."));
     }
 
     private void ensureColumnsOperable(
-            Integer datasourceId, String tableName, List<String> columnNames, String fieldName) {
-        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
-        if (!scope.canColumns(tableName, columnNames)) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN);
-        }
+            Map<String, ColumnInfo> columns, List<String> columnNames, String fieldName) {
         for (String columnName : columnNames) {
             ColumnInfo columnInfo =
-                    columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
-                            datasourceId, tableName, columnName);
-            if (columnInfo == null) {
-                throw BusinessException.of(
-                        ErrorCode.RESOURCE_NOT_FOUND,
-                        fieldName + " " + columnName + " semantic metadata does not exist.");
-            }
+                    Optional.ofNullable(columns.get(columnName.toLowerCase(Locale.ROOT)))
+                            .orElseThrow(
+                                    () ->
+                                            BusinessException.of(
+                                                    ErrorCode.RESOURCE_NOT_FOUND,
+                                                    fieldName
+                                                            + " "
+                                                            + columnName
+                                                            + " semantic metadata does not"
+                                                            + " exist."));
             if (SemanticAvailabilityHelper.isColumnAvailable(columnInfo)) {
                 continue;
             }
@@ -393,7 +352,10 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     }
 
     private LogicalTableRelation requireRelation(
-            Integer datasourceId, String tableName, Integer relationId) {
+            Integer datasourceId,
+            String tableName,
+            Integer relationId,
+            DataPermissionScopeBo scope) {
         RequestAssert.requireNonNull(relationId, "relationId cannot be null.");
         String normalizedTableName = SemanticUtils.normalizeObjectName(tableName, "tableName");
         LogicalTableRelation relation = logicalTableRelationMapper.selectById(relationId);
@@ -406,8 +368,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Logical relation does not exist.");
         }
-        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
-        if (!visibleRelation(scope, relation)) {
+        if (!logicalTableRelationHelper.isVisible(scope, relation)) {
             throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
         return relation;

@@ -21,7 +21,9 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
+import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.converter.UserConverter;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
@@ -32,12 +34,15 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class PermissionService {
-    private final SysUserService sysUserService;
+    private final SysUserMapper sysUserMapper;
     private final RoleCapabilityMapper capabilityMapper;
+    private final UserConverter userConverter;
 
     public UserContextBo user(Integer userId) {
         return Optional.ofNullable(userId)
-                .flatMap(sysUserService::selectAuthProjection)
+                .map(sysUserMapper::selectAuthProjection)
+                .filter(user -> Integer.valueOf(1).equals(user.getStatus()))
+                .map(userConverter::toContextBo)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.UNAUTHORIZED));
     }
 

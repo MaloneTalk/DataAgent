@@ -15,22 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.vo;
 
-import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.List;
 
-public record DatasourceResponse(
-        Integer id,
-        String name,
-        String type,
-        String host,
-        Integer port,
-        String databaseName,
-        String username,
-        String connectionUrl,
-        String status,
-        String testStatus,
-        String description,
-        Long creatorId,
-        LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+/** 保留列表接口的 JSON 数组格式，由统一响应切面包装。 */
+public record ListVo<T>(@JsonValue List<T> items) implements BaseVo {}

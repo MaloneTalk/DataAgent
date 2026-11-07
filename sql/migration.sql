@@ -644,3 +644,30 @@ SET @migration_sql = IF(
 PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
+
+-- Datasource audit fields and logical deletion; existing rows remain visible.
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datasource'
+          AND COLUMN_NAME = 'updater_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `datasource` ADD COLUMN `updater_id` BIGINT(20) DEFAULT NULL COMMENT ''更新者ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datasource'
+          AND COLUMN_NAME = 'is_deleted'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `datasource` ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''是否已删除'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;

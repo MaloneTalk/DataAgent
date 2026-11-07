@@ -96,7 +96,6 @@
     <update id="updateSemanticFields" parameterType="io.github.malonetalk.entity.TableInfo">
         UPDATE table_info
         <set>
-            <if test="tableName != null">table_name = #{tableName},</if>
             table_description = #{tableDescription},
             data_granularity = #{dataGranularity},
             domain = #{domain},
@@ -140,6 +139,13 @@
         SELECT COUNT(1) FROM table_info
         WHERE LOWER(domain) = LOWER(#{domain})
     </select>
+
+    <update id="updateDomain">
+        UPDATE table_info
+        SET domain = #{newDomain},
+            update_time = #{now}
+        WHERE LOWER(domain) = LOWER(#{oldDomain})
+    </update>
 
     <update id="resetSemanticFieldsByIds">
         UPDATE table_info

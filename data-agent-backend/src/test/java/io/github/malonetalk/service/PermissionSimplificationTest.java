@@ -27,67 +27,69 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
-import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.converter.UserConverter;
-import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import io.github.malonetalk.model.po.SysUserPo;
 import java.util.List;
-import java.util.Optional;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.Select;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
 class PermissionSimplificationTest {
-    private final SysUserService users = mock(SysUserService.class);
+    private final SysUserMapper users = mock(SysUserMapper.class);
+    private final UserConverter converter = mock(UserConverter.class);
     private final RoleCapabilityMapper capabilities = mock(RoleCapabilityMapper.class);
     private final RoleTablePermissionMapper tables = mock(RoleTablePermissionMapper.class);
     private final RoleHiddenColumnMapper columns = mock(RoleHiddenColumnMapper.class);
     private final ColumnSemanticInfoMapper metadata = mock(ColumnSemanticInfoMapper.class);
-    private final PermissionService permissions = new PermissionService(users, capabilities);
+    private final PermissionService permissions =
+            new PermissionService(users, capabilities, converter);
     private final DataPermissionService data = new DataPermissionService(tables, columns);
     private final UserContextBo user =
             UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
 
     @Test
-    void authProjectionIsEmptyForMissingOrInactiveUsers() {
+    void authRejectsMissingOrInactiveUsers() {
         var mapper = mock(SysUserMapper.class);
         var converter = mock(UserConverter.class);
-        var service =
-                new SysUserServiceImpl(
-                        mapper,
-                        new UserContextHolder(),
-                        mock(SysRoleMapper.class),
-                        converter,
-                        new StaticListableBeanFactory().getBeanProvider(PermissionService.class));
-        assertTrue(service.selectAuthProjection(7).isEmpty());
+        var service = new PermissionService(mapper, capabilities, converter);
+        assertEquals(
+                ErrorCode.UNAUTHORIZED,
+                assertThrows(BusinessException.class, () -> service.user(7)).getErrorCode());
         var stored = new SysUserPo();
-        when(mapper.selectById(7)).thenReturn(stored);
-        assertTrue(service.selectAuthProjection(7).isEmpty());
+        when(mapper.selectAuthProjection(7)).thenReturn(stored);
+        assertEquals(
+                ErrorCode.UNAUTHORIZED,
+                assertThrows(BusinessException.class, () -> service.user(7)).getErrorCode());
         stored.setStatus(0);
-        assertTrue(service.selectAuthProjection(7).isEmpty());
+        assertEquals(
+                ErrorCode.UNAUTHORIZED,
+                assertThrows(BusinessException.class, () -> service.user(7)).getErrorCode());
         stored.setStatus(1);
         when(converter.toContextBo(stored)).thenReturn(user);
-        assertSame(user, service.selectAuthProjection(7).orElseThrow());
+        assertSame(user, service.user(7));
     }
 
     @Test
     void sharedSqlGateLoadsIdentityOnceAndStillRejectsRevocationAndHiddenColumns()
             throws Exception {
-        when(users.selectAuthProjection(7)).thenReturn(Optional.of(user));
+        var stored = new SysUserPo();
+        stored.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(stored);
+        when(converter.toContextBo(stored)).thenReturn(user);
         when(capabilities.selectCodes(2)).thenReturn(List.of("analysis:sql:execute"));
         RoleTablePermission table = new RoleTablePermission();
         table.setTableName("orders");
@@ -99,7 +101,7 @@ class PermissionSimplificationTest {
         ColumnInfo id = new ColumnInfo();
         id.setColumnName("id");
         when(metadata.selectByDatasourceIdAndTableName(1, "orders")).thenReturn(List.of(id));
-        Datasource datasource = new Datasource();
+        DatasourcePo datasource = new DatasourcePo();
         datasource.setId(1);
         datasource.setType("mysql");
         SqlPermissionService sql = new SqlPermissionService(permissions, data, metadata);
@@ -128,7 +130,7 @@ class PermissionSimplificationTest {
                                 7,
                                 datasource,
                                 (Select) CCJSqlParserUtil.parse("SELECT * FROM orders")));
-        when(users.selectAuthProjection(7)).thenReturn(Optional.empty());
+        when(users.selectAuthProjection(7)).thenReturn(null);
         assertThrows(
                 BusinessException.class,
                 () ->
@@ -140,7 +142,10 @@ class PermissionSimplificationTest {
 
     @Test
     void allRequiredPermissionsAndReservedPermissionsStillApply() {
-        when(users.selectAuthProjection(7)).thenReturn(Optional.of(user));
+        var stored = new SysUserPo();
+        stored.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(stored);
+        when(converter.toContextBo(stored)).thenReturn(user);
         when(capabilities.selectCodes(2))
                 .thenReturn(List.of("analysis:chat:use", "sys:role:grant", "unknown"));
         assertSame(user, permissions.require(7, PermissionEnum.ANALYSIS_CHAT_USE));
@@ -178,7 +183,10 @@ class PermissionSimplificationTest {
             mode = EnumSource.Mode.EXCLUDE)
     void everyPermissionExceptAuthorizationManagementCanBeUsedByAnAssignedRole(
             PermissionEnum permission) {
-        when(users.selectAuthProjection(7)).thenReturn(Optional.of(user));
+        var stored = new SysUserPo();
+        stored.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(stored);
+        when(converter.toContextBo(stored)).thenReturn(user);
         when(capabilities.selectCodes(2)).thenReturn(List.of(permission.getCode()));
 
         assertSame(user, permissions.require(7, permission));

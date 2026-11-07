@@ -15,17 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.dto;
+package io.github.malonetalk.model.bo;
 
-import jakarta.validation.constraints.NotBlank;
+import io.github.malonetalk.dto.semantic.SyncTableResult;
+import java.util.List;
 
-public record DatasourceRequest(
-        @NotBlank(message = "name 不能为空") String name,
-        @NotBlank(message = "type 不能为空") String type,
-        String host,
-        Integer port,
-        String databaseName,
-        String username,
-        String password,
-        String connectionUrl,
-        String description) {}
+/** 同步统计及待批量标记为物理缺失的表名、列 ID。 */
+public record SemanticSyncDiffBo(
+        List<SyncTableResult> results,
+        List<String> missingTableNames,
+        List<Integer> missingColumnIds) {}

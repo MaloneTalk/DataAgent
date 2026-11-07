@@ -15,17 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.convertor;
+package io.github.malonetalk.model.vo;
 
-import io.github.malonetalk.dto.DatasourceRequest;
-import io.github.malonetalk.dto.DatasourceResponse;
-import io.github.malonetalk.entity.Datasource;
-import org.mapstruct.Mapper;
+import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.List;
+import java.util.Map;
 
-@Mapper(componentModel = "spring")
-public interface DatasourceConverter {
-
-    Datasource toEntity(DatasourceRequest request);
-
-    DatasourceResponse toResponse(Datasource datasource);
-}
+public record DatasourceColumnsVo(@JsonValue Map<String, List<String>> columns) implements BaseVo {}

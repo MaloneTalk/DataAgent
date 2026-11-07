@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS `datasource` (
     `test_status` VARCHAR(20) DEFAULT NULL COMMENT '测试状态',
     `description` TEXT DEFAULT NULL COMMENT '描述',
     `creator_id` BIGINT(20) DEFAULT NULL COMMENT '创建者ID',
+    `updater_id` BIGINT(20) DEFAULT NULL COMMENT '更新者ID',
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已删除',
     `create_time` DATETIME DEFAULT NULL COMMENT '创建时间',
     `update_time` DATETIME DEFAULT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`)

@@ -17,33 +17,45 @@
  */
 package io.github.malonetalk.service;
 
-import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.enums.Status;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.dto.DatasourceDto;
+import io.github.malonetalk.model.po.DatasourcePo;
 import java.util.List;
 import java.util.Optional;
 
 public interface DatasourceService {
 
-    List<Datasource> findAll();
+    List<DatasourcePo> findAll();
 
-    Datasource findById(Integer id);
+    Optional<DatasourcePo> findById(Integer id);
 
-    boolean save(Datasource dataSource);
+    default DatasourcePo requireById(Integer id) {
+        return findById(id)
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.RESOURCE_NOT_FOUND, "Datasource not found."));
+    }
 
-    boolean update(Datasource dataSource);
+    void save(DatasourceDto request);
 
-    boolean deleteById(Integer id);
+    void update(Integer id, DatasourceDto request);
 
-    List<Datasource> findByStatus(String status);
+    void deleteById(Integer id);
 
-    Optional<Datasource> getActiveDatasource();
+    List<DatasourcePo> findByStatus(String status);
+
+    Optional<DatasourcePo> getActiveDatasource();
 
     /** 会话维度解析数据源：有绑定用绑定（无视 status），无绑定回退激活源。 */
-    Datasource getDatasourceForSession(String sessionId);
+    DatasourcePo getDatasourceForSession(String sessionId);
 
     /** 绑定会话到数据源；数据源不存在抛 400，已绑定则保留首次绑定。 */
     void bindSessionDatasource(String sessionId, Integer datasourceId);
 
-    List<Datasource> findByType(String type);
+    List<DatasourcePo> findByType(String type);
 
-    boolean updateStatus(Integer id, String status);
+    void updateStatus(Integer id, Status status);
 }

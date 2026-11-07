@@ -66,4 +66,9 @@ public interface TableInfoMapper {
             @Param("now") LocalDateTime now);
 
     int countByDomain(@Param("domain") String domain);
+
+    int updateDomain(
+            @Param("oldDomain") String oldDomain,
+            @Param("newDomain") String newDomain,
+            @Param("now") LocalDateTime now);
 }

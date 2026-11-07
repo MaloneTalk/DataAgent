@@ -17,89 +17,103 @@
  */
 package io.github.malonetalk.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.SessionDatasource;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.mapper.SessionDatasourceMapper;
-import java.time.LocalDateTime;
+import io.github.malonetalk.model.converter.DatasourceConverter;
+import io.github.malonetalk.model.dto.DatasourceDto;
+import io.github.malonetalk.model.po.DatasourcePo;
 import java.util.List;
 import java.util.Optional;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class DatasourceServiceImpl implements DatasourceService {
 
     private final DatasourceMapper dataSourceMapper;
     private final SessionDatasourceMapper sessionDatasourceMapper;
     private final DynamicDataSourceManager dynamicDataSourceManager;
+    private final DatasourceConverter converter;
 
     @Override
-    public List<Datasource> findAll() {
-        return dataSourceMapper.selectAll();
+    public List<DatasourcePo> findAll() {
+        return dataSourceMapper.selectList(
+                Wrappers.<DatasourcePo>lambdaQuery().orderByDesc(DatasourcePo::getCreateTime));
     }
 
     @Override
-    public Datasource findById(Integer id) {
-        return dataSourceMapper.selectById(id);
+    public Optional<DatasourcePo> findById(Integer id) {
+        return Optional.ofNullable(id).map(dataSourceMapper::selectById);
     }
 
     @Override
-    public boolean save(Datasource dataSource) {
-        dataSource.setCreateTime(LocalDateTime.now());
-        dataSource.setUpdateTime(LocalDateTime.now());
-        return dataSourceMapper.insert(dataSource) > 0;
+    public void save(DatasourceDto request) {
+        DataSourceType type = requireDatasourceType(request.type());
+        DatasourcePo datasource = converter.toPo(request);
+        datasource.setType(type.getCode());
+        datasource.setStatus(Status.INACTIVE.getCode());
+        requireOperationSuccess(
+                dataSourceMapper.insert(datasource), "Failed to save the datasource.");
     }
 
     @Override
-    public boolean update(Datasource dataSource) {
-        dataSource.setUpdateTime(LocalDateTime.now());
-        boolean updated = dataSourceMapper.update(dataSource) > 0;
-        if (updated) {
-            dynamicDataSourceManager.removeDataSource(dataSource.getId());
-        }
-        return updated;
+    public void update(Integer id, DatasourceDto request) {
+        DataSourceType type = requireDatasourceType(request.type());
+        DatasourcePo datasource = requireById(id);
+        converter.update(request, datasource);
+        datasource.setType(type.getCode());
+        // 与旧接口保持一致：null 不覆盖已有字段，空密码表示继续使用原密码。
+        Optional.ofNullable(request.password())
+                .filter(password -> !password.isEmpty())
+                .ifPresent(datasource::setPassword);
+        requireOperationSuccess(
+                dataSourceMapper.updateById(datasource), "Failed to update the datasource.");
+        dynamicDataSourceManager.removeDataSource(id);
     }
 
     @Override
-    public boolean deleteById(Integer id) {
-        boolean deleted = dataSourceMapper.deleteById(id) > 0;
-        if (deleted) {
-            dynamicDataSourceManager.removeDataSource(id);
-        }
-        return deleted;
+    public void deleteById(Integer id) {
+        requireById(id);
+        requireOperationSuccess(
+                dataSourceMapper.deleteById(id), "Failed to delete the datasource.");
+        dynamicDataSourceManager.removeDataSource(id);
     }
 
     @Override
-    public List<Datasource> findByStatus(String status) {
-        return dataSourceMapper.selectByStatus(status);
+    public List<DatasourcePo> findByStatus(String status) {
+        return dataSourceMapper.selectList(
+                Wrappers.<DatasourcePo>lambdaQuery()
+                        .eq(DatasourcePo::getStatus, status)
+                        .orderByDesc(DatasourcePo::getCreateTime));
     }
 
     @Override
-    public Optional<Datasource> getActiveDatasource() {
-        List<Datasource> active = findByStatus(Status.ACTIVE.getCode());
+    public Optional<DatasourcePo> getActiveDatasource() {
+        List<DatasourcePo> active = findByStatus(Status.ACTIVE.getCode());
         if (active.size() > 1) {
             log.warn("Found {} active data sources, using the first one.", active.size());
         }
-        return active.isEmpty() ? Optional.empty() : Optional.of(active.get(0));
+        return active.stream().findFirst();
     }
 
     @Override
-    public Datasource getDatasourceForSession(String sessionId) {
-        SessionDatasource binding = sessionDatasourceMapper.selectBySessionId(sessionId);
-        if (binding != null) {
-            Datasource datasource = findExistingDatasource(binding.getDatasourceId());
-            if (datasource == null) {
-                throw BusinessException.of(ErrorCode.BOUND_DATASOURCE_UNAVAILABLE);
-            }
-            return datasource;
+    public DatasourcePo getDatasourceForSession(String sessionId) {
+        Optional<SessionDatasource> binding =
+                Optional.ofNullable(sessionDatasourceMapper.selectBySessionId(sessionId));
+        if (binding.isPresent()) {
+            return findById(binding.get().getDatasourceId())
+                    .orElseThrow(
+                            () -> BusinessException.of(ErrorCode.BOUND_DATASOURCE_UNAVAILABLE));
         }
         return getActiveDatasource()
                 .orElseThrow(() -> BusinessException.of(ErrorCode.NO_ACTIVE_DATASOURCE));
@@ -107,7 +121,7 @@ public class DatasourceServiceImpl implements DatasourceService {
 
     @Override
     public void bindSessionDatasource(String sessionId, Integer datasourceId) {
-        if (findExistingDatasource(datasourceId) == null) {
+        if (findById(datasourceId).isEmpty()) {
             throw BusinessException.of(
                     ErrorCode.BAD_REQUEST, "Datasource does not exist: " + datasourceId);
         }
@@ -117,17 +131,36 @@ public class DatasourceServiceImpl implements DatasourceService {
         sessionDatasourceMapper.insertIfAbsent(binding);
     }
 
-    private Datasource findExistingDatasource(Integer id) {
-        return dataSourceMapper.selectById(id);
+    @Override
+    public List<DatasourcePo> findByType(String type) {
+        return dataSourceMapper.selectList(
+                Wrappers.<DatasourcePo>lambdaQuery()
+                        .eq(DatasourcePo::getType, type)
+                        .orderByDesc(DatasourcePo::getCreateTime));
     }
 
     @Override
-    public List<Datasource> findByType(String type) {
-        return dataSourceMapper.selectByType(type);
+    public void updateStatus(Integer id, Status status) {
+        requireById(id);
+        DatasourcePo datasource = new DatasourcePo();
+        datasource.setId(id);
+        datasource.setStatus(status.getCode());
+        requireOperationSuccess(
+                dataSourceMapper.updateById(datasource), "Failed to update datasource status.");
     }
 
-    @Override
-    public boolean updateStatus(Integer id, String status) {
-        return dataSourceMapper.updateStatus(id, status) > 0;
+    private DataSourceType requireDatasourceType(String type) {
+        return DataSourceType.fromCode(type)
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.UNSUPPORTED_DATASOURCE_TYPE,
+                                        "Unsupported datasource type: " + type));
+    }
+
+    private void requireOperationSuccess(int affectedRows, String message) {
+        if (affectedRows == 0) {
+            throw BusinessException.of(ErrorCode.OPERATION_FAILED, message);
+        }
     }
 }

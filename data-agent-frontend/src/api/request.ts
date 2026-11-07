@@ -81,43 +81,43 @@ service.interceptors.response.use(
     }
     const res = response.data;
     if (res.code !== 200) {
-      const apiError = toApiError(res, '请求失败');
-      showApiError(apiError);
-      return Promise.reject(apiError);
+      return Promise.reject(handleApiError(res, '请求失败'));
     }
     return response;
   },
   error => {
-    const status = error.response?.status;
-    // 401：token 缺失/过期/用户禁用。在登录页之外 → 清凭证跳登录；在登录页 → 显示后端文案（如"用户名或密码错误"）。
-    if (status === 401) {
-      const responseBody = error.response?.data as ApiResponse | undefined;
-      const apiError = toApiError(responseBody, '登录已过期，请重新登录');
-      if (window.location.pathname !== '/login') {
-        handleUnauthorized();
-      } else {
-        showApiError(apiError);
-      }
-      return Promise.reject(apiError);
-    }
-    if (status === 403) window.dispatchEvent(new Event('permissions-changed'));
-    const responseBody = error.response?.data as ApiResponse | undefined;
-    const apiError = toApiError(responseBody, error.message || '网络错误');
-    showApiError(apiError);
-    return Promise.reject(apiError);
+    return Promise.reject(
+      handleApiError(error.response?.data, error.message || '网络错误', error.response?.status),
+    );
   },
 );
 
-function toApiError(response: ApiResponse | undefined, fallbackMessage: string): ApiError {
-  const details = response?.data;
-  return new ApiError(resolveMessage(response, fallbackMessage), {
-    code: response?.code,
+/** Axios 和 SSE 共用错误转换、权限变更通知及登录失效处理。 */
+export function handleApiError(
+  response: Partial<ApiResponse> | undefined,
+  fallbackMessage: string,
+  status?: number,
+): ApiError {
+  const responseStatus = status ?? response?.code;
+  const message = responseStatus === 401 ? '登录已过期，请重新登录' : fallbackMessage;
+  const error = new ApiError(resolveMessage(response, message), {
+    code: response?.code ?? status,
     errorCode: response?.errorCode,
-    details,
+    details: response?.data,
   });
+  if (responseStatus === 401 && window.location.pathname !== '/login') {
+    handleUnauthorized();
+  } else {
+    if (responseStatus === 403) window.dispatchEvent(new Event('permissions-changed'));
+    showApiError(error);
+  }
+  return error;
 }
 
-function resolveMessage(response: ApiResponse | undefined, fallbackMessage: string): string {
+function resolveMessage(
+  response: Partial<ApiResponse> | undefined,
+  fallbackMessage: string,
+): string {
   if (isFieldValidationErrors(response?.data)) {
     return response.data.map(error => `${error.field}: ${error.message}`).join('\n');
   }

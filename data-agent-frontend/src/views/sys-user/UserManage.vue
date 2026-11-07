@@ -17,13 +17,16 @@
  -->
 
 <script setup lang="ts">
-  import { computed, ref, reactive, onMounted } from 'vue';
-  import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
+  import { ref, onMounted } from 'vue';
+  import { ElMessage, ElMessageBox } from 'element-plus';
   import * as sysUserApi from '@/api/sysUser';
   import { listRoles, type RoleResponse } from '@/api/sysRole';
   import type { UserResponse } from '@/api/sysUser';
   import { useUserStore } from '@/stores/user';
   import { formatDateTime } from '@/utils/dateTime';
+  import UserFormDialog from './components/UserFormDialog.vue';
+  import UserRoleDialog from './components/UserRoleDialog.vue';
+  import UserPasswordDialog from './components/UserPasswordDialog.vue';
 
   const userStore = useUserStore();
 
@@ -60,109 +63,9 @@
     reload();
   }
 
-  // ── Create / Edit dialog ──
-  const formVisible = ref(false);
-  const editingId = ref<number | null>(null);
-  const isEdit = computed(() => editingId.value !== null);
-  const formTitle = computed(() => (isEdit.value ? '编辑用户' : '新建用户'));
-  const originalRoleId = ref(0);
-  const formRef = ref<FormInstance>();
-  const form = reactive({ username: '', password: '', displayName: '', roleId: 0 });
-
-  const createRules: FormRules<typeof form> = {
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-    password: [
-      { required: true, message: '请输入密码', trigger: 'blur' },
-      { min: 6, max: 64, message: '长度 6-64', trigger: 'blur' },
-    ],
-    displayName: [{ required: true, message: '请输入显示名', trigger: 'blur' }],
-  };
-
-  const editRules: FormRules<{ displayName: string }> = {
-    displayName: [{ required: true, message: '请输入显示名', trigger: 'blur' }],
-  };
-
-  function openCreate() {
-    editingId.value = null;
-    form.username = '';
-    form.password = '';
-    form.displayName = '';
-    form.roleId = 0;
-    formVisible.value = true;
-  }
-
-  function openEdit(user: UserResponse) {
-    editingId.value = user.id;
-    form.displayName = user.displayName;
-    form.roleId = user.roleId;
-    originalRoleId.value = user.roleId;
-    formVisible.value = true;
-  }
-
-  async function onSubmitForm() {
-    if (!formRef.value) return;
-    const valid = await formRef.value.validate().catch(() => false);
-    if (!valid) return;
-    try {
-      if (editingId.value != null) {
-        if (userStore.hasPermission('sys:user:update')) {
-          await sysUserApi.updateUser(editingId.value, {
-            displayName: form.displayName,
-          });
-        }
-        if (
-          userStore.hasPermission('sys:user:assign-role') &&
-          form.roleId !== originalRoleId.value
-        ) {
-          await sysUserApi.assignRole(editingId.value, form.roleId);
-        }
-        ElMessage.success('更新成功');
-      } else {
-        await sysUserApi.createUser({ ...form });
-        ElMessage.success('创建成功');
-      }
-      formVisible.value = false;
-      await reload();
-    } catch {
-      // 请求层已 toast
-    }
-  }
-
-  // ── Reset password dialog ──
-  const pwdVisible = ref(false);
-  const pwdUserId = ref<number | null>(null);
-  const pwdUsername = ref('');
-  const pwdForm = reactive({ newPassword: '', confirmPassword: '' });
-  const pwdFormRef = ref<FormInstance>();
-
-  function openResetPwd(user: UserResponse) {
-    pwdUserId.value = user.id;
-    pwdUsername.value = user.username;
-    pwdForm.newPassword = '';
-    pwdForm.confirmPassword = '';
-    pwdVisible.value = true;
-  }
-
-  const validateConfirm = (_rule: unknown, value: string, cb: (err?: Error) => void) => {
-    if (value !== pwdForm.newPassword) {
-      cb(new Error('两次输入的密码不一致'));
-    } else {
-      cb();
-    }
-  };
-
-  async function onSubmitReset() {
-    if (!pwdFormRef.value || pwdUserId.value == null) return;
-    const valid = await pwdFormRef.value.validate().catch(() => false);
-    if (!valid) return;
-    try {
-      await sysUserApi.resetPassword(pwdUserId.value, pwdForm.newPassword);
-      ElMessage.success('密码已重置');
-      pwdVisible.value = false;
-    } catch {
-      // toast handled by api layer
-    }
-  }
+  const formDialogRef = ref<InstanceType<typeof UserFormDialog>>();
+  const roleDialogRef = ref<InstanceType<typeof UserRoleDialog>>();
+  const passwordDialogRef = ref<InstanceType<typeof UserPasswordDialog>>();
 
   // ── Status toggle ──
   async function onToggleStatus(user: UserResponse) {
@@ -198,7 +101,11 @@
     </div>
 
     <div class="table-actions">
-      <el-button v-permission="'sys:user:create'" type="primary" @click="openCreate">
+      <el-button
+        v-permission="'sys:user:create'"
+        type="primary"
+        @click="formDialogRef?.openCreate()"
+      >
         新建用户
       </el-button>
     </div>
@@ -227,19 +134,26 @@
           {{ formatDateTime(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" align="center" fixed="right">
+      <el-table-column label="操作" width="360" align="center" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-permission="['sys:user:update', 'sys:user:assign-role']"
+            v-permission="'sys:user:update'"
             size="small"
-            @click="openEdit(row)"
+            @click="formDialogRef?.openEdit(row)"
           >
-            编辑
+            编辑资料
+          </el-button>
+          <el-button
+            v-permission="'sys:user:assign-role'"
+            size="small"
+            @click="roleDialogRef?.openAssignRole(row)"
+          >
+            分配角色
           </el-button>
           <el-button
             v-permission="'sys:user:reset-password'"
             size="small"
-            @click="openResetPwd(row)"
+            @click="passwordDialogRef?.openResetPwd(row)"
           >
             重置密码
           </el-button>
@@ -267,89 +181,8 @@
       />
     </div>
 
-    <!-- Create / Edit dialog -->
-    <el-dialog v-model="formVisible" :title="formTitle" width="420px" :close-on-click-modal="false">
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="isEdit ? editRules : createRules"
-        label-width="80px"
-        @submit.prevent="onSubmitForm"
-      >
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" :disabled="isEdit" placeholder="请输入用户名" />
-        </el-form-item>
-        <el-form-item v-if="!isEdit" label="密码" prop="password">
-          <el-input v-model="form.password" type="password" show-password placeholder="6-64 位" />
-        </el-form-item>
-        <el-form-item label="显示名" prop="displayName">
-          <el-input
-            v-model="form.displayName"
-            :disabled="isEdit && !userStore.hasPermission('sys:user:update')"
-            placeholder="请输入显示名"
-          />
-        </el-form-item>
-        <el-form-item label="角色">
-          <el-select
-            :disabled="!userStore.hasPermission('sys:user:assign-role')"
-            v-model="form.roleId"
-            placeholder="请选择角色"
-            style="width: 100%"
-          >
-            <el-option :value="0" label="未分配" />
-            <el-option v-for="r in roleOptions" :key="r.id" :value="r.id" :label="r.name" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="formVisible = false">取消</el-button>
-        <el-button type="primary" @click="onSubmitForm">确定</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- Reset password dialog -->
-    <el-dialog
-      v-model="pwdVisible"
-      :title="`重置密码 - ${pwdUsername}`"
-      width="380px"
-      :close-on-click-modal="false"
-    >
-      <el-form ref="pwdFormRef" :model="pwdForm" label-width="80px" @submit.prevent="onSubmitReset">
-        <el-form-item
-          label="新密码"
-          prop="newPassword"
-          :rules="[
-            { required: true, message: '请输入新密码', trigger: 'blur' },
-            { min: 6, max: 64, message: '长度 6-64', trigger: 'blur' },
-          ]"
-        >
-          <el-input
-            v-model="pwdForm.newPassword"
-            type="password"
-            show-password
-            placeholder="6-64 位"
-          />
-        </el-form-item>
-        <el-form-item
-          label="确认密码"
-          prop="confirmPassword"
-          :rules="[
-            { required: true, message: '请确认新密码', trigger: 'blur' },
-            { validator: validateConfirm, trigger: 'blur' },
-          ]"
-        >
-          <el-input
-            v-model="pwdForm.confirmPassword"
-            type="password"
-            show-password
-            placeholder="再次输入新密码"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="pwdVisible = false">取消</el-button>
-        <el-button type="primary" @click="onSubmitReset">确定</el-button>
-      </template>
-    </el-dialog>
+    <UserFormDialog ref="formDialogRef" :role-options="roleOptions" @saved="reload" />
+    <UserRoleDialog ref="roleDialogRef" :role-options="roleOptions" @saved="reload" />
+    <UserPasswordDialog ref="passwordDialogRef" />
   </div>
 </template>

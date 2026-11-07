@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.agent.tools;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
@@ -25,11 +27,10 @@ import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.model.bo.SqlToolMetadataBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +41,7 @@ public class ExecuteSqlTool implements MarkAgentTool {
     private final DatasourceService dataSourceService;
     private final SqlExecutor sqlExecutor;
     private final ToolExceptionMapper toolExceptionMapper;
+    private final ObjectMapper objectMapper;
 
     @Tool(
             name = "execute_sql",
@@ -53,21 +55,23 @@ public class ExecuteSqlTool implements MarkAgentTool {
             ToolCallContext ctx) {
         return toolExceptionMapper.run(
                 () -> {
-                    Datasource datasource =
+                    DatasourcePo datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
                     SqlExecution execution =
                             sqlExecutor.executeDetailed(datasource, sql, ctx.userId());
-                    Map<String, Object> metadata = new HashMap<>();
-                    metadata.put("datasourceId", datasource.getId());
-                    metadata.put("datasourceName", datasource.getName());
-                    metadata.put("databaseName", datasource.getDatabaseName());
-                    metadata.put("executedSql", execution.executedSql());
-                    metadata.put("authorizedColumns", execution.authorizedColumns());
-                    metadata.put("returnedRows", execution.result().rows().size());
-                    metadata.put("truncated", execution.result().truncated());
+                    var metadata =
+                            SqlToolMetadataBo.builder()
+                                    .datasourceId(datasource.getId())
+                                    .datasourceName(datasource.getName())
+                                    .databaseName(datasource.getDatabaseName())
+                                    .executedSql(execution.executedSql())
+                                    .authorizedColumns(execution.authorizedColumns())
+                                    .returnedRows(execution.result().rows().size())
+                                    .truncated(execution.result().truncated())
+                                    .build();
                     return ToolResultBlock.of(
                             TextBlock.builder().text(formatResult(execution.result())).build(),
-                            metadata);
+                            objectMapper.convertValue(metadata, new TypeReference<>() {}));
                 });
     }
 

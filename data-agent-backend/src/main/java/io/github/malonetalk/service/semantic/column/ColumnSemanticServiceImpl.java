@@ -26,13 +26,13 @@ import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -68,8 +69,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         query.tableName(), "Missing tableName for column semantic page query.");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        Datasource datasource = datasourceService.findById(query.datasourceId());
-        if (datasource == null) {
+        if (datasourceService.findById(query.datasourceId()).isEmpty()) {
             return PageResponse.empty(pageNumber, pageSize);
         }
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
@@ -96,9 +96,10 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String normalizedTableName =
                 SemanticUtils.normalizeObjectName(
                         tableName, "Missing tableName for column semantic update.");
-        String normalizedColumnName =
-                SemanticUtils.normalizeObjectName(
+        String columnName =
+                SemanticUtils.requireTrimmed(
                         request.columnName(), "Missing columnName for column semantic update.");
+        String normalizedColumnName = columnName.toLowerCase(Locale.ROOT);
         requireColumnAccess(
                 request.datasourceId(), normalizedTableName, List.of(normalizedColumnName));
         ColumnInfo existing =
@@ -116,7 +117,7 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             ColumnInfo columnInfo = new ColumnInfo();
             columnInfo.setDatasourceId(request.datasourceId());
             columnInfo.setTableId(tableInfo.getId());
-            columnInfo.setColumnName(normalizedColumnName);
+            columnInfo.setColumnName(columnName);
             columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setSemanticType(request.semanticType());
             columnInfo.setIsVisible(request.isVisible());
@@ -126,7 +127,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnSemanticInfoMapper.insert(columnInfo);
             return;
         }
-        existing.setColumnName(normalizedColumnName);
         existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setSemanticType(request.semanticType());
         existing.setIsVisible(request.isVisible());
@@ -219,14 +219,15 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         return affected;
     }
 
-    private Datasource requireDatasource(Integer datasourceId) {
+    private DatasourcePo requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        Datasource datasource = datasourceService.findById(datasourceId);
-        if (datasource == null) {
-            throw BusinessException.of(
-                    ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
-        }
-        return datasource;
+        return datasourceService
+                .findById(datasourceId)
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.RESOURCE_NOT_FOUND,
+                                        "Datasource does not exist: " + datasourceId));
     }
 
     private void requireColumnAccess(

@@ -26,12 +26,13 @@ import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableExport;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableExportMapper;
 import io.github.malonetalk.model.bo.TableExportResultBo;
+import io.github.malonetalk.model.converter.JdbcCsvValueConverter;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
@@ -47,7 +48,6 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -64,10 +64,11 @@ public class TableExportServiceImpl implements TableExportService {
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlExecutor sqlExecutor;
     private final SessionService sessionService;
+    private final JdbcCsvValueConverter jdbcCsvValueConverter;
 
     @Override
     public TableExportResultBo create(
-            String sessionId, Datasource datasource, String title, String sql, Integer userId) {
+            String sessionId, DatasourcePo datasource, String title, String sql, Integer userId) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -127,8 +128,9 @@ public class TableExportServiceImpl implements TableExportService {
         }
     }
 
-    private CsvResult writeCsv(Datasource datasource, String sql) {
-        DataSource dataSource = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+    private CsvResult writeCsv(DatasourcePo datasource, String sql) {
+        javax.sql.DataSource dataSource =
+                dynamicDataSourceManager.getOrCreateDataSource(datasource);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt =
@@ -181,8 +183,7 @@ public class TableExportServiceImpl implements TableExportService {
                 if (i > 1) {
                     writer.write(',');
                 }
-                Object value = rs.getObject(i);
-                writer.write(csvCell(value == null ? "" : String.valueOf(value)));
+                writer.write(csvCell(jdbcCsvValueConverter.convert(rs, metaData, i)));
             }
             writer.newLine();
             rowCount++;

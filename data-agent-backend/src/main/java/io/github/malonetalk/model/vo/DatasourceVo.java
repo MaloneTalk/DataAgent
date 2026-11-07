@@ -15,27 +15,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.vo;
 
 import java.time.LocalDateTime;
-import lombok.Data;
+import lombok.Builder;
 
-@Data
-public class Datasource {
-
-    private Integer id;
-    private String name;
-    private String type;
-    private String host;
-    private Integer port;
-    private String databaseName;
-    private String username;
-    private String password;
-    private String connectionUrl;
-    private String status;
-    private String testStatus;
-    private String description;
-    private Long creatorId;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+@Builder
+public record DatasourceVo(
+        Integer id,
+        String name,
+        String type,
+        String host,
+        Integer port,
+        String databaseName,
+        String username,
+        String connectionUrl,
+        String status,
+        String testStatus,
+        String description,
+        Long creatorId,
+        LocalDateTime createTime,
+        LocalDateTime updateTime)
+        implements BaseVo {}

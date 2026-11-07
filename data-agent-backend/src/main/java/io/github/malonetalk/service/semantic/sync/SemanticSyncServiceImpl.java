@@ -27,11 +27,11 @@ import io.github.malonetalk.dto.semantic.RefreshPhysicalStatusRequest;
 import io.github.malonetalk.dto.semantic.SyncTableResult;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
@@ -60,7 +60,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     @Override
     public PageResponse<PhysicalTableCandidateResponse> getPhysicalTableCandidates(
             PhysicalTableCandidatePageQuery query) {
-        Datasource datasource = requireDatasource(query.datasourceId());
+        DatasourcePo datasource = requireDatasource(query.datasourceId());
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
         String keyword = SemanticUtils.trimToNull(query.keyword());
@@ -109,7 +109,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     }
 
     private List<PhysicalTableInfo> loadCandidateTables(
-            Datasource datasource, List<TableInfo> semanticTables) {
+            DatasourcePo datasource, List<TableInfo> semanticTables) {
         Map<String, PhysicalTableInfo> candidates = loadPhysicalTableIndex(datasource);
         // 保留语义缓存中的表，供用户发现已从物理数据源消失的表。
         for (TableInfo table : semanticTables) {
@@ -127,7 +127,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
 
     @Override
     public SyncTableSemanticsResponse syncTables(SyncTableSemanticsRequest request) {
-        Datasource datasource = requireDatasource(request.datasourceId());
+        DatasourcePo datasource = requireDatasource(request.datasourceId());
         Map<String, PhysicalTableInfo> physicalTables = loadPhysicalTableIndex(datasource);
         Map<String, String> selectedTableNames = new LinkedHashMap<>();
         for (String tableName : request.tableNames()) {
@@ -159,7 +159,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
 
     @Override
     public SyncTableSemanticsResponse refreshPhysicalStatus(RefreshPhysicalStatusRequest request) {
-        Datasource datasource = requireDatasource(request.datasourceId());
+        DatasourcePo datasource = requireDatasource(request.datasourceId());
         Map<String, PhysicalTableInfo> physicalTables = loadPhysicalTableIndex(datasource);
         Map<String, Set<String>> physicalColumnNamesByTable =
                 loadPhysicalColumnNamesByTable(datasource, physicalTables);
@@ -171,7 +171,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return semanticSyncResultService.summarize(results);
     }
 
-    private Map<String, PhysicalTableInfo> loadPhysicalTableIndex(Datasource datasource) {
+    private Map<String, PhysicalTableInfo> loadPhysicalTableIndex(DatasourcePo datasource) {
         Map<String, PhysicalTableInfo> result = new LinkedHashMap<>();
         for (PhysicalTableInfo table : schemaReader.getTables(datasource)) {
             String tableName =
@@ -183,7 +183,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     }
 
     private TableSyncSource readTableSyncSource(
-            Datasource datasource, PhysicalTableInfo physicalTable) {
+            DatasourcePo datasource, PhysicalTableInfo physicalTable) {
         // 在开启写事务前读取物理列快照，避免 JDBC 元数据读取延长事务时间。
         List<ColumnSyncSource> columns = new ArrayList<>();
         for (PhysicalColumnInfo column :
@@ -204,7 +204,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     }
 
     private Map<String, Set<String>> loadPhysicalColumnNamesByTable(
-            Datasource datasource, Map<String, PhysicalTableInfo> physicalTables) {
+            DatasourcePo datasource, Map<String, PhysicalTableInfo> physicalTables) {
         List<String> tableNames =
                 physicalTables.values().stream().map(PhysicalTableInfo::tableName).toList();
         Map<String, Set<String>> result = new LinkedHashMap<>();
@@ -224,13 +224,14 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return result;
     }
 
-    private Datasource requireDatasource(Integer datasourceId) {
+    private DatasourcePo requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        Datasource datasource = datasourceService.findById(datasourceId);
-        if (datasource == null) {
-            throw BusinessException.of(
-                    ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
-        }
-        return datasource;
+        return datasourceService
+                .findById(datasourceId)
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.RESOURCE_NOT_FOUND,
+                                        "Datasource does not exist: " + datasourceId));
     }
 }

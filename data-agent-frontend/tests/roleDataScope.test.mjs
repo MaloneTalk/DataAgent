@@ -83,16 +83,15 @@ async function open(state) {
   await settle();
 }
 
-function userEditor(t, permissions) {
+function userEditor(t, permissions, component, bindings) {
   const source = readFileSync(
-    new URL('../src/views/sys-user/UserManage.vue', import.meta.url),
+    new URL(`../src/views/sys-user/components/${component}.vue`, import.meta.url),
     'utf8',
   );
   const script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
-  const code = ts.transpileModule(
-    `${script}\nmodule.exports = { form, formRef, editingId, originalRoleId, onSubmitForm };`,
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } },
-  ).outputText;
+  const code = ts.transpileModule(`${script}\nmodule.exports = { ${bindings} };`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
   const calls = [];
   const modules = {
     vue: { ...require('vue'), onMounted() {} },
@@ -112,24 +111,40 @@ function userEditor(t, permissions) {
   const scope = effectScope();
   t.after(() => scope.stop());
   scope.run(() =>
-    vm.runInNewContext(code, { module, exports: module.exports, require: name => modules[name] }),
+    vm.runInNewContext(code, {
+      module,
+      exports: module.exports,
+      require: name => modules[name],
+      defineProps: () => ({ roleOptions: [] }),
+      defineEmits: () => () => {},
+      defineExpose() {},
+    }),
   );
-  const state = module.exports;
-  state.formRef.value = { validate: async () => true };
-  state.editingId.value = 9;
-  state.originalRoleId.value = 0;
-  state.form.roleId = 8;
-  return { ...state, calls };
+  return { ...module.exports, calls };
 }
 
 test('ordinary users with assignment permission can assign without profile update permission', async t => {
-  const state = userEditor(t, ['sys:user:assign-role']);
-  await state.onSubmitForm();
+  const state = userEditor(
+    t,
+    ['sys:user:assign-role'],
+    'UserRoleDialog',
+    'roleUser, assignedRoleId, onAssignRole',
+  );
+  state.roleUser.value = { id: 9, roleId: 0 };
+  state.assignedRoleId.value = 8;
+  await state.onAssignRole();
   assert.deepEqual(state.calls, [['assign', 9, 8]]);
 });
 
-test('profile update permission does not allow assigning a role', async t => {
-  const state = userEditor(t, ['sys:user:update']);
+test('profile update permission allows saving user details', async t => {
+  const state = userEditor(
+    t,
+    ['sys:user:update'],
+    'UserFormDialog',
+    'formRef, editingId, onSubmitForm',
+  );
+  state.formRef.value = { validate: async () => true };
+  state.editingId.value = 9;
   await state.onSubmitForm();
   assert.deepEqual(state.calls, [['update', 9]]);
 });

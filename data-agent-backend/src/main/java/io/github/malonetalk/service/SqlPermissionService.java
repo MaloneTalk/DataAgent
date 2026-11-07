@@ -21,23 +21,25 @@ import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
 import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.model.bo.AuthorizedSqlBo;
 import io.github.malonetalk.model.bo.DataPermissionScopeBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Limit;
@@ -55,7 +57,7 @@ public class SqlPermissionService {
     private final DataPermissionService data;
     private final ColumnSemanticInfoMapper metadata;
 
-    public AuthorizedSqlBo authorize(Integer userId, Datasource datasource, Select select) {
+    public AuthorizedSqlBo authorize(Integer userId, DatasourcePo datasource, Select select) {
         var user = permissions.require(userId, PermissionEnum.ANALYSIS_SQL_EXECUTE);
         var scope = data.loadScope(user, datasource.getId());
         if (scope.unrestricted()) {
@@ -68,8 +70,7 @@ public class SqlPermissionService {
         if (scope.tables().isEmpty()) throw denied();
         try {
             Inspector inspector = new Inspector(scope, datasource);
-            inspector.inspect(select);
-            if (inspector.referenced.stream().anyMatch(inspector.hidden::contains)) throw denied();
+            inspector.inspect(select, Optional.empty());
             return new AuthorizedSqlBo(select, columnSnapshot(inspector.visibleColumns));
         } catch (BusinessException ex) {
             throw ex;
@@ -98,24 +99,9 @@ public class SqlPermissionService {
         private final DataPermissionScopeBo scope;
         private final Integer datasourceId;
         private final String identifierQuote;
-        private final Set<String> hidden = new HashSet<>();
-        private final Set<String> referenced = new HashSet<>();
         private final Map<String, List<ColumnInfo>> visibleColumns = new HashMap<>();
-        private final SqlExpressionInspector expressions =
-                new SqlExpressionInspector(
-                        column -> {
-                            referenced.add(normalizeIdentifier(column.getColumnName()));
-                            if (column.getTable() != null
-                                    && (column.getTable().getSchemaName() != null
-                                            || column.getTable().getDatabase() != null
-                                                    && column.getTable()
-                                                                    .getDatabase()
-                                                                    .getDatabaseName()
-                                                            != null)) throw denied();
-                        },
-                        this::inspect);
 
-        Inspector(DataPermissionScopeBo scope, Datasource datasource) {
+        Inspector(DataPermissionScopeBo scope, DatasourcePo datasource) {
             this.scope = scope;
             this.datasourceId = datasource.getId();
             var type =
@@ -131,35 +117,50 @@ public class SqlPermissionService {
                     };
         }
 
-        private void inspect(Select select) {
+        private SqlQueryScope inspect(Select select, Optional<SqlQueryScope> parent) {
             if (select.getWithItemsList() != null && !select.getWithItemsList().isEmpty())
                 throw denied(); // MySQL 5.7 does not support CTEs.
-            inspectLimit(select.getLimit());
-            inspectLimit(select.getLimitBy());
-            if (select.getOffset() != null) expressions.inspect(select.getOffset().getOffset());
-            if (select.getFetch() != null) expressions.inspect(select.getFetch().getExpression());
+            SqlQueryScope query;
             if (select.getClass() == PlainSelect.class) {
-                inspectPlainSelect((PlainSelect) select);
+                query = inspectPlainSelect((PlainSelect) select, parent);
             } else if (select.getClass() == ParenthesedSelect.class) {
-                inspect(((ParenthesedSelect) select).getSelect());
+                query = inspect(((ParenthesedSelect) select).getSelect(), parent);
             } else if (select.getClass() == SetOperationList.class) {
-                ((SetOperationList) select).getSelects().forEach(this::inspect);
+                query = new SqlQueryScope(parent);
+                var branches = ((SetOperationList) select).getSelects();
+                for (int i = 0; i < branches.size(); i++) {
+                    var branch = inspect(branches.get(i), parent);
+                    if (i == 0) query.outputColumns.addAll(branch.outputColumns);
+                }
             } else {
                 throw denied();
             }
+            var expressions = expressions(query, query::requireColumn);
+            inspectLimit(select.getLimit(), expressions);
+            inspectLimit(select.getLimitBy(), expressions);
+            if (select.getOffset() != null) expressions.inspect(select.getOffset().getOffset());
+            if (select.getFetch() != null) expressions.inspect(select.getFetch().getExpression());
+            var ordering = expressions(query, query::requireOrderColumn);
             if (select.getOrderByElements() != null)
                 select.getOrderByElements()
-                        .forEach(order -> expressions.inspect(order.getExpression()));
+                        .forEach(order -> ordering.inspect(order.getExpression()));
+            return query;
         }
 
-        private void inspectLimit(Limit limit) {
+        private SqlExpressionInspector expressions(SqlQueryScope query, Consumer<Column> columns) {
+            return new SqlExpressionInspector(
+                    columns, nested -> inspect(nested, Optional.of(query)));
+        }
+
+        private void inspectLimit(Limit limit, SqlExpressionInspector expressions) {
             if (limit == null) return;
             expressions.inspect(limit.getOffset());
             expressions.inspect(limit.getRowCount());
             expressions.inspect(limit.getByExpressions());
         }
 
-        private void inspectPlainSelect(PlainSelect select) {
+        private SqlQueryScope inspectPlainSelect(
+                PlainSelect select, Optional<SqlQueryScope> parent) {
             if (select.getIntoTables() != null || select.getIntoTempTable() != null) throw denied();
             if (select.getTop() != null
                     || select.getSkip() != null
@@ -170,38 +171,47 @@ public class SqlPermissionService {
                 throw denied();
             if (select.getWindowDefinitions() != null && !select.getWindowDefinitions().isEmpty())
                 throw denied();
-            select.getSelectItems().forEach(item -> expressions.inspect(item.getExpression()));
-            expressions.inspect(select.getWhere());
-            expressions.inspect(select.getHaving());
-            if (select.getGroupBy() != null
-                    && select.getGroupBy().getGroupByExpressionList() != null)
-                expressions.inspect(select.getGroupBy().getGroupByExpressionList());
-            if (select.getGroupBy() != null && select.getGroupBy().getGroupingSets() != null)
-                select.getGroupBy().getGroupingSets().forEach(expressions::inspect);
             if (select.getQualify() != null) throw denied();
-            if (select.getFromItem() != null) select.setFromItem(project(select.getFromItem()));
+            var query = new SqlQueryScope(parent);
+            var expressions = expressions(query, query::requireColumn);
+            if (select.getFromItem() != null)
+                select.setFromItem(project(select.getFromItem(), query));
             if (select.getJoins() != null) {
                 select.getJoins()
                         .forEach(
                                 join -> {
+                                    join.setRightItem(project(join.getRightItem(), query));
                                     if (join.getOnExpressions() != null)
                                         join.getOnExpressions().forEach(expressions::inspect);
                                     if (join.getUsingColumns() != null)
-                                        join.getUsingColumns()
-                                                .forEach(
-                                                        c ->
-                                                                referenced.add(
-                                                                        normalizeIdentifier(
-                                                                                c
-                                                                                        .getColumnName())));
-                                    join.setRightItem(project(join.getRightItem()));
+                                        join.getUsingColumns().forEach(query::requireColumn);
                                 });
             }
+            select.getSelectItems()
+                    .forEach(
+                            item -> {
+                                expressions.inspect(item.getExpression());
+                                query.addOutput(item);
+                            });
+            expressions.inspect(select.getWhere());
+            var grouping = expressions(query, query::requireGroupingColumn);
+            grouping.inspect(select.getHaving());
+            if (select.getGroupBy() != null
+                    && select.getGroupBy().getGroupByExpressionList() != null)
+                grouping.inspect(select.getGroupBy().getGroupByExpressionList());
+            if (select.getGroupBy() != null && select.getGroupBy().getGroupingSets() != null)
+                select.getGroupBy().getGroupingSets().forEach(grouping::inspect);
+            return query;
         }
 
-        private FromItem project(FromItem source) {
+        private FromItem project(FromItem source, SqlQueryScope query) {
             if (source instanceof ParenthesedSelect nested) {
-                inspect(nested);
+                // MySQL 5.7 derived tables cannot reference outer query sources.
+                var derived = inspect(nested, Optional.empty());
+                var alias =
+                        Optional.ofNullable(nested.getAlias())
+                                .orElseThrow(SqlPermissionService.this::denied);
+                query.addSource(alias.getName(), derived.outputColumns, Set.of());
                 return source;
             }
             if (!(source instanceof Table table)
@@ -209,8 +219,6 @@ public class SqlPermissionService {
                     || table.getDatabase() != null && table.getDatabase().getDatabaseName() != null)
                 throw denied();
             String name = scope.requireTable(table.getName());
-            var hiddenColumns = scope.hidden(name);
-            hidden.addAll(hiddenColumns);
             var columns =
                     visibleColumns.computeIfAbsent(
                             name,
@@ -225,6 +233,10 @@ public class SqlPermissionService {
                                                             scope.canColumn(
                                                                     tableName, c.getColumnName()))
                                             .toList());
+            query.addSource(
+                    table.getAlias() == null ? table.getName() : table.getAlias().getName(),
+                    columns.stream().map(ColumnInfo::getColumnName).collect(Collectors.toSet()),
+                    scope.hidden(name));
             String projection =
                     columns.stream()
                             .map(c -> quote(c.getColumnName()))

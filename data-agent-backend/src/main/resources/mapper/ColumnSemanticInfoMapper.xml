@@ -133,7 +133,6 @@
     <update id="updateSemanticFields" parameterType="io.github.malonetalk.entity.ColumnInfo">
         UPDATE column_info
         <set>
-            <if test="columnName != null">column_name = #{columnName},</if>
             column_description = #{columnDescription},
             semantic_type = #{semanticType},
             <if test="isVisible != null">is_visible = #{isVisible},</if>

@@ -51,25 +51,27 @@ import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import io.github.malonetalk.mapper.SysRoleMapper;
+import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.mapper.UserSessionMapper;
-import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.converter.SessionHistoryConverter;
+import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.dto.RoleDataScopeDto;
 import io.github.malonetalk.model.dto.SaveColumnPermissionRequest;
 import io.github.malonetalk.model.dto.SaveTablePermissionRequest;
 import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.RolePermissionService;
 import io.github.malonetalk.service.SysRoleService;
-import io.github.malonetalk.service.SysUserService;
 import io.github.malonetalk.utils.JwtUtil;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -86,17 +88,16 @@ class PermissionIntegrationTest {
     @Test
     void sessionCreationRequiresChatPermissionAndChatRequiresRegisteredOwnership()
             throws Exception {
-        var users = mock(SysUserService.class);
-        when(users.selectAuthProjection(7))
-                .thenReturn(
-                        Optional.of(
-                                UserContextBo.builder()
-                                        .userId(7)
-                                        .roleId(2)
-                                        .superAdmin(false)
-                                        .build()));
+        var users = mock(SysUserMapper.class);
+        var storedUser = new SysUserPo();
+        storedUser.setId(7);
+        storedUser.setRoleId(2);
+        storedUser.setSuperAdmin(false);
+        storedUser.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(storedUser);
         var capabilities = mock(RoleCapabilityMapper.class);
-        var permissions = new PermissionService(users, capabilities);
+        var permissions =
+                new PermissionService(users, capabilities, Mappers.getMapper(UserConverter.class));
         var jwt = mock(JwtUtil.class);
         when(jwt.parseUserId("valid")).thenReturn(7);
         var holder = new UserContextHolder();
@@ -106,7 +107,11 @@ class PermissionIntegrationTest {
         var provenance = mock(AnswerProvenanceService.class);
         var sessions =
                 new SessionService(
-                        database, mock(SessionDatasourceMapper.class), ownership, provenance);
+                        database,
+                        mock(SessionDatasourceMapper.class),
+                        ownership,
+                        provenance,
+                        new SessionHistoryConverter());
         var agent = mock(AgentService.class);
         var mvc =
                 MockMvcBuilders.standaloneSetup(
@@ -138,14 +143,20 @@ class PermissionIntegrationTest {
 
     @Test
     void legacyAndAtomicGrantEndpointsRemainProtectedAndCompatible() throws Exception {
-        var users = mock(SysUserService.class);
-        when(users.selectAuthProjection(7))
-                .thenReturn(
-                        Optional.of(UserContextBo.builder().userId(7).superAdmin(true).build()));
+        var users = mock(SysUserMapper.class);
+        var storedUser = new SysUserPo();
+        storedUser.setId(7);
+        storedUser.setSuperAdmin(true);
+        storedUser.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(storedUser);
         var jwt = mock(JwtUtil.class);
         when(jwt.parseUserId("valid")).thenReturn(7);
         var grants = mock(RolePermissionService.class);
-        var permissions = new PermissionService(users, mock(RoleCapabilityMapper.class));
+        var permissions =
+                new PermissionService(
+                        users,
+                        mock(RoleCapabilityMapper.class),
+                        Mappers.getMapper(UserConverter.class));
         var mvc =
                 MockMvcBuilders.standaloneSetup(
                                 new SysRoleController(mock(SysRoleService.class), grants))
@@ -177,14 +188,8 @@ class PermissionIntegrationTest {
                         new RoleDataScopeDto(
                                 1, List.of("orders"), Map.of("orders", List.of("phone"))));
         clearInvocations(grants);
-        when(users.selectAuthProjection(7))
-                .thenReturn(
-                        Optional.of(
-                                UserContextBo.builder()
-                                        .userId(7)
-                                        .roleId(2)
-                                        .superAdmin(false)
-                                        .build()));
+        storedUser.setRoleId(2);
+        storedUser.setSuperAdmin(false);
         mvc.perform(put("/api/sys/role/2/permissions").content(tableBody))
                 .andExpect(status().isForbidden());
         mvc.perform(put("/api/sys/role/2/columns").content(columnBody))
@@ -196,19 +201,17 @@ class PermissionIntegrationTest {
 
     @Test
     void webConfigurationEnforcesPermissionsAndDefaultDenial() throws Exception {
-        var users = mock(SysUserService.class);
+        var users = mock(SysUserMapper.class);
         var capabilities = mock(RoleCapabilityMapper.class);
         var jwt = mock(JwtUtil.class);
         var holder = new UserContextHolder();
         when(jwt.parseUserId("valid")).thenReturn(7);
-        when(users.selectAuthProjection(7))
-                .thenReturn(
-                        Optional.of(
-                                UserContextBo.builder()
-                                        .userId(7)
-                                        .roleId(2)
-                                        .superAdmin(false)
-                                        .build()));
+        var storedUser = new SysUserPo();
+        storedUser.setId(7);
+        storedUser.setRoleId(2);
+        storedUser.setSuperAdmin(false);
+        storedUser.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(storedUser);
         when(capabilities.selectCodes(2)).thenReturn(List.of("sys:user:read"));
         try (var context = new AnnotationConfigWebApplicationContext()) {
             context.setServletContext(new MockServletContext());
@@ -222,7 +225,11 @@ class PermissionIntegrationTest {
             context.addBeanFactoryPostProcessor(
                     factory -> {
                         factory.registerSingleton(
-                                "permissions", new PermissionService(users, capabilities));
+                                "permissions",
+                                new PermissionService(
+                                        users,
+                                        capabilities,
+                                        Mappers.getMapper(UserConverter.class)));
                         factory.registerSingleton("jwtUtil", jwt);
                         factory.registerSingleton("userContextHolder", holder);
                     });

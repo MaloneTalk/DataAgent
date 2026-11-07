@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { reactive, ref } from 'vue';
+  import { reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useFieldErrors } from '@/composables/useFieldErrors';
@@ -27,6 +27,7 @@
     type ColumnSemanticInfo,
     type ColumnSemanticType,
   } from '@/api/semantic';
+  import { useSemanticPage } from '../composables/useSemanticPage';
   import { formatDateTime } from '@/utils/dateTime';
 
   interface ColumnEditForm {
@@ -52,15 +53,6 @@
     datasourceId: number | null;
   }>();
 
-  const loading = ref(false);
-  const error = ref('');
-  const rows = ref<ColumnSemanticInfo[]>([]);
-  const page = reactive({
-    page: 1,
-    pageSize: 10,
-    total: 0,
-  });
-
   const selectedTableName = ref('');
   const dialogVisible = ref(false);
   const submitLoading = ref(false);
@@ -78,54 +70,28 @@
     columnName: [{ required: true, message: '列名不能为空', trigger: 'blur' }],
   };
 
-  const loadPage = async () => {
-    if (!selectedTableName.value) {
-      rows.value = [];
-      page.total = 0;
-      return;
-    }
-    loading.value = true;
-    error.value = '';
-    try {
-      if (props.datasourceId === null) {
-        error.value = '请先激活一个数据源';
-        rows.value = [];
-        page.total = 0;
-        return;
-      }
-      const pageData = await getColumnSemanticPage(selectedTableName.value, {
+  const { loading, error, rows, page, loadPage, handlePageChange, handleSizeChange } =
+    useSemanticPage<ColumnSemanticInfo>(async pagination => {
+      if (!selectedTableName.value) return { items: [], total: 0 };
+      if (props.datasourceId === null) throw new Error('请先激活一个数据源');
+      return getColumnSemanticPage(selectedTableName.value, {
         datasourceId: props.datasourceId,
-        page: page.page,
-        pageSize: page.pageSize,
+        ...pagination,
         sortOrder: 'asc',
       });
-      rows.value = pageData.items;
-      page.total = pageData.total;
-    } catch (err) {
-      error.value = (err as Error).message;
-      rows.value = [];
-      page.total = 0;
-    } finally {
-      loading.value = false;
-    }
-  };
+    });
 
   const handleTableChange = async (tableName: string) => {
+    dialogVisible.value = false;
     selectedTableName.value = tableName;
     page.page = 1;
     await loadPage();
   };
 
-  const handlePageChange = async (p: number) => {
-    page.page = p;
-    await loadPage();
-  };
-
-  const handleSizeChange = async (pageSize: number) => {
-    page.pageSize = pageSize;
-    page.page = 1;
-    await loadPage();
-  };
+  watch(
+    () => props.datasourceId,
+    () => handleTableChange(selectedTableName.value),
+  );
 
   const handleOpenEdit = (row: ColumnSemanticInfo) => {
     clearFieldErrors();
@@ -147,7 +113,7 @@
     if (props.datasourceId === null) return;
     submitLoading.value = true;
     try {
-      await updateColumnSemantic(selectedTableName.value, {
+      await updateColumnSemantic(form.tableName, {
         datasourceId: props.datasourceId,
         columnName: form.columnName,
         columnDescription: form.columnDescription.trim() || undefined,

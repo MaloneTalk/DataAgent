@@ -26,7 +26,6 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.model.bo.SysUserBo;
-import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.converter.UserConverter;
 import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.UserCreateDto;
@@ -34,10 +33,8 @@ import io.github.malonetalk.model.dto.UserUpdateDto;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.utils.PasswordUtil;
-import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,15 +47,7 @@ public class SysUserServiceImpl implements SysUserService {
     private final UserContextHolder holder;
     private final SysRoleMapper sysRoleMapper;
     private final UserConverter userConverter;
-    // PermissionService reads identity through this service, so resolve it on use.
-    private final ObjectProvider<PermissionService> permissions;
-
-    @Override
-    public Optional<UserContextBo> selectAuthProjection(Integer userId) {
-        return Optional.ofNullable(sysUserMapper.selectById(userId))
-                .filter(user -> Integer.valueOf(1).equals(user.getStatus()))
-                .map(userConverter::toContextBo);
-    }
+    private final PermissionService permissions;
 
     @Override
     public SysUserBo bootstrapInitialAdmin(String initialPassword) {
@@ -210,7 +199,7 @@ public class SysUserServiceImpl implements SysUserService {
     }
 
     private void requireRoleAssignment() {
-        permissions.getObject().require(holder.checkAndGet(), PermissionEnum.SYS_USER_ASSIGN_ROLE);
+        permissions.require(holder.checkAndGet(), PermissionEnum.SYS_USER_ASSIGN_ROLE);
     }
 
     private void protectAdmin(SysUserPo target) {
