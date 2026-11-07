@@ -19,6 +19,7 @@ package io.github.malonetalk.mapper;
 
 import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.List;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -39,4 +40,10 @@ public interface RoleTablePermissionMapper {
             @Param("roleId") Integer roleId, @Param("datasourceId") Integer datasourceId);
 
     int deleteByRoleId(@Param("roleId") Integer roleId);
+
+    @Delete(
+            "DELETE FROM role_table_permission WHERE datasource_id = #{datasourceId} AND table_name"
+                    + " = #{tableName}")
+    int deleteImportedTable(
+            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

@@ -33,6 +33,7 @@ public class DatasourcePo extends BasePo {
 
     private String name;
     private String type;
+    private String sourceType;
     private String host;
     private Integer port;
     private String databaseName;

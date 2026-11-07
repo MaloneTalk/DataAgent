@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS `datasource` (
     `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `name` VARCHAR(255) DEFAULT NULL COMMENT '数据源名称',
     `type` VARCHAR(50) DEFAULT NULL COMMENT '数据源类型',
+    `source_type` VARCHAR(20) NOT NULL DEFAULT 'DATABASE' COMMENT '来源：DATABASE/CSV',
     `host` VARCHAR(255) DEFAULT NULL COMMENT '主机地址',
     `port` INT(11) DEFAULT NULL COMMENT '端口号',
     `database_name` VARCHAR(255) DEFAULT NULL COMMENT '数据库名称',
@@ -294,3 +295,30 @@ CREATE TABLE IF NOT EXISTS sys_role_permission (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (role_id, permission_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色功能权限';
+
+-- CSV import registry (MySQL 5.7). Physical CSV tables live in a separate database.
+CREATE TABLE IF NOT EXISTS `csv_import` (
+    `id` CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    `datasource_id` INT NOT NULL,
+    `display_name` VARCHAR(200) NOT NULL,
+    `description` VARCHAR(400) DEFAULT NULL,
+    `original_filename` VARCHAR(255) NOT NULL,
+    `file_sha256` CHAR(64) NOT NULL,
+    `file_size` BIGINT NOT NULL,
+    `physical_table_name` VARCHAR(64) NOT NULL,
+    `parse_options_json` JSON NOT NULL,
+    `columns_json` JSON NOT NULL,
+    `status` VARCHAR(20) NOT NULL,
+    `processed_rows` BIGINT NOT NULL DEFAULT 0,
+    `row_count` BIGINT NOT NULL DEFAULT 0,
+    `error_message` VARCHAR(500) DEFAULT NULL,
+    `expires_at` DATETIME DEFAULT NULL,
+    `creator_id` BIGINT DEFAULT NULL,
+    `updater_id` BIGINT DEFAULT NULL,
+    `create_time` DATETIME DEFAULT NULL,
+    `update_time` DATETIME DEFAULT NULL,
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_csv_datasource_table` (`datasource_id`, `physical_table_name`),
+    KEY `idx_csv_status_time` (`status`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='CSV 导入任务与托管表';
