@@ -27,7 +27,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.StringValue;
+import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.AllColumns;
@@ -100,22 +102,28 @@ final class SqlQueryScope {
     }
 
     void addOutput(SelectItem<?> item) {
+        Expression expression = item.getExpression();
+        while (expression instanceof ParenthesedExpressionList<?> parentheses
+                && parentheses.size() == 1) {
+            expression = parentheses.get(0);
+        }
         if (item.getAlias() != null) {
             String alias = item.getAlias().getName();
             if (alias.startsWith("'") && alias.endsWith("'")) {
                 alias = new StringValue(alias).getNotExcapedValue();
             }
             outputColumns.add(normalizeIdentifier(alias));
-        } else if (item.getExpression() instanceof AllTableColumns all) {
+        } else if (expression instanceof AllTableColumns all) {
             var columns =
                     Optional.ofNullable(sources.get(tableName(all.getTable())))
                             .orElseThrow(this::denied);
             addVisibleOutputs(columns);
-        } else if (item.getExpression() instanceof AllColumns) {
+        } else if (expression instanceof AllColumns) {
             sources.values().forEach(this::addVisibleOutputs);
-        } else if (item.getExpression() instanceof Column column) {
+        } else if (expression instanceof Column column) {
             outputColumns.add(normalizeIdentifier(column.getColumnName()));
         } else {
+            // 计算表达式保留原始括号，只有直接列投影的列名不受括号影响。
             outputColumns.add(normalizeIdentifier(item.getExpression().toString()));
         }
     }
