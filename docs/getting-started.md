@@ -13,7 +13,7 @@
 
 ### 环境变量配置
 
-启动前需要配置环境变量, 将`docker/.env.example`重命名为`docker/.env`：
+以下 Docker 命令均从仓库根目录执行。先将 `docker/.env.example` 复制为 `docker/.env`：
 
 ```bash
 cp docker/.env.example docker/.env
@@ -22,6 +22,7 @@ cp docker/.env.example docker/.env
 然后编辑 `docker/.env`，参考以下说明：
 
 **必填项：**
+
 ```bash
 # AI 模型配置（必须配置，否则 AI 功能无法使用）
 IO_GITHUB_MALONETALK_MODEL_API_KEY={你的密钥}
@@ -32,6 +33,7 @@ IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED=true
 ```
 
 **可选项（有默认值，生产环境建议修改）：**
+
 ```bash
 # 数据库密码（默认：root）
 DB_PASSWORD=
@@ -46,23 +48,25 @@ ADMIN_INIT_PASSWORD=
 ### 启动
 
 ```bash
-cd docker
-docker-compose up -d --build
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
 首次启动会自动：
+
 - 构建后端/前端镜像
 - 下载 MySQL 镜像
-- 执行 `sql/` 目录初始化数据库
+- 在全新 MySQL 数据卷上执行 `sql/data_source.sql` 初始化数据库；已有数据卷需手动执行 `sql/migration.sql`
 - 启动所有服务
 
-修改配置后重启：`docker-compose restart`
+修改 `docker/.env` 后执行 `docker compose -f docker/docker-compose.yml up -d`，重新创建受影响的容器；修改代码或镜像内的 Skill 后增加 `--build`。`restart` 不会更新容器环境变量。
 
 ### 访问
 
 - **前端**: http://localhost:3000
 - **后端**: http://localhost:8080
 - **管理员账号**: `admin` / `admin`（或你设置的 `ADMIN_INIT_PASSWORD`）
+
+仓库当前后端镜像只安装 Java 运行时，未安装 Python。需要 `execute_python` 时，需在后端运行环境补齐 `python3`、pandas、numpy、scipy。
 
 ### 可观测性（可选）
 
@@ -92,9 +96,12 @@ Grafana：http://localhost:3001（`admin` / `admin`），在 Explore 中分别�
 | --- | --- | --- |
 | JDK | 17 或更高（推荐 21） | 后端基于 Spring Boot 4 |
 | Maven | 3.9+ | 构建与运行后端 |
-| Node.js | 18+ | 前端运行环境 |
-| pnpm | 8+ | 前端包管理 |
+| Node.js | 22（≥ 22.13） | 与前端 CI 对齐；现有 ESLint 10 不支持 Node 18 |
+| npm | 随 Node.js 安装 | 按 `package-lock.json` 安装；可选 pnpm 11.24.0，与 Docker 构建一致 |
 | MySQL | 8+ | 元数据库（存语义层/数据源/会话等） |
+| Python | 3，命令为 `python3` | 仅 Python 分析工具需要，另安装 pandas、numpy、scipy |
+
+手动启动示例使用 Bash 的 `export`。Windows PowerShell 请使用 `$env:变量名 = "值"`，例如 `$env:ADMIN_INIT_PASSWORD = "你的管理员密码"`；SQL 导入可在 MySQL 客户端执行 `source sql/data_source.sql`（从仓库根目录打开客户端）。
 
 ### 2. 准备元数据库
 
@@ -110,15 +117,15 @@ mysql -u root -p data_agent < sql/data_source.sql
 
 > SQL 只保留两份：主文件 `sql/data_source.sql` 包含全部元数据库初始化表结构，新库导入这一份即可；迁移文件 `sql/migration.sql` 用于已有数据库升级。
 
-已有数据库升级时，不要重复初始化；请先备份数据库，再执行最新迁移脚本。已经完成主键关联升级的旧库也需执行，以补齐指标业务属性及回答溯源表：
+已有数据库升级时，不要重复初始化；请先备份数据库，再执行最新迁移脚本。已经完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源、权限及数据源审计字段：
 
 ```bash
 mysql -u root -p data_agent < sql/migration.sql
 ```
 
 迁移必须在启动新版后端前完成。该脚本会补齐旧库缺少的字段、索引和回答溯源表，并将列和逻辑关系中的表名引用转换为
-`table_info.id` 外键；脚本会在改表前检查无法匹配的引用、同一数据源内重复的表名，
-以及同一表内重复的列名。脚本还会补齐指标的计算方式、结果类型、单位、倍率及币种，保留旧表达式；新增字段逐列检查是否存在，并创建角色功能权限表和会话归属唯一约束。执行前按[权限升级说明](permissions.md#升级现有数据库)检查会话归属冲突。若检查失败，修复数据后重新执行整份脚本即可。
+`table_info.id` 主键引用；脚本会在改表前检查无法匹配的引用、同一数据源内重复的表名，
+以及同一表内重复的列名。脚本还会补齐指标的计算方式、结果类型、单位、倍率及币种，保留旧表达式；新增字段逐列检查是否存在，并创建角色功能权限表和会话归属唯一约束，补齐 `datasource.updater_id` 与 `datasource.is_deleted`。执行前按[权限升级说明](permissions.md#升级现有数据库)检查会话归属冲突。若检查失败，修复数据后重新执行整份脚本即可。
 
 ### 3. 配置并启动后端
 
@@ -147,7 +154,7 @@ export IO_GITHUB_MALONETALK_MODEL_API_KEY="sk-你的密钥"
 export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 ```
 
-> ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。详见 [configuration.md](configuration.md#安全提示) 。
+> ⚠️ **不要把 API Key 写进 `application.properties` 并提交到仓库。** 密钥现已改为从环境变量 `IO_GITHUB_MALONETALK_MODEL_API_KEY` 注入。详见 [configuration.md](configuration.md#8-安全提示) 。
 
 ### 3.3 认证配置（JWT + 管理员）
 
@@ -166,7 +173,7 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 
 > ⚠️ **`ADMIN_INIT_PASSWORD` 不设会启动失败**（fail-closed）。它仅在看 `sys_user` 表为空时首次生效，已有用户后不再使用。`JWT_SECRET` 留空的后果是每次重启所有已登录用户被迫重新登录——开发环境可接受，生产环境必须设。
 
-> 各配置键的完整说明见 [configuration.md](configuration.md#7-认证配置)。
+> 各配置键的完整说明见 [configuration.md](configuration.md#7-认证配置jwt--管理员)。Docker Compose 默认注入 `ADMIN_INIT_PASSWORD=admin`，手动启动没有该默认值。
 
 > 密码以 BCrypt 存储；若从旧版 PBKDF2 升级，存量用户的旧哈希无法登录，按 [configuration.md 的「密码哈希与旧数据迁移」](configuration.md#密码哈希与旧数据迁移) 重置。
 
@@ -174,17 +181,21 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 
 ```bash
 cd data-agent-backend
-mvn spring-boot:run
+mvn spring-boot:run "-Dspring-boot.run.arguments=--io.github.malonetalk.skill.filesystem[0].path=../skills"
 ```
 
 看到日志中嵌入式容器启动在 `8080` 即成功。
 
+启动参数将 Skill 目录指向仓库根目录的 `skills/`。默认配置 `./skills` 相对于后端进程工作目录解析，详情见 [Skill 使用指南](skills.md#添加自定义-skill)。
+
 ### 4. 启动前端
+
+另开终端，从仓库根目录执行：
 
 ```bash
 cd data-agent-frontend
-pnpm install
-pnpm dev
+npm ci
+npm run dev
 ```
 
 前端默认运行在 http://localhost:3000 ，开发代理已把 `/api` 转发到 `http://localhost:8080`（见 `vite.config.ts`）。
@@ -194,11 +205,12 @@ pnpm dev
 > **先分清两类数据库**：「数据源管理」里配置的是 **Agent 要连接、执行 SQL 数据分析的目标数据库**（你的业务库），不是第 2 步准备的元数据库 `data_agent`（后端存放语义层/数据源配置/会话的库）。元数据库在后端启动时通过环境变量 `DB_URL` 指定，不在页面上配置。
 
 1. 打开 http://localhost:3000 。
-2. 先在「数据源管理」中新增一个你要查的业务库（支持 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，类型以下拉列表为准）。若该库不是 MySQL，请先确认后端已内置其驱动（见 [常见问题](#6-常见问题) 第一条）。
+2. 先在「数据源管理」中新增一个你要查的业务库（支持 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，类型以下拉列表为准）。若该库不是 MySQL，请先确认后端已内置其驱动（见 [常见问题](#常见问题) 第一条）。
 3. 在「语义管理」中同步物理表，再把相关表/列映射成业务语言；指标口径也在这里维护。可按业务配置计算方式、结果类型、单位、倍率和币种，例如分转元的倍率为 `0.01`，百分比的倍率为 `1`，只在展示时乘以100。完整规则见 [指标业务属性](semantic-layer.md#5-指标业务属性)。
-4. 进入聊天界面，输入类似：*"上个月各区域销售额是多少？"*，观察流式回答与生成的 SQL。
+4. 进入聊天界面，在首条消息前选择数据源，输入类似：*"上个月各区域销售额是多少？"*，观察流式回答与生成的 SQL。新会话由服务端分配 ID，数据源绑定后不能在该会话中切换；切换数据源请新建会话。
+5. 在「资产管理 → 数据证据」查看回答涉及的 SQL 执行、指标、Python 和表列来源；报告与 CSV 导出也可在资产管理中查看。
 
-> 初始的 `admin` 用户是超级管理员，可访问所有标记了 `@RequirePermission` 的管理接口。如需多人使用，可在「系统管理」中创建用户、配置角色的表级白名单与列级黑名单、再将用户绑定到角色。当前表/列权限仍主要用于管理侧配置，Agent 推理链路的表/列过滤还在后续完善中。
+> 初始的 `admin` 用户是超级管理员。如需多人使用，在「系统管理」中配置角色的功能权限、表白名单与隐藏列黑名单，再为用户分配角色。Agent 的语义读取、SQL 查询和导出均检查权限；未授权默认拒绝。常用权限组合见 [权限说明](permissions.md#配置角色)。
 
 > 如果回答不准，多半是语义层/指标口径没配好，或数据源尚未接入。参见 [semantic-layer.md](semantic-layer.md) 与 [configuration.md](configuration.md)。
 
@@ -208,3 +220,5 @@ pnpm dev
 - **启动后端报数据源连接失败**：检查 `DB_URL` 中的库名、账号密码，以及 MySQL 是否允许该连接方式。
 - **前端白屏 / 接口 404**：确认后端已起在 8080，且前端的 `/api` 代理指向正确。
 - **LLM 调用报错 401**：检查 `io.github.malonetalk.model.api-key` / `base-url` 是否与所选 `provider` 匹配。
+- **找不到内置 Skill**：检查启动日志中 `FileSystemSkillRepository path` 的绝对路径；从后端目录启动时应指向 `../skills`，新增或修改后重启后端。
+- **普通用户看不到数据源或查询被拒绝**：检查角色的功能权限、目标表白名单、隐藏列配置，以及表结构是否已同步。

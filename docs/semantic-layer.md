@@ -14,7 +14,7 @@
 
 ## 2. 语义层的组成
 
-管理操作的权限以各 Controller 的 `@RequirePermission` 标记为准。指标创建、更新和删除需要该权限，指标查询要求登录。前端入口是「语义管理」（`/semantic` 会跳到 `/semantic/domain`），代码在 `src/views/semantic` 与 `src/views/metric`。
+管理操作的权限以各 Controller 的 `@RequirePermission` 标记为准。指标读取、创建、更新和删除分别要求 `semantic:metric:read`、`semantic:metric:create`、`semantic:metric:update`、`semantic:metric:delete`；仅登录不足以访问。表列、关系管理还检查当前用户的数据范围，结构同步要求 `semantic:table:sync`。前端入口是「语义管理」（`/semantic` 会跳到 `/semantic/domain`），代码在 `src/views/semantic` 与 `src/views/metric`。完整规则见 [permissions.md](permissions.md)。
 
 | 概念 | 说明 | Controller |
 | --- | --- | --- |
@@ -22,7 +22,7 @@
 | **逻辑表** | 给物理表补充业务语义，含领域、表描述、数据粒度（一行代表什么）、可见性、物理表是否存在 | `TableSemanticController` |
 | **逻辑列** | 给物理列补充业务含义和语义类型（标识、维度、度量、时间、地点）；同步缓存会保存物理类型、主键与索引提示，供 Agent 生成 SQL 前参考 | `TableColumnSemanticController` |
 | **表关系** | 表间 join 路径（一对一/一对多）、启禁状态，供 Agent 多表查询时自动拼 SQL | `TableRelationSemanticController` |
-| **关系工作区** | 全局视角查看所有数据源的表关系，支持分页、关键词过滤、按 enabled 筛选 | `TableRelationWorkspaceController` |
+| **关系工作区** | 按所选数据源分页查看表与关系画布，支持关键词与排序；仅返回两端都位于当前页且可见的关系 | `TableRelationWorkspaceController` |
 | **指标口径** | 指标的业务标识（`metric_key`）、公式、时间字段、过滤，以及计算方式、结果类型、单位、倍率和币种。支持逻辑删除（`is_deleted`），前端在「语义管理 / 指标口径」维护 | `MetricController` |
 | **同步** | 拉取物理表结构变更到语义层、刷新物理表存在状态 | `TableSemanticSyncController` |
 
@@ -33,6 +33,17 @@
 - 同步不会覆盖已有人工口径：已有 `column_description` 会优先保留，物理描述只作为缺省补充。
 - `SemanticAvailabilityHelper` + `ColumnInvalidReasonEnum` / `TableInvalidReasonEnum` 标注不完整或物理缺失的语义信息，提示管理员补齐。
 - `SemanticMergeService` 负责把物理信息与人工编辑合并成管理界面展示的数据。
+- `SemanticSyncDiffService` 根据写入前的表列快照计算新增、更新、恢复与缺失；`SemanticSyncApplyService` 在事务中保存物理缓存、标记缺失，并保留已有人工描述。统计结果基于原快照生成，不把刚写入的数据当作原数据比较。
+- 同步和「刷新物理状态」有不同作用：同步会新增、更新并恢复所选物理表列；刷新状态只标记已缺失的表列，不导入新字段或恢复存在状态。物理表列恢复后请重新同步。
+
+| 接口 | 用途 |
+| --- | --- |
+| `GET /api/semantic/tables/sync/candidates` | 按 `datasourceId` 获取物理表候选，可分页、关键词过滤与排序 |
+| `POST /api/semantic/tables/sync` | 同步选定表的物理结构与语义缓存 |
+| `POST /api/semantic/tables/sync/physical-status` | 刷新物理缺失状态 |
+| `GET /api/semantic/tables/relations/workspace` | 按 `datasourceId`、`page`、`pageSize`、`keyword`、`sortOrder` 获取关系画布 |
+
+关系画布由 `RelationWorkspaceService` 组装当前页表节点和列，按同一数据权限范围过滤列与关系；跨页关系不在当前画布展示。普通关系列表与画布的查询参数不同，画布不提供 `enabled` 筛选参数。
 
 ## 4. Agent 使用方式
 
@@ -42,6 +53,8 @@ Agent 查询前按需调用语义工具：
 2. `get_tables(domains=[...])`：返回同步后的表语义，包括表名、领域、描述、数据粒度与已启用表关系。数据粒度说明一行代表的业务实体或事件，例如“每行代表一份订单”。
 3. `get_table_schema(table_name=...)`：返回同步后的字段信息，包括字段名、物理类型、语义类型、主键、索引提示和字段描述。
 4. `get_metric_caliber(hint=...)`：返回匹配指标的表达式、过滤、时间字段，以及计算方式、结果类型、标准单位、倍率和币种，供 Agent 确认计算与展示规则。
+
+上述工具使用当前会话的数据源与可信用户上下文。领域、表、列和关系结果会按授权范围过滤；SQL 执行仍需再次授权，不能通过跳过 schema 工具绕过表列限制。
 
 指标工具根据当前会话绑定的数据源检索，可以直接传入用户整句问题。当前按名称和拆分后的别名做不区分大小写的包含匹配，忽略不足2个字符的词，不匹配 `metricKey`。按命中词长度排序，最多保留3个候选；只返回第一名的完整口径，其余作为名称与 key 提示。未命中时最多列出5个已有指标，供进一步确认。
 

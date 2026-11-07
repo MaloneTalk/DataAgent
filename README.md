@@ -16,14 +16,15 @@
 - **自然语言查数**：基于 LLM + ReAct 工具调用，把自然语言转为 SQL 并在目标库执行，全程流式输出。
 - **Python 数据分析**：对查询结果自动执行统计分析（相关性、回归、分布检验），补齐 SQL 在复杂统计计算上的短板。
 - **多模型可切换**：内置 OpenAI 兼容接口 / Ollama / 通义 DashScope / Anthropic 等提供商，换底座模型不影响已沉淀的业务知识。
-- **多数据源（JDBC 抽象）**：数据读取与执行完全基于 JDBC 标准 API，因此支持**任意 JDBC 兼容数据库**——内置类型已覆盖 MySQL / PostgreSQL / Oracle（已验证）与 ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，其余 JDBC 兼容库扩展枚举即可接入。
+- **多数据源（JDBC 抽象）**：连接与元数据读取基于 JDBC 标准 API，内置类型覆盖 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite；实际查询还受目标库方言和 SQL 授权支持范围约束。
 
   > **默认仅内置 MySQL 驱动**。使用其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应 JDBC 驱动依赖并重新构建后端，否则新增数据源时会提示「未找到数据库驱动」。类型列表与 Maven 坐标见 [docs/configuration.md](docs/configuration.md#4-查询数据源)。
 - **语义层（无向量召回）**：以"域（Domain）"组织表，由 LLM 在工具调用时**推理出业务问题所属域、主动选表**，而非向量相似度召回——更精准、更稳定，也无需维护任何 embedding 索引。维度包括领域描述、逻辑表 / 逻辑列 / 表关系 / 指标口径的业务映射。
 - **会话式分析**：SSE 流式回答，会话历史可追溯、可调试。
-- **资产管理**：内置报表工具、表格导出工具与配套前端资产视图。
+- **角色与数据权限**：按功能权限点授权，表白名单与隐藏列黑名单同时作用于语义工具、SQL 查询和导出；会话与资产按归属隔离。
+- **资产与数据证据**：内置报表、CSV 导出与数据证据视图，记录回答涉及的 SQL、指标、Python 执行及表列来源。
 - **Skill 系统**：从文件系统 / Git / Nacos 多源加载可复用的查询流程（"已验证查询模式"）。
-- **MCP 集成（开发中）**：可注册并连接外部 MCP Server，把外部工具纳入 Agent 工具箱。当前能力仍在打磨，欢迎参与共建。
+- **MCP 配置管理（开发中）**：提供外部 MCP Server 的配置增删改查与启停状态管理；当前尚未将外部 MCP 工具接入 Agent 工具箱。
 - **可观测性（OpenTelemetry）**：HTTP、Agent、LLM、工具与 JDBC 调用统一走 OTel trace；标准 OTLP 导出，可接入任意 OTel 后端（Jaeger / Tempo / SigNoz / Langfuse 等），仓库自带 Grafana LGTM 本地示例。
 
 ## 💡 核心设计亮点
@@ -36,12 +37,12 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 
 理由很直接：判断"上个月各区域销售额"属于"销售域"这件事，让模型去理解语义，比让向量去算余弦相似度**更准、更稳**，而且零额外依赖、零索引维护成本。
 
-### 2. 数据源层：纯 JDBC 抽象，兼容一切关系型库
+### 2. 数据源层：复用 JDBC 连接与元数据接口
 
 - `SchemaReader` 完全基于 JDBC 标准 `DatabaseMetaData` 读取表 / 列 / 主键 / 索引提示，不绑定任何数据库方言；
-- `SqlExecutor` 只使用 `Connection` / `PreparedStatement` / `ResultSet` 执行查询，并叠加 SELECT 校验、自动 `LIMIT` 等安全护栏。
+- `SqlExecutor` 使用 `Connection` / `PreparedStatement` / `ResultSet` 执行查询，并叠加 SELECT 校验、表列授权、行数限制与超时。
 
-整条"读取表结构 → 执行查询"的路径都跑在 JDBC 标准 API 上，因此只要目标库**提供 JDBC 驱动**，Data Agent 就能接入。目前已内置 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite 八种类型（前端数据源下拉与后端枚举同步支持），其余任意 JDBC 兼容数据库扩展 `DataSourceType` 枚举即可接入。注意：**默认发布包仅内置 MySQL 驱动**，接入其他数据库前请先按 [docs/configuration.md](docs/configuration.md#4-查询数据源) 在 `data-agent-backend/pom.xml` 中引入对应驱动。
+目前已内置上述八种类型，前端数据源下拉与后端 `DataSourceType` 枚举同步支持。**默认发布包仅内置 MySQL 驱动**，其他数据库需先按 [docs/configuration.md](docs/configuration.md#4-查询数据源) 引入对应驱动。扩展新类型时还需验证元数据、SQL 解析授权与分页行为；当前无 LIMIT/FETCH 的查询会追加 LIMIT 包装，不能仅凭 JDBC 驱动推断所有方言均可执行。
 
 ## 🏗️ 架构速览
 
@@ -58,7 +59,7 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 ```
 
 - **元数据库**（存放语义层、数据源、会话、MCP 配置等）使用 MySQL。
-- **被查询的业务库**可以是任何提供 JDBC 驱动的数据库（MySQL / PostgreSQL / Oracle 已验证，其余 JDBC 兼容库引入驱动即可）。
+- **被查询的业务库**通过独立 JDBC 连接访问，驱动、方言及授权支持范围见[数据源配置](docs/configuration.md#4-查询数据源)。
 - **大批量表格导出**当前按 MySQL 流式读取路径优化；PostgreSQL 查询可接入，但大批量导出前需补 cursor/事务设置。
 
 完整架构与请求流转见 [docs/architecture.md](docs/architecture.md)。
@@ -77,9 +78,9 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 
 ## 🚀 快速开始
 
-> 完整、带截图的步骤见 [docs/getting-started.md](docs/getting-started.md)。
+> Docker 与手动搭建步骤见 [docs/getting-started.md](docs/getting-started.md)。以下命令使用 Bash；Windows PowerShell 的环境变量写法见该文档。
 
-**前置依赖**：JDK 17+、Maven 3.9+、Node 18+、pnpm 8+、MySQL 8+、Python 3+（需安装 pandas、numpy、scipy）。
+**前置依赖**：JDK 17+、Maven 3.9+、Node.js 22（≥ 22.13）与 npm、MySQL 8（Docker 示例版本）。Python 分析另需后端运行环境提供 `python3` 及 pandas、numpy、scipy。
 
 ```bash
 # 1. 建元数据库并初始化表结构
@@ -97,16 +98,17 @@ export IO_GITHUB_MALONETALK_MODEL_BASE_URL="https://api.deepseek.com"
 
 # 3. 启动后端（默认端口 8080）
 cd data-agent-backend
-mvn spring-boot:run
+mvn spring-boot:run "-Dspring-boot.run.arguments=--io.github.malonetalk.skill.filesystem[0].path=../skills"
 
-# 4. 启动前端（默认端口 3000）
+# 4. 另开终端，从仓库根目录启动前端（默认端口 3000）
 cd data-agent-frontend
-pnpm install && pnpm dev
+npm ci
+npm run dev
 ```
 
 SQL 只保留两份：`sql/data_source.sql` 用于新库初始化，`sql/migration.sql` 用于已有数据库升级。
 
-已有数据库升级时，先备份数据库并在启动新版后端前执行最新迁移脚本。已完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源表、角色功能权限和会话归属唯一约束。迁移前的会话归属冲突检查见[权限升级说明](docs/permissions.md#升级现有数据库)：
+已有数据库升级时，先备份数据库并在启动新版后端前执行最新迁移脚本。已完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源表、角色功能权限、会话归属唯一约束，以及数据源审计与逻辑删除字段。迁移前的会话归属冲突检查见[权限升级说明](docs/permissions.md#升级现有数据库)：
 
 ```bash
 mysql -u root -p data_agent < sql/migration.sql
@@ -115,6 +117,8 @@ mysql -u root -p data_agent < sql/migration.sql
 五个指标属性的默认值、校验与配置示例见[指标业务属性](docs/semantic-layer.md#5-指标业务属性)。
 
 浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，先在「数据源管理」接入业务库，在「语义管理」同步表结构并维护表/列/指标口径，再到聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"* 用户与角色入口在「系统管理」。
+
+新会话由后端 `POST /api/agent/session` 创建，再用返回的会话 ID 发起 SSE 请求；在聊天页首条消息前选择数据源，绑定后不能切换。普通用户需先获得功能权限和目标表授权，配置步骤见[权限说明](docs/permissions.md)。
 
 ## 📚 文档
 
@@ -125,6 +129,8 @@ mysql -u root -p data_agent < sql/migration.sql
 | [docs/getting-started.md](docs/getting-started.md) | 详细安装与启动 |
 | [docs/configuration.md](docs/configuration.md) | LLM、数据源、Skill、MCP 配置 |
 | [docs/semantic-layer.md](docs/semantic-layer.md) | 语义层概念与管理 |
+| [docs/permissions.md](docs/permissions.md) | 功能权限、表列数据范围与升级 |
+| [docs/skills.md](docs/skills.md) | Skill 编写、加载路径与生效方式 |
 | [docs/observability.md](docs/observability.md) | OpenTelemetry 链路、指标与日志 |
 | [docs/contributing.md](docs/contributing.md) | 开发环境与贡献流程 |
 
