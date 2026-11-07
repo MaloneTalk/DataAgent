@@ -37,6 +37,8 @@ public enum PermissionEnum {
     DATA_DATASOURCE_DELETE("data:datasource:delete", "数据源：删除", "数据源"),
     DATA_DATASOURCE_SET_STATUS("data:datasource:set-status", "数据源：启停", "数据源"),
     DATA_SCHEMA_READ("data:schema:read", "表结构：查看", "表结构"),
+    DATA_CSV_IMPORT("data:csv:import", "CSV：导入", "数据源"),
+    DATA_CSV_DELETE("data:csv:delete", "CSV：删除", "数据源"),
     SEMANTIC_DOMAIN_READ("semantic:domain:read", "数据领域：查看", "数据领域"),
     SEMANTIC_DOMAIN_CREATE("semantic:domain:create", "数据领域：创建", "数据领域"),
     SEMANTIC_DOMAIN_UPDATE("semantic:domain:update", "数据领域：修改", "数据领域"),

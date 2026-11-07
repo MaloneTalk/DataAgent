@@ -31,6 +31,8 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.mapper.CsvImportMapper;
+import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
@@ -41,9 +43,11 @@ import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import java.util.List;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.Select;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -57,9 +61,20 @@ class PermissionSimplificationTest {
     private final ColumnSemanticInfoMapper metadata = mock(ColumnSemanticInfoMapper.class);
     private final PermissionService permissions =
             new PermissionService(users, capabilities, converter);
-    private final DataPermissionService data = new DataPermissionService(tables, columns);
+    private final DatasourceMapper datasources = mock(DatasourceMapper.class);
+    private final DataPermissionService data =
+            new DataPermissionService(
+                    tables,
+                    columns,
+                    datasources,
+                    new CsvAccessService(mock(CsvImportMapper.class)));
     private final UserContextBo user =
             UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
+
+    @BeforeEach
+    void configureDatasourceMetadata() {
+        when(datasources.selectById(1)).thenReturn(new DatasourcePo());
+    }
 
     @Test
     void authRejectsMissingOrInactiveUsers() {

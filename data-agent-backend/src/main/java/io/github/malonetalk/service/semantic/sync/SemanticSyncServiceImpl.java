@@ -33,6 +33,7 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -56,6 +57,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     private final SchemaReader schemaReader;
     private final SemanticSyncApplyService semanticSyncApplyService;
     private final SemanticSyncResultService semanticSyncResultService;
+    private final CsvAccessService csvAccess;
 
     @Override
     public PageResponse<PhysicalTableCandidateResponse> getPhysicalTableCandidates(
@@ -111,8 +113,10 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     private List<PhysicalTableInfo> loadCandidateTables(
             DatasourcePo datasource, List<TableInfo> semanticTables) {
         Map<String, PhysicalTableInfo> candidates = loadPhysicalTableIndex(datasource);
+        var ready = csvAccess.readyFilter(datasource);
         // 保留语义缓存中的表，供用户发现已从物理数据源消失的表。
         for (TableInfo table : semanticTables) {
+            if (!ready.test(table.getTableName())) continue;
             String tableName =
                     SemanticUtils.requireTrimmed(
                             table.getTableName(), "Missing semantic tableName.");
@@ -133,6 +137,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         for (String tableName : request.tableNames()) {
             String trimmedTableName =
                     SemanticUtils.requireTrimmed(tableName, "Missing physical tableName.");
+            csvAccess.requireReady(datasource, trimmedTableName);
             selectedTableNames.putIfAbsent(
                     SemanticUtils.normalizeObjectName(
                             trimmedTableName, "Missing physical tableName."),

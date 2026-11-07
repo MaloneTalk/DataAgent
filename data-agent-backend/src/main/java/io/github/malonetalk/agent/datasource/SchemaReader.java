@@ -22,7 +22,9 @@ import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.converter.JdbcColumnMetadataConverter;
+import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -48,12 +50,14 @@ public class SchemaReader {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final JdbcColumnMetadataConverter columnMetadataConverter;
+    private final CsvAccessService csvAccess;
 
     public List<PhysicalTableInfo> getTables(DatasourcePo datasource) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            return getTables(conn);
+            var ready = csvAccess.readyFilter(datasource);
+            return getTables(conn).stream().filter(table -> ready.test(table.tableName())).toList();
         } catch (SQLException e) {
             log.error("Failed to read tables: {}", e.getMessage(), e);
             throw BusinessException.of(
@@ -64,6 +68,17 @@ public class SchemaReader {
     }
 
     public List<PhysicalColumnInfo> getTableSchema(DatasourcePo datasource, String tableName) {
+        csvAccess.requireReady(datasource, tableName);
+        return readTableSchema(datasource, tableName);
+    }
+
+    public List<PhysicalColumnInfo> getImportTableSchema(
+            DatasourcePo datasource, CsvImportPo task) {
+        csvAccess.requireImportTable(datasource, task);
+        return readTableSchema(datasource, task.getPhysicalTableName());
+    }
+
+    private List<PhysicalColumnInfo> readTableSchema(DatasourcePo datasource, String tableName) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
@@ -86,7 +101,9 @@ public class SchemaReader {
             return Map.of();
         }
         Map<String, Set<String>> columnNamesByTable = new LinkedHashMap<>();
+        var ready = csvAccess.readyFilter(datasource);
         for (String tableName : tableNames) {
+            if (!ready.test(tableName)) continue;
             columnNamesByTable.putIfAbsent(tableName, new LinkedHashSet<>());
         }
 

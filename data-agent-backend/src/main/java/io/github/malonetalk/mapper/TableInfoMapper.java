@@ -22,6 +22,7 @@ import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.entity.TableInfo;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -71,4 +72,10 @@ public interface TableInfoMapper {
             @Param("oldDomain") String oldDomain,
             @Param("newDomain") String newDomain,
             @Param("now") LocalDateTime now);
+
+    @Delete(
+            "DELETE FROM table_info WHERE datasource_id = #{datasourceId} AND table_name ="
+                    + " #{tableName}")
+    int deleteImportedTable(
+            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

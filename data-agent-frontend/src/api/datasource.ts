@@ -33,6 +33,7 @@ export interface DatasourceRequest {
 }
 
 export interface DatasourceResponse {
+  sourceType?: 'DATABASE' | 'CSV';
   id: number;
   name: string;
   type: string;

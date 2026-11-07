@@ -32,6 +32,7 @@ import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
@@ -55,12 +56,17 @@ public class SemanticMergeService {
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final LogicalTableRelationMapper logicalTableRelationMapper;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
+    private final CsvAccessService csvAccess;
 
     public List<TablePromptResponse> listVisibleTablesByDomains(
             DatasourcePo datasource, List<String> domains) {
         List<String> normalizedDomains = normalizeDomains(domains);
         // 关系和列按 table_id 对齐；表名只用于最终提示词。
-        List<TableInfo> tables = tableInfoMapper.selectByDatasourceId(datasource.getId());
+        var ready = csvAccess.readyFilter(datasource);
+        List<TableInfo> tables =
+                tableInfoMapper.selectByDatasourceId(datasource.getId()).stream()
+                        .filter(table -> ready.test(table.getTableName()))
+                        .toList();
         Map<Integer, TableInfo> tablesById = new HashMap<>();
         for (TableInfo table : tables) {
             tablesById.put(table.getId(), table);
@@ -100,6 +106,7 @@ public class SemanticMergeService {
     }
 
     public List<ColumnPromptResponse> getTableSchema(DatasourcePo datasource, String tableName) {
+        csvAccess.requireReady(datasource, tableName);
         String normalizedTableName =
                 SemanticUtils.normalizeObjectName(
                         tableName, "Missing tableName for merged table schema lookup.");

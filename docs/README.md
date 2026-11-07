@@ -13,6 +13,7 @@
 | 5 | [skills.md](skills.md) | 要扩展 Agent 能力的人 | Skill 编写、工作目录、加载与生效方式 |
 | 6 | [observability.md](observability.md) | 要观测/排障的人 | OpenTelemetry trace/metrics/logs、配置开关、任意 OTLP 后端（Grafana LGTM 示例） |
 | 7 | [permissions.md](permissions.md) | 要配置权限的人 | 权限点、角色授权、数据范围与数据库升级 |
+| 8 | [csv-import.md](csv-import.md) | 要导入文件的人 | CSV 导入库配置、字段类型、任务恢复与权限 |
 
 ## 贡献相关
 

@@ -25,6 +25,7 @@ public record DatasourceVo(
         Integer id,
         String name,
         String type,
+        String sourceType,
         String host,
         Integer port,
         String databaseName,
