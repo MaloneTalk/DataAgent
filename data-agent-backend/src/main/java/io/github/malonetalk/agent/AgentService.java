@@ -42,15 +42,16 @@ import io.github.malonetalk.dto.ChatRequest;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
+import io.github.malonetalk.service.SessionDatasourceService;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.instrumentation.reactor.v3_1.ContextPropagationOperator;
 import jakarta.annotation.PostConstruct;
@@ -58,6 +59,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -77,6 +80,7 @@ public class AgentService {
     private final List<MarkAgentTool> allToolBeans;
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
+    private final SessionDatasourceService sessionDatasourceService;
     private final SkillLoaderService skillLoaderService;
     private final ExceptionResponseMapper exceptionResponseMapper;
     private final EventConverter eventConverter;
@@ -99,10 +103,10 @@ public class AgentService {
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
-            Integer datasourceId) {
+            List<Integer> datasourceIds) {
         Context otelContext = Context.current();
         return Flux.defer(
-                        () -> streamAgent(userId, sessionId, userInput, toolResults, datasourceId))
+                        () -> streamAgent(userId, sessionId, userInput, toolResults, datasourceIds))
                 .contextWrite(
                         ctx ->
                                 ContextPropagationOperator.storeOpenTelemetryContext(
@@ -115,13 +119,19 @@ public class AgentService {
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
-            Integer datasourceId) {
+            List<Integer> datasourceIds) {
         var user = permissions.require(userId, PermissionEnum.ANALYSIS_CHAT_USE);
         // Verify unique ownership before loading memory or binding a datasource.
         sessionService.requireOwnership(userId, sessionId);
-        authorizeDatasource(user, sessionId, datasourceId);
+        List<Integer> allowedDatasourceIds = resolveDatasourceIds(user, datasourceIds);
+        sessionDatasourceService.replaceSessionDatasources(sessionId, allowedDatasourceIds, user);
         ReActAgent agent =
-                createAgent(ToolCallContext.builder().sessionId(sessionId).userId(userId).build());
+                createAgent(
+                        ToolCallContext.builder()
+                                .sessionId(sessionId)
+                                .userId(userId)
+                                .datasourceIds(allowedDatasourceIds)
+                                .build());
 
         Session session = sessionService.getSession();
         agent.loadIfExists(session, sessionId);
@@ -170,25 +180,39 @@ public class AgentService {
                         });
     }
 
-    private void authorizeDatasource(UserContextBo user, String sessionId, Integer datasourceId) {
-        if (datasourceId != null) {
-            dataPermissions.requireDatasource(user, datasourceId);
-            datasourceService.bindSessionDatasource(sessionId, datasourceId);
+    private List<Integer> resolveDatasourceIds(
+            UserContextBo user, List<Integer> requestedDatasourceIds) {
+        Set<Integer> accessible = dataPermissions.accessibleDatasourceIds(user);
+        List<Integer> requested =
+                requestedDatasourceIds == null
+                        ? List.of()
+                        : requestedDatasourceIds.stream()
+                                .filter(Objects::nonNull)
+                                .distinct()
+                                .toList();
+
+        if (requested.isEmpty()) {
+            if (accessible.isEmpty()) {
+                throw BusinessException.of(ErrorCode.FORBIDDEN, "No accessible datasource.");
+            }
+            return accessible.stream().sorted().toList();
         }
-        try {
-            dataPermissions.requireDatasource(
-                    user, datasourceService.getDatasourceForSession(sessionId).getId());
-        } catch (BusinessException ex) {
-            // Never silently switch an already bound session to another source.
-            if (sessionService.hasDatasourceBinding(sessionId)) throw ex;
-            var allowed =
-                    datasourceService.findAll().stream()
-                            .filter(ds -> Status.ACTIVE.getCode().equals(ds.getStatus()))
-                            .filter(ds -> dataPermissions.canDatasource(user, ds.getId()))
-                            .findFirst()
-                            .orElseThrow(() -> ex);
-            datasourceService.bindSessionDatasource(sessionId, allowed.getId());
+
+        Set<Integer> activeIds =
+                datasourceService.findActiveByIds(requested).stream()
+                        .map(DatasourcePo::getId)
+                        .collect(Collectors.toSet());
+        for (Integer datasourceId : requested) {
+            if (!activeIds.contains(datasourceId)) {
+                throw BusinessException.of(
+                        ErrorCode.BAD_REQUEST, "Datasource unavailable: " + datasourceId);
+            }
+            if (!accessible.contains(datasourceId)) {
+                throw BusinessException.of(
+                        ErrorCode.FORBIDDEN, "Datasource access denied: " + datasourceId);
+            }
         }
+        return requested;
     }
 
     private void validateClientToolResults(
@@ -279,6 +303,10 @@ public class AgentService {
         今天是 %s，昨天是 %s，明天是 %s。
         当用户提到今天、昨天、明天、上周、本周等相对日期时，必须先按以上当前日期换算成具体日期。
         查询日期、星期、节假日、调休或日期差时，优先使用 get_date_info 工具。
+        当前会话可能允许使用多个数据源。如果需要查询数据但尚未确定数据源，
+        先调用 get_datasources；调用 get_tables、get_table_schema、get_metric_caliber、
+        execute_sql 或 export_table 时，如果存在多个可选数据源，必须传 datasource_id。
+        不同数据源的同名表不能混用。
         """
                 .formatted(today, today.minusDays(1), today.plusDays(1));
     }

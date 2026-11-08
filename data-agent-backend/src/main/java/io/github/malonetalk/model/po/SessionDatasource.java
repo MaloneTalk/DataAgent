@@ -15,17 +15,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.po;
 
-import java.time.LocalDateTime;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-/** 会话与数据源绑定关系（session_id → datasource_id，一会话一源）。 */
+/** 会话允许使用的数据源（session_id + datasource_id 多对多）。 */
 @Data
-public class SessionDatasource {
+@EqualsAndHashCode(callSuper = true)
+@TableName("session_datasource")
+public class SessionDatasource extends BasePo {
+
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
     private String sessionId;
     private Integer datasourceId;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
 }

@@ -79,7 +79,7 @@ class SqlAuthorizationRegressionTest {
                 new SqlPermissionService(
                         new PermissionService(
                                 users, capabilities, Mappers.getMapper(UserConverter.class)),
-                        new DataPermissionService(tables, columns),
+                        new DataPermissionService(tables, columns, mock(DatasourceService.class)),
                         metadata);
         executor = new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
         datasource.setId(1);

@@ -18,17 +18,18 @@
 package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.service.DataPermissionService;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.DomainService;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.utils.SemanticUtils;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -40,7 +41,7 @@ public class GetDomainsTool implements MarkAgentTool {
     private final PermissionService permissions;
 
     private final DomainService domainService;
-    private final DatasourceService datasources;
+    private final ToolDatasourceResolver datasourceResolver;
     private final TableInfoMapper tableMetadata;
     private final DataPermissionService dataPermissions;
     private final ToolExceptionMapper toolExceptionMapper;
@@ -52,11 +53,19 @@ public class GetDomainsTool implements MarkAgentTool {
                     "Get available data domains, including domain names and descriptions. Call"
                             + " this tool first to choose the most relevant domains before querying"
                             + " tables.")
-    public ToolResultBo getDomains(ToolCallContext ctx) {
+    public ToolResultBo getDomains(
+            @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
+            ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
                     var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
-                    var datasource = datasources.getDatasourceForSession(ctx.sessionId());
+                    var datasource = datasourceResolver.resolve(ctx, datasourceId);
                     var scope = dataPermissions.loadScope(user, datasource.getId());
                     var domains =
                             tableMetadata.selectByDatasourceId(datasource.getId()).stream()
@@ -64,14 +73,17 @@ public class GetDomainsTool implements MarkAgentTool {
                                     .filter(table -> scope.canTable(table.getTableName()))
                                     .map(table -> SemanticUtils.normalizeDomain(table.getDomain()))
                                     .collect(Collectors.toSet());
-                    return ToolResultBo.of(
+                    return new ToolResultBo(
                             JsonUtils.getJsonCodec()
                                     .toJson(
                                             domainService.listDomainPrompts().stream()
                                                     .filter(
                                                             domain ->
                                                                     domains.contains(domain.name()))
-                                                    .toList()));
+                                                    .toList()),
+                            Map.of(
+                                    "datasourceId", datasource.getId(),
+                                    "datasourceName", datasource.getName()));
                 });
     }
 }

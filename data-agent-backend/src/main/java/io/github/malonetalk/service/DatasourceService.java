@@ -22,6 +22,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.dto.DatasourceDto;
 import io.github.malonetalk.model.po.DatasourcePo;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,13 +48,8 @@ public interface DatasourceService {
 
     List<DatasourcePo> findByStatus(String status);
 
-    Optional<DatasourcePo> getActiveDatasource();
-
-    /** 会话维度解析数据源：有绑定用绑定（无视 status），无绑定回退激活源。 */
-    DatasourcePo getDatasourceForSession(String sessionId);
-
-    /** 绑定会话到数据源；数据源不存在抛 400，已绑定则保留首次绑定。 */
-    void bindSessionDatasource(String sessionId, Integer datasourceId);
+    /** 按 ID 批量查询启用状态的数据源；空入参直接返回空列表。 */
+    List<DatasourcePo> findActiveByIds(Collection<Integer> ids);
 
     List<DatasourcePo> findByType(String type);
 

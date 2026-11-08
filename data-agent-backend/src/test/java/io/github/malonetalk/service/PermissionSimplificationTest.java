@@ -57,7 +57,8 @@ class PermissionSimplificationTest {
     private final ColumnSemanticInfoMapper metadata = mock(ColumnSemanticInfoMapper.class);
     private final PermissionService permissions =
             new PermissionService(users, capabilities, converter);
-    private final DataPermissionService data = new DataPermissionService(tables, columns);
+    private final DataPermissionService data =
+            new DataPermissionService(tables, columns, mock(DatasourceService.class));
     private final UserContextBo user =
             UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
 

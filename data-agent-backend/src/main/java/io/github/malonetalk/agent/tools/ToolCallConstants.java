@@ -25,6 +25,8 @@ public final class ToolCallConstants {
 
     public static final String ASK_USER = "ask_user";
 
+    public static final String GET_DATASOURCES = "get_datasources";
+
     public static final String GENERATE_REPORT = "generate_report";
 
     public static final String SUCCESS = "SUCCESS";

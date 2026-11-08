@@ -39,7 +39,7 @@
     messages,
     isStreaming,
     sessionId,
-    datasourceId,
+    datasourceIds,
     pendingQuestion,
     lastReportContent,
     sendMessage,
@@ -62,13 +62,13 @@
     messages.value.filter(m => m.role === 'user').map(m => m.content),
   );
 
-  // 重进会话时从会话列表回显绑定源；无绑定（旧会话/新会话未落库）也要重置为 null，
-  // 避免残留上一个会话的绑定。
+  // 重进会话时从会话列表回显数据源范围；无记录时重置为空（表示全部可访问）。
   async function resolveBoundDatasource(sid: string) {
+    datasourceIds.value = [];
     try {
       const list = await fetchSessionList();
       const found = list.find(s => s.sessionId === sid);
-      datasourceId.value = found?.datasourceId ?? null;
+      datasourceIds.value = found?.datasources?.map(d => d.id) ?? [];
     } catch {
       // 会话列表加载失败不阻断会话展示。
     }
@@ -177,11 +177,7 @@
           </button>
         </div>
         <div class="chat-view__header-right">
-          <ChatDatasourceSelect
-            v-if="canChat"
-            v-model="datasourceId"
-            :message-count="messages.length"
-          />
+          <ChatDatasourceSelect v-if="canChat" v-model="datasourceIds" :disabled="isStreaming" />
           <el-button v-permission="'asset:report:read'" text @click="reportDialogVisible = true">
             会话报告
           </el-button>

@@ -23,7 +23,6 @@ import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.MetricService;
 import io.github.malonetalk.service.PermissionService;
 import java.util.Map;
@@ -37,7 +36,7 @@ public class GetMetricCaliberTool implements MarkAgentTool {
     private final PermissionService permissions;
 
     private final MetricService metricService;
-    private final DatasourceService datasourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
@@ -58,6 +57,13 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                     """)
     public ToolResultBo getMetricCaliber(
             @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
+            @ToolParam(
                             name = "hint",
                             description =
                                     "A metric name, or the user's question verbatim, e.g. 流水 /"
@@ -67,9 +73,9 @@ public class GetMetricCaliberTool implements MarkAgentTool {
         return toolExceptionMapper.runResult(
                 () -> {
                     permissions.require(ctx.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
-                    Integer dsId =
-                            datasourceService.getDatasourceForSession(ctx.sessionId()).getId();
-                    MetricService.MetricLookup lookup = metricService.lookupCaliber(dsId, hint);
+                    var datasource = datasourceResolver.resolve(ctx, datasourceId);
+                    MetricService.MetricLookup lookup =
+                            metricService.lookupCaliber(datasource.getId(), hint);
                     return new ToolResultBo(
                             lookup.text(),
                             Map.of(
@@ -82,7 +88,11 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                                                                     metric.getName(),
                                                                     metric.getMeasureExpr(),
                                                                     metric.getFilters()))
-                                            .toList()));
+                                            .toList(),
+                                    "datasourceId",
+                                    datasource.getId(),
+                                    "datasourceName",
+                                    datasource.getName()));
                 });
     }
 }

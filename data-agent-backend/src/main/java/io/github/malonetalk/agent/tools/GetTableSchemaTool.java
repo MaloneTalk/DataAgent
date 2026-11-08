@@ -25,7 +25,6 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -40,7 +39,7 @@ public class GetTableSchemaTool implements MarkAgentTool {
 
     private final PermissionService permissions;
 
-    private final DatasourceService dataSourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final DataPermissionService dataPermissions;
     private final ColumnSemanticService columnSemanticService;
     private final ToolExceptionMapper toolExceptionMapper;
@@ -55,14 +54,20 @@ public class GetTableSchemaTool implements MarkAgentTool {
                     index hints and column descriptions. Call this tool before generating SQL.\
                     """)
     public ToolResultBo getTableSchema(
+            @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName,
             ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
                     var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
-                    DatasourcePo datasource =
-                            dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
 
                     var scope = dataPermissions.loadScope(user, datasource.getId());
                     String authorizedTable = scope.requireTable(tableName);
@@ -75,7 +80,9 @@ public class GetTableSchemaTool implements MarkAgentTool {
                     return new ToolResultBo(
                             SemanticUtils.formatTableSchema(authorizedTable, columns)
                                     + ToolCallConstants.METRIC_CALIBER_REMINDER,
-                            Map.of());
+                            Map.of(
+                                    "datasourceId", datasource.getId(),
+                                    "datasourceName", datasource.getName()));
                 });
     }
 }

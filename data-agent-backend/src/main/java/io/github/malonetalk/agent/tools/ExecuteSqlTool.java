@@ -28,7 +28,6 @@ import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
-import io.github.malonetalk.service.DatasourceService;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -37,7 +36,7 @@ import org.springframework.stereotype.Component;
 @AllArgsConstructor
 public class ExecuteSqlTool implements MarkAgentTool {
 
-    private final DatasourceService dataSourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final SqlExecutor sqlExecutor;
     private final ToolExceptionMapper toolExceptionMapper;
     private final ObjectMapper objectMapper;
@@ -50,13 +49,19 @@ public class ExecuteSqlTool implements MarkAgentTool {
                         + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
                         + " other modification operations.")
     public ToolResultBo executeSql(
+            @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql,
             ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
-                    DatasourcePo datasource =
-                            dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
                     SqlExecution execution =
                             sqlExecutor.executeDetailed(datasource, sql, ctx.userId());
                     var metadata =

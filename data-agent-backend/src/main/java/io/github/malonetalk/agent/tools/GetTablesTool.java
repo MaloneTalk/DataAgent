@@ -27,7 +27,6 @@ import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.List;
@@ -41,7 +40,7 @@ public class GetTablesTool implements MarkAgentTool {
 
     private final PermissionService permissions;
 
-    private final DatasourceService dataSourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final DataPermissionService dataPermissions;
     private final TableSemanticService tableSemanticService;
     private final ToolExceptionMapper toolExceptionMapper;
@@ -56,6 +55,13 @@ public class GetTablesTool implements MarkAgentTool {
                     """)
     public ToolResultBo getTables(
             @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
+            @ToolParam(
                             name = "domains",
                             description =
                                     """
@@ -69,8 +75,7 @@ public class GetTablesTool implements MarkAgentTool {
         return toolExceptionMapper.runResult(
                 () -> {
                     var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
-                    DatasourcePo dataSource =
-                            dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    DatasourcePo dataSource = datasourceResolver.resolve(ctx, datasourceId);
                     var scope = dataPermissions.loadScope(user, dataSource.getId());
 
                     var visible =
@@ -83,7 +88,9 @@ public class GetTablesTool implements MarkAgentTool {
                     return new ToolResultBo(
                             JsonUtils.getJsonCodec().toJson(visible)
                                     + ToolCallConstants.METRIC_CALIBER_REMINDER,
-                            Map.of());
+                            Map.of(
+                                    "datasourceId", dataSource.getId(),
+                                    "datasourceName", dataSource.getName()));
                 });
     }
 

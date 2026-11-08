@@ -74,7 +74,7 @@ public class AgentController {
                         request.sessionId(),
                         request.message(),
                         request.toolResults(),
-                        request.datasourceId())
+                        request.datasourceIds())
                 .map(
                         event ->
                                 ServerSentEvent.<ChatStreamEvent>builder()
