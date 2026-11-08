@@ -22,9 +22,10 @@ import static io.github.malonetalk.enums.CsvImportStatus.DELETING;
 import static io.github.malonetalk.enums.CsvImportStatus.IMPORTING;
 import static io.github.malonetalk.enums.CsvImportStatus.QUEUED;
 import static io.github.malonetalk.enums.CsvImportStatus.SYNCING;
-import static io.github.malonetalk.model.converter.CsvSchemaConverter.invalid;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.CsvImportMapper;
 import io.github.malonetalk.mapper.LogicalTableRelationMapper;
 import io.github.malonetalk.mapper.MetricInfoMapper;
@@ -60,9 +61,12 @@ public class CsvImportDeleteService {
                                         Wrappers.<CsvImportPo>lambdaQuery()
                                                 .eq(CsvImportPo::getId, id)
                                                 .last("FOR UPDATE")))
-                        .orElseThrow(() -> invalid("导入记录不存在。"));
+                        .orElseThrow(
+                                () ->
+                                        BusinessException.of(
+                                                ErrorCode.CSV_TASK_NOT_FOUND, "导入记录不存在。"));
         if (Set.of(QUEUED, IMPORTING, SYNCING, CLEANING, DELETING).contains(task.getStatus()))
-            throw invalid("任务正在运行，请完成后再删除。");
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务正在运行，请完成后再删除。");
         requireUnreferenced(task);
         // Return the locked pre-delete snapshot for physical-table cleanup.
         imports.update(
@@ -86,7 +90,8 @@ public class CsvImportDeleteService {
                                                 || table.get()
                                                         .getId()
                                                         .equals(relation.getTargetTableId()));
-        if (linked) throw invalid("该表仍有关联关系，请先删除关联关系。");
+        if (linked)
+            throw BusinessException.of(ErrorCode.CSV_TABLE_REFERENCED, "该表仍有关联关系，请先删除关联关系。");
         Set<String> knownTables =
                 tables.selectByDatasourceId(task.getDatasourceId()).stream()
                         .map(row -> SemanticUtils.normalizeIdentifier(row.getTableName()))
@@ -97,7 +102,9 @@ public class CsvImportDeleteService {
                                 metric ->
                                         metricReferences.mayReference(
                                                 metric, task.getPhysicalTableName(), knownTables));
-        if (referenced) throw invalid("该表存在指标引用，或数据源含无法确定归属的指标，请先调整指标口径。");
+        if (referenced)
+            throw BusinessException.of(
+                    ErrorCode.CSV_TABLE_REFERENCED, "该表存在指标引用，或数据源含无法确定归属的指标，请先调整指标口径。");
     }
 
     @Transactional
@@ -108,7 +115,10 @@ public class CsvImportDeleteService {
                                         .eq(CsvImportPo::getId, task.getId())
                                         .last("FOR UPDATE")))
                 .filter(current -> current.getStatus() == DELETING)
-                .orElseThrow(() -> invalid("删除任务状态已变化。"));
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.CSV_TASK_STATE_CONFLICT, "删除任务状态已变化。"));
         tablePermissions.deleteImportedTable(task.getDatasourceId(), task.getPhysicalTableName());
         hiddenColumns.deleteImportedTable(task.getDatasourceId(), task.getPhysicalTableName());
         tables.deleteImportedTable(task.getDatasourceId(), task.getPhysicalTableName());

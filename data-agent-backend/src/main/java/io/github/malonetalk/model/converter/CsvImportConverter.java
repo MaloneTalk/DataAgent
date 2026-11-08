@@ -17,13 +17,12 @@
  */
 package io.github.malonetalk.model.converter;
 
-import io.github.malonetalk.enums.CsvImportStatus;
 import io.github.malonetalk.model.bo.CsvPreviewBo;
 import io.github.malonetalk.model.dto.CsvParseOptions;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.vo.CsvImportVo;
-import java.time.LocalDateTime;
 import java.util.List;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
@@ -37,31 +36,29 @@ public interface CsvImportConverter {
     @Mapping(target = "options", source = "task.parseOptionsJson")
     CsvImportVo toVo(CsvImportPo task, List<List<String>> preview);
 
-    default CsvImportPo previewTask(
+    // Map upload metadata only; the service owns the initial status and retention policy.
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "id", source = "id")
+    @Mapping(target = "datasourceId", source = "datasourceId")
+    @Mapping(target = "originalFilename", source = "filename")
+    @Mapping(
+            target = "displayName",
+            expression = "java(filename.substring(0, Math.min(filename.length() - 4, 200)))")
+    @Mapping(target = "description", constant = "")
+    @Mapping(target = "physicalTableName", expression = "java(\"csv_t_\" + id)")
+    @Mapping(target = "attemptId", constant = "")
+    @Mapping(target = "fileSha256", source = "hash")
+    @Mapping(target = "fileSize", source = "size")
+    @Mapping(target = "parseOptionsJson", source = "options", qualifiedByName = "csvJson")
+    @Mapping(target = "columnsJson", source = "preview.columns", qualifiedByName = "csvJson")
+    @Mapping(target = "processedRows", constant = "0L")
+    @Mapping(target = "rowCount", constant = "0L")
+    CsvImportPo previewTask(
             String id,
             Integer datasourceId,
             String filename,
             String hash,
             long size,
             CsvParseOptions options,
-            CsvPreviewBo preview,
-            CsvSchemaConverter schema) {
-        CsvImportPo task = new CsvImportPo();
-        task.setId(id);
-        task.setDatasourceId(datasourceId);
-        task.setOriginalFilename(filename);
-        task.setDisplayName(filename.substring(0, Math.min(filename.length() - 4, 200)));
-        task.setDescription("");
-        task.setPhysicalTableName("csv_t_" + id);
-        task.setAttemptId("");
-        task.setFileSha256(hash);
-        task.setFileSize(size);
-        task.setParseOptionsJson(schema.json(options));
-        task.setColumnsJson(schema.json(preview.columns()));
-        task.setStatus(CsvImportStatus.PREVIEWED);
-        task.setProcessedRows(0L);
-        task.setRowCount(0L);
-        task.setExpiresAt(LocalDateTime.now().plusHours(24));
-        return task;
-    }
+            CsvPreviewBo preview);
 }

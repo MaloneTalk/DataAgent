@@ -86,7 +86,7 @@ public class CsvAccessService {
 
     public void requireReady(DatasourcePo datasource, String table) {
         if (!isReady(datasource, table))
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "CSV 表尚未就绪或不属于当前数据源。");
+            throw BusinessException.of(ErrorCode.CSV_TABLE_NOT_READY, "CSV 表尚未就绪或不属于当前数据源。");
     }
 
     public void requireImportTable(DatasourcePo datasource, CsvImportPo task) {
@@ -101,6 +101,7 @@ public class CsvAccessService {
                                         .eq(
                                                 CsvImportPo::getPhysicalTableName,
                                                 task.getPhysicalTableName()))
-                        != 1) throw BusinessException.of(ErrorCode.BAD_REQUEST, "CSV 任务不能同步。");
+                        != 1)
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "CSV 任务不能同步。");
     }
 }

@@ -79,7 +79,7 @@ public class CsvSchemaConverter {
 
     public void validate(List<CsvColumnDto> columns, int expected) {
         if (columns.size() != expected || expected < 1 || expected > 100) {
-            throw invalid("字段数量与文件不一致，最多允许 100 列。");
+            throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "字段数量与文件不一致，最多允许 100 列。");
         }
         int rowBytes = 0;
         for (int i = 0; i < columns.size(); i++) {
@@ -88,12 +88,15 @@ public class CsvSchemaConverter {
                     || column.name() == null
                     || column.name().isBlank()
                     || column.name().length() > 200) {
-                throw invalid("字段必须按原文件顺序提交，并填写不超过 200 字的名称。");
+                throw BusinessException.of(
+                        ErrorCode.CSV_SCHEMA_INVALID, "字段必须按原文件顺序提交，并填写不超过 200 字的名称。");
             }
             sqlType(column);
             rowBytes += "VARCHAR".equals(column.type()) ? column.length() * 4 + 2 : 32;
         }
-        if (rowBytes > 60000) throw invalid("VARCHAR 字段总长度过大，请将部分字段改为 TEXT。");
+        if (rowBytes > 60000)
+            throw BusinessException.of(
+                    ErrorCode.CSV_SCHEMA_INVALID, "VARCHAR 字段总长度过大，请将部分字段改为 TEXT。");
     }
 
     public String sqlType(CsvColumnDto column) {
@@ -102,7 +105,8 @@ public class CsvSchemaConverter {
             case "BOOLEAN" -> "TINYINT(1)";
             case "VARCHAR" -> {
                 if (column.length() == null || column.length() < 1 || column.length() > 4000)
-                    throw invalid("VARCHAR 长度必须在 1 到 4000 之间。");
+                    throw BusinessException.of(
+                            ErrorCode.CSV_SCHEMA_INVALID, "VARCHAR 长度必须在 1 到 4000 之间。");
                 yield "VARCHAR(" + column.length() + ")";
             }
             case "DECIMAL" -> {
@@ -112,10 +116,11 @@ public class CsvSchemaConverter {
                         || column.precision() > 65
                         || column.scale() < 0
                         || column.scale() > 30
-                        || column.scale() > column.precision()) throw invalid("DECIMAL 精度或小数位数无效。");
+                        || column.scale() > column.precision())
+                    throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "DECIMAL 精度或小数位数无效。");
                 yield "DECIMAL(" + column.precision() + "," + column.scale() + ")";
             }
-            default -> throw invalid("不支持的字段类型。");
+            default -> throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "不支持的字段类型。");
         };
     }
 
@@ -126,12 +131,15 @@ public class CsvSchemaConverter {
                 switch (column.type()) {
                     case "VARCHAR" -> {
                         if (raw.codePointCount(0, raw.length()) > column.length())
-                            throw invalid("文本超过 VARCHAR 长度，请改为 TEXT 或增加长度。");
+                            throw BusinessException.of(
+                                    ErrorCode.CSV_SCHEMA_INVALID,
+                                    "文本超过 VARCHAR 长度，请改为 TEXT 或增加长度。");
                         yield raw;
                     }
                     case "TEXT" -> raw;
                     case "BIGINT" -> {
-                        if (!text.matches("[+-]?[0-9]+")) throw invalid("不是有效整数。");
+                        if (!text.matches("[+-]?[0-9]+"))
+                            throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "不是有效整数。");
                         yield Long.valueOf(text);
                     }
                     case "DECIMAL" -> {
@@ -139,27 +147,32 @@ public class CsvSchemaConverter {
                                 new BigDecimal(text)
                                         .setScale(column.scale(), RoundingMode.UNNECESSARY);
                         if (number.precision() > column.precision())
-                            throw invalid("数值超过 DECIMAL 精度。");
+                            throw BusinessException.of(
+                                    ErrorCode.CSV_SCHEMA_INVALID, "数值超过 DECIMAL 精度。");
                         yield number;
                     }
                     case "BOOLEAN" -> {
                         if (!Set.of("true", "false").contains(text.toLowerCase(Locale.ROOT)))
-                            throw invalid("布尔值必须为 true 或 false。");
+                            throw BusinessException.of(
+                                    ErrorCode.CSV_SCHEMA_INVALID, "布尔值必须为 true 或 false。");
                         yield Boolean.parseBoolean(text);
                     }
                     case "DATE" -> {
                         LocalDate date = LocalDate.parse(text);
                         if (date.getYear() < 1000 || date.getYear() > 9999)
-                            throw invalid("日期超出 MySQL 范围。");
+                            throw BusinessException.of(
+                                    ErrorCode.CSV_SCHEMA_INVALID, "日期超出 MySQL 范围。");
                         yield Date.valueOf(date);
                     }
                     case "DATETIME" -> {
                         LocalDateTime date = dateTime(text);
                         if (date.getYear() < 1000 || date.getYear() > 9999 || date.getNano() != 0)
-                            throw invalid("日期时间必须在 MySQL 范围内，且精确到秒。");
+                            throw BusinessException.of(
+                                    ErrorCode.CSV_SCHEMA_INVALID, "日期时间必须在 MySQL 范围内，且精确到秒。");
                         yield Timestamp.valueOf(date);
                     }
-                    default -> throw invalid("不支持的字段类型。");
+                    default ->
+                            throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "不支持的字段类型。");
                 };
         return Optional.of(value);
     }
@@ -236,9 +249,5 @@ public class CsvSchemaConverter {
         return text.indexOf('T') >= 0
                 ? LocalDateTime.parse(text)
                 : LocalDateTime.parse(text, TIMESTAMP);
-    }
-
-    public static BusinessException invalid(String message) {
-        return BusinessException.of(ErrorCode.BAD_REQUEST, message);
     }
 }

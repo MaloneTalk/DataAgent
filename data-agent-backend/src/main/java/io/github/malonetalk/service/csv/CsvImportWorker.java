@@ -41,6 +41,7 @@ import io.github.malonetalk.mapper.CsvImportMapper;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.service.PermissionService;
+import jakarta.annotation.Resource;
 import java.nio.file.Files;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -51,6 +52,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -59,18 +61,19 @@ import org.springframework.stereotype.Service;
 public class CsvImportWorker {
     private final CsvImportConfig config;
     private final CsvImportMapper imports;
-    private final CsvImportService service;
+    private final CsvDatasourceService datasources;
     private final CsvTableImportService tables;
     private final CsvImportPublishService publisher;
     private final CsvFileService files;
     private final PermissionService permissions;
     private final UserContextHolder holder;
 
+    @Resource(name = "csvImportExecutor")
+    private ThreadPoolTaskExecutor executor;
+
     @Scheduled(fixedDelay = 5000, initialDelay = 5000)
     public void dispatch() {
         if (config.getDatasourceId() <= 0) return;
-        // Full @Configuration proxying returns the Spring-managed singleton here.
-        var executor = config.csvImportExecutor();
         var tasks =
                 imports.selectList(
                         Wrappers.<CsvImportPo>lambdaQuery()
@@ -99,7 +102,7 @@ public class CsvImportWorker {
                             DATA_CSV_IMPORT,
                             SEMANTIC_TABLE_SYNC);
             holder.set(user);
-            var datasource = service.datasource();
+            var datasource = datasources.requireActive();
             if (importing) {
                 long count =
                         tables.importTable(
@@ -188,7 +191,7 @@ public class CsvImportWorker {
     private void discardStaleTable(CsvImportPo task) {
         try {
             // Each data retry has its own table, so this cannot drop the new attempt's data.
-            tables.drop(task, service.datasource());
+            tables.drop(task, datasources.requireActive());
         } catch (Exception e) {
             log.warn("Stale CSV table cleanup deferred: {}", task.getPhysicalTableName());
         }
@@ -196,7 +199,7 @@ public class CsvImportWorker {
 
     private void cleanupTable(CsvImportPo task) {
         try {
-            tables.drop(task, service.datasource());
+            tables.drop(task, datasources.requireActive());
             transition(task, CLEANING, IMPORT_FAILED);
         } catch (Exception e) {
             transition(task, CLEANING, CLEANUP_FAILED);
@@ -277,7 +280,7 @@ public class CsvImportWorker {
     private void cleanupOrphanTables() {
         try {
             tables.dropOrphanTables(
-                    service.datasource(),
+                    datasources.requireActive(),
                     table ->
                             imports.selectCount(
                                             Wrappers.<CsvImportPo>lambdaQuery()

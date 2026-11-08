@@ -17,9 +17,9 @@
  */
 package io.github.malonetalk.service.csv;
 
-import static io.github.malonetalk.model.converter.CsvSchemaConverter.invalid;
-
 import io.github.malonetalk.config.CsvImportConfig;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.converter.CsvSchemaConverter;
 import io.github.malonetalk.model.dto.CsvColumnDto;
 import io.github.malonetalk.model.po.CsvImportPo;
@@ -48,7 +48,8 @@ public class CsvTableImportService {
 
     public long importTable(CsvImportPo task, DatasourcePo datasource, LongConsumer progress)
             throws Exception {
-        if (!datasource.getId().equals(task.getDatasourceId())) throw invalid("任务不属于当前 CSV 数据源。");
+        if (!datasource.getId().equals(task.getDatasourceId()))
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务不属于当前 CSV 数据源。");
         files.verify(task.getId(), task.getFileSha256());
         List<CsvColumnDto> columns = converter.columns(task.getColumnsJson());
         converter.validate(columns, columns.size());
@@ -69,7 +70,8 @@ public class CsvTableImportService {
 
     private Connection connect(DatasourcePo datasource) throws Exception {
         if (!config.getWriterUrl().startsWith("jdbc:mysql://")
-                || config.getWriterUsername().isBlank()) throw invalid("请先配置 CSV 导入库的写入连接和账号。");
+                || config.getWriterUsername().isBlank())
+            throw BusinessException.of(ErrorCode.CSV_NOT_CONFIGURED, "请先配置 CSV 导入库的写入连接和账号。");
         Properties properties = new Properties();
         properties.setProperty("user", config.getWriterUsername());
         properties.setProperty("password", config.getWriterPassword());
@@ -80,7 +82,8 @@ public class CsvTableImportService {
         Connection connection = DriverManager.getConnection(config.getWriterUrl(), properties);
         try {
             if (!datasource.getDatabaseName().equals(connection.getCatalog()))
-                throw invalid("CSV 写入连接与分析数据源必须使用同一个数据库。");
+                throw BusinessException.of(
+                        ErrorCode.CSV_NOT_CONFIGURED, "CSV 写入连接与分析数据源必须使用同一个数据库。");
             try (var statement = connection.createStatement()) {
                 statement.setQueryTimeout(30);
                 statement.execute(
@@ -140,7 +143,9 @@ public class CsvTableImportService {
             for (CSVRecord record : parser) {
                 files.validate(record, columns.size());
                 if (record.getRecordNumber() == 1 && options.header()) continue;
-                if (++count > 100000) throw invalid("CSV 最多允许 100000 条数据记录。");
+                if (++count > 100000)
+                    throw BusinessException.of(
+                            ErrorCode.CSV_FILE_INVALID, "CSV 最多允许 100000 条数据记录。");
                 task.setProcessedRows(count);
                 long bytes =
                         record.toList().stream()
@@ -161,7 +166,7 @@ public class CsvTableImportService {
                     batchBytes = 0;
                 }
             }
-            if (count == 0) throw invalid("CSV 没有数据记录。");
+            if (count == 0) throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "CSV 没有数据记录。");
             if (batchRows > 0) flush(connection, statement, count, progress);
             return count;
         }
@@ -182,7 +187,8 @@ public class CsvTableImportService {
                                 .orElse(null));
             } catch (RuntimeException e) {
                 // Do not include cell contents in errors: uploads may contain sensitive values.
-                throw invalid(
+                throw BusinessException.of(
+                        ErrorCode.CSV_SCHEMA_INVALID,
                         "第 "
                                 + record.getRecordNumber()
                                 + " 条记录，第 "
@@ -206,7 +212,8 @@ public class CsvTableImportService {
     }
 
     public void drop(CsvImportPo task, DatasourcePo datasource) throws Exception {
-        if (!datasource.getId().equals(task.getDatasourceId())) throw invalid("任务不属于当前 CSV 数据源。");
+        if (!datasource.getId().equals(task.getDatasourceId()))
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务不属于当前 CSV 数据源。");
         try (Connection connection = connect(datasource);
                 var statement = connection.createStatement()) {
             statement.setQueryTimeout(30);
@@ -216,7 +223,8 @@ public class CsvTableImportService {
 
     private String table(CsvImportPo task) {
         if (!task.getPhysicalTableName().matches("csv_t_[a-f0-9]{32}")
-                || !task.getId().matches("[a-f0-9]{32}")) throw invalid("CSV 物理表名称无效。");
+                || !task.getId().matches("[a-f0-9]{32}"))
+            throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "CSV 物理表名称无效。");
         return "`" + task.getPhysicalTableName() + "`";
     }
 

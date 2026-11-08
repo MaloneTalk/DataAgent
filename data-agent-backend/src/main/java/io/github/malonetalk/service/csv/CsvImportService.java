@@ -28,7 +28,6 @@ import static io.github.malonetalk.enums.CsvImportStatus.QUEUED;
 import static io.github.malonetalk.enums.CsvImportStatus.READY;
 import static io.github.malonetalk.enums.CsvImportStatus.SYNCING;
 import static io.github.malonetalk.enums.CsvImportStatus.SYNC_FAILED;
-import static io.github.malonetalk.model.converter.CsvSchemaConverter.invalid;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -36,7 +35,6 @@ import io.github.malonetalk.config.CsvImportConfig;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.CsvImportMapper;
-import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.model.converter.CsvImportConverter;
 import io.github.malonetalk.model.converter.CsvSchemaConverter;
 import io.github.malonetalk.model.dto.CsvImportConfirmDto;
@@ -63,7 +61,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class CsvImportService {
     private final CsvImportConfig config;
     private final CsvImportMapper imports;
-    private final DatasourceMapper datasources;
+    private final CsvDatasourceService datasources;
     private final CsvFileService files;
     private final CsvSchemaConverter schema;
     private final CsvImportConverter converter;
@@ -72,28 +70,11 @@ public class CsvImportService {
     private final CsvImportDeleteService deletion;
     private final CsvTableImportService tables;
 
-    public DatasourcePo datasource() {
-        DatasourcePo datasource =
-                Optional.ofNullable(datasources.selectById(config.getDatasourceId()))
-                        .filter(
-                                ds ->
-                                        "CSV".equals(ds.getSourceType())
-                                                && "mysql".equals(ds.getType()))
-                        .filter(
-                                ds ->
-                                        ds.getDatabaseName() != null
-                                                && !ds.getDatabaseName().isBlank())
-                        .orElseThrow(
-                                () -> invalid("CSV 导入尚未配置，请联系管理员设置 CSV_DATASOURCE_ID 和导入库连接。"));
-        if (!"ACTIVE".equals(datasource.getStatus())) throw invalid("CSV 数据源已禁用。");
-        return datasource;
-    }
-
     public CsvImportVo preview(MultipartFile file, CsvParseOptions options) throws Exception {
-        DatasourcePo datasource = datasource();
+        DatasourcePo datasource = datasources.requireActive();
         String filename = Optional.ofNullable(file.getOriginalFilename()).orElse("");
         if (!filename.toLowerCase(Locale.ROOT).endsWith(".csv") || filename.length() > 255)
-            throw invalid("请选择文件名不超过 255 字的 CSV 文件。");
+            throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "请选择文件名不超过 255 字的 CSV 文件。");
         String id = UUID.randomUUID().toString().replace("-", "");
         try {
             String hash = files.save(id, file);
@@ -106,8 +87,9 @@ public class CsvImportService {
                             hash,
                             file.getSize(),
                             options,
-                            preview,
-                            schema);
+                            preview);
+            task.setStatus(PREVIEWED);
+            task.setExpiresAt(LocalDateTime.now().plusHours(24));
             imports.insert(task);
             return converter.toVo(task, preview.rows());
         } catch (Exception e) {
@@ -127,12 +109,13 @@ public class CsvImportService {
                                 .in(CsvImportPo::getStatus, PREVIEWED, IMPORT_FAILED)
                                 .set(CsvImportPo::getParseOptionsJson, schema.json(options))
                                 .set(CsvImportPo::getColumnsJson, schema.json(preview.columns())));
-        if (updated != 1) throw invalid("任务状态已变化，请刷新后重试。");
+        if (updated != 1)
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务状态已变化，请刷新后重试。");
         return converter.toVo(accessible(id), preview.rows());
     }
 
     public CsvImportVo confirm(String id, CsvImportConfirmDto request) {
-        datasource();
+        datasources.requireActive();
         CsvImportPo task = accessible(id);
         var submitted = Set.of(QUEUED, IMPORTING, DATA_READY, SYNCING, READY, SYNC_FAILED);
         if (submitted.contains(task.getStatus())) return converter.toVo(task, List.of());
@@ -162,7 +145,7 @@ public class CsvImportService {
             // Concurrent confirmations reuse the winning submission without creating another batch.
             CsvImportPo current = accessible(id);
             if (submitted.contains(current.getStatus())) return converter.toVo(current, List.of());
-            throw invalid("任务状态已变化，请刷新后重试。");
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务状态已变化，请刷新后重试。");
         }
         return get(id);
     }
@@ -202,8 +185,8 @@ public class CsvImportService {
     public void retrySync(String id) {
         CsvImportPo task = accessible(id);
         if (!Set.of(DATA_READY, SYNC_FAILED).contains(task.getStatus()))
-            throw invalid("该任务无需重试同步。");
-        datasource();
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "该任务无需重试同步。");
+        datasources.requireActive();
         int updated =
                 imports.update(
                         Wrappers.<CsvImportPo>lambdaUpdate()
@@ -218,7 +201,8 @@ public class CsvImportService {
                                         UUID.randomUUID().toString().replace("-", ""))
                                 .set(CsvImportPo::getSubmittedBy, holder.checkAndGet().userId())
                                 .set(CsvImportPo::getErrorMessage, ""));
-        if (updated != 1) throw invalid("任务状态已变化，请刷新后重试。");
+        if (updated != 1)
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务状态已变化，请刷新后重试。");
     }
 
     public void delete(String id) throws Exception {
@@ -226,7 +210,7 @@ public class CsvImportService {
         CsvImportPo task = deletion.begin(id);
         try {
             if (!Set.of(PREVIEWED, IMPORT_FAILED, EXPIRED).contains(task.getStatus()))
-                tables.drop(task, datasource());
+                tables.drop(task, datasources.requireActive());
             files.delete(id);
             deletion.finish(task);
         } catch (Exception e) {
@@ -236,7 +220,7 @@ public class CsvImportService {
                             .eq(CsvImportPo::getStatus, DELETING)
                             .set(CsvImportPo::getStatus, DELETE_FAILED)
                             .set(CsvImportPo::getErrorMessage, "删除未完成，请检查导入库连接后重试。"));
-            throw invalid("删除未完成，请检查导入库连接后重试。");
+            throw BusinessException.of(ErrorCode.CSV_DELETE_FAILED, "删除未完成，请检查导入库连接后重试。", e);
         }
     }
 
@@ -246,7 +230,7 @@ public class CsvImportService {
                         .orElseThrow(
                                 () ->
                                         BusinessException.of(
-                                                ErrorCode.RESOURCE_NOT_FOUND, "导入记录不存在。"));
+                                                ErrorCode.CSV_TASK_NOT_FOUND, "导入记录不存在。"));
         var user = holder.checkAndGet();
         if (!Boolean.TRUE.equals(user.superAdmin())
                 && !Long.valueOf(user.userId()).equals(task.getCreatorId())) {
@@ -262,6 +246,6 @@ public class CsvImportService {
         if (!Set.of(PREVIEWED, IMPORT_FAILED).contains(task.getStatus())
                 || task.getExpiresAt().isBefore(LocalDateTime.now())
                 || !Files.isRegularFile(files.path(task.getId())))
-            throw invalid("文件已过期或任务已经提交，请重新上传。");
+            throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "文件已过期或任务已经提交，请重新上传。");
     }
 }

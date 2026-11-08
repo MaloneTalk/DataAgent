@@ -17,9 +17,9 @@
  */
 package io.github.malonetalk.service.csv;
 
-import static io.github.malonetalk.model.converter.CsvSchemaConverter.invalid;
-
 import io.github.malonetalk.config.CsvImportConfig;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.CsvPreviewBo;
 import io.github.malonetalk.model.converter.CsvSchemaConverter;
 import io.github.malonetalk.model.dto.CsvColumnDto;
@@ -56,7 +56,8 @@ public class CsvFileService {
     private final CsvSchemaConverter converter;
 
     public String save(String id, MultipartFile file) throws Exception {
-        if (file.isEmpty() || file.getSize() > MAX_BYTES) throw invalid("文件必须在 1 字节到 50 MiB 之间。");
+        if (file.isEmpty() || file.getSize() > MAX_BYTES)
+            throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "文件必须在 1 字节到 50 MiB 之间。");
         Files.createDirectories(config.getDirectory());
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         try (var input = new DigestInputStream(file.getInputStream(), digest);
@@ -65,7 +66,8 @@ public class CsvFileService {
             long count = 0;
             for (int length; (length = input.read(buffer)) != -1; ) {
                 count += length;
-                if (count > MAX_BYTES) throw invalid("文件超过 50 MiB。");
+                if (count > MAX_BYTES)
+                    throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "文件超过 50 MiB。");
                 output.write(buffer, 0, length);
             }
         }
@@ -73,17 +75,19 @@ public class CsvFileService {
     }
 
     public void verify(String id, String expectedHash) throws Exception {
-        if (Files.size(path(id)) > MAX_BYTES) throw invalid("文件超过 50 MiB。");
+        if (Files.size(path(id)) > MAX_BYTES)
+            throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "文件超过 50 MiB。");
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         try (var input = new DigestInputStream(Files.newInputStream(path(id)), digest)) {
             input.transferTo(OutputStream.nullOutputStream());
         }
         if (!expectedHash.equals(HexFormat.of().formatHex(digest.digest())))
-            throw invalid("上传文件发生变化，请重新上传。");
+            throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "上传文件发生变化，请重新上传。");
     }
 
     public Path path(String id) {
-        if (!id.matches("[a-f0-9]{32}")) throw invalid("无效的导入 ID。");
+        if (!id.matches("[a-f0-9]{32}"))
+            throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "无效的导入 ID。");
         return config.getDirectory().toAbsolutePath().normalize().resolve(id + ".csv");
     }
 
@@ -96,7 +100,7 @@ public class CsvFileService {
                 || options.delimiter() == null
                 || !Set.of("UTF-8", "GB18030").contains(options.encoding())
                 || !Set.of(",", ";", "\t").contains(options.delimiter()))
-            throw invalid("不支持的编码或分隔符。");
+            throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "不支持的编码或分隔符。");
         Reader reader =
                 new InputStreamReader(
                         Files.newInputStream(path(id)),
@@ -123,7 +127,8 @@ public class CsvFileService {
     public CsvPreviewBo preview(String id, CsvParseOptions options) throws IOException {
         try (CSVParser parser = open(id, options)) {
             var iterator = parser.iterator();
-            if (!iterator.hasNext()) throw invalid("CSV 没有数据。");
+            if (!iterator.hasNext())
+                throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "CSV 没有数据。");
             CSVRecord first = iterator.next();
             validate(first, first.size());
             List<String> names = new ArrayList<>();
@@ -131,7 +136,8 @@ public class CsvFileService {
             for (int i = 0; i < first.size(); i++) {
                 String name =
                         options.header() && !first.get(i).isBlank() ? first.get(i) : "字段" + (i + 1);
-                if (name.length() > 200) throw invalid("表头不能超过 200 字。");
+                if (name.length() > 200)
+                    throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "表头不能超过 200 字。");
                 names.add(name);
             }
             if (!options.header()) sample.add(first.toList());
@@ -140,7 +146,8 @@ public class CsvFileService {
                 validate(record, names.size());
                 sample.add(record.toList());
             }
-            if (sample.isEmpty()) throw invalid("CSV 只有表头，没有数据记录。");
+            if (sample.isEmpty())
+                throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "CSV 只有表头，没有数据记录。");
             List<CsvColumnDto> columns = new ArrayList<>();
             for (int i = 0; i < names.size(); i++) {
                 final int index = i;
@@ -153,16 +160,19 @@ public class CsvFileService {
             }
             return new CsvPreviewBo(columns, sample.stream().limit(20).toList());
         } catch (IOException | UncheckedIOException e) {
-            throw invalid("无法解析 CSV，请检查文件编码、分隔符和引号格式。");
+            throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "无法解析 CSV，请检查文件编码、分隔符和引号格式。");
         }
     }
 
     public void validate(CSVRecord record, int columns) {
         if (columns < 1 || columns > 100 || record.size() != columns)
-            throw invalid("第 " + record.getRecordNumber() + " 条记录列数不一致，最多允许 100 列。");
+            throw BusinessException.of(
+                    ErrorCode.CSV_FILE_INVALID,
+                    "第 " + record.getRecordNumber() + " 条记录列数不一致，最多允许 100 列。");
         for (int i = 0; i < record.size(); i++) {
             if (record.get(i).getBytes(StandardCharsets.UTF_8).length > 16 * 1024)
-                throw invalid(
+                throw BusinessException.of(
+                        ErrorCode.CSV_FILE_INVALID,
                         "第 " + record.getRecordNumber() + " 条记录，第 " + (i + 1) + " 列超过 16 KiB。");
         }
     }

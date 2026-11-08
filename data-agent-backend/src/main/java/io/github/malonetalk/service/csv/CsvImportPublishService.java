@@ -19,10 +19,11 @@ package io.github.malonetalk.service.csv;
 
 import static io.github.malonetalk.enums.CsvImportStatus.READY;
 import static io.github.malonetalk.enums.CsvImportStatus.SYNCING;
-import static io.github.malonetalk.model.converter.CsvSchemaConverter.invalid;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.datasource.SchemaReader;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.CsvImportMapper;
 import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import io.github.malonetalk.model.po.CsvImportPo;
@@ -46,7 +47,8 @@ public class CsvImportPublishService {
     public TableSyncSource snapshot(CsvImportPo task, DatasourcePo datasource) {
         // Read the external database before opening the metadata publication transaction.
         var columns = schemaReader.getImportTableSchema(datasource, task);
-        if (columns.isEmpty()) throw invalid("导入表没有可同步的字段。");
+        if (columns.isEmpty())
+            throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "导入表没有可同步的字段。");
         return converter.toCsvTable(task, columns);
     }
 
@@ -63,7 +65,10 @@ public class CsvImportPublishService {
                                         && task.getAttemptId().equals(current.getAttemptId())
                                         && task.getPhysicalTableName()
                                                 .equals(current.getPhysicalTableName()))
-                .orElseThrow(() -> invalid("CSV 任务状态已变化，请刷新后重试。"));
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.CSV_TASK_STATE_CONFLICT, "CSV 任务状态已变化，请刷新后重试。"));
         // Semantic metadata and READY become visible in one business-database transaction.
         semanticSync.applyTableSync(task.getDatasourceId(), List.of(snapshot), List.of());
         imports.update(

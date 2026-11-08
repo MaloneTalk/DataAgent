@@ -83,3 +83,21 @@ PREVIEWED → QUEUED → IMPORTING → DATA_READY → SYNCING → READY
 | DELETE /api/csv-imports/{id} | 删除上传或托管表 |
 
 重复确认（包括并发首次确认）返回同一已提交任务，复用同一执行批次和物理表。查询不会暴露服务器文件路径或写入凭据。记录仅对创建人、超级管理员，以及拥有对应表授权的用户可见。
+
+### 错误码
+
+CSV 业务校验通过统一异常响应返回以下专用 `errorCode`，前端可据此区分处理方式。任务状态冲突和表引用冲突返回 HTTP 409；实际删除失败返回 HTTP 500，并保留任务供重试。
+
+| errorCode | HTTP 状态 | 含义 |
+| --- | --- | --- |
+| CSV_NOT_CONFIGURED | 400 | CSV 数据源或专用写入连接未正确配置 |
+| CSV_DATASOURCE_DISABLED | 400 | CSV 数据源已停用 |
+| CSV_FILE_INVALID | 400 | 文件格式、编码、内容或大小不符合要求 |
+| CSV_SCHEMA_INVALID | 400 | 字段定义或字段值与所选类型不匹配 |
+| CSV_TASK_NOT_FOUND | 404 | 导入记录不存在或已删除 |
+| CSV_TASK_STATE_CONFLICT | 409 | 当前任务状态不允许操作，或状态已被并发请求改变 |
+| CSV_TABLE_NOT_READY | 403 | 表未就绪或不属于当前数据源 |
+| CSV_TABLE_REFERENCED | 409 | 表仍被关联关系或指标引用 |
+| CSV_DELETE_FAILED | 500 | 物理表、上传文件或语义元数据删除失败 |
+
+认证、角色授权、请求参数绑定和 multipart 超限仍使用统一错误码；异步导入及同步的执行结果通过任务 `status` 和 `errorMessage` 查询。
