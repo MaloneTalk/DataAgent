@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.utils.DateTimeUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -43,7 +44,6 @@ import org.springframework.util.StringUtils;
 @Component
 public class DateInfoTool implements MarkAgentTool {
 
-    private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
     private static final String HOLIDAY_API_BASE_URL = "https://timor.tech/api/holiday/info";
 
     private final ObjectMapper objectMapper;
@@ -104,10 +104,12 @@ public class DateInfoTool implements MarkAgentTool {
 
     DateInfo resolve(String startDateText, String endDateText, String timezoneText) {
         ZoneId zoneId =
-                ZoneId.of(StringUtils.hasText(timezoneText) ? timezoneText : DEFAULT_TIMEZONE);
+                StringUtils.hasText(timezoneText)
+                        ? ZoneId.of(timezoneText)
+                        : DateTimeUtils.DEFAULT_ZONE;
         LocalDate startDate =
                 StringUtils.hasText(startDateText)
-                        ? LocalDate.parse(startDateText)
+                        ? DateTimeUtils.parseDate(startDateText)
                         : LocalDate.now(clock.withZone(zoneId));
         Optional<HolidayApiResponse> holidayApiResponse = queryHolidayApi(startDate);
         HolidayDetail holiday = holidayApiResponse.map(HolidayApiResponse::holiday).orElse(null);
@@ -126,7 +128,7 @@ public class DateInfoTool implements MarkAgentTool {
                 .holidayDataAvailable(holidayApiResponse.isPresent())
                 .dateDiff(
                         StringUtils.hasText(endDateText)
-                                ? resolveDateDiff(startDate, LocalDate.parse(endDateText))
+                                ? resolveDateDiff(startDate, DateTimeUtils.parseDate(endDateText))
                                 : null)
                 .build();
     }

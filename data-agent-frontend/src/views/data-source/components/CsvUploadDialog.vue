@@ -19,7 +19,13 @@
   import { computed, reactive, ref, watch } from 'vue';
   import { ElMessage } from 'element-plus';
   import { useUserStore } from '@/stores/user';
-  import { confirmCsv, previewCsv, repreviewCsv, type CsvImport } from '@/api/csvImport';
+  import {
+    CSV_COLUMN_TYPES,
+    confirmCsv,
+    previewCsv,
+    repreviewCsv,
+    type CsvImport,
+  } from '@/api/csvImport';
 
   const props = defineProps<{ modelValue: boolean; initial?: CsvImport }>();
   const emit = defineEmits<{
@@ -41,7 +47,6 @@
   const canConfirm = computed(
     () => user.hasPermission('data:csv:import') && user.hasPermission('semantic:table:sync'),
   );
-  const types = ['VARCHAR', 'TEXT', 'BIGINT', 'DECIMAL', 'BOOLEAN', 'DATE', 'DATETIME'];
 
   watch(
     () => props.modelValue,
@@ -187,7 +192,12 @@
           <el-table-column label="类型" width="150">
             <template #default="{ row }">
               <el-select v-model="row.type">
-                <el-option v-for="type in types" :key="type" :value="type" :label="type" />
+                <el-option
+                  v-for="type in CSV_COLUMN_TYPES"
+                  :key="type"
+                  :value="type"
+                  :label="type"
+                />
               </el-select>
             </template>
           </el-table-column>

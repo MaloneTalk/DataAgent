@@ -40,6 +40,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.mapper.CsvImportMapper;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.CsvImportPo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.PermissionService;
 import jakarta.annotation.Resource;
 import java.nio.file.Files;
@@ -80,9 +81,9 @@ public class CsvImportWorker {
                                 .eq(CsvImportPo::getDatasourceId, config.getDatasourceId())
                                 .in(CsvImportPo::getStatus, QUEUED, DATA_READY)
                                 .orderByAsc(CsvImportPo::getCreateTime)
-                                .last("LIMIT 2"));
+                                .last("LIMIT " + executor.getMaxPoolSize()));
         for (CsvImportPo task : tasks) {
-            if (executor.getActiveCount() >= 2) break;
+            if (executor.getActiveCount() >= executor.getMaxPoolSize()) break;
             try {
                 executor.execute(() -> run(task));
             } catch (TaskRejectedException ignored) {
@@ -103,46 +104,44 @@ public class CsvImportWorker {
                             SEMANTIC_TABLE_SYNC);
             holder.set(user);
             var datasource = datasources.requireActive();
-            if (importing) {
-                long count =
-                        tables.importTable(
-                                task,
-                                datasource,
-                                rows -> {
-                                    int changed =
-                                            imports.update(
-                                                    Wrappers.<CsvImportPo>lambdaUpdate()
-                                                            .eq(CsvImportPo::getId, task.getId())
-                                                            .eq(
-                                                                    CsvImportPo::getAttemptId,
-                                                                    task.getAttemptId())
-                                                            .eq(CsvImportPo::getStatus, IMPORTING)
-                                                            .set(
-                                                                    CsvImportPo::getProcessedRows,
-                                                                    rows));
-                                    if (changed != 1)
-                                        throw new IllegalStateException("Import was interrupted");
-                                });
-                task.setRowCount(count);
+            if (importing && !importData(task, datasource)) return;
+            publish(task, datasource);
+        } catch (Exception e) {
+            fail(task, e);
+        } finally {
+            holder.clear();
+        }
+    }
+
+    private boolean importData(CsvImportPo task, DatasourcePo datasource) throws Exception {
+        long count = tables.importTable(task, datasource, rows -> updateProgress(task, rows));
+        task.setRowCount(count);
+        imports.update(
+                Wrappers.<CsvImportPo>lambdaUpdate()
+                        .eq(CsvImportPo::getId, task.getId())
+                        .eq(CsvImportPo::getAttemptId, task.getAttemptId())
+                        .eq(CsvImportPo::getStatus, IMPORTING)
+                        .set(CsvImportPo::getRowCount, count));
+        if (transition(task, IMPORTING, DATA_READY)) return true;
+        discardStaleTable(task);
+        return false;
+    }
+
+    private void updateProgress(CsvImportPo task, long rows) {
+        int changed =
                 imports.update(
                         Wrappers.<CsvImportPo>lambdaUpdate()
                                 .eq(CsvImportPo::getId, task.getId())
                                 .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                                 .eq(CsvImportPo::getStatus, IMPORTING)
-                                .set(CsvImportPo::getRowCount, count));
-                if (!transition(task, IMPORTING, DATA_READY)) {
-                    discardStaleTable(task);
-                    return;
-                }
-            }
-            if (!transition(task, DATA_READY, SYNCING)) return;
-            publisher.publish(task, publisher.snapshot(task, datasource));
-            removeFile(task);
-        } catch (Exception e) {
-            fail(task, task.getStatus() == IMPORTING ? IMPORT_FAILED : SYNC_FAILED, e);
-        } finally {
-            holder.clear();
-        }
+                                .set(CsvImportPo::getProcessedRows, rows));
+        if (changed != 1) throw new IllegalStateException("Import was interrupted");
+    }
+
+    private void publish(CsvImportPo task, DatasourcePo datasource) {
+        if (!transition(task, DATA_READY, SYNCING)) return;
+        publisher.publish(task, publisher.snapshot(task, datasource));
+        removeFile(task);
     }
 
     private boolean transition(CsvImportPo task, CsvImportStatus from, CsvImportStatus to) {
@@ -157,14 +156,13 @@ public class CsvImportWorker {
         return changed == 1;
     }
 
-    private void fail(CsvImportPo task, CsvImportStatus status, Exception error) {
-        String message =
-                error instanceof BusinessException
-                        ? error.getMessage()
-                        : status == IMPORT_FAILED
-                                ? "CSV 解析或数据库写入失败，请检查文件格式、编码、字段类型和导入库连接。"
-                                : "语义同步失败，请检查分析账号的读取权限后重试同步。";
-        CsvImportStatus target = status == IMPORT_FAILED ? CLEANING : SYNC_FAILED;
+    private void fail(CsvImportPo task, Exception error) {
+        boolean importing = task.getStatus() == IMPORTING;
+        String message;
+        if (error instanceof BusinessException) message = error.getMessage();
+        else if (importing) message = "CSV 解析或数据库写入失败，请检查文件格式、编码、字段类型和导入库连接。";
+        else message = "语义同步失败，请检查分析账号的读取权限后重试同步。";
+        CsvImportStatus target = importing ? CLEANING : SYNC_FAILED;
         int changed =
                 imports.update(
                         Wrappers.<CsvImportPo>lambdaUpdate()
@@ -224,6 +222,19 @@ public class CsvImportWorker {
     public void cleanup() {
         if (config.getDatasourceId() <= 0) return;
         LocalDateTime now = LocalDateTime.now();
+        recoverTimedOutTasks(now);
+        for (CsvImportPo task : cleanupCandidates(now)) {
+            try {
+                cleanupTask(task, now);
+            } catch (Exception e) {
+                log.warn("CSV cleanup deferred: {}", task.getId());
+            }
+        }
+        cleanupOrphanFiles();
+        cleanupOrphanTables();
+    }
+
+    private void recoverTimedOutTasks(LocalDateTime now) {
         // Ten minutes is a recovery threshold, not proof that the old worker has stopped.
         // Attempt-guarded updates and distinct retry tables fence workers that later resume.
         imports.update(
@@ -240,6 +251,9 @@ public class CsvImportWorker {
                         .lt(CsvImportPo::getUpdateTime, now.minusMinutes(10))
                         .set(CsvImportPo::getStatus, SYNC_FAILED)
                         .set(CsvImportPo::getErrorMessage, "语义同步中断，请重试同步。"));
+    }
+
+    private List<CsvImportPo> cleanupCandidates(LocalDateTime now) {
         var query =
                 Wrappers.<CsvImportPo>lambdaQuery()
                         .eq(CsvImportPo::getDatasourceId, config.getDatasourceId());
@@ -255,26 +269,20 @@ public class CsvImportWorker {
                                         EXPIRED)
                                 .isNotNull(CsvImportPo::getExpiresAt)
                                 .lt(CsvImportPo::getExpiresAt, now));
-        List<CsvImportPo> tasks =
-                imports.selectList(query.orderByAsc(CsvImportPo::getUpdateTime).last("LIMIT 100"));
-        for (CsvImportPo task : tasks) {
-            try {
-                if (task.getStatus() == CLEANUP_FAILED
-                        && transition(task, CLEANUP_FAILED, CLEANING)) cleanupTable(task);
-                if (task.getStatus() == DELETING
-                        && task.getUpdateTime().isBefore(now.minusMinutes(10)))
-                    transition(task, DELETING, DELETE_FAILED);
-                if (task.getStatus() == READY || task.getStatus() == EXPIRED) removeFile(task);
-                else if ((task.getStatus() == PREVIEWED || task.getStatus() == IMPORT_FAILED)
-                        && task.getExpiresAt().isBefore(now)) {
-                    if (transition(task, task.getStatus(), EXPIRED)) removeFile(task);
-                }
-            } catch (Exception e) {
-                log.warn("CSV cleanup deferred: {}", task.getId());
-            }
+        return imports.selectList(query.orderByAsc(CsvImportPo::getUpdateTime).last("LIMIT 100"));
+    }
+
+    private void cleanupTask(CsvImportPo task, LocalDateTime now) {
+        if (task.getStatus() == CLEANUP_FAILED && transition(task, CLEANUP_FAILED, CLEANING))
+            cleanupTable(task);
+        if (task.getStatus() == DELETING && task.getUpdateTime().isBefore(now.minusMinutes(10)))
+            transition(task, DELETING, DELETE_FAILED);
+        // A cleaned failed import can also expire during this pass.
+        if (task.getStatus() == READY || task.getStatus() == EXPIRED) removeFile(task);
+        else if ((task.getStatus() == PREVIEWED || task.getStatus() == IMPORT_FAILED)
+                && task.getExpiresAt().isBefore(now)) {
+            if (transition(task, task.getStatus(), EXPIRED)) removeFile(task);
         }
-        cleanupOrphanFiles();
-        cleanupOrphanTables();
     }
 
     private void cleanupOrphanTables() {
@@ -293,6 +301,7 @@ public class CsvImportWorker {
 
     private void cleanupOrphanFiles() {
         if (!Files.isDirectory(config.getDirectory())) return;
+        Instant expiresBefore = Instant.now().minus(1, ChronoUnit.DAYS);
         try (var paths = Files.list(config.getDirectory())) {
             var candidates =
                     paths.filter(
@@ -304,9 +313,7 @@ public class CsvImportWorker {
             while (candidates.hasNext()) {
                 var path = candidates.next();
                 String id = path.getFileName().toString().substring(0, 32);
-                if (Files.getLastModifiedTime(path)
-                                .toInstant()
-                                .isBefore(Instant.now().minus(1, ChronoUnit.DAYS))
+                if (Files.getLastModifiedTime(path).toInstant().isBefore(expiresBefore)
                         && Optional.ofNullable(imports.selectById(id)).isEmpty()) files.delete(id);
             }
         } catch (Exception e) {

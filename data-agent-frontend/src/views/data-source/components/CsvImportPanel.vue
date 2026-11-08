@@ -20,7 +20,13 @@
   import { useRouter } from 'vue-router';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useUserStore } from '@/stores/user';
-  import { deleteCsv, getCsvImports, syncCsv, type CsvImport } from '@/api/csvImport';
+  import {
+    deleteCsv,
+    getCsvImports,
+    syncCsv,
+    type CsvImport,
+    type CsvImportStatus,
+  } from '@/api/csvImport';
   import CsvUploadDialog from './CsvUploadDialog.vue';
 
   const props = defineProps<{ modelValue: boolean }>();
@@ -40,8 +46,15 @@
   const operating = ref('');
   let timer: ReturnType<typeof setTimeout> | undefined;
   let loadRequest = 0;
-  const pending = new Set(['QUEUED', 'IMPORTING', 'DATA_READY', 'SYNCING', 'CLEANING', 'DELETING']);
-  const statusLabels: Record<string, string> = {
+  const pending = new Set<CsvImportStatus>([
+    'QUEUED',
+    'IMPORTING',
+    'DATA_READY',
+    'SYNCING',
+    'CLEANING',
+    'DELETING',
+  ]);
+  const statusLabels: Record<CsvImportStatus, string> = {
     PREVIEWED: '待确认',
     QUEUED: '排队中',
     IMPORTING: '导入中',
@@ -56,6 +69,10 @@
     DELETE_FAILED: '删除失败',
     EXPIRED: '文件已过期',
   };
+
+  function statusLabel(status: CsvImportStatus): string {
+    return statusLabels[status] ?? status;
+  }
 
   function stopPolling() {
     clearTimeout(timer);
@@ -175,7 +192,7 @@
               row.status === 'READY' ? 'success' : row.status.includes('FAILED') ? 'danger' : 'info'
             "
           >
-            {{ statusLabels[row.status] ?? row.status }}
+            {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>

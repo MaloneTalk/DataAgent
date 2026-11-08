@@ -24,6 +24,7 @@ import io.github.malonetalk.model.converter.CsvSchemaConverter;
 import io.github.malonetalk.model.dto.CsvColumnDto;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.utils.CsvPhysicalNames;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -104,7 +105,7 @@ public class CsvTableImportService {
                         .map(
                                 column ->
                                         "`"
-                                                + converter.physicalColumn(column.index())
+                                                + CsvPhysicalNames.column(column.index())
                                                 + "` "
                                                 + converter.sqlType(column)
                                                 + " NULL COMMENT '"
@@ -222,7 +223,7 @@ public class CsvTableImportService {
     }
 
     private String table(CsvImportPo task) {
-        if (!task.getPhysicalTableName().matches("csv_t_[a-f0-9]{32}")
+        if (!CsvPhysicalNames.isManagedTable(task.getPhysicalTableName())
                 || !task.getId().matches("[a-f0-9]{32}"))
             throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "CSV 物理表名称无效。");
         return "`" + task.getPhysicalTableName() + "`";
@@ -242,7 +243,7 @@ public class CsvTableImportService {
                                     new String[] {"TABLE"})) {
                 while (rows.next()) {
                     String name = rows.getString("TABLE_NAME");
-                    if (name.matches("csv_t_[a-f0-9]{32}")) candidates.add(name);
+                    if (CsvPhysicalNames.isManagedTable(name)) candidates.add(name);
                 }
             }
             try (var statement = connection.createStatement()) {

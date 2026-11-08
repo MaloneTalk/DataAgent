@@ -21,6 +21,7 @@ import io.github.malonetalk.model.bo.CsvPreviewBo;
 import io.github.malonetalk.model.dto.CsvParseOptions;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.vo.CsvImportVo;
+import io.github.malonetalk.utils.CsvPhysicalNames;
 import java.util.List;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
@@ -30,6 +31,7 @@ import org.mapstruct.ReportingPolicy;
 @Mapper(
         componentModel = "spring",
         uses = CsvSchemaConverter.class,
+        imports = CsvPhysicalNames.class,
         unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface CsvImportConverter {
     @Mapping(target = "columns", source = "task.columnsJson")
@@ -45,7 +47,7 @@ public interface CsvImportConverter {
             target = "displayName",
             expression = "java(filename.substring(0, Math.min(filename.length() - 4, 200)))")
     @Mapping(target = "description", constant = "")
-    @Mapping(target = "physicalTableName", expression = "java(\"csv_t_\" + id)")
+    @Mapping(target = "physicalTableName", expression = "java(CsvPhysicalNames.table(id))")
     @Mapping(target = "attemptId", constant = "")
     @Mapping(target = "fileSha256", source = "hash")
     @Mapping(target = "fileSize", source = "size")

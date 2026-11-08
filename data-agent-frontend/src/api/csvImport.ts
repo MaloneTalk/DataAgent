@@ -18,6 +18,33 @@
 import request from './request';
 import type { ApiResponse } from './request';
 
+export const CSV_COLUMN_TYPES = [
+  'VARCHAR',
+  'TEXT',
+  'BIGINT',
+  'DECIMAL',
+  'BOOLEAN',
+  'DATE',
+  'DATETIME',
+] as const;
+
+export type CsvColumnType = (typeof CSV_COLUMN_TYPES)[number];
+
+export type CsvImportStatus =
+  | 'PREVIEWED'
+  | 'QUEUED'
+  | 'IMPORTING'
+  | 'DATA_READY'
+  | 'SYNCING'
+  | 'READY'
+  | 'IMPORT_FAILED'
+  | 'SYNC_FAILED'
+  | 'CLEANING'
+  | 'CLEANUP_FAILED'
+  | 'DELETING'
+  | 'DELETE_FAILED'
+  | 'EXPIRED';
+
 export interface CsvParseOptions {
   encoding: string;
   delimiter: string;
@@ -28,7 +55,7 @@ export interface CsvParseOptions {
 export interface CsvColumn {
   index: number;
   name: string;
-  type: string;
+  type: CsvColumnType;
   length: number;
   precision: number;
   scale: number;
@@ -41,7 +68,7 @@ export interface CsvImport {
   description: string;
   originalFilename: string;
   physicalTableName: string;
-  status: string;
+  status: CsvImportStatus;
   processedRows: number;
   rowCount: number;
   errorMessage: string;

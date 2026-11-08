@@ -45,6 +45,7 @@ import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.vo.CsvImportPageVo;
 import io.github.malonetalk.model.vo.CsvImportVo;
 import io.github.malonetalk.service.DataPermissionService;
+import io.github.malonetalk.utils.CsvPhysicalNames;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -135,7 +136,9 @@ public class CsvImportService {
                                 .set(CsvImportPo::getColumnsJson, schema.json(request.columns()))
                                 .set(CsvImportPo::getStatus, QUEUED)
                                 // A new table isolates a resumed worker from the retry's data.
-                                .set(CsvImportPo::getPhysicalTableName, "csv_t_" + attemptId)
+                                .set(
+                                        CsvImportPo::getPhysicalTableName,
+                                        CsvPhysicalNames.table(attemptId))
                                 .set(CsvImportPo::getAttemptId, attemptId)
                                 .set(CsvImportPo::getSubmittedBy, holder.checkAndGet().userId())
                                 .set(CsvImportPo::getProcessedRows, 0)

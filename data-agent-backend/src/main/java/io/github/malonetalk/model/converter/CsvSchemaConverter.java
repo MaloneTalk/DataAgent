@@ -23,14 +23,11 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.dto.CsvColumnDto;
 import io.github.malonetalk.model.dto.CsvParseOptions;
+import io.github.malonetalk.utils.DateTimeUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.ResolverStyle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -43,9 +40,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class CsvSchemaConverter {
-    private static final DateTimeFormatter TIMESTAMP =
-            DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")
-                    .withResolverStyle(ResolverStyle.STRICT);
     private final ObjectMapper objectMapper;
 
     @Named("csvJson")
@@ -71,10 +65,6 @@ public class CsvSchemaConverter {
         } catch (Exception e) {
             throw new IllegalStateException("Cannot read CSV options", e);
         }
-    }
-
-    public String physicalColumn(int index) {
-        return "c%03d".formatted(index + 1);
     }
 
     public void validate(List<CsvColumnDto> columns, int expected) {
@@ -157,20 +147,8 @@ public class CsvSchemaConverter {
                                     ErrorCode.CSV_SCHEMA_INVALID, "布尔值必须为 true 或 false。");
                         yield Boolean.parseBoolean(text);
                     }
-                    case "DATE" -> {
-                        LocalDate date = LocalDate.parse(text);
-                        if (date.getYear() < 1000 || date.getYear() > 9999)
-                            throw BusinessException.of(
-                                    ErrorCode.CSV_SCHEMA_INVALID, "日期超出 MySQL 范围。");
-                        yield Date.valueOf(date);
-                    }
-                    case "DATETIME" -> {
-                        LocalDateTime date = dateTime(text);
-                        if (date.getYear() < 1000 || date.getYear() > 9999 || date.getNano() != 0)
-                            throw BusinessException.of(
-                                    ErrorCode.CSV_SCHEMA_INVALID, "日期时间必须在 MySQL 范围内，且精确到秒。");
-                        yield Timestamp.valueOf(date);
-                    }
+                    case "DATE" -> Date.valueOf(DateTimeUtils.parseMysqlDate(text));
+                    case "DATETIME" -> Timestamp.valueOf(DateTimeUtils.parseMysqlDateTime(text));
                     default ->
                             throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "不支持的字段类型。");
                 };
@@ -232,22 +210,16 @@ public class CsvSchemaConverter {
         if (text.matches("[+-]?[0-9]+[.][0-9]+")) return "DECIMAL";
         try {
             if (text.length() == 10) {
-                LocalDate.parse(text);
+                DateTimeUtils.parseMysqlDate(text);
                 return "DATE";
             }
             if (text.length() == 19) {
-                dateTime(text);
+                DateTimeUtils.parseMysqlDateTime(text);
                 return "DATETIME";
             }
         } catch (RuntimeException ignored) {
             // Ambiguous or invalid dates remain text.
         }
         return "VARCHAR";
-    }
-
-    private LocalDateTime dateTime(String text) {
-        return text.indexOf('T') >= 0
-                ? LocalDateTime.parse(text)
-                : LocalDateTime.parse(text, TIMESTAMP);
     }
 }
