@@ -24,7 +24,7 @@ import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.DatasourcePo;
-import io.github.malonetalk.model.po.SessionDatasource;
+import io.github.malonetalk.model.po.SessionDatasourcePo;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class SessionDatasourceService
-        extends ServiceImpl<SessionDatasourceMapper, SessionDatasource> {
+        extends ServiceImpl<SessionDatasourceMapper, SessionDatasourcePo> {
 
     private final UserContextHolder userContextHolder;
     private final DatasourceService datasourceService;
@@ -48,14 +48,14 @@ public class SessionDatasourceService
         userContextHolder.set(user);
         try {
             remove(
-                    Wrappers.<SessionDatasource>lambdaQuery()
-                            .eq(SessionDatasource::getSessionId, sessionId));
+                    Wrappers.<SessionDatasourcePo>lambdaQuery()
+                            .eq(SessionDatasourcePo::getSessionId, sessionId));
             if (!datasourceIds.isEmpty()) {
-                List<SessionDatasource> rows =
+                List<SessionDatasourcePo> rows =
                         datasourceIds.stream()
                                 .map(
                                         datasourceId -> {
-                                            SessionDatasource row = new SessionDatasource();
+                                            SessionDatasourcePo row = new SessionDatasourcePo();
                                             row.setSessionId(sessionId);
                                             row.setDatasourceId(datasourceId);
                                             return row;
@@ -74,8 +74,8 @@ public class SessionDatasourceService
 
     public void deleteBySessionId(String sessionId) {
         remove(
-                Wrappers.<SessionDatasource>lambdaQuery()
-                        .eq(SessionDatasource::getSessionId, sessionId));
+                Wrappers.<SessionDatasourcePo>lambdaQuery()
+                        .eq(SessionDatasourcePo::getSessionId, sessionId));
     }
 
     public List<SessionDatasourceBinding> listBindingsWithDatasourceName() {
@@ -84,10 +84,10 @@ public class SessionDatasourceService
             names.put(datasource.getId(), datasource.getName());
         }
         return list(
-                        Wrappers.<SessionDatasource>lambdaQuery()
+                        Wrappers.<SessionDatasourcePo>lambdaQuery()
                                 .select(
-                                        SessionDatasource::getSessionId,
-                                        SessionDatasource::getDatasourceId))
+                                        SessionDatasourcePo::getSessionId,
+                                        SessionDatasourcePo::getDatasourceId))
                 .stream()
                 .map(
                         row -> {

@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.mapper;
 
-import io.github.malonetalk.model.po.SessionDatasource;
+import io.github.malonetalk.model.po.SessionDatasourcePo;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface SessionDatasourceMapper extends AuditableMapper<SessionDatasource> {}
+public interface SessionDatasourceMapper extends AuditableMapper<SessionDatasourcePo> {}

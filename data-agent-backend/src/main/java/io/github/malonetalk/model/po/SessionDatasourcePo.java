@@ -27,7 +27,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("session_datasource")
-public class SessionDatasource extends BasePo {
+public class SessionDatasourcePo extends BasePo {
 
     @TableId(type = IdType.AUTO)
     private Long id;
