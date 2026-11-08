@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.model.converter;
 
+import io.github.malonetalk.common.CsvLimits;
 import io.github.malonetalk.model.bo.CsvPreviewBo;
 import io.github.malonetalk.model.dto.CsvParseOptions;
 import io.github.malonetalk.model.po.CsvImportPo;
@@ -31,7 +32,7 @@ import org.mapstruct.ReportingPolicy;
 @Mapper(
         componentModel = "spring",
         uses = CsvSchemaConverter.class,
-        imports = CsvPhysicalNames.class,
+        imports = {CsvPhysicalNames.class, CsvLimits.class},
         unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface CsvImportConverter {
     @Mapping(target = "columns", source = "task.columnsJson")
@@ -45,7 +46,9 @@ public interface CsvImportConverter {
     @Mapping(target = "originalFilename", source = "filename")
     @Mapping(
             target = "displayName",
-            expression = "java(filename.substring(0, Math.min(filename.length() - 4, 200)))")
+            expression =
+                    "java(filename.substring(0, Math.min(filename.length() - 4,"
+                            + " CsvLimits.MAX_NAME_LENGTH)))")
     @Mapping(target = "description", constant = "")
     @Mapping(target = "physicalTableName", expression = "java(CsvPhysicalNames.table(id))")
     @Mapping(target = "attemptId", constant = "")

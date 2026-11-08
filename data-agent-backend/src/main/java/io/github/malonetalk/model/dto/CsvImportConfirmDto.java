@@ -17,6 +17,9 @@
  */
 package io.github.malonetalk.model.dto;
 
+import static io.github.malonetalk.common.CsvLimits.MAX_COLUMNS;
+import static io.github.malonetalk.common.CsvLimits.MAX_NAME_LENGTH;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -27,6 +30,6 @@ import lombok.Builder;
 
 @Builder
 public record CsvImportConfirmDto(
-        @NotBlank @Size(max = 200) String displayName,
+        @NotBlank @Size(max = MAX_NAME_LENGTH) String displayName,
         @Size(max = 400) String description,
-        @NotEmpty @Size(max = 100) List<@NotNull @Valid CsvColumnDto> columns) {}
+        @NotEmpty @Size(max = MAX_COLUMNS) List<@NotNull @Valid CsvColumnDto> columns) {}

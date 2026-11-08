@@ -17,6 +17,9 @@
  */
 package io.github.malonetalk.service.csv;
 
+import static io.github.malonetalk.common.CsvLimits.MAX_COLUMNS;
+import static io.github.malonetalk.common.CsvLimits.MAX_NAME_LENGTH;
+
 import io.github.malonetalk.config.CsvImportConfig;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -51,12 +54,15 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class CsvFileService {
-    public static final long MAX_BYTES = 50L * 1024 * 1024;
+    private static final long MAX_FILE_BYTES = 50L * 1024 * 1024;
+    private static final int MAX_CELL_BYTES = 16 * 1024;
+    private static final int INFERENCE_ROWS = 1000;
+    private static final int PREVIEW_ROWS = 20;
     private final CsvImportConfig config;
     private final CsvSchemaConverter converter;
 
     public String save(String id, MultipartFile file) throws Exception {
-        if (file.isEmpty() || file.getSize() > MAX_BYTES)
+        if (file.isEmpty() || file.getSize() > MAX_FILE_BYTES)
             throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "文件必须在 1 字节到 50 MiB 之间。");
         Files.createDirectories(config.getDirectory());
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -66,7 +72,7 @@ public class CsvFileService {
             long count = 0;
             for (int length; (length = input.read(buffer)) != -1; ) {
                 count += length;
-                if (count > MAX_BYTES)
+                if (count > MAX_FILE_BYTES)
                     throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "文件超过 50 MiB。");
                 output.write(buffer, 0, length);
             }
@@ -75,7 +81,7 @@ public class CsvFileService {
     }
 
     public void verify(String id, String expectedHash) throws Exception {
-        if (Files.size(path(id)) > MAX_BYTES)
+        if (Files.size(path(id)) > MAX_FILE_BYTES)
             throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "文件超过 50 MiB。");
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         try (var input = new DigestInputStream(Files.newInputStream(path(id)), digest)) {
@@ -136,12 +142,13 @@ public class CsvFileService {
             for (int i = 0; i < first.size(); i++) {
                 String name =
                         options.header() && !first.get(i).isBlank() ? first.get(i) : "字段" + (i + 1);
-                if (name.length() > 200)
-                    throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "表头不能超过 200 字。");
+                if (name.length() > MAX_NAME_LENGTH)
+                    throw BusinessException.of(
+                            ErrorCode.CSV_FILE_INVALID, "表头不能超过 " + MAX_NAME_LENGTH + " 字。");
                 names.add(name);
             }
             if (!options.header()) sample.add(first.toList());
-            while (sample.size() < 1000 && iterator.hasNext()) {
+            while (sample.size() < INFERENCE_ROWS && iterator.hasNext()) {
                 CSVRecord record = iterator.next();
                 validateAndMeasure(record, names.size());
                 sample.add(record.toList());
@@ -158,7 +165,7 @@ public class CsvFileService {
                                 sample.stream().map(row -> row.get(index)).toList(),
                                 options.emptyAsNull()));
             }
-            return new CsvPreviewBo(columns, sample.stream().limit(20).toList());
+            return new CsvPreviewBo(columns, sample.stream().limit(PREVIEW_ROWS).toList());
         } catch (IOException | UncheckedIOException e) {
             throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "无法解析 CSV，请检查文件编码、分隔符和引号格式。");
         }
@@ -166,14 +173,14 @@ public class CsvFileService {
 
     /** Validates record limits and returns UTF-8 payload bytes for import batch sizing. */
     public long validateAndMeasure(CSVRecord record, int columns) {
-        if (columns < 1 || columns > 100 || record.size() != columns)
+        if (columns < 1 || columns > MAX_COLUMNS || record.size() != columns)
             throw BusinessException.of(
                     ErrorCode.CSV_FILE_INVALID,
-                    "第 " + record.getRecordNumber() + " 条记录列数不一致，最多允许 100 列。");
+                    "第 " + record.getRecordNumber() + " 条记录列数不一致，最多允许 " + MAX_COLUMNS + " 列。");
         long bytes = 0;
         for (int i = 0; i < record.size(); i++) {
             int cellBytes = record.get(i).getBytes(StandardCharsets.UTF_8).length;
-            if (cellBytes > 16 * 1024)
+            if (cellBytes > MAX_CELL_BYTES)
                 throw BusinessException.of(
                         ErrorCode.CSV_FILE_INVALID,
                         "第 " + record.getRecordNumber() + " 条记录，第 " + (i + 1) + " 列超过 16 KiB。");

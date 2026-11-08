@@ -17,6 +17,9 @@
  */
 package io.github.malonetalk.model.converter;
 
+import static io.github.malonetalk.common.CsvLimits.MAX_COLUMNS;
+import static io.github.malonetalk.common.CsvLimits.MAX_NAME_LENGTH;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.exception.BusinessException;
@@ -68,8 +71,9 @@ public class CsvSchemaConverter {
     }
 
     public void validate(List<CsvColumnDto> columns, int expected) {
-        if (columns.size() != expected || expected < 1 || expected > 100) {
-            throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "字段数量与文件不一致，最多允许 100 列。");
+        if (columns.size() != expected || expected < 1 || expected > MAX_COLUMNS) {
+            throw BusinessException.of(
+                    ErrorCode.CSV_SCHEMA_INVALID, "字段数量与文件不一致，最多允许 " + MAX_COLUMNS + " 列。");
         }
         int rowBytes = 0;
         for (int i = 0; i < columns.size(); i++) {
@@ -77,9 +81,10 @@ public class CsvSchemaConverter {
             if (column.index() != i
                     || column.name() == null
                     || column.name().isBlank()
-                    || column.name().length() > 200) {
+                    || column.name().length() > MAX_NAME_LENGTH) {
                 throw BusinessException.of(
-                        ErrorCode.CSV_SCHEMA_INVALID, "字段必须按原文件顺序提交，并填写不超过 200 字的名称。");
+                        ErrorCode.CSV_SCHEMA_INVALID,
+                        "字段必须按原文件顺序提交，并填写不超过 " + MAX_NAME_LENGTH + " 字的名称。");
             }
             sqlType(column);
             rowBytes += "VARCHAR".equals(column.type()) ? column.length() * 4 + 2 : 32;

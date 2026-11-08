@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.model.dto;
 
+import static io.github.malonetalk.common.CsvLimits.MAX_NAME_LENGTH;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,7 +28,7 @@ import lombok.Builder;
 @Builder
 public record CsvColumnDto(
         @Min(0) @Max(99) int index,
-        @NotBlank @Size(max = 200) String name,
+        @NotBlank @Size(max = MAX_NAME_LENGTH) String name,
         @NotBlank String type,
         Integer length,
         Integer precision,

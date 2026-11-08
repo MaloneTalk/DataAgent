@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, onBeforeUnmount, ref, watch } from 'vue';
+  import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
   import { useRouter } from 'vue-router';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useUserStore } from '@/stores/user';
@@ -43,7 +43,8 @@
   const loading = ref(false);
   const uploadVisible = ref(false);
   const initial = ref<CsvImport>();
-  const operating = ref('');
+  // Each row owns its operation, including the pending delete confirmation.
+  const operating = reactive(new Set<string>());
   let timer: ReturnType<typeof setTimeout> | undefined;
   let loadRequest = 0;
   const pending = new Set<CsvImportStatus>([
@@ -118,42 +119,41 @@
   });
 
   function upload(row?: CsvImport) {
+    if (row && operating.has(row.id)) return;
     initial.value = row;
     uploadVisible.value = true;
   }
 
   async function retry(row: CsvImport) {
-    operating.value = row.id;
+    if (operating.has(row.id)) return;
+    operating.add(row.id);
     try {
       await syncCsv(row.id);
       await load();
     } catch {
       /* The request interceptor displays the error. */
     } finally {
-      operating.value = '';
+      operating.delete(row.id);
     }
   }
 
   async function remove(row: CsvImport) {
+    if (operating.has(row.id)) return;
+    operating.add(row.id);
     try {
       await ElMessageBox.confirm(
         `将删除「${row.displayName}」及其导入数据，无法恢复。`,
         '删除 CSV',
         { type: 'warning' },
       );
-    } catch {
-      return;
-    }
-    operating.value = row.id;
-    try {
       await deleteCsv(row.id);
       ElMessage.success('已删除');
       if (rows.value.length === 1 && page.value > 1) page.value--;
       await load();
     } catch {
-      /* The request interceptor displays the error. */
+      // Ignore dialog cancellation; request failures are displayed by the interceptor.
     } finally {
-      operating.value = '';
+      operating.delete(row.id);
     }
   }
 
@@ -209,6 +209,7 @@
             v-permission="'data:csv:import'"
             link
             type="primary"
+            :disabled="operating.has(row.id)"
             @click="upload(row)"
           >
             调整并导入
@@ -221,7 +222,7 @@
             "
             link
             type="primary"
-            :loading="operating === row.id"
+            :loading="operating.has(row.id)"
             @click="retry(row)"
           >
             重试同步
@@ -231,7 +232,7 @@
             v-permission="'data:csv:delete'"
             link
             type="danger"
-            :disabled="operating === row.id"
+            :disabled="operating.has(row.id)"
             @click="remove(row)"
           >
             删除

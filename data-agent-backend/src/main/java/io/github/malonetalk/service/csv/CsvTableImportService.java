@@ -43,6 +43,10 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class CsvTableImportService {
+    private static final int MAX_IMPORT_ROWS = 100000;
+    private static final int MAX_BATCH_ROWS = 1000;
+    private static final long MAX_BATCH_BYTES = 1024 * 1024;
+
     private final CsvImportConfig config;
     private final CsvFileService files;
     private final CsvSchemaConverter converter;
@@ -144,11 +148,11 @@ public class CsvTableImportService {
             for (CSVRecord record : parser) {
                 long bytes = files.validateAndMeasure(record, columns.size());
                 if (record.getRecordNumber() == 1 && options.header()) continue;
-                if (++count > 100000)
+                if (++count > MAX_IMPORT_ROWS)
                     throw BusinessException.of(
-                            ErrorCode.CSV_FILE_INVALID, "CSV 最多允许 100000 条数据记录。");
+                            ErrorCode.CSV_FILE_INVALID, "CSV 最多允许 " + MAX_IMPORT_ROWS + " 条数据记录。");
                 task.setProcessedRows(count);
-                if (batchRows > 0 && batchBytes + bytes > 1024 * 1024) {
+                if (batchRows > 0 && batchBytes + bytes > MAX_BATCH_BYTES) {
                     flush(connection, statement, count - 1, progress);
                     batchRows = 0;
                     batchBytes = 0;
@@ -157,7 +161,7 @@ public class CsvTableImportService {
                 statement.addBatch();
                 batchRows++;
                 batchBytes += bytes;
-                if (batchRows == 1000) {
+                if (batchRows == MAX_BATCH_ROWS) {
                     flush(connection, statement, count, progress);
                     batchRows = 0;
                     batchBytes = 0;
