@@ -17,12 +17,12 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
 import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
@@ -30,6 +30,7 @@ import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -46,19 +47,20 @@ public class GetTableSchemaTool implements MarkAgentTool {
 
     @Tool(
             name = "get_table_schema",
+            converter = ToolResultBoConverter.class,
             description =
                     """
                     Get synced semantic-layer schema information for the specified table, \
                     including column name, physical data type, semantic type, primary key flag, \
                     index hints and column descriptions. Call this tool before generating SQL.\
                     """)
-    public ToolResultBlock getTableSchema(
+    public ToolResultBo getTableSchema(
             @ToolParam(name = "table_name", description = "The table name to query schema for")
                     String tableName,
             ToolCallContext ctx) {
-        var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
-        return toolExceptionMapper.run(
+        return toolExceptionMapper.runResult(
                 () -> {
+                    var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
                     DatasourcePo datasource =
                             dataSourceService.getDatasourceForSession(ctx.sessionId());
 
@@ -70,9 +72,10 @@ public class GetTableSchemaTool implements MarkAgentTool {
                                     .stream()
                                     .filter(c -> scope.canColumn(authorizedTable, c.name()))
                                     .toList();
-                    return ToolResultBlock.text(
+                    return new ToolResultBo(
                             SemanticUtils.formatTableSchema(authorizedTable, columns)
-                                    + ToolCallConstants.METRIC_CALIBER_REMINDER);
+                                    + ToolCallConstants.METRIC_CALIBER_REMINDER,
+                            Map.of());
                 });
     }
 }

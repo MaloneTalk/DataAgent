@@ -17,18 +17,16 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import io.agentscope.core.message.TextBlock;
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.ToolSuspendException;
-import java.util.Map;
-
 import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.model.bo.ToolResultBo;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** 将 agent tool 内部异常转换为结构化 ToolResultBlock.error，避免工具异常打断整条 SSE 流。 */
+/** 将 agent tool 内部异常转换为带错误元数据的 ToolResultBo，避免异常打断整条 SSE 流。 */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -39,8 +37,7 @@ public class ToolExceptionMapper {
 
     private final ExceptionResponseMapper exceptionResponseMapper;
 
-    // TODO: 所有工具都接上，并且转为AOP切面形式
-    public ToolResultBlock run(ToolAction action) {
+    public ToolResultBo runResult(ToolAction action) {
         try {
             return action.run();
         } catch (ToolSuspendException exception) {
@@ -53,9 +50,9 @@ public class ToolExceptionMapper {
         }
     }
 
-    private ToolResultBlock toToolError(ErrorResponse errorResponse) {
-        return ToolResultBlock.of(
-                TextBlock.builder().text(errorResponse.message()).build(),
+    private ToolResultBo toToolError(ErrorResponse errorResponse) {
+        return new ToolResultBo(
+                errorResponse.message(),
                 Map.of(
                         METADATA_ERROR_CODE,
                         errorResponse.errorCode().getCode(),
@@ -65,6 +62,6 @@ public class ToolExceptionMapper {
 
     @FunctionalInterface
     public interface ToolAction {
-        ToolResultBlock run() throws Exception;
+        ToolResultBo run() throws Exception;
     }
 }

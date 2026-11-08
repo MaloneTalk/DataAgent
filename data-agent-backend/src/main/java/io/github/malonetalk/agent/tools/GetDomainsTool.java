@@ -17,12 +17,12 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
@@ -47,14 +47,15 @@ public class GetDomainsTool implements MarkAgentTool {
 
     @Tool(
             name = "get_domains",
+            converter = ToolResultBoConverter.class,
             description =
                     "Get available data domains, including domain names and descriptions. Call"
                             + " this tool first to choose the most relevant domains before querying"
                             + " tables.")
-    public ToolResultBlock getDomains(ToolCallContext ctx) {
-        var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
-        return toolExceptionMapper.run(
+    public ToolResultBo getDomains(ToolCallContext ctx) {
+        return toolExceptionMapper.runResult(
                 () -> {
+                    var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
                     var datasource = datasources.getDatasourceForSession(ctx.sessionId());
                     var scope = dataPermissions.loadScope(user, datasource.getId());
                     var domains =
@@ -63,7 +64,7 @@ public class GetDomainsTool implements MarkAgentTool {
                                     .filter(table -> scope.canTable(table.getTableName()))
                                     .map(table -> SemanticUtils.normalizeDomain(table.getDomain()))
                                     .collect(Collectors.toSet());
-                    return ToolResultBlock.text(
+                    return ToolResultBo.of(
                             JsonUtils.getJsonCodec()
                                     .toJson(
                                             domainService.listDomainPrompts().stream()

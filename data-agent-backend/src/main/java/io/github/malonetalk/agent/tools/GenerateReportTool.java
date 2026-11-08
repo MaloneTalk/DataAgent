@@ -17,11 +17,11 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.ReportService;
 import lombok.AllArgsConstructor;
@@ -43,6 +43,7 @@ public class GenerateReportTool implements MarkAgentTool {
 
     @Tool(
             name = ToolCallConstants.GENERATE_REPORT,
+            converter = ToolResultBoConverter.class,
             description =
                     """
                     保存数据分析报告。
@@ -56,7 +57,7 @@ public class GenerateReportTool implements MarkAgentTool {
                     则将失败原因告知用户，并直接将完整的报告内容输出给用户。
                     当保存成功时，无需将报告内容复述给用户，直接告知用户"报告生成成功，请查看"即可。
                     """)
-    public ToolResultBlock generateReport(
+    public ToolResultBo generateReport(
             @ToolParam(
                             name = "title",
                             description =
@@ -84,18 +85,18 @@ public class GenerateReportTool implements MarkAgentTool {
                                     """)
                     String markdownText,
             ToolCallContext ctx) {
-        permissions.require(ctx.userId(), PermissionEnum.ASSET_REPORT_GENERATE);
         String sessionId = ctx.sessionId();
         if (!StringUtils.hasText(sessionId)) {
             log.warn("工具上下文中不存在session_id，使用默认session存储");
             sessionId = DEFAULT_SESSION;
         }
         String reportSessionId = sessionId;
-        return toolExceptionMapper.run(
-                () ->
-                        ToolResultBlock.text(
-                                ToolCallConstants.SUCCESS_PREFIX
-                                        + reportService.create(
-                                                reportSessionId, title, markdownText)));
+        return toolExceptionMapper.runResult(
+                () -> {
+                    permissions.require(ctx.userId(), PermissionEnum.ASSET_REPORT_GENERATE);
+                    return ToolResultBo.of(
+                            ToolCallConstants.SUCCESS_PREFIX
+                                    + reportService.create(reportSessionId, title, markdownText));
+                });
     }
 }
