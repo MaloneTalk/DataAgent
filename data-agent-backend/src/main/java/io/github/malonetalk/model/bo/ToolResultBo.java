@@ -15,17 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.entity;
+package io.github.malonetalk.model.bo;
 
-import java.time.LocalDateTime;
-import lombok.Data;
+import java.util.Map;
 
-/** 会话与数据源绑定关系（session_id → datasource_id，一会话一源）。 */
-@Data
-public class SessionDatasource {
+/** Result returned by an AgentScope tool before it is converted to a ToolResultBlock. */
+public record ToolResultBo(String text, Map<String, Object> metadata) {
 
-    private String sessionId;
-    private Integer datasourceId;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    public ToolResultBo {
+        text = text == null ? "" : text;
+        metadata = metadata == null ? Map.of() : metadata;
+    }
+
+    public static ToolResultBo of(String text) {
+        return new ToolResultBo(text, Map.of());
+    }
 }

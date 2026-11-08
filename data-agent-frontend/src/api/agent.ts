@@ -91,15 +91,14 @@ export interface SessionInfo {
   title: string;
   createdAt: string;
   lastActiveAt: string;
-  datasourceId: number | null;
-  datasourceName: string | null;
+  datasources: Array<{ id: number; name: string | null }>;
 }
 
 export interface ChatRequest {
   sessionId: string;
   message?: string;
   toolResults?: ToolResultInput[];
-  datasourceId?: number;
+  datasourceIds?: number[];
 }
 
 export interface TurnItem {

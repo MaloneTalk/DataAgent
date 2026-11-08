@@ -17,21 +17,20 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.DataPermissionScopeBo;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.semantic.table.TableSemanticService;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -41,19 +40,27 @@ public class GetTablesTool implements MarkAgentTool {
 
     private final PermissionService permissions;
 
-    private final DatasourceService dataSourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final DataPermissionService dataPermissions;
     private final TableSemanticService tableSemanticService;
     private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "get_tables",
+            converter = ToolResultBoConverter.class,
             description =
                     """
                     Get synced semantic-layer table information, including table name, domain, \
                     description, data granularity (what one row represents) and enabled relations.\
                     """)
-    public ToolResultBlock getTables(
+    public ToolResultBo getTables(
+            @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
             @ToolParam(
                             name = "domains",
                             description =
@@ -65,11 +72,10 @@ public class GetTablesTool implements MarkAgentTool {
                             required = false)
                     List<String> domains,
             ToolCallContext ctx) {
-        var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
-        return toolExceptionMapper.run(
+        return toolExceptionMapper.runResult(
                 () -> {
-                    DatasourcePo dataSource =
-                            dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    var user = permissions.require(ctx.userId(), PermissionEnum.DATA_SCHEMA_READ);
+                    DatasourcePo dataSource = datasourceResolver.resolve(ctx, datasourceId);
                     var scope = dataPermissions.loadScope(user, dataSource.getId());
 
                     var visible =
@@ -79,9 +85,12 @@ public class GetTablesTool implements MarkAgentTool {
                                     .filter(t -> scope.canTable(t.name()))
                                     .map(t -> filterTable(t, scope))
                                     .toList();
-                    return ToolResultBlock.text(
+                    return new ToolResultBo(
                             JsonUtils.getJsonCodec().toJson(visible)
-                                    + ToolCallConstants.METRIC_CALIBER_REMINDER);
+                                    + ToolCallConstants.METRIC_CALIBER_REMINDER,
+                            Map.of(
+                                    "datasourceId", dataSource.getId(),
+                                    "datasourceName", dataSource.getName()));
                 });
     }
 

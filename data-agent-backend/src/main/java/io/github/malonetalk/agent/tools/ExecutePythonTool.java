@@ -17,12 +17,11 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import io.agentscope.core.message.TextBlock;
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.service.PermissionService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +41,7 @@ import org.springframework.stereotype.Component;
 public class ExecutePythonTool implements MarkAgentTool {
 
     private final PermissionService permissions;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     private static final int TIMEOUT_SECONDS = 30;
     private static final int MAX_CONCURRENT = 5;
@@ -49,6 +49,7 @@ public class ExecutePythonTool implements MarkAgentTool {
 
     @Tool(
             name = "execute_python",
+            converter = ToolResultBoConverter.class,
             description =
                     """
                     Execute Python code for data analysis. \
@@ -59,7 +60,7 @@ public class ExecutePythonTool implements MarkAgentTool {
                     Only use this when statistical computation \
                     (correlation, regression, distribution tests, etc.) cannot be done in SQL.\
                     """)
-    public ToolResultBlock executePython(
+    public ToolResultBo executePython(
             @ToolParam(
                             name = "code",
                             description =
@@ -69,22 +70,24 @@ public class ExecutePythonTool implements MarkAgentTool {
                                     """)
                     String code,
             ToolCallContext ctx) {
-        permissions.require(ctx.userId(), PermissionEnum.ANALYSIS_PYTHON_EXECUTE);
+        return toolExceptionMapper.runResult(
+                () -> {
+                    permissions.require(ctx.userId(), PermissionEnum.ANALYSIS_PYTHON_EXECUTE);
 
-        if (!semaphore.tryAcquire()) {
-            return result("Error: too many concurrent Python executions.", false);
-        }
-        try {
-            PythonRun run = doExecute(code);
-            return result(run.output(), run.success());
-        } finally {
-            semaphore.release();
-        }
+                    if (!semaphore.tryAcquire()) {
+                        return result("Error: too many concurrent Python executions.", false);
+                    }
+                    try {
+                        PythonRun run = doExecute(code);
+                        return result(run.output(), run.success());
+                    } finally {
+                        semaphore.release();
+                    }
+                });
     }
 
-    private ToolResultBlock result(String output, boolean success) {
-        return ToolResultBlock.of(
-                TextBlock.builder().text(output).build(), Map.of("success", success));
+    private ToolResultBo result(String output, boolean success) {
+        return new ToolResultBo(output, Map.of("success", success));
     }
 
     private PythonRun doExecute(String code) {

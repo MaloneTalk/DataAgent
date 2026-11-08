@@ -133,13 +133,18 @@ CREATE TABLE IF NOT EXISTS  `agentscope_sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `session_datasource` (
-    `session_id`    VARCHAR(255) NOT NULL COMMENT '会话ID（主键，一会话一源）',
-    `datasource_id` INT          NOT NULL COMMENT '绑定的数据源ID',
-    `create_time`   DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time`   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间（绑定一次性写入，实际不会更新，列可留可删）',
-    PRIMARY KEY (`session_id`),
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `session_id`    VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `datasource_id` INT          NOT NULL COMMENT '本会话允许/选择的数据源ID',
+    `creator_id`    BIGINT       DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME     DEFAULT NULL COMMENT '创建时间',
+    `updater_id`    BIGINT       DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME     DEFAULT NULL COMMENT '更新时间',
+    `is_deleted`    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    KEY `idx_session_datasource` (`session_id`, `datasource_id`),
     KEY `idx_datasource_id` (`datasource_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话与数据源绑定表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话允许使用的数据源列表';
 
 CREATE TABLE IF NOT EXISTS `answer_provenance` (
     `answer_id` VARCHAR(255) NOT NULL COMMENT '初始用户消息ID',

@@ -19,12 +19,14 @@ package io.github.malonetalk.service;
 
 import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DataPermissionService {
     private final RoleTablePermissionMapper tables;
     private final RoleHiddenColumnMapper columns;
+    private final DatasourceService datasources;
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public DataPermissionScopeBo loadScope(UserContextBo user, Integer datasourceId) {
@@ -56,9 +59,11 @@ public class DataPermissionService {
         return new DataPermissionScopeBo(false, granted, hiddenByTable(user, datasourceId));
     }
 
-    /** Returns the granted physical name, never the client-supplied spelling. */
-    public String requireTable(UserContextBo user, Integer datasourceId, String table) {
-        return authorizedTableName(user, datasourceId, table)
+    /**
+     * Returns the granted physical name, never the client-supplied spelling.
+     */
+    public void requireTable(UserContextBo user, Integer datasourceId, String table) {
+        authorizedTableName(user, datasourceId, table)
                 .orElseThrow(
                         () -> BusinessException.of(ErrorCode.FORBIDDEN, "Table access denied."));
     }
@@ -78,6 +83,29 @@ public class DataPermissionService {
                 || user.roleId() != null
                         && user.roleId() > 0
                         && !tables.selectByRoleAndDatasource(user.roleId(), datasourceId).isEmpty();
+    }
+
+    /**
+     * 返回用户当前可用的数据源 ID。
+     *
+     * <p>超级管理员返回全部启用数据源；普通用户返回角色有表授权且启用的数据源。
+     */
+    public Set<Integer> accessibleDatasourceIds(UserContextBo user) {
+        if (Boolean.TRUE.equals(user.superAdmin())) {
+            return datasources.findByStatus(Status.ACTIVE.getCode()).stream()
+                    .map(DatasourcePo::getId)
+                    .collect(Collectors.toUnmodifiableSet());
+        }
+        if (user.roleId() == null || user.roleId() <= 0) {
+            return Set.of();
+        }
+        Set<Integer> granted =
+                tables.selectByRoleId(user.roleId()).stream()
+                        .map(RoleTablePermission::getDatasourceId)
+                        .collect(Collectors.toSet());
+        return datasources.findActiveByIds(granted).stream()
+                .map(DatasourcePo::getId)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     public void requireDatasource(UserContextBo user, Integer datasourceId) {

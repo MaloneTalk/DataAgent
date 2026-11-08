@@ -19,19 +19,17 @@ package io.github.malonetalk.agent.tools;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.agentscope.core.message.TextBlock;
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.TableExportService;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -41,29 +39,36 @@ public class ExportTableTool implements MarkAgentTool {
 
     private final PermissionService permissions;
 
-    private final DatasourceService datasourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final TableExportService tableExportService;
     private final ToolExceptionMapper toolExceptionMapper;
     private final ObjectMapper objectMapper;
 
     @Tool(
             name = "export_table",
+            converter = ToolResultBoConverter.class,
             description =
                     """
                     Export a SELECT query result to a CSV spreadsheet file and return a download link.
                     Use this after large data queries or when the user asks to export data.
                     Exports are capped at 10000 rows; add filters or LIMIT for larger tables.
                     """)
-    public ToolResultBlock exportTable(
+    public ToolResultBo exportTable(
+            @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to export")
                     String sql,
             @ToolParam(name = "title", description = "A short title for this export") String title,
             ToolCallContext ctx) {
-        permissions.require(ctx.userId(), PermissionEnum.ASSET_EXPORT_CREATE);
-        return toolExceptionMapper.run(
+        return toolExceptionMapper.runResult(
                 () -> {
-                    DatasourcePo datasource =
-                            datasourceService.getDatasourceForSession(ctx.sessionId());
+                    permissions.require(ctx.userId(), PermissionEnum.ASSET_EXPORT_CREATE);
+                    DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
                     var result =
                             tableExportService.create(
                                     ctx.sessionId(), datasource, title, sql, ctx.userId());
@@ -78,9 +83,10 @@ public class ExportTableTool implements MarkAgentTool {
                                     .returnedRows(export.rowCount())
                                     .truncated(false)
                                     .build();
-                    return ToolResultBlock.of(
-                            TextBlock.builder().text(formatResult(export)).build(),
-                            objectMapper.convertValue(metadata, new TypeReference<>() {}));
+                    Map<String, Object> resultMetadata =
+                            objectMapper.convertValue(
+                                    metadata, new TypeReference<Map<String, Object>>() {});
+                    return new ToolResultBo(formatResult(export), resultMetadata);
                 });
     }
 

@@ -31,9 +31,9 @@ import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
-import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import io.github.malonetalk.mapper.UserSessionMapper;
 import io.github.malonetalk.model.converter.SessionHistoryConverter;
+import io.github.malonetalk.service.SessionDatasourceService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -60,7 +60,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SessionService {
 
     private final javax.sql.DataSource dataSource;
-    private final SessionDatasourceMapper sessionDatasourceMapper;
+    private final SessionDatasourceService sessionDatasourceService;
     private final UserSessionMapper userSessionMapper;
     private final AnswerProvenanceService answerProvenanceService;
     private final SessionHistoryConverter sessionHistoryConverter;
@@ -68,10 +68,6 @@ public class SessionService {
     @Getter(lazy = true)
     private final MysqlSession session =
             new MysqlSession(dataSource, currentDatabaseName(), "agentscope_sessions", false);
-
-    public boolean hasDatasourceBinding(String sessionId) {
-        return sessionDatasourceMapper.selectBySessionId(sessionId) != null;
-    }
 
     private String currentDatabaseName() {
         try (Connection conn = dataSource.getConnection()) {
@@ -144,7 +140,7 @@ public class SessionService {
     private void doClearSession(String sessionId) {
         getSession().delete(SimpleSessionKey.of(sessionId));
         answerProvenanceService.deleteSession(sessionId);
-        sessionDatasourceMapper.deleteBySessionId(sessionId);
+        sessionDatasourceService.deleteBySessionId(sessionId);
         userSessionMapper.deleteBySessionId(sessionId);
     }
 
@@ -194,17 +190,13 @@ public class SessionService {
             log.error("Error listing session timestamps", e);
         }
 
-        Map<String, String[]> bindings = new HashMap<>();
+        Map<String, List<SessionInfo.Datasource>> bindings = new HashMap<>();
         for (SessionDatasourceBinding row :
-                sessionDatasourceMapper.listBindingsWithDatasourceName()) {
-            bindings.put(
-                    row.getSessionId(),
-                    new String[] {
-                        row.getDatasourceId() != null
-                                ? String.valueOf(row.getDatasourceId())
-                                : null,
-                        row.getDatasourceName()
-                    });
+                sessionDatasourceService.listBindingsWithDatasourceName()) {
+            bindings.computeIfAbsent(row.getSessionId(), key -> new ArrayList<>())
+                    .add(
+                            new SessionInfo.Datasource(
+                                    row.getDatasourceId(), row.getDatasourceName()));
         }
 
         List<SessionInfo> result = new ArrayList<>();
@@ -233,12 +225,9 @@ public class SessionService {
             }
 
             String[] times = timestamps.getOrDefault(sid, new String[] {"", ""});
-            String[] binding = bindings.get(sid);
-            Integer datasourceId =
-                    binding == null || binding[0] == null ? null : Integer.valueOf(binding[0]);
-            String datasourceName = binding == null ? null : binding[1];
             result.add(
-                    new SessionInfo(sid, title, times[0], times[1], datasourceId, datasourceName));
+                    new SessionInfo(
+                            sid, title, times[0], times[1], bindings.getOrDefault(sid, List.of())));
         }
 
         result.sort((a, b) -> b.lastActiveAt().compareTo(a.lastActiveAt()));

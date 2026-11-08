@@ -21,6 +21,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -34,13 +36,17 @@ import java.time.ZoneId;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Component
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class DateInfoTool implements MarkAgentTool {
 
     private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
@@ -49,20 +55,28 @@ public class DateInfoTool implements MarkAgentTool {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final HttpClient httpClient;
+    private final ToolExceptionMapper toolExceptionMapper;
 
     @Autowired
-    public DateInfoTool(ObjectMapper objectMapper) {
-        this(objectMapper, Clock.systemDefaultZone(), HttpClient.newHttpClient());
+    public DateInfoTool(ObjectMapper objectMapper, ToolExceptionMapper toolExceptionMapper) {
+        this(
+                objectMapper,
+                Clock.systemDefaultZone(),
+                HttpClient.newHttpClient(),
+                toolExceptionMapper);
     }
 
     DateInfoTool(ObjectMapper objectMapper, Clock clock, HttpClient httpClient) {
-        this.objectMapper = objectMapper;
-        this.clock = clock;
-        this.httpClient = httpClient;
+        this(
+                objectMapper,
+                clock,
+                httpClient,
+                new ToolExceptionMapper(new ExceptionResponseMapper()));
     }
 
     @Tool(
             name = "get_date_info",
+            converter = ToolResultBoConverter.class,
             description =
                     """
                     Get accurate date information, including weekday, weekend, Chinese public \
@@ -74,7 +88,7 @@ public class DateInfoTool implements MarkAgentTool {
                     difference is needed. Date difference counts start_date inclusive and \
                     end_date exclusive.\
                     """)
-    public String getDateInfo(
+    public ToolResultBo getDateInfo(
             @ToolParam(
                             name = "start_date",
                             description =
@@ -95,11 +109,12 @@ public class DateInfoTool implements MarkAgentTool {
                                     "IANA timezone, e.g. Asia/Shanghai. Defaults to Asia/Shanghai.",
                             required = false)
                     String timezone) {
-        try {
-            return objectMapper.writeValueAsString(resolve(startDate, endDate, timezone));
-        } catch (Exception e) {
-            return "Error: failed to get date info: " + e.getMessage();
-        }
+        return toolExceptionMapper.runResult(
+                () ->
+                        new ToolResultBo(
+                                objectMapper.writeValueAsString(
+                                        resolve(startDate, endDate, timezone)),
+                                Map.of()));
     }
 
     DateInfo resolve(String startDateText, String endDateText, String timezoneText) {

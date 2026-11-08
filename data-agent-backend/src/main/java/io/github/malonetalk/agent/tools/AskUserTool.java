@@ -20,6 +20,7 @@ package io.github.malonetalk.agent.tools;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.tool.ToolSuspendException;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -29,10 +30,11 @@ public class AskUserTool implements MarkAgentTool {
 
     @Tool(
             name = ToolCallConstants.ASK_USER,
+            converter = ToolResultBoConverter.class,
             description =
                     "Ask the user a question when an operation is unclear or requires"
                             + " confirmation. Execution resumes after the user responds.")
-    public String askUser(
+    public ToolResultBo askUser(
             @ToolParam(name = "question", description = "The question to ask the user.")
                     String question) {
         log.info("Agent asks user: {}", question);

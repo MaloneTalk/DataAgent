@@ -57,8 +57,8 @@ export function useAgentChat(initialSessionId?: string) {
   const isStreaming = ref(false);
   const sessionId = ref<string | null>(initialSessionId || null);
   let sessionCreation: Promise<string> | null = null;
-  // 待绑定/已绑定的数据源 id；新会话选源后设置，首条消息随请求落库。
-  const datasourceId = ref<number | null>(null);
+  // 本会话允许/选择的数据源；空数组表示全部可访问数据源。
+  const datasourceIds = ref<number[]>([]);
   const abortController = shallowRef<AbortController | null>(null);
   const pendingQuestion = ref<PendingQuestion | null>(null);
   const lastReportContent = ref<string | null>(null);
@@ -153,7 +153,7 @@ export function useAgentChat(initialSessionId?: string) {
         : {
             sessionId: currentSessionId,
             message: text,
-            datasourceId: datasourceId.value ?? undefined,
+            datasourceIds: datasourceIds.value.length ? datasourceIds.value : undefined,
           };
 
     try {
@@ -248,14 +248,14 @@ export function useAgentChat(initialSessionId?: string) {
     stopStreaming();
     messages.value = [];
     sessionId.value = null;
-    datasourceId.value = null;
+    datasourceIds.value = [];
   }
 
   return {
     messages,
     isStreaming,
     sessionId,
-    datasourceId,
+    datasourceIds,
     pendingQuestion,
     lastReportContent,
     loadHistory,

@@ -19,18 +19,16 @@ package io.github.malonetalk.agent.tools;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.agentscope.core.message.TextBlock;
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
-import io.github.malonetalk.service.DatasourceService;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -38,25 +36,32 @@ import org.springframework.stereotype.Component;
 @AllArgsConstructor
 public class ExecuteSqlTool implements MarkAgentTool {
 
-    private final DatasourceService dataSourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final SqlExecutor sqlExecutor;
     private final ToolExceptionMapper toolExceptionMapper;
     private final ObjectMapper objectMapper;
 
     @Tool(
             name = "execute_sql",
+            converter = ToolResultBoConverter.class,
             description =
                     "Execute SELECT SQL query on the target datasource and return the query result."
                         + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
                         + " other modification operations.")
-    public ToolResultBlock executeSql(
+    public ToolResultBo executeSql(
+            @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
             @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql,
             ToolCallContext ctx) {
-        return toolExceptionMapper.run(
+        return toolExceptionMapper.runResult(
                 () -> {
-                    DatasourcePo datasource =
-                            dataSourceService.getDatasourceForSession(ctx.sessionId());
+                    DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
                     SqlExecution execution =
                             sqlExecutor.executeDetailed(datasource, sql, ctx.userId());
                     var metadata =
@@ -69,9 +74,9 @@ public class ExecuteSqlTool implements MarkAgentTool {
                                     .returnedRows(execution.result().rows().size())
                                     .truncated(execution.result().truncated())
                                     .build();
-                    return ToolResultBlock.of(
-                            TextBlock.builder().text(formatResult(execution.result())).build(),
-                            objectMapper.convertValue(metadata, new TypeReference<>() {}));
+                    Map<String, Object> resultMetadata =
+                            objectMapper.convertValue(metadata, new TypeReference<>() {});
+                    return new ToolResultBo(formatResult(execution.result()), resultMetadata);
                 });
     }
 

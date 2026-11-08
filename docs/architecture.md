@@ -57,11 +57,13 @@
 {
   "sessionId": "AGENTSCOPE_1_<服务端返回的UUID>",
   "message": "上个月各区域销售额是多少？",
-  "datasourceId": 1
+  "datasourceIds": [1, 2]
 }
 ```
 
-`datasourceId` 可在首次请求时指定，服务端只在尚无绑定时写入；绑定后的请求不会切换数据源。未指定时解析当前激活源，并检查当前用户是否有数据范围；若未绑定且默认源不可访问，会尝试绑定其他已授权的激活源。已有绑定的数据源被删除或撤权时直接报错，不会自动切换。前端在发出消息后锁定数据源选择，切换需新建会话。
+`datasourceIds` 为本会话允许使用的数据源列表；省略或传空数组表示当前用户所有可访问的启用数据源。服务端会按用户当前表授权过滤，并把解析后的列表保存到 `session_datasource`（逻辑删除旧范围，一行一个数据源）。每次请求都可以更新该列表。
+
+工具调用采用显式数据源：存在多个可选数据源时，`get_tables`、`get_table_schema`、`get_metric_caliber`、`execute_sql` 和 `export_table` 必须传 `datasource_id`；只有一个数据源时可以省略。`get_datasources` 用于列出本会话可用的数据源。不同数据源的同名表不能混用。数据源权限在每次工具调用时重新检查，撤权或删除后会拒绝后续操作。
 
 会话列表仅展示 `AGENTSCOPE_` 命名空间且已有会话内容的记录。无此前缀的旧会话不会出现在列表中；创建接口登记归属后，空会话也不会立即出现在历史列表。历史、调试与删除接口使用数据库中的归属记录检查访问，不通过解析 ID 推断权限。
 
@@ -154,11 +156,12 @@ HTTP server span
 
 | 工具 | 用途与边界 |
 | --- | --- |
-| `get_domains` / `get_tables` / `get_table_schema` | 读取当前数据源的领域、表与字段语义，按当前用户的数据范围过滤 |
-| `get_metric_caliber` | 检索当前数据源的指标口径与业务属性 |
-| `execute_sql` | 仅执行通过校验与授权的 SELECT；最多返回 200 行，超时 30 秒；无 LIMIT/FETCH 时包装查询探测第 201 行，判断截断 |
+| `get_datasources` | 列出本会话允许使用的数据源；多数据源时先调用它 |
+| `get_domains` / `get_tables` / `get_table_schema` | 读取指定数据源的领域、表与字段语义，按当前用户的数据范围过滤；多数据源时必须传 `datasource_id` |
+| `get_metric_caliber` | 检索指定数据源的指标口径与业务属性；多数据源时必须传 `datasource_id` |
+| `execute_sql` | 仅执行通过校验与授权的 SELECT；最多返回 200 行，超时 30 秒；无 LIMIT/FETCH 时包装查询探测第 201 行，判断截断；多数据源时必须传 `datasource_id` |
 | `execute_python` | 调用后端环境的 `python3 -I`，代码内联数据并打印结果；30 秒超时，单实例最多 5 个并发执行 |
-| `export_table` | 授权后导出 CSV；最多 10000 行，超限报错，查询超时 120 秒 |
+| `export_table` | 授权后导出 CSV；最多 10000 行，超限报错，查询超时 120 秒；多数据源时必须传 `datasource_id` |
 | `generate_report` | 保存 Markdown 报告，供报告资产页查看 |
 | `ask_user` | 挂起并等待用户澄清，前端以 `toolResults` 继续会话 |
 | `get_date_info` | 日期、星期、节假日、调休与日期差查询 |

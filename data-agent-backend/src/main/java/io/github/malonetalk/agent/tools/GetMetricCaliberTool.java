@@ -17,15 +17,12 @@
  */
 package io.github.malonetalk.agent.tools;
 
-import io.agentscope.core.message.TextBlock;
-import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
-import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.MetricService;
 import io.github.malonetalk.service.PermissionService;
 import java.util.Map;
@@ -39,11 +36,12 @@ public class GetMetricCaliberTool implements MarkAgentTool {
     private final PermissionService permissions;
 
     private final MetricService metricService;
-    private final DatasourceService datasourceService;
+    private final ToolDatasourceResolver datasourceResolver;
     private final ToolExceptionMapper toolExceptionMapper;
 
     @Tool(
             name = "get_metric_caliber",
+            converter = ToolResultBoConverter.class,
             description =
                     """
                     Get the precise business caliber (definition) of a metric when you are unsure \
@@ -57,7 +55,14 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                     You may pass the user's question verbatim: the matcher scans the question for \
                     known metric names and aliases, so there is no need to distill it to a keyword.\
                     """)
-    public ToolResultBlock getMetricCaliber(
+    public ToolResultBo getMetricCaliber(
+            @ToolParam(
+                            name = "datasource_id",
+                            description =
+                                    "Datasource id. Optional only when exactly one datasource is"
+                                            + " available.",
+                            required = false)
+                    Integer datasourceId,
             @ToolParam(
                             name = "hint",
                             description =
@@ -65,14 +70,14 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                                             + " 销售额 / 上个月的GMV是多少")
                     String hint,
             ToolCallContext ctx) {
-        permissions.require(ctx.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
-        return toolExceptionMapper.run(
+        return toolExceptionMapper.runResult(
                 () -> {
-                    Integer dsId =
-                            datasourceService.getDatasourceForSession(ctx.sessionId()).getId();
-                    MetricService.MetricLookup lookup = metricService.lookupCaliber(dsId, hint);
-                    return ToolResultBlock.of(
-                            TextBlock.builder().text(lookup.text()).build(),
+                    permissions.require(ctx.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
+                    var datasource = datasourceResolver.resolve(ctx, datasourceId);
+                    MetricService.MetricLookup lookup =
+                            metricService.lookupCaliber(datasource.getId(), hint);
+                    return new ToolResultBo(
+                            lookup.text(),
                             Map.of(
                                     "metrics",
                                     lookup.candidates().stream()
@@ -83,7 +88,11 @@ public class GetMetricCaliberTool implements MarkAgentTool {
                                                                     metric.getName(),
                                                                     metric.getMeasureExpr(),
                                                                     metric.getFilters()))
-                                            .toList()));
+                                            .toList(),
+                                    "datasourceId",
+                                    datasource.getId(),
+                                    "datasourceName",
+                                    datasource.getName()));
                 });
     }
 }
