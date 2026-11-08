@@ -20,7 +20,7 @@ package io.github.malonetalk.convertor.handler;
 import io.agentscope.core.message.ToolResultBlock;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
-import io.github.malonetalk.exception.ToolExceptionMapper;
+import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 
 public interface ToolResultHandler {
 

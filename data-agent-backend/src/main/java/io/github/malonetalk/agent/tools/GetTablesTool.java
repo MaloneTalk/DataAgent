@@ -24,7 +24,6 @@ import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;

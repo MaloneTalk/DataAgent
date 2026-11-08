@@ -27,7 +27,6 @@ import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;

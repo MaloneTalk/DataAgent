@@ -22,7 +22,6 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.ReportService;
 import lombok.AllArgsConstructor;

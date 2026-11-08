@@ -26,7 +26,6 @@ import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.enums.PermissionEnum;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;

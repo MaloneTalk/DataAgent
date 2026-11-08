@@ -15,12 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.exception;
+package io.github.malonetalk.agent.tools;
 
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.ToolSuspendException;
 import java.util.Map;
+
+import io.github.malonetalk.exception.ErrorResponse;
+import io.github.malonetalk.exception.ExceptionResponseMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
