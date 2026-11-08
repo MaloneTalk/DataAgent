@@ -17,10 +17,8 @@
  */
 package io.github.malonetalk.model.bo;
 
-/** Physical column attributes used when comparing and applying semantic schema snapshots. */
-public record ColumnSyncSource(
-        String columnName,
-        String description,
-        String typeName,
-        Boolean primaryKey,
-        String indexInfo) {}
+import java.util.List;
+
+/** Physical table snapshot shared by schema conversion, CSV publication and semantic sync. */
+public record TableSyncSourceBo(
+        String tableName, String description, List<ColumnSyncSourceBo> columns) {}

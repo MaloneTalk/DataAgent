@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.service.csv;
 
+import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.config.CsvImportConfig;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -69,7 +70,7 @@ public class CsvTableImportService {
     }
 
     private Connection connect(DatasourcePo datasource) throws Exception {
-        if (!config.getWriterUrl().startsWith("jdbc:mysql://")
+        if (!config.getWriterUrl().startsWith(DataSourceType.MYSQL.getUrlPrefix())
                 || config.getWriterUsername().isBlank())
             throw BusinessException.of(ErrorCode.CSV_NOT_CONFIGURED, "请先配置 CSV 导入库的写入连接和账号。");
         Properties properties = new Properties();

@@ -25,7 +25,7 @@ import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.CsvImportMapper;
-import io.github.malonetalk.model.bo.TableSyncSource;
+import io.github.malonetalk.model.bo.TableSyncSourceBo;
 import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.po.DatasourcePo;
@@ -44,7 +44,7 @@ public class CsvImportPublishService {
     private final SemanticSyncApplyService semanticSync;
     private final SemanticSyncConverter converter;
 
-    public TableSyncSource snapshot(CsvImportPo task, DatasourcePo datasource) {
+    public TableSyncSourceBo snapshot(CsvImportPo task, DatasourcePo datasource) {
         // Read the external database before opening the metadata publication transaction.
         var columns = schemaReader.getImportTableSchema(datasource, task);
         if (columns.isEmpty())
@@ -53,7 +53,7 @@ public class CsvImportPublishService {
     }
 
     @Transactional
-    public void publish(CsvImportPo task, TableSyncSource snapshot) {
+    public void publish(CsvImportPo task, TableSyncSourceBo snapshot) {
         Optional.ofNullable(
                         imports.selectOne(
                                 Wrappers.<CsvImportPo>lambdaQuery()

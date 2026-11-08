@@ -17,7 +17,10 @@
  */
 package io.github.malonetalk.service.csv;
 
+import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.config.CsvImportConfig;
+import io.github.malonetalk.enums.DatasourceSourceType;
+import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.DatasourceMapper;
@@ -38,8 +41,10 @@ public class CsvDatasourceService {
                 Optional.ofNullable(datasources.selectById(config.getDatasourceId()))
                         .filter(
                                 ds ->
-                                        "CSV".equals(ds.getSourceType())
-                                                && "mysql".equals(ds.getType()))
+                                        DatasourceSourceType.CSV.name().equals(ds.getSourceType())
+                                                && DataSourceType.MYSQL
+                                                        .getCode()
+                                                        .equals(ds.getType()))
                         .filter(
                                 ds ->
                                         ds.getDatabaseName() != null
@@ -49,7 +54,7 @@ public class CsvDatasourceService {
                                         BusinessException.of(
                                                 ErrorCode.CSV_NOT_CONFIGURED,
                                                 "CSV 导入尚未配置，请联系管理员设置 CSV_DATASOURCE_ID 和导入库连接。"));
-        if (!"ACTIVE".equals(datasource.getStatus()))
+        if (!Status.ACTIVE.getCode().equals(datasource.getStatus()))
             throw BusinessException.of(ErrorCode.CSV_DATASOURCE_DISABLED, "CSV 数据源已禁用。");
         return datasource;
     }

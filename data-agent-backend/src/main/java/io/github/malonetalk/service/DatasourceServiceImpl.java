@@ -21,6 +21,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.entity.SessionDatasource;
+import io.github.malonetalk.enums.DatasourceSourceType;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -61,7 +62,7 @@ public class DatasourceServiceImpl implements DatasourceService {
         DataSourceType type = requireDatasourceType(request.type());
         DatasourcePo datasource = converter.toPo(request);
         datasource.setType(type.getCode());
-        datasource.setSourceType("DATABASE");
+        datasource.setSourceType(DatasourceSourceType.DATABASE.name());
         datasource.setStatus(Status.INACTIVE.getCode());
         requireOperationSuccess(
                 dataSourceMapper.insert(datasource), "Failed to save the datasource.");
@@ -161,7 +162,7 @@ public class DatasourceServiceImpl implements DatasourceService {
     }
 
     private void requireEditable(DatasourcePo datasource) {
-        if ("CSV".equals(datasource.getSourceType())) {
+        if (DatasourceSourceType.CSV.name().equals(datasource.getSourceType())) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "CSV 托管数据源的连接由管理员配置，不能修改或删除。");
         }
     }

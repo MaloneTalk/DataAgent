@@ -30,7 +30,7 @@ import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
-import io.github.malonetalk.model.bo.TableSyncSource;
+import io.github.malonetalk.model.bo.TableSyncSourceBo;
 import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
@@ -144,7 +144,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                     trimmedTableName);
         }
 
-        List<TableSyncSource> presentTables = new ArrayList<>();
+        List<TableSyncSourceBo> presentTables = new ArrayList<>();
         List<String> missingTableNames = new ArrayList<>();
         // 先读取并整理全部物理结构，再交给事务方法批量写库，避免事务中访问外部数据源。
         for (Map.Entry<String, String> selectedTable : selectedTableNames.entrySet()) {
@@ -187,7 +187,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return result;
     }
 
-    private TableSyncSource readTableSyncSource(
+    private TableSyncSourceBo readTableSyncSource(
             DatasourcePo datasource, PhysicalTableInfo physicalTable) {
         // 在开启写事务前读取物理列快照，避免 JDBC 元数据读取延长事务时间。
         return converter.toTable(

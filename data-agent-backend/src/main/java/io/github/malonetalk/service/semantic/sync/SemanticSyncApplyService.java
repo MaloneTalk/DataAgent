@@ -23,9 +23,10 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
-import io.github.malonetalk.model.bo.ColumnSyncSource;
+import io.github.malonetalk.model.bo.ColumnSyncSourceBo;
 import io.github.malonetalk.model.bo.SemanticSyncDiffBo;
-import io.github.malonetalk.model.bo.TableSyncSource;
+import io.github.malonetalk.model.bo.TableSyncSourceBo;
+import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,10 +46,13 @@ public class SemanticSyncApplyService {
     private final TableInfoMapper tableInfoMapper;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final SemanticSyncDiffService semanticSyncDiffService;
+    private final SemanticSyncConverter converter;
 
     @Transactional
     public List<SyncTableResult> applyTableSync(
-            Integer datasourceId, List<TableSyncSource> presentTables, List<String> missingTables) {
+            Integer datasourceId,
+            List<TableSyncSourceBo> presentTables,
+            List<String> missingTables) {
         Set<String> tableNames = new LinkedHashSet<>();
         presentTables.forEach(table -> tableNames.add(table.tableName()));
         tableNames.addAll(missingTables);
@@ -102,7 +106,7 @@ public class SemanticSyncApplyService {
 
     private void batchSavePresentSchema(
             Integer datasourceId,
-            List<TableSyncSource> presentTables,
+            List<TableSyncSourceBo> presentTables,
             Map<String, TableInfo> existingTableIndex,
             Map<String, List<ColumnInfo>> columnsByTableName) {
         if (presentTables.isEmpty()) {
@@ -110,9 +114,12 @@ public class SemanticSyncApplyService {
         }
 
         List<TableInfo> newTables = new ArrayList<>();
-        for (TableSyncSource table : presentTables) {
+        for (TableSyncSourceBo table : presentTables) {
             String tableKey = tableKey(table.tableName());
-            TableInfo tableInfo = buildPhysicalTableInfo(datasourceId, table);
+            TableInfo tableInfo = converter.toTableInfo(datasourceId, table);
+            tableInfo.setDomain(SemanticConstants.DEFAULT_DOMAIN);
+            tableInfo.setIsVisible(Boolean.TRUE);
+            tableInfo.setPhysicalStatus(Boolean.TRUE);
             TableInfo existingTable = existingTableIndex.get(tableKey);
             if (existingTable == null) {
                 newTables.add(tableInfo);
@@ -132,19 +139,21 @@ public class SemanticSyncApplyService {
 
         // 新表的主键由数据库生成，写入列之前需重新取得 table_id。
         List<String> presentTableNames =
-                presentTables.stream().map(TableSyncSource::tableName).toList();
+                presentTables.stream().map(TableSyncSourceBo::tableName).toList();
         Map<String, TableInfo> persistedTableIndex =
                 loadSemanticTableIndex(datasourceId, presentTableNames);
         List<ColumnInfo> newColumns = new ArrayList<>();
-        for (TableSyncSource table : presentTables) {
+        for (TableSyncSourceBo table : presentTables) {
             String tableKey = tableKey(table.tableName());
             TableInfo persistedTable = persistedTableIndex.get(tableKey);
             Map<String, ColumnInfo> existingColumnIndex =
                     semanticSyncDiffService.indexColumns(
                             columnsByTableName.getOrDefault(tableKey, List.of()));
-            for (ColumnSyncSource column : table.columns()) {
+            for (ColumnSyncSourceBo column : table.columns()) {
                 ColumnInfo columnInfo =
-                        buildPhysicalColumnInfo(datasourceId, persistedTable.getId(), column);
+                        converter.toColumnInfo(datasourceId, persistedTable.getId(), column);
+                columnInfo.setIsVisible(Boolean.TRUE);
+                columnInfo.setPhysicalStatus(Boolean.TRUE);
                 ColumnInfo existingColumn = existingColumnIndex.get(columnKey(column.columnName()));
                 if (existingColumn == null) {
                     newColumns.add(columnInfo);
@@ -215,33 +224,5 @@ public class SemanticSyncApplyService {
             result.computeIfAbsent(tableName, _key -> new ArrayList<>()).add(column);
         }
         return result;
-    }
-
-    private TableInfo buildPhysicalTableInfo(Integer datasourceId, TableSyncSource table) {
-        TableInfo tableInfo = new TableInfo();
-        tableInfo.setDatasourceId(datasourceId);
-        tableInfo.setTableName(table.tableName());
-        tableInfo.setPhysicalTableDescription(table.description());
-        tableInfo.setTableDescription(table.description());
-        tableInfo.setDomain(SemanticConstants.DEFAULT_DOMAIN);
-        tableInfo.setIsVisible(Boolean.TRUE);
-        tableInfo.setPhysicalStatus(Boolean.TRUE);
-        return tableInfo;
-    }
-
-    private ColumnInfo buildPhysicalColumnInfo(
-            Integer datasourceId, Integer tableId, ColumnSyncSource column) {
-        ColumnInfo columnInfo = new ColumnInfo();
-        columnInfo.setDatasourceId(datasourceId);
-        columnInfo.setTableId(tableId);
-        columnInfo.setColumnName(column.columnName());
-        columnInfo.setPhysicalColumnDescription(column.description());
-        columnInfo.setColumnDescription(column.description());
-        columnInfo.setTypeName(column.typeName());
-        columnInfo.setPrimaryKey(column.primaryKey());
-        columnInfo.setIndexInfo(column.indexInfo());
-        columnInfo.setIsVisible(Boolean.TRUE);
-        columnInfo.setPhysicalStatus(Boolean.TRUE);
-        return columnInfo;
     }
 }

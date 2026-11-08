@@ -18,26 +18,51 @@
 package io.github.malonetalk.model.converter;
 
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
-import io.github.malonetalk.model.bo.ColumnSyncSource;
-import io.github.malonetalk.model.bo.TableSyncSource;
+import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.entity.TableInfo;
+import io.github.malonetalk.model.bo.ColumnSyncSourceBo;
+import io.github.malonetalk.model.bo.TableSyncSourceBo;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.stereotype.Component;
+import org.mapstruct.BeanMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 
 /** Builds the same physical schema snapshot for JDBC sync and CSV publication. */
-@Component
-public class SemanticSyncConverter {
-    public TableSyncSource toTable(
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+public abstract class SemanticSyncConverter {
+    // Business defaults and persistence identities are assigned by the applying service.
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "datasourceId", source = "datasourceId")
+    @Mapping(target = "tableName", source = "table.tableName")
+    @Mapping(target = "physicalTableDescription", source = "table.description")
+    @Mapping(target = "tableDescription", source = "table.description")
+    public abstract TableInfo toTableInfo(Integer datasourceId, TableSyncSourceBo table);
+
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "datasourceId", source = "datasourceId")
+    @Mapping(target = "tableId", source = "tableId")
+    @Mapping(target = "columnName", source = "column.columnName")
+    @Mapping(target = "physicalColumnDescription", source = "column.description")
+    @Mapping(target = "columnDescription", source = "column.description")
+    @Mapping(target = "typeName", source = "column.typeName")
+    @Mapping(target = "primaryKey", source = "column.primaryKey")
+    @Mapping(target = "indexInfo", source = "column.indexInfo")
+    public abstract ColumnInfo toColumnInfo(
+            Integer datasourceId, Integer tableId, ColumnSyncSourceBo column);
+
+    public TableSyncSourceBo toTable(
             String name, String description, List<PhysicalColumnInfo> columns) {
-        return new TableSyncSource(
+        return new TableSyncSourceBo(
                 name,
                 SemanticUtils.trimToNull(description),
                 columns.stream().map(this::toColumn).toList());
     }
 
-    public TableSyncSource toCsvTable(CsvImportPo task, List<PhysicalColumnInfo> columns) {
+    public TableSyncSourceBo toCsvTable(CsvImportPo task, List<PhysicalColumnInfo> columns) {
         String description =
                 Optional.ofNullable(task.getDescription())
                         .filter(text -> !text.isBlank())
@@ -49,8 +74,8 @@ public class SemanticSyncConverter {
                 columns);
     }
 
-    private ColumnSyncSource toColumn(PhysicalColumnInfo column) {
-        return new ColumnSyncSource(
+    private ColumnSyncSourceBo toColumn(PhysicalColumnInfo column) {
+        return new ColumnSyncSourceBo(
                 SemanticUtils.requireTrimmed(column.columnName(), "Missing physical columnName."),
                 SemanticUtils.trimToNull(column.remarks()),
                 column.formattedTypeName(),

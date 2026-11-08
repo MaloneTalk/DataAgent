@@ -20,9 +20,9 @@ package io.github.malonetalk.service.semantic.sync;
 import io.github.malonetalk.dto.semantic.SyncTableResult;
 import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
-import io.github.malonetalk.model.bo.ColumnSyncSource;
+import io.github.malonetalk.model.bo.ColumnSyncSourceBo;
 import io.github.malonetalk.model.bo.SemanticSyncDiffBo;
-import io.github.malonetalk.model.bo.TableSyncSource;
+import io.github.malonetalk.model.bo.TableSyncSourceBo;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Service;
 public class SemanticSyncDiffService {
 
     public SemanticSyncDiffBo compareTables(
-            List<TableSyncSource> presentTables,
+            List<TableSyncSourceBo> presentTables,
             List<String> missingTables,
             Map<String, TableInfo> existingTableIndex,
             Map<String, List<ColumnInfo>> columnsByTableName) {
@@ -47,7 +47,7 @@ public class SemanticSyncDiffService {
         List<String> missingTableNames = new ArrayList<>();
         List<Integer> missingColumnIds = new ArrayList<>();
         List<SyncTableResult> results = new ArrayList<>();
-        for (TableSyncSource table : presentTables) {
+        for (TableSyncSourceBo table : presentTables) {
             String tableKey = tableKey(table.tableName());
             results.add(
                     buildPresentTableResult(
@@ -122,7 +122,7 @@ public class SemanticSyncDiffService {
     }
 
     private SyncTableResult buildPresentTableResult(
-            TableSyncSource table,
+            TableSyncSourceBo table,
             Optional<TableInfo> existingTable,
             List<ColumnInfo> existingColumns,
             List<Integer> missingColumnIds) {
@@ -130,13 +130,13 @@ public class SemanticSyncDiffService {
         Map<String, ColumnInfo> existingColumnIndex = indexColumns(existingColumns);
         Set<String> physicalColumnNames =
                 table.columns().stream()
-                        .map(ColumnSyncSource::columnName)
+                        .map(ColumnSyncSourceBo::columnName)
                         .map(this::columnKey)
                         .collect(Collectors.toSet());
         int addedColumns = 0;
         int reactivatedColumns = 0;
         int updatedColumns = 0;
-        for (ColumnSyncSource column : table.columns()) {
+        for (ColumnSyncSourceBo column : table.columns()) {
             ColumnInfo existingColumn = existingColumnIndex.get(columnKey(column.columnName()));
             if (existingColumn == null) {
                 addedColumns++;

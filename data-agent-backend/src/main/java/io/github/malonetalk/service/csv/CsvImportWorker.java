@@ -37,6 +37,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.config.CsvImportConfig;
 import io.github.malonetalk.enums.CsvImportStatus;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.mapper.CsvImportMapper;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.CsvImportPo;
@@ -68,6 +69,7 @@ public class CsvImportWorker {
     private final CsvFileService files;
     private final PermissionService permissions;
     private final UserContextHolder holder;
+    private final ExceptionResponseMapper exceptionResponses;
 
     @Resource(name = "csvImportExecutor")
     private ThreadPoolTaskExecutor executor;
@@ -147,6 +149,7 @@ public class CsvImportWorker {
     private void publish(CsvImportPo task, DatasourcePo datasource) {
         if (!transition(task, DATA_READY, SYNCING)) return;
         publisher.publish(task, publisher.snapshot(task, datasource));
+        task.setStatus(READY);
         removeFile(task);
     }
 
@@ -163,6 +166,8 @@ public class CsvImportWorker {
     }
 
     private void fail(CsvImportPo task, Exception error) {
+        // Log the original cause before a status update or compensation can fail as well.
+        logTaskFailure(task, "execution", error);
         boolean importing = task.getStatus() == IMPORTING;
         String message;
         if (error instanceof BusinessException) message = error.getMessage();
@@ -179,11 +184,6 @@ public class CsvImportWorker {
                                 .set(
                                         CsvImportPo::getErrorMessage,
                                         message.substring(0, Math.min(500, message.length()))));
-        log.warn(
-                "CSV task {} failed in {} ({})",
-                task.getId(),
-                task.getStatus(),
-                error.getClass().getSimpleName());
         if (changed == 1 && target == CLEANING) {
             task.setStatus(CLEANING);
             cleanupTable(task);
@@ -197,7 +197,7 @@ public class CsvImportWorker {
             // Each data retry has its own table, so this cannot drop the new attempt's data.
             tables.drop(task, datasources.requireActive());
         } catch (Exception e) {
-            log.warn("Stale CSV table cleanup deferred: {}", task.getPhysicalTableName());
+            logTaskFailure(task, "stale table cleanup", e);
         }
     }
 
@@ -206,8 +206,8 @@ public class CsvImportWorker {
             tables.drop(task, datasources.requireActive());
             transition(task, CLEANING, IMPORT_FAILED);
         } catch (Exception e) {
+            logTaskFailure(task, "table cleanup", e);
             transition(task, CLEANING, CLEANUP_FAILED);
-            log.warn("CSV table cleanup deferred: {}", task.getId());
         }
     }
 
@@ -220,7 +220,7 @@ public class CsvImportWorker {
                             .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                             .set(CsvImportPo::getExpiresAt, null));
         } catch (Exception e) {
-            log.warn("CSV file cleanup deferred: {}", task.getId());
+            logTaskFailure(task, "file cleanup", e);
         }
     }
 
@@ -233,7 +233,7 @@ public class CsvImportWorker {
             try {
                 cleanupTask(task, now);
             } catch (Exception e) {
-                log.warn("CSV cleanup deferred: {}", task.getId());
+                logTaskFailure(task, "recovery", e);
             }
         }
         cleanupOrphanFiles();
@@ -301,7 +301,7 @@ public class CsvImportWorker {
                                                     .eq(CsvImportPo::getPhysicalTableName, table))
                                     > 0);
         } catch (Exception e) {
-            log.warn("CSV orphan table cleanup deferred");
+            logDatasourceFailure("orphan table cleanup", e);
         }
     }
 
@@ -323,7 +323,24 @@ public class CsvImportWorker {
                         && Optional.ofNullable(imports.selectById(id)).isEmpty()) files.delete(id);
             }
         } catch (Exception e) {
-            log.warn("CSV orphan file cleanup deferred");
+            logDatasourceFailure("orphan file cleanup", e);
         }
+    }
+
+    private void logTaskFailure(CsvImportPo task, String phase, Exception error) {
+        String context =
+                "CSV %s [taskId=%s, attemptId=%s, status=%s, table=%s]"
+                        .formatted(
+                                phase,
+                                task.getId(),
+                                task.getAttemptId(),
+                                task.getStatus(),
+                                task.getPhysicalTableName());
+        exceptionResponses.logMapped(log, error, exceptionResponses.resolve(error), context);
+    }
+
+    private void logDatasourceFailure(String phase, Exception error) {
+        String context = "CSV %s [datasourceId=%s]".formatted(phase, config.getDatasourceId());
+        exceptionResponses.logMapped(log, error, exceptionResponses.resolve(error), context);
     }
 }

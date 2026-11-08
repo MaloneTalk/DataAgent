@@ -105,11 +105,18 @@ public class ExceptionResponseMapper {
 
     /** 统一日志策略：5xx 记完整堆栈，4xx 记一行摘要；HTTP、SSE、tool 三出口共用。 */
     public void logMapped(Logger logger, Throwable exception, ErrorResponse errorResponse) {
+        logMapped(logger, exception, errorResponse, "Mapped");
+    }
+
+    /** Carries task or operation context while preserving the shared exception logging policy. */
+    public void logMapped(
+            Logger logger, Throwable exception, ErrorResponse errorResponse, String context) {
         if (errorResponse.isServerError()) {
-            logger.error("Mapped server exception", exception);
+            logger.error("{} server exception: {}", context, errorResponse.errorCode(), exception);
         } else {
             logger.warn(
-                    "Mapped client error: {} - {}",
+                    "{} client error: {} - {}",
+                    context,
                     errorResponse.errorCode(),
                     errorResponse.message());
         }
