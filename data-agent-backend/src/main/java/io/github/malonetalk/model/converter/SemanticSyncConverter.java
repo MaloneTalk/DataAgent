@@ -18,9 +18,9 @@
 package io.github.malonetalk.model.converter;
 
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
+import io.github.malonetalk.model.bo.ColumnSyncSource;
+import io.github.malonetalk.model.bo.TableSyncSource;
 import io.github.malonetalk.model.po.CsvImportPo;
-import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;
-import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
 import java.util.Optional;

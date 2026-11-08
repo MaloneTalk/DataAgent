@@ -115,16 +115,22 @@ public class CsvImportWorker {
 
     private boolean importData(CsvImportPo task, DatasourcePo datasource) throws Exception {
         long count = tables.importTable(task, datasource, rows -> updateProgress(task, rows));
+        // Complete the data phase atomically under the same attempt and status guards.
+        int changed =
+                imports.update(
+                        Wrappers.<CsvImportPo>lambdaUpdate()
+                                .eq(CsvImportPo::getId, task.getId())
+                                .eq(CsvImportPo::getAttemptId, task.getAttemptId())
+                                .eq(CsvImportPo::getStatus, IMPORTING)
+                                .set(CsvImportPo::getRowCount, count)
+                                .set(CsvImportPo::getStatus, DATA_READY));
+        if (changed != 1) {
+            discardStaleTable(task);
+            return false;
+        }
         task.setRowCount(count);
-        imports.update(
-                Wrappers.<CsvImportPo>lambdaUpdate()
-                        .eq(CsvImportPo::getId, task.getId())
-                        .eq(CsvImportPo::getAttemptId, task.getAttemptId())
-                        .eq(CsvImportPo::getStatus, IMPORTING)
-                        .set(CsvImportPo::getRowCount, count));
-        if (transition(task, IMPORTING, DATA_READY)) return true;
-        discardStaleTable(task);
-        return false;
+        task.setStatus(DATA_READY);
+        return true;
     }
 
     private void updateProgress(CsvImportPo task, long rows) {

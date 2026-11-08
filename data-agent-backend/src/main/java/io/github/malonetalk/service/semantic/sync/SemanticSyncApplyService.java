@@ -23,7 +23,9 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.bo.ColumnSyncSource;
 import io.github.malonetalk.model.bo.SemanticSyncDiffBo;
+import io.github.malonetalk.model.bo.TableSyncSource;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -242,14 +244,4 @@ public class SemanticSyncApplyService {
         columnInfo.setPhysicalStatus(Boolean.TRUE);
         return columnInfo;
     }
-
-    public record TableSyncSource(
-            String tableName, String description, List<ColumnSyncSource> columns) {}
-
-    public record ColumnSyncSource(
-            String columnName,
-            String description,
-            String typeName,
-            Boolean primaryKey,
-            String indexInfo) {}
 }

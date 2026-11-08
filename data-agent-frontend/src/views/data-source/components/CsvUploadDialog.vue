@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, reactive, ref, watch } from 'vue';
+  import { computed, reactive, ref, toRaw, watch } from 'vue';
   import { ElMessage } from 'element-plus';
   import { useUserStore } from '@/stores/user';
   import {
@@ -56,7 +56,8 @@
       busy.value = false;
       if (!open) return;
       file.value = undefined;
-      task.value = props.initial;
+      // Keep nested form edits local even if re-preview fails.
+      task.value = props.initial ? window.structuredClone(toRaw(props.initial)) : undefined;
       Object.assign(
         options,
         props.initial?.options ?? {

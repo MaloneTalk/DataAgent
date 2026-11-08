@@ -130,7 +130,7 @@ public class CsvFileService {
             if (!iterator.hasNext())
                 throw BusinessException.of(ErrorCode.CSV_FILE_INVALID, "CSV 没有数据。");
             CSVRecord first = iterator.next();
-            validate(first, first.size());
+            validateAndMeasure(first, first.size());
             List<String> names = new ArrayList<>();
             List<List<String>> sample = new ArrayList<>();
             for (int i = 0; i < first.size(); i++) {
@@ -143,7 +143,7 @@ public class CsvFileService {
             if (!options.header()) sample.add(first.toList());
             while (sample.size() < 1000 && iterator.hasNext()) {
                 CSVRecord record = iterator.next();
-                validate(record, names.size());
+                validateAndMeasure(record, names.size());
                 sample.add(record.toList());
             }
             if (sample.isEmpty())
@@ -164,16 +164,21 @@ public class CsvFileService {
         }
     }
 
-    public void validate(CSVRecord record, int columns) {
+    /** Validates record limits and returns UTF-8 payload bytes for import batch sizing. */
+    public long validateAndMeasure(CSVRecord record, int columns) {
         if (columns < 1 || columns > 100 || record.size() != columns)
             throw BusinessException.of(
                     ErrorCode.CSV_FILE_INVALID,
                     "第 " + record.getRecordNumber() + " 条记录列数不一致，最多允许 100 列。");
+        long bytes = 0;
         for (int i = 0; i < record.size(); i++) {
-            if (record.get(i).getBytes(StandardCharsets.UTF_8).length > 16 * 1024)
+            int cellBytes = record.get(i).getBytes(StandardCharsets.UTF_8).length;
+            if (cellBytes > 16 * 1024)
                 throw BusinessException.of(
                         ErrorCode.CSV_FILE_INVALID,
                         "第 " + record.getRecordNumber() + " 条记录，第 " + (i + 1) + " 列超过 16 KiB。");
+            bytes += cellBytes;
         }
+        return bytes;
     }
 }

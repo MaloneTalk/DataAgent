@@ -25,7 +25,6 @@ import io.github.malonetalk.model.dto.CsvColumnDto;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.utils.CsvPhysicalNames;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -142,16 +141,12 @@ public class CsvTableImportService {
             int batchRows = 0;
             long batchBytes = 0;
             for (CSVRecord record : parser) {
-                files.validate(record, columns.size());
+                long bytes = files.validateAndMeasure(record, columns.size());
                 if (record.getRecordNumber() == 1 && options.header()) continue;
                 if (++count > 100000)
                     throw BusinessException.of(
                             ErrorCode.CSV_FILE_INVALID, "CSV 最多允许 100000 条数据记录。");
                 task.setProcessedRows(count);
-                long bytes =
-                        record.toList().stream()
-                                .mapToLong(value -> value.getBytes(StandardCharsets.UTF_8).length)
-                                .sum();
                 if (batchRows > 0 && batchBytes + bytes > 1024 * 1024) {
                     flush(connection, statement, count - 1, progress);
                     batchRows = 0;
