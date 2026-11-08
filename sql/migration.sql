@@ -693,6 +693,8 @@ CREATE TABLE IF NOT EXISTS `csv_import` (
     `file_sha256` CHAR(64) NOT NULL,
     `file_size` BIGINT NOT NULL,
     `physical_table_name` VARCHAR(64) NOT NULL,
+    `attempt_id` CHAR(32) NOT NULL DEFAULT '' COMMENT '执行批次标识',
+    `submitted_by` INT DEFAULT NULL COMMENT '本次提交执行的用户ID',
     `parse_options_json` JSON NOT NULL,
     `columns_json` JSON NOT NULL,
     `status` VARCHAR(20) NOT NULL,
@@ -709,3 +711,25 @@ CREATE TABLE IF NOT EXISTS `csv_import` (
     UNIQUE KEY `uk_csv_datasource_table` (`datasource_id`, `physical_table_name`),
     KEY `idx_csv_status_time` (`status`, `update_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='CSV 导入任务与托管表';
+
+-- Upgrade environments that already enabled CSV imports. Stop older backend instances first.
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'csv_import' AND COLUMN_NAME = 'attempt_id'),
+    'SELECT 1',
+    'ALTER TABLE `csv_import` ADD COLUMN `attempt_id` CHAR(32) NOT NULL DEFAULT '''' COMMENT ''执行批次标识'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'csv_import' AND COLUMN_NAME = 'submitted_by'),
+    'SELECT 1',
+    'ALTER TABLE `csv_import` ADD COLUMN `submitted_by` INT DEFAULT NULL COMMENT ''本次提交执行的用户ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+UPDATE csv_import SET submitted_by = creator_id WHERE submitted_by IS NULL;

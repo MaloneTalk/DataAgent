@@ -32,11 +32,11 @@ import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.po.CsvImportPo;
-import java.util.Locale;
+import io.github.malonetalk.service.MetricTableReferenceService;
+import io.github.malonetalk.utils.SemanticUtils;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,20 +50,25 @@ public class CsvImportDeleteService {
     private final MetricInfoMapper metrics;
     private final RoleTablePermissionMapper tablePermissions;
     private final RoleHiddenColumnMapper hiddenColumns;
+    private final MetricTableReferenceService metricReferences;
 
     @Transactional
     public CsvImportPo begin(String id) {
         CsvImportPo task =
-                imports.selectOne(
-                        Wrappers.<CsvImportPo>lambdaQuery()
-                                .eq(CsvImportPo::getId, id)
-                                .last("FOR UPDATE"));
-        if (task == null) throw invalid("导入记录不存在。");
+                Optional.ofNullable(
+                                imports.selectOne(
+                                        Wrappers.<CsvImportPo>lambdaQuery()
+                                                .eq(CsvImportPo::getId, id)
+                                                .last("FOR UPDATE")))
+                        .orElseThrow(() -> invalid("导入记录不存在。"));
         if (Set.of(QUEUED, IMPORTING, SYNCING, CLEANING, DELETING).contains(task.getStatus()))
             throw invalid("任务正在运行，请完成后再删除。");
         requireUnreferenced(task);
-        task.setStatus(DELETING);
-        imports.updateById(task);
+        // Return the locked pre-delete snapshot for physical-table cleanup.
+        imports.update(
+                Wrappers.<CsvImportPo>lambdaUpdate()
+                        .eq(CsvImportPo::getId, id)
+                        .set(CsvImportPo::getStatus, DELETING));
         return task;
     }
 
@@ -82,37 +87,28 @@ public class CsvImportDeleteService {
                                                         .getId()
                                                         .equals(relation.getTargetTableId()));
         if (linked) throw invalid("该表仍有关联关系，请先删除关联关系。");
+        Set<String> knownTables =
+                tables.selectByDatasourceId(task.getDatasourceId()).stream()
+                        .map(row -> SemanticUtils.normalizeIdentifier(row.getTableName()))
+                        .collect(Collectors.toSet());
         boolean referenced =
                 metrics.selectByDatasource(task.getDatasourceId()).stream()
                         .anyMatch(
-                                metric -> {
-                                    String expression =
-                                            Stream.of(
-                                                            metric.getMeasureExpr(),
-                                                            metric.getFilters(),
-                                                            metric.getTimeField())
-                                                    .flatMap(
-                                                            value ->
-                                                                    Optional.ofNullable(value)
-                                                                            .stream())
-                                                    .collect(Collectors.joining(" "))
-                                                    .toLowerCase(Locale.ROOT);
-                                    // ponytail: unqualified metric expressions have no reliable
-                                    // table lineage; resolve them before deletion.
-                                    return expression.contains(task.getPhysicalTableName())
-                                            || !expression.contains("csv_t_");
-                                });
+                                metric ->
+                                        metricReferences.mayReference(
+                                                metric, task.getPhysicalTableName(), knownTables));
         if (referenced) throw invalid("该表存在指标引用，或数据源含无法确定归属的指标，请先调整指标口径。");
     }
 
     @Transactional
     public void finish(CsvImportPo task) {
-        CsvImportPo current =
-                imports.selectOne(
-                        Wrappers.<CsvImportPo>lambdaQuery()
-                                .eq(CsvImportPo::getId, task.getId())
-                                .last("FOR UPDATE"));
-        if (current == null || current.getStatus() != DELETING) throw invalid("删除任务状态已变化。");
+        Optional.ofNullable(
+                        imports.selectOne(
+                                Wrappers.<CsvImportPo>lambdaQuery()
+                                        .eq(CsvImportPo::getId, task.getId())
+                                        .last("FOR UPDATE")))
+                .filter(current -> current.getStatus() == DELETING)
+                .orElseThrow(() -> invalid("删除任务状态已变化。"));
         tablePermissions.deleteImportedTable(task.getDatasourceId(), task.getPhysicalTableName());
         hiddenColumns.deleteImportedTable(task.getDatasourceId(), task.getPhysicalTableName());
         tables.deleteImportedTable(task.getDatasourceId(), task.getPhysicalTableName());

@@ -306,6 +306,8 @@ CREATE TABLE IF NOT EXISTS `csv_import` (
     `file_sha256` CHAR(64) NOT NULL,
     `file_size` BIGINT NOT NULL,
     `physical_table_name` VARCHAR(64) NOT NULL,
+    `attempt_id` CHAR(32) NOT NULL DEFAULT '' COMMENT '执行批次标识',
+    `submitted_by` INT DEFAULT NULL COMMENT '本次提交执行的用户ID',
     `parse_options_json` JSON NOT NULL,
     `columns_json` JSON NOT NULL,
     `status` VARCHAR(20) NOT NULL,

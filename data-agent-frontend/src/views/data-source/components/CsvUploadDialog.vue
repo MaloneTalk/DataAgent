@@ -35,6 +35,7 @@
   const file = ref<File>();
   const task = ref<CsvImport>();
   const busy = ref(false);
+  let previewRequest = 0;
   const previewOptions = ref('');
   const changed = computed(() => previewOptions.value !== JSON.stringify(options));
   const canConfirm = computed(
@@ -45,9 +46,12 @@
   watch(
     () => props.modelValue,
     async open => {
+      // Closing/reopening invalidates responses from the previous dialog session.
+      previewRequest++;
+      busy.value = false;
       if (!open) return;
       file.value = undefined;
-      task.value = undefined;
+      task.value = props.initial;
       Object.assign(
         options,
         props.initial?.options ?? {
@@ -57,22 +61,14 @@
           emptyAsNull: true,
         },
       );
-      if (props.initial) {
-        busy.value = true;
-        try {
-          task.value = await repreviewCsv(props.initial.id, options);
-          previewOptions.value = JSON.stringify(options);
-        } catch {
-          // The request interceptor displays the error.
-        } finally {
-          busy.value = false;
-        }
-      }
+      if (props.initial) await preview();
     },
   );
 
   function chooseFile(event: Event) {
-    file.value = (event.target as unknown as { files?: File[] }).files?.[0];
+    if (!(event.target instanceof window.HTMLInputElement)) return;
+    previewRequest++;
+    file.value = event.target.files?.[0];
     task.value = undefined;
   }
 
@@ -85,16 +81,20 @@
       ElMessage.warning('文件不能超过 50 MiB');
       return;
     }
+    const requestId = ++previewRequest;
+    const parseOptions = { ...options };
     busy.value = true;
     try {
-      task.value = task.value
-        ? await repreviewCsv(task.value.id, options)
-        : await previewCsv(file.value!, options);
-      previewOptions.value = JSON.stringify(options);
+      const result = task.value
+        ? await repreviewCsv(task.value.id, parseOptions)
+        : await previewCsv(file.value!, parseOptions);
+      if (requestId !== previewRequest || !visible.value) return;
+      task.value = result;
+      previewOptions.value = JSON.stringify(parseOptions);
     } catch {
       // The request interceptor displays the error.
     } finally {
-      busy.value = false;
+      if (requestId === previewRequest) busy.value = false;
     }
   }
 
@@ -104,16 +104,18 @@
       ElMessage.warning('请填写表名称及所有字段名称');
       return;
     }
+    const requestId = previewRequest;
     busy.value = true;
     try {
       await confirmCsv(task.value);
-      ElMessage.success('已提交导入，可在记录中查看进度');
       emit('imported');
+      if (requestId !== previewRequest || !visible.value) return;
+      ElMessage.success('已提交导入，可在记录中查看进度');
       visible.value = false;
     } catch {
       // The request interceptor displays the error.
     } finally {
-      busy.value = false;
+      if (requestId === previewRequest) busy.value = false;
     }
   }
 </script>
@@ -133,7 +135,13 @@
     />
     <el-form label-width="95px" class="csv-form" :disabled="busy">
       <el-form-item label="CSV 文件">
-        <input type="file" accept=".csv,text/csv" aria-label="选择 CSV 文件" @change="chooseFile" />
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          aria-label="选择 CSV 文件"
+          :disabled="busy"
+          @change="chooseFile"
+        />
         <span v-if="props.initial && !file">{{ props.initial.originalFilename }}</span>
       </el-form-item>
       <div class="parse-options">

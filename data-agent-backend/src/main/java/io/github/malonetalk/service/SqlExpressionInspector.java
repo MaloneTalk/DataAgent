@@ -85,7 +85,7 @@ import net.sf.jsqlparser.statement.select.Select;
 
 /** Only explicitly supported expression nodes are traversed; every other node fails closed. */
 @RequiredArgsConstructor
-final class SqlExpressionInspector {
+public final class SqlExpressionInspector {
     private static final Set<Class<?>> LITERALS =
             Set.of(
                     NullValue.class,
@@ -130,8 +130,13 @@ final class SqlExpressionInspector {
                             .split(","));
     private final Consumer<Column> columns;
     private final Consumer<Select> selects;
+    private final Consumer<AllColumns> allColumns;
 
-    void inspect(Expression expression) {
+    public SqlExpressionInspector(Consumer<Column> columns, Consumer<Select> selects) {
+        this(columns, selects, all -> {});
+    }
+
+    public void inspect(Expression expression) {
         if (expression == null || LITERALS.contains(expression.getClass())) return;
         if (expression instanceof Column column) {
             columns.accept(column);
@@ -163,6 +168,7 @@ final class SqlExpressionInspector {
                             || qualified.getTable().getDatabase() != null
                                     && qualified.getTable().getDatabase().getDatabaseName()
                                             != null)) throw denied();
+            allColumns.accept(all);
         } else if (expression instanceof TimeKeyExpression time) {
             if (!Set.of(
                             "current_date",

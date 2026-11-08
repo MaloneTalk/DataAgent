@@ -36,7 +36,8 @@ public class CsvImportConfig {
     private String writerUsername = "";
     private String writerPassword = "";
 
-    @Bean("csvImportExecutor")
+    // Keep Boot's applicationTaskExecutor available for MVC/SSE.
+    @Bean(value = "csvImportExecutor", defaultCandidate = false)
     public ThreadPoolTaskExecutor csvImportExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);

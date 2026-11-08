@@ -18,7 +18,6 @@
 package io.github.malonetalk.service.semantic.sync;
 
 import io.github.malonetalk.agent.datasource.SchemaReader;
-import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.semantic.PhysicalTableCandidatePageQuery;
@@ -31,10 +30,10 @@ import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.csv.CsvAccessService;
-import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
@@ -58,6 +57,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     private final SemanticSyncApplyService semanticSyncApplyService;
     private final SemanticSyncResultService semanticSyncResultService;
     private final CsvAccessService csvAccess;
+    private final SemanticSyncConverter converter;
 
     @Override
     public PageResponse<PhysicalTableCandidateResponse> getPhysicalTableCandidates(
@@ -190,22 +190,10 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     private TableSyncSource readTableSyncSource(
             DatasourcePo datasource, PhysicalTableInfo physicalTable) {
         // 在开启写事务前读取物理列快照，避免 JDBC 元数据读取延长事务时间。
-        List<ColumnSyncSource> columns = new ArrayList<>();
-        for (PhysicalColumnInfo column :
-                schemaReader.getTableSchema(datasource, physicalTable.tableName())) {
-            columns.add(
-                    new ColumnSyncSource(
-                            SemanticUtils.requireTrimmed(
-                                    column.columnName(), "Missing physical columnName."),
-                            SemanticUtils.trimToNull(column.remarks()),
-                            column.formattedTypeName(),
-                            column.primaryKey(),
-                            column.formattedIndexInfo()));
-        }
-        return new TableSyncSource(
+        return converter.toTable(
                 physicalTable.tableName(),
-                SemanticUtils.trimToNull(physicalTable.remarks()),
-                columns);
+                physicalTable.remarks(),
+                schemaReader.getTableSchema(datasource, physicalTable.tableName()));
     }
 
     private Map<String, Set<String>> loadPhysicalColumnNamesByTable(

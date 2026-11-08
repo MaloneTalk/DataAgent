@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** 将已知异常统一映射为 ErrorCode 和对外提示，供 HTTP、SSE、agent tool 共用。 */
@@ -52,6 +53,10 @@ public class ExceptionResponseMapper {
         }
         if (current instanceof AuthenticationException) {
             return of(ErrorCode.MODEL_AUTHENTICATION_FAILED);
+        }
+        // Multipart limits are enforced before controller validation runs.
+        if (current instanceof MaxUploadSizeExceededException) {
+            return of(ErrorCode.PAYLOAD_TOO_LARGE);
         }
         if (current instanceof IllegalArgumentException) {
             // 未迁移的裸参数断言统一视为请求参数错误，避免落成 500；

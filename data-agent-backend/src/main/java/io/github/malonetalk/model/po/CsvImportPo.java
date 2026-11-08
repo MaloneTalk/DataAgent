@@ -36,6 +36,11 @@ public class CsvImportPo extends BasePo {
     private String fileSha256;
     private Long fileSize;
     private String physicalTableName;
+
+    /** Identifies one execution, including a sync-only retry. */
+    private String attemptId;
+
+    private Integer submittedBy;
     private String parseOptionsJson;
     private String columnsJson;
     private CsvImportStatus status;

@@ -148,7 +148,8 @@ public class CsvFileService {
                         converter.infer(
                                 i,
                                 names.get(i),
-                                sample.stream().map(row -> row.get(index)).toList()));
+                                sample.stream().map(row -> row.get(index)).toList(),
+                                options.emptyAsNull()));
             }
             return new CsvPreviewBo(columns, sample.stream().limit(20).toList());
         } catch (IOException | UncheckedIOException e) {

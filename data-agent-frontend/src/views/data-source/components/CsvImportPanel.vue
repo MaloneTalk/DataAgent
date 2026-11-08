@@ -39,6 +39,7 @@
   const initial = ref<CsvImport>();
   const operating = ref('');
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let loadRequest = 0;
   const pending = new Set(['QUEUED', 'IMPORTING', 'DATA_READY', 'SYNCING', 'CLEANING', 'DELETING']);
   const statusLabels: Record<string, string> = {
     PREVIEWED: '待确认',
@@ -62,10 +63,14 @@
 
   async function load() {
     stopPolling();
-    if (!visible.value || loading.value) return;
+    if (!visible.value) return;
+    // A newer page/refresh request supersedes an in-flight response.
+    const requestId = ++loadRequest;
+    const requestedPage = page.value;
     loading.value = true;
     try {
-      const result = await getCsvImports(page.value, 10);
+      const result = await getCsvImports(requestedPage, 10);
+      if (requestId !== loadRequest || !visible.value || requestedPage !== page.value) return;
       rows.value = result.items;
       total.value = result.total;
       if (visible.value && rows.value.some(row => pending.has(row.status)))
@@ -73,7 +78,7 @@
     } catch {
       // The request interceptor displays the error; refresh explicitly to retry.
     } finally {
-      loading.value = false;
+      if (requestId === loadRequest) loading.value = false;
     }
   }
 
@@ -83,10 +88,17 @@
       if (open) {
         page.value = 1;
         load();
-      } else stopPolling();
+      } else {
+        loadRequest++;
+        loading.value = false;
+        stopPolling();
+      }
     },
   );
-  onBeforeUnmount(stopPolling);
+  onBeforeUnmount(() => {
+    loadRequest++;
+    stopPolling();
+  });
 
   function upload(row?: CsvImport) {
     initial.value = row;

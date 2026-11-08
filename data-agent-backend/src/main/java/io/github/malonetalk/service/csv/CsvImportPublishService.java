@@ -24,13 +24,13 @@ import static io.github.malonetalk.model.converter.CsvSchemaConverter.invalid;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.mapper.CsvImportMapper;
+import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService;
-import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;
 import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,43 +41,35 @@ public class CsvImportPublishService {
     private final CsvImportMapper imports;
     private final SchemaReader schemaReader;
     private final SemanticSyncApplyService semanticSync;
+    private final SemanticSyncConverter converter;
 
     public TableSyncSource snapshot(CsvImportPo task, DatasourcePo datasource) {
-        List<ColumnSyncSource> columns =
-                schemaReader.getImportTableSchema(datasource, task).stream()
-                        .map(
-                                column ->
-                                        new ColumnSyncSource(
-                                                column.columnName(),
-                                                column.remarks(),
-                                                column.formattedTypeName(),
-                                                column.primaryKey(),
-                                                column.formattedIndexInfo()))
-                        .toList();
+        // Read the external database before opening the metadata publication transaction.
+        var columns = schemaReader.getImportTableSchema(datasource, task);
         if (columns.isEmpty()) throw invalid("导入表没有可同步的字段。");
-        String description =
-                task.getDescription() == null || task.getDescription().isBlank()
-                        ? task.getDisplayName()
-                        : task.getDisplayName() + "：" + task.getDescription();
-        return new TableSyncSource(
-                task.getPhysicalTableName(),
-                description.substring(0, Math.min(500, description.length())),
-                columns);
+        return converter.toCsvTable(task, columns);
     }
 
     @Transactional
     public void publish(CsvImportPo task, TableSyncSource snapshot) {
-        CsvImportPo current =
-                imports.selectOne(
-                        Wrappers.<CsvImportPo>lambdaQuery()
-                                .eq(CsvImportPo::getId, task.getId())
-                                .last("FOR UPDATE"));
-        if (current == null || !Set.of(SYNCING).contains(current.getStatus()))
-            throw invalid("CSV 任务状态已变化，请刷新后重试。");
+        Optional.ofNullable(
+                        imports.selectOne(
+                                Wrappers.<CsvImportPo>lambdaQuery()
+                                        .eq(CsvImportPo::getId, task.getId())
+                                        .last("FOR UPDATE")))
+                .filter(
+                        current ->
+                                current.getStatus() == SYNCING
+                                        && task.getAttemptId().equals(current.getAttemptId())
+                                        && task.getPhysicalTableName()
+                                                .equals(current.getPhysicalTableName()))
+                .orElseThrow(() -> invalid("CSV 任务状态已变化，请刷新后重试。"));
+        // Semantic metadata and READY become visible in one business-database transaction.
         semanticSync.applyTableSync(task.getDatasourceId(), List.of(snapshot), List.of());
         imports.update(
                 Wrappers.<CsvImportPo>lambdaUpdate()
                         .eq(CsvImportPo::getId, task.getId())
+                        .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                         .set(CsvImportPo::getStatus, READY)
                         .set(CsvImportPo::getErrorMessage, ""));
     }

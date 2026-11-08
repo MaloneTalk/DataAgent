@@ -106,6 +106,12 @@ public enum ErrorCode {
             HttpStatus.NOT_ACCEPTABLE,
             "No acceptable response media type is available."),
 
+    /** 上传文件或 multipart 请求超过服务器配置的大小限制。 */
+    PAYLOAD_TOO_LARGE(
+            "PAYLOAD_TOO_LARGE",
+            HttpStatus.PAYLOAD_TOO_LARGE,
+            "Uploaded file or request exceeds the size limit."),
+
     /** 读取数据库 schema 失败，通常是数据源连接或元数据读取异常。 */
     SCHEMA_READ_FAILED(
             "SCHEMA_READ_FAILED",

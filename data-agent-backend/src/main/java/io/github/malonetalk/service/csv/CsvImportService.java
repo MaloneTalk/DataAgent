@@ -98,21 +98,16 @@ public class CsvImportService {
         try {
             String hash = files.save(id, file);
             var preview = files.preview(id, options);
-            CsvImportPo task = new CsvImportPo();
-            task.setId(id);
-            task.setDatasourceId(datasource.getId());
-            task.setOriginalFilename(filename);
-            task.setDisplayName(filename.substring(0, Math.min(filename.length() - 4, 200)));
-            task.setDescription("");
-            task.setPhysicalTableName("csv_t_" + id);
-            task.setFileSha256(hash);
-            task.setFileSize(file.getSize());
-            task.setParseOptionsJson(schema.json(options));
-            task.setColumnsJson(schema.json(preview.columns()));
-            task.setStatus(PREVIEWED);
-            task.setProcessedRows(0L);
-            task.setRowCount(0L);
-            task.setExpiresAt(LocalDateTime.now().plusHours(24));
+            CsvImportPo task =
+                    converter.previewTask(
+                            id,
+                            datasource.getId(),
+                            filename,
+                            hash,
+                            file.getSize(),
+                            options,
+                            preview,
+                            schema);
             imports.insert(task);
             return converter.toVo(task, preview.rows());
         } catch (Exception e) {
@@ -139,24 +134,36 @@ public class CsvImportService {
     public CsvImportVo confirm(String id, CsvImportConfirmDto request) {
         datasource();
         CsvImportPo task = accessible(id);
-        if (Set.of(QUEUED, IMPORTING, DATA_READY, SYNCING, READY, SYNC_FAILED)
-                .contains(task.getStatus())) return converter.toVo(task, List.of());
+        var submitted = Set.of(QUEUED, IMPORTING, DATA_READY, SYNCING, READY, SYNC_FAILED);
+        if (submitted.contains(task.getStatus())) return converter.toVo(task, List.of());
         requirePreviewable(task);
         schema.validate(request.columns(), schema.columns(task.getColumnsJson()).size());
+        String attemptId = UUID.randomUUID().toString().replace("-", "");
         int updated =
                 imports.update(
                         Wrappers.<CsvImportPo>lambdaUpdate()
                                 .eq(CsvImportPo::getId, id)
                                 .in(CsvImportPo::getStatus, PREVIEWED, IMPORT_FAILED)
+                                .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                                 .set(CsvImportPo::getDisplayName, request.displayName())
                                 .set(
                                         CsvImportPo::getDescription,
                                         Optional.ofNullable(request.description()).orElse(""))
                                 .set(CsvImportPo::getColumnsJson, schema.json(request.columns()))
                                 .set(CsvImportPo::getStatus, QUEUED)
+                                // A new table isolates a resumed worker from the retry's data.
+                                .set(CsvImportPo::getPhysicalTableName, "csv_t_" + attemptId)
+                                .set(CsvImportPo::getAttemptId, attemptId)
+                                .set(CsvImportPo::getSubmittedBy, holder.checkAndGet().userId())
                                 .set(CsvImportPo::getProcessedRows, 0)
+                                .set(CsvImportPo::getRowCount, 0)
                                 .set(CsvImportPo::getErrorMessage, ""));
-        if (updated != 1) throw invalid("任务状态已变化，请刷新后重试。");
+        if (updated != 1) {
+            // Concurrent confirmations reuse the winning submission without creating another batch.
+            CsvImportPo current = accessible(id);
+            if (submitted.contains(current.getStatus())) return converter.toVo(current, List.of());
+            throw invalid("任务状态已变化，请刷新后重试。");
+        }
         return get(id);
     }
 
@@ -197,21 +204,29 @@ public class CsvImportService {
         if (!Set.of(DATA_READY, SYNC_FAILED).contains(task.getStatus()))
             throw invalid("该任务无需重试同步。");
         datasource();
-        imports.update(
-                Wrappers.<CsvImportPo>lambdaUpdate()
-                        .eq(CsvImportPo::getId, id)
-                        .eq(CsvImportPo::getStatus, SYNC_FAILED)
-                        .set(CsvImportPo::getStatus, DATA_READY)
-                        .set(CsvImportPo::getErrorMessage, ""));
+        int updated =
+                imports.update(
+                        Wrappers.<CsvImportPo>lambdaUpdate()
+                                .eq(CsvImportPo::getId, id)
+                                .eq(CsvImportPo::getStatus, task.getStatus())
+                                .eq(CsvImportPo::getAttemptId, task.getAttemptId())
+                                .set(CsvImportPo::getStatus, DATA_READY)
+                                // Preserve the physical data and original creator when taking over
+                                // a retry.
+                                .set(
+                                        CsvImportPo::getAttemptId,
+                                        UUID.randomUUID().toString().replace("-", ""))
+                                .set(CsvImportPo::getSubmittedBy, holder.checkAndGet().userId())
+                                .set(CsvImportPo::getErrorMessage, ""));
+        if (updated != 1) throw invalid("任务状态已变化，请刷新后重试。");
     }
 
     public void delete(String id) throws Exception {
-        CsvImportPo existing = accessible(id);
-        boolean hasPhysicalTable =
-                !Set.of(PREVIEWED, IMPORT_FAILED, EXPIRED).contains(existing.getStatus());
+        accessible(id);
         CsvImportPo task = deletion.begin(id);
         try {
-            if (hasPhysicalTable) tables.drop(task, datasource());
+            if (!Set.of(PREVIEWED, IMPORT_FAILED, EXPIRED).contains(task.getStatus()))
+                tables.drop(task, datasource());
             files.delete(id);
             deletion.finish(task);
         } catch (Exception e) {

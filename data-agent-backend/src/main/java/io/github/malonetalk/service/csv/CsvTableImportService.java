@@ -28,9 +28,11 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.LongConsumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVParser;
@@ -51,6 +53,7 @@ public class CsvTableImportService {
         List<CsvColumnDto> columns = converter.columns(task.getColumnsJson());
         converter.validate(columns, columns.size());
         try (Connection connection = connect(datasource)) {
+            progress.accept(0);
             createTable(connection, task, columns);
             connection.setAutoCommit(false);
             try {
@@ -196,6 +199,8 @@ public class CsvTableImportService {
             throws Exception {
         statement.executeBatch();
         statement.clearBatch();
+        // Batches commit independently; failure recovery drops the whole attempt's table.
+        // The outer rollback only covers the current, uncommitted batch.
         connection.commit();
         progress.accept(count);
     }
@@ -210,9 +215,39 @@ public class CsvTableImportService {
     }
 
     private String table(CsvImportPo task) {
-        if (!task.getPhysicalTableName().equals("csv_t_" + task.getId())
+        if (!task.getPhysicalTableName().matches("csv_t_[a-f0-9]{32}")
                 || !task.getId().matches("[a-f0-9]{32}")) throw invalid("CSV 物理表名称无效。");
         return "`" + task.getPhysicalTableName() + "`";
+    }
+
+    public void dropOrphanTables(DatasourcePo datasource, Predicate<String> registered)
+            throws Exception {
+        try (Connection connection = connect(datasource)) {
+            List<String> candidates = new ArrayList<>();
+            try (var rows =
+                    connection
+                            .getMetaData()
+                            .getTables(
+                                    connection.getCatalog(),
+                                    null,
+                                    "csv%",
+                                    new String[] {"TABLE"})) {
+                while (rows.next()) {
+                    String name = rows.getString("TABLE_NAME");
+                    if (name.matches("csv_t_[a-f0-9]{32}")) candidates.add(name);
+                }
+            }
+            try (var statement = connection.createStatement()) {
+                statement.setQueryTimeout(30);
+                for (String name : candidates) {
+                    // Registration precedes CREATE, and table names are never reused.
+                    // Check after discovery so a concurrent new import cannot be mistaken for an
+                    // orphan.
+                    if (!registered.test(name))
+                        statement.execute("DROP TABLE IF EXISTS `" + name + "`");
+                }
+            }
+        }
     }
 
     private String comment(String text) {

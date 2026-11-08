@@ -92,10 +92,11 @@ public class CsvAccessService {
     public void requireImportTable(DatasourcePo datasource, CsvImportPo task) {
         if (!managed(datasource)
                 || !datasource.getId().equals(task.getDatasourceId())
-                || !Set.of(SYNCING).contains(task.getStatus())
+                || task.getStatus() != SYNCING
                 || imports.selectCount(
                                 Wrappers.<CsvImportPo>lambdaQuery()
                                         .eq(CsvImportPo::getId, task.getId())
+                                        .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                                         .eq(CsvImportPo::getStatus, task.getStatus())
                                         .eq(
                                                 CsvImportPo::getPhysicalTableName,

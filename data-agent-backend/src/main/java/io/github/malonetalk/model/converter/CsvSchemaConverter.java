@@ -164,9 +164,12 @@ public class CsvSchemaConverter {
         return Optional.of(value);
     }
 
-    public CsvColumnDto infer(int index, String name, List<String> values) {
+    public CsvColumnDto infer(int index, String name, List<String> values, boolean emptyAsNull) {
         List<String> present =
-                values.stream().filter(s -> !s.isEmpty()).map(String::strip).toList();
+                values.stream()
+                        .filter(s -> !emptyAsNull || !s.isEmpty())
+                        .map(String::strip)
+                        .toList();
         String type = "VARCHAR";
         int scale = 0;
         if (!present.isEmpty()) {

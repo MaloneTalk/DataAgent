@@ -46,11 +46,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -65,11 +65,12 @@ public class CsvImportWorker {
     private final CsvFileService files;
     private final PermissionService permissions;
     private final UserContextHolder holder;
-    private final ThreadPoolTaskExecutor csvImportExecutor;
 
     @Scheduled(fixedDelay = 5000, initialDelay = 5000)
     public void dispatch() {
         if (config.getDatasourceId() <= 0) return;
+        // Full @Configuration proxying returns the Spring-managed singleton here.
+        var executor = config.csvImportExecutor();
         var tasks =
                 imports.selectList(
                         Wrappers.<CsvImportPo>lambdaQuery()
@@ -78,9 +79,9 @@ public class CsvImportWorker {
                                 .orderByAsc(CsvImportPo::getCreateTime)
                                 .last("LIMIT 2"));
         for (CsvImportPo task : tasks) {
-            if (csvImportExecutor.getActiveCount() >= 2) break;
+            if (executor.getActiveCount() >= 2) break;
             try {
-                csvImportExecutor.execute(() -> run(task));
+                executor.execute(() -> run(task));
             } catch (TaskRejectedException ignored) {
                 break; // The durable queue is retried on the next poll.
             }
@@ -93,7 +94,8 @@ public class CsvImportWorker {
         try {
             var user =
                     permissions.require(
-                            Math.toIntExact(task.getCreatorId()),
+                            Optional.ofNullable(task.getSubmittedBy())
+                                    .orElseGet(() -> Math.toIntExact(task.getCreatorId())),
                             DATA_CSV_IMPORT,
                             SEMANTIC_TABLE_SYNC);
             holder.set(user);
@@ -108,6 +110,9 @@ public class CsvImportWorker {
                                             imports.update(
                                                     Wrappers.<CsvImportPo>lambdaUpdate()
                                                             .eq(CsvImportPo::getId, task.getId())
+                                                            .eq(
+                                                                    CsvImportPo::getAttemptId,
+                                                                    task.getAttemptId())
                                                             .eq(CsvImportPo::getStatus, IMPORTING)
                                                             .set(
                                                                     CsvImportPo::getProcessedRows,
@@ -119,9 +124,13 @@ public class CsvImportWorker {
                 imports.update(
                         Wrappers.<CsvImportPo>lambdaUpdate()
                                 .eq(CsvImportPo::getId, task.getId())
+                                .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                                 .eq(CsvImportPo::getStatus, IMPORTING)
                                 .set(CsvImportPo::getRowCount, count));
-                if (!transition(task, IMPORTING, DATA_READY)) return;
+                if (!transition(task, IMPORTING, DATA_READY)) {
+                    discardStaleTable(task);
+                    return;
+                }
             }
             if (!transition(task, DATA_READY, SYNCING)) return;
             publisher.publish(task, publisher.snapshot(task, datasource));
@@ -138,6 +147,7 @@ public class CsvImportWorker {
                 imports.update(
                         Wrappers.<CsvImportPo>lambdaUpdate()
                                 .eq(CsvImportPo::getId, task.getId())
+                                .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                                 .eq(CsvImportPo::getStatus, from)
                                 .set(CsvImportPo::getStatus, to));
         if (changed == 1) task.setStatus(to);
@@ -156,6 +166,7 @@ public class CsvImportWorker {
                 imports.update(
                         Wrappers.<CsvImportPo>lambdaUpdate()
                                 .eq(CsvImportPo::getId, task.getId())
+                                .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                                 .eq(CsvImportPo::getStatus, task.getStatus())
                                 .set(CsvImportPo::getStatus, target)
                                 .set(
@@ -169,6 +180,17 @@ public class CsvImportWorker {
         if (changed == 1 && target == CLEANING) {
             task.setStatus(CLEANING);
             cleanupTable(task);
+        } else if (changed == 0 && task.getStatus() == IMPORTING) {
+            discardStaleTable(task);
+        }
+    }
+
+    private void discardStaleTable(CsvImportPo task) {
+        try {
+            // Each data retry has its own table, so this cannot drop the new attempt's data.
+            tables.drop(task, service.datasource());
+        } catch (Exception e) {
+            log.warn("Stale CSV table cleanup deferred: {}", task.getPhysicalTableName());
         }
     }
 
@@ -188,6 +210,7 @@ public class CsvImportWorker {
             imports.update(
                     Wrappers.<CsvImportPo>lambdaUpdate()
                             .eq(CsvImportPo::getId, task.getId())
+                            .eq(CsvImportPo::getAttemptId, task.getAttemptId())
                             .set(CsvImportPo::getExpiresAt, null));
         } catch (Exception e) {
             log.warn("CSV file cleanup deferred: {}", task.getId());
@@ -198,8 +221,8 @@ public class CsvImportWorker {
     public void cleanup() {
         if (config.getDatasourceId() <= 0) return;
         LocalDateTime now = LocalDateTime.now();
-        // A batch has a 30 second database timeout. Ten minutes without progress means the worker
-        // was lost.
+        // Ten minutes is a recovery threshold, not proof that the old worker has stopped.
+        // Attempt-guarded updates and distinct retry tables fence workers that later resume.
         imports.update(
                 Wrappers.<CsvImportPo>lambdaUpdate()
                         .eq(CsvImportPo::getDatasourceId, config.getDatasourceId())
@@ -248,6 +271,21 @@ public class CsvImportWorker {
             }
         }
         cleanupOrphanFiles();
+        cleanupOrphanTables();
+    }
+
+    private void cleanupOrphanTables() {
+        try {
+            tables.dropOrphanTables(
+                    service.datasource(),
+                    table ->
+                            imports.selectCount(
+                                            Wrappers.<CsvImportPo>lambdaQuery()
+                                                    .eq(CsvImportPo::getPhysicalTableName, table))
+                                    > 0);
+        } catch (Exception e) {
+            log.warn("CSV orphan table cleanup deferred");
+        }
     }
 
     private void cleanupOrphanFiles() {
@@ -266,7 +304,7 @@ public class CsvImportWorker {
                 if (Files.getLastModifiedTime(path)
                                 .toInstant()
                                 .isBefore(Instant.now().minus(1, ChronoUnit.DAYS))
-                        && imports.selectById(id) == null) files.delete(id);
+                        && Optional.ofNullable(imports.selectById(id)).isEmpty()) files.delete(id);
             }
         } catch (Exception e) {
             log.warn("CSV orphan file cleanup deferred");
