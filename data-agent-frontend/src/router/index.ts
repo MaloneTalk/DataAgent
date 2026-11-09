@@ -127,6 +127,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '角色管理', permission: 'sys:role:read' },
   },
   {
+    path: '/settings/tokens',
+    name: 'PatManage',
+    component: () => import('@/views/settings/PatView.vue'),
+    meta: { title: 'API 访问令牌', permission: 'access:pat:manage' },
+  },
+  {
     path: '/metric',
     redirect: '/semantic/metric',
   },
