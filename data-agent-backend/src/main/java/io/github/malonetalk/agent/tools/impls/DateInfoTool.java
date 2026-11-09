@@ -15,12 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.agent.tools.impls;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.ToolExceptionMapper;
+import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import java.io.IOException;
@@ -47,7 +50,7 @@ import org.springframework.util.StringUtils;
 
 @Component
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class DateInfoTool implements MarkAgentTool {
+public class DateInfoTool implements DataAgentTool {
 
     private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
     private static final String HOLIDAY_API_BASE_URL = "https://timor.tech/api/holiday/info";

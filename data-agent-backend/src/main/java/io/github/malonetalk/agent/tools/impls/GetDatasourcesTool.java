@@ -15,11 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.agent.tools.impls;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.ToolCallConstants;
+import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
+import io.github.malonetalk.agent.tools.ToolExceptionMapper;
+import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.model.bo.DatasourceInfoBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
@@ -29,7 +34,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @AllArgsConstructor
-public class GetDatasourcesTool implements MarkAgentTool {
+public class GetDatasourcesTool implements DataAgentTool {
 
     private final ToolDatasourceResolver datasourceResolver;
     private final ToolExceptionMapper toolExceptionMapper;

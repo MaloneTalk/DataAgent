@@ -17,4 +17,4 @@
  */
 package io.github.malonetalk.agent.tools;
 
-public interface MarkAgentTool {}
+public interface DataAgentTool {}

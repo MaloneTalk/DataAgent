@@ -15,45 +15,44 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.agent.tools.impls;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
-import io.github.malonetalk.dto.TableExportResponse;
-import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.agent.datasource.QueryResult;
+import io.github.malonetalk.agent.datasource.SqlExecutor;
+import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
+import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
+import io.github.malonetalk.agent.tools.ToolExceptionMapper;
+import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
-import io.github.malonetalk.service.PermissionService;
-import io.github.malonetalk.service.TableExportService;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @AllArgsConstructor
-public class ExportTableTool implements MarkAgentTool {
-
-    private final PermissionService permissions;
+public class ExecuteSqlTool implements DataAgentTool {
 
     private final ToolDatasourceResolver datasourceResolver;
-    private final TableExportService tableExportService;
+    private final SqlExecutor sqlExecutor;
     private final ToolExceptionMapper toolExceptionMapper;
     private final ObjectMapper objectMapper;
 
     @Tool(
-            name = "export_table",
+            name = "execute_sql",
             converter = ToolResultBoConverter.class,
             description =
-                    """
-                    Export a SELECT query result to a CSV spreadsheet file and return a download link.
-                    Use this after large data queries or when the user asks to export data.
-                    Exports are capped at 10000 rows; add filters or LIMIT for larger tables.
-                    """)
-    public ToolResultBo exportTable(
+                    "Execute SELECT SQL query on the target datasource and return the query result."
+                        + " Only supports SELECT queries, does not support INSERT/UPDATE/DELETE or"
+                        + " other modification operations.")
+    public ToolResultBo executeSql(
             @ToolParam(
                             name = "datasource_id",
                             description =
@@ -61,43 +60,48 @@ public class ExportTableTool implements MarkAgentTool {
                                             + " available.",
                             required = false)
                     Integer datasourceId,
-            @ToolParam(name = "sql", description = "The SELECT SQL query statement to export")
+            @ToolParam(name = "sql", description = "The SELECT SQL query statement to execute")
                     String sql,
-            @ToolParam(name = "title", description = "A short title for this export") String title,
             ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
-                    permissions.require(ctx.userId(), PermissionEnum.ASSET_EXPORT_CREATE);
                     DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
-                    var result =
-                            tableExportService.create(
-                                    ctx.sessionId(), datasource, title, sql, ctx.userId());
-                    var export = result.export();
+                    SqlExecution execution =
+                            sqlExecutor.executeDetailed(datasource, sql, ctx.userId());
                     var metadata =
                             SqlToolMetadataBo.builder()
                                     .datasourceId(datasource.getId())
                                     .datasourceName(datasource.getName())
                                     .databaseName(datasource.getDatabaseName())
-                                    .executedSql(result.executedSql())
-                                    .authorizedColumns(result.authorizedColumns())
-                                    .returnedRows(export.rowCount())
-                                    .truncated(false)
+                                    .executedSql(execution.executedSql())
+                                    .authorizedColumns(execution.authorizedColumns())
+                                    .returnedRows(execution.result().rows().size())
+                                    .truncated(execution.result().truncated())
                                     .build();
                     Map<String, Object> resultMetadata =
-                            objectMapper.convertValue(
-                                    metadata, new TypeReference<Map<String, Object>>() {});
-                    return new ToolResultBo(formatResult(export), resultMetadata);
+                            objectMapper.convertValue(metadata, new TypeReference<>() {});
+                    return new ToolResultBo(formatResult(execution.result()), resultMetadata);
                 });
     }
 
-    private String formatResult(TableExportResponse export) {
-        return ToolCallConstants.SUCCESS_PREFIX
-                + export.id()
-                + "\nDownload URL: "
-                + "/api/table-exports/"
-                + export.id()
-                + "/download"
-                + "\nRows: "
-                + export.rowCount();
+    private String formatResult(QueryResult result) {
+        if (result.rows().isEmpty()) {
+            return "Query result is empty.";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Query result (total ").append(result.totalRows()).append(" rows)");
+        if (result.truncated()) {
+            sb.append(", truncated to show first ").append(result.rows().size()).append(" rows");
+        }
+        sb.append(":\n");
+
+        sb.append("Columns: ").append(result.columns()).append("\n");
+
+        for (int i = 0; i < result.rows().size(); i++) {
+            sb.append("Row ").append(i + 1).append(": ").append(result.rows().get(i)).append("\n");
+        }
+
+        return sb.toString();
     }
 }

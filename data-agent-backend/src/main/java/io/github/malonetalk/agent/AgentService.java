@@ -35,7 +35,7 @@ import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
 import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.agent.skill.SkillLoaderService;
-import io.github.malonetalk.agent.tools.MarkAgentTool;
+import io.github.malonetalk.agent.tools.DataAgentTool;
 import io.github.malonetalk.agent.tools.ToolCallConstants;
 import io.github.malonetalk.convertor.EventConverter;
 import io.github.malonetalk.dto.ChatRequest;
@@ -77,7 +77,7 @@ public class AgentService {
     private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final ModelFactory modelFactory;
-    private final List<MarkAgentTool> allToolBeans;
+    private final List<DataAgentTool> allToolBeans;
     private final ModelProperties modelProperties;
     private final SessionService sessionService;
     private final SessionDatasourceService sessionDatasourceService;

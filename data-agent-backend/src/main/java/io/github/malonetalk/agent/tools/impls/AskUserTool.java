@@ -15,18 +15,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.agent.tools.impls;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.tool.ToolSuspendException;
+import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.ToolCallConstants;
+import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class AskUserTool implements MarkAgentTool {
+public class AskUserTool implements DataAgentTool {
 
     @Tool(
             name = ToolCallConstants.ASK_USER,
