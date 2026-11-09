@@ -21,6 +21,7 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.util.JsonUtils;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.RestTool;
 import io.github.malonetalk.agent.tools.ToolCallConstants;
 import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.agent.tools.ToolExceptionMapper;
@@ -39,6 +40,7 @@ public class GetDatasourcesTool implements DataAgentTool {
     private final ToolDatasourceResolver datasourceResolver;
     private final ToolExceptionMapper toolExceptionMapper;
 
+    @RestTool
     @Tool(
             name = ToolCallConstants.GET_DATASOURCES,
             converter = ToolResultBoConverter.class,

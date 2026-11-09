@@ -21,6 +21,7 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.RestTool;
 import io.github.malonetalk.agent.tools.ToolCallConstants;
 import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.agent.tools.ToolExceptionMapper;
@@ -49,6 +50,7 @@ public class GetTableSchemaTool implements DataAgentTool {
     private final ColumnSemanticService columnSemanticService;
     private final ToolExceptionMapper toolExceptionMapper;
 
+    @RestTool
     @Tool(
             name = "get_table_schema",
             converter = ToolResultBoConverter.class,

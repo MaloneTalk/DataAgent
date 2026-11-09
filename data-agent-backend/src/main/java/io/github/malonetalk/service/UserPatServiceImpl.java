@@ -37,9 +37,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserPatServiceImpl implements UserPatService {
@@ -50,6 +52,7 @@ public class UserPatServiceImpl implements UserPatService {
     private static final int MIN_EXPIRY_DAYS = 1;
     private static final int TOKEN_PREFIX_LENGTH = 12;
     private static final int TOKEN_BYTES = 32;
+    private static final int LAST_USED_UPDATE_MINUTES = 5;
     private static final String TOKEN_PREFIX = "pat_";
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -77,6 +80,12 @@ public class UserPatServiceImpl implements UserPatService {
         if (userPatMapper.insert(pat) == 0) {
             throw BusinessException.of(ErrorCode.OPERATION_FAILED, "Failed to create the token.");
         }
+        log.info(
+                "PAT created: userId={}, patId={}, name={}, expiresAt={}",
+                userId,
+                pat.getId(),
+                pat.getName(),
+                expiresAt);
         return new UserPatCreateResultBo(converter.toBo(pat), token);
     }
 
@@ -125,6 +134,53 @@ public class UserPatServiceImpl implements UserPatService {
         if (userPatMapper.updateById(update) == 0) {
             throw BusinessException.of(ErrorCode.OPERATION_FAILED, "Failed to revoke the token.");
         }
+        log.info("PAT revoked: userId={}, patId={}", userId, id);
+    }
+
+    @Override
+    @Transactional
+    public Optional<UserPatBo> authenticate(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            return Optional.empty();
+        }
+        String token = rawToken.trim();
+        if (!token.startsWith(TOKEN_PREFIX)) {
+            return Optional.empty();
+        }
+
+        String presentedHash = hash(token);
+        UserPatPo pat = userPatMapper.selectByTokenHash(presentedHash);
+        if (pat == null || !constantTimeEquals(presentedHash, pat.getTokenHash())) {
+            return Optional.empty();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (pat.getRevokedAt() != null) {
+            return Optional.empty();
+        }
+        if (pat.getExpiresAt() == null || !pat.getExpiresAt().isAfter(now)) {
+            return Optional.empty();
+        }
+
+        updateLastUsedAt(pat, now);
+        return Optional.of(converter.toBo(pat));
+    }
+
+    private void updateLastUsedAt(UserPatPo pat, LocalDateTime now) {
+        if (pat.getLastUsedAt() != null
+                && pat.getLastUsedAt().isAfter(now.minusMinutes(LAST_USED_UPDATE_MINUTES))) {
+            return;
+        }
+        UserPatPo update = new UserPatPo();
+        update.setId(pat.getId());
+        update.setLastUsedAt(now);
+        userPatMapper.updateById(update);
+    }
+
+    /** 常量时间比较，避免普通字符串比较按首个差异字节提前返回导致时序侧信道。 */
+    private static boolean constantTimeEquals(String left, String right) {
+        return MessageDigest.isEqual(
+                left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
     }
 
     private Long activeCount(Integer userId, LocalDateTime now) {

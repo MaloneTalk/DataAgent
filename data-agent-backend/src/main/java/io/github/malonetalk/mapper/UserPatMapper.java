@@ -17,8 +17,30 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.model.po.UserPatPo;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface UserPatMapper extends AuditableMapper<UserPatPo> {}
+public interface UserPatMapper extends AuditableMapper<UserPatPo> {
+
+    default UserPatPo selectByTokenHash(String tokenHash) {
+        // NULL 会让 MP 丢弃该条件，必须提前拒绝，避免退化为全表查询。
+        if (tokenHash == null || tokenHash.isBlank()) {
+            return null;
+        }
+        return selectOne(
+                Wrappers.<UserPatPo>lambdaQuery()
+                        .select(
+                                UserPatPo::getId,
+                                UserPatPo::getUserId,
+                                UserPatPo::getName,
+                                UserPatPo::getTokenPrefix,
+                                UserPatPo::getTokenHash,
+                                UserPatPo::getExpiresAt,
+                                UserPatPo::getLastUsedAt,
+                                UserPatPo::getRevokedAt,
+                                UserPatPo::getCreateTime)
+                        .eq(UserPatPo::getTokenHash, tokenHash));
+    }
+}

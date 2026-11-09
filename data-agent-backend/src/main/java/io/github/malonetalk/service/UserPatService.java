@@ -21,6 +21,7 @@ import io.github.malonetalk.model.bo.UserPatBo;
 import io.github.malonetalk.model.bo.UserPatCreateResultBo;
 import io.github.malonetalk.model.dto.UserPatCreateDto;
 import java.util.List;
+import java.util.Optional;
 
 public interface UserPatService {
 
@@ -29,4 +30,6 @@ public interface UserPatService {
     List<UserPatBo> list(Integer userId);
 
     void revoke(Integer userId, Long id);
+
+    Optional<UserPatBo> authenticate(String rawToken);
 }

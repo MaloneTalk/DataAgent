@@ -26,6 +26,7 @@ import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.agent.datasource.SqlExecutor.SqlExecution;
 import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.RestTool;
 import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.agent.tools.ToolResultBoConverter;
@@ -45,6 +46,7 @@ public class ExecuteSqlTool implements DataAgentTool {
     private final ToolExceptionMapper toolExceptionMapper;
     private final ObjectMapper objectMapper;
 
+    @RestTool
     @Tool(
             name = "execute_sql",
             converter = ToolResultBoConverter.class,

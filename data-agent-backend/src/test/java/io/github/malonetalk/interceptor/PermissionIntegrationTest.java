@@ -232,6 +232,8 @@ class PermissionIntegrationTest {
                                         Mappers.getMapper(UserConverter.class)));
                         factory.registerSingleton("jwtUtil", jwt);
                         factory.registerSingleton("userContextHolder", holder);
+                        factory.registerSingleton(
+                                "agentAuthInterceptor", mock(AgentAuthInterceptor.class));
                     });
             context.refresh();
             var mvc =

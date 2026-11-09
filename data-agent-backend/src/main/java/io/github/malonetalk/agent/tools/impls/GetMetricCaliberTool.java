@@ -21,6 +21,7 @@ import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.RestTool;
 import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.agent.tools.ToolResultBoConverter;
@@ -43,6 +44,7 @@ public class GetMetricCaliberTool implements DataAgentTool {
     private final ToolDatasourceResolver datasourceResolver;
     private final ToolExceptionMapper toolExceptionMapper;
 
+    @RestTool
     @Tool(
             name = "get_metric_caliber",
             converter = ToolResultBoConverter.class,

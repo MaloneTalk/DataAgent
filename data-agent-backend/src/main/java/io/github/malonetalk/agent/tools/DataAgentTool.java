@@ -17,4 +17,23 @@
  */
 package io.github.malonetalk.agent.tools;
 
-public interface DataAgentTool {}
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import org.springframework.util.ClassUtils;
+
+public interface DataAgentTool {
+
+    /**
+     * 返回暴露为 REST 的工具方法；空列表表示仅 Agent 内部调用。
+     *
+     * <p>默认从当前工具类中查找带 {@link RestTool} 的方法，具体工具类不需要覆写。
+     * 与 AgentScope 一致，一个工具类可以声明多个 {@code @Tool} / {@code @RestTool} 方法。
+     */
+    default List<Method> restToolMethods() {
+        Class<?> type = ClassUtils.getUserClass(getClass());
+        return Arrays.stream(type.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(RestTool.class))
+                .toList();
+    }
+}

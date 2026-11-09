@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 
 public record UserPatBo(
         Long id,
+        Integer userId,
         String name,
         String tokenPrefix,
         LocalDateTime expiresAt,
