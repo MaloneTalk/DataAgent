@@ -142,10 +142,7 @@
     const date = new Date();
     date.setDate(date.getDate() + days);
     const pad = (value: number) => String(value).padStart(2, '0');
-    return (
-      `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-      `T23:59:59`
-    );
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` + `T23:59:59`;
   }
 </script>
 
@@ -238,8 +235,14 @@
         class="created-tip"
       />
       <div v-if="createdPat" class="created-meta">
-        <div><span class="meta-label">名称：</span>{{ createdPat.name }}</div>
-        <div><span class="meta-label">过期时间：</span>{{ formatDateTime(createdPat.expiresAt) }}</div>
+        <div>
+          <span class="meta-label">名称：</span>
+          {{ createdPat.name }}
+        </div>
+        <div>
+          <span class="meta-label">过期时间：</span>
+          {{ formatDateTime(createdPat.expiresAt) }}
+        </div>
       </div>
       <div class="token-box">
         <code>{{ createdToken }}</code>
