@@ -15,9 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.agent.tools;
+package io.github.malonetalk.agent;
 
-import io.github.malonetalk.agent.ToolCallContext;
+import io.github.malonetalk.agent.tools.AgentToolInvoker;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.interceptor.AgentAuthInterceptor;
@@ -49,6 +49,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/agent")
 public class AgentToolController {
 
+    private static final String SESSION_ID_HEADER = "X-Session-Id";
+    private static final String CLIENT_AGENT_CODE = "CLIENT";
+    private static final String DEFAULT_SESSION = "__default__";
+
     private final AgentToolInvoker invoker;
     private final DataPermissionService dataPermissions;
     private final UserContextHolder userContextHolder;
@@ -79,10 +83,20 @@ public class AgentToolController {
 
     @PostMapping("/tools/{name}")
     public ToolResultVo callTool(
-            @PathVariable String name, @RequestBody(required = false) Map<String, Object> input) {
+            @PathVariable String name,
+            @RequestBody(required = false) Map<String, Object> input,
+            HttpServletRequest request) {
         var user = userContextHolder.checkAndGet();
+        Map<String, Object> params = input == null ? Map.of() : input;
+        String externalSessionId =
+                Optional.ofNullable(request.getHeader(SESSION_ID_HEADER))
+                        .map(String::trim)
+                        .orElse(DEFAULT_SESSION);
+        String sessionId =
+                SessionIdFactory.build(CLIENT_AGENT_CODE, user.userId(), externalSessionId);
         ToolCallContext context =
                 ToolCallContext.builder()
+                        .sessionId(sessionId)
                         .userId(user.userId())
                         .datasourceIds(
                                 dataPermissions.accessibleDatasourceIds(user).stream()
@@ -91,13 +105,14 @@ public class AgentToolController {
                         .build();
 
         long startedAt = System.nanoTime();
-        ToolResultBo result = invoker.invoke(name, input == null ? Map.of() : input, context);
+        ToolResultBo result = invoker.invoke(name, params, context);
         long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
         String traceId = currentTraceId();
         log.info(
-                "Agent tool call: tool={}, userId={}, durationMs={}, traceId={}",
+                "Agent tool call: tool={}, userId={}, sessionId={}, durationMs={}, traceId={}",
                 name,
                 user.userId(),
+                sessionId,
                 durationMs,
                 traceId);
         return new ToolResultVo(result.text(), result.metadata(), traceId);
