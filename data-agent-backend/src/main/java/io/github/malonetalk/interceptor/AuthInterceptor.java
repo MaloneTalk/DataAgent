@@ -24,6 +24,7 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.service.PermissionService;
+import io.github.malonetalk.utils.BearerTokenUtils;
 import io.github.malonetalk.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -49,7 +50,8 @@ public class AuthInterceptor implements AsyncHandlerInterceptor {
     @Override
     public boolean preHandle(
             HttpServletRequest request, HttpServletResponse response, Object handler) {
-        UserContextBo context = permissions.user(jwtUtil.parseUserId(extractBearer(request)));
+        UserContextBo context =
+                permissions.user(jwtUtil.parseUserId(BearerTokenUtils.extract(request)));
         userContextHolder.set(context);
 
         try {
@@ -86,19 +88,5 @@ public class AuthInterceptor implements AsyncHandlerInterceptor {
             Object handler,
             Exception ex) {
         userContextHolder.clear();
-    }
-
-    private String extractBearer(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header == null || header.isBlank()) {
-            return null;
-        }
-        String trimmed = header.trim();
-        String prefix = "Bearer ";
-        if (trimmed.length() > prefix.length()
-                && trimmed.regionMatches(true, 0, prefix, 0, prefix.length())) {
-            return trimmed.substring(prefix.length()).trim();
-        }
-        return null;
     }
 }

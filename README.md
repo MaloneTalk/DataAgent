@@ -26,6 +26,7 @@
 - **资产与数据证据**：内置报表、CSV 导出与数据证据视图，记录回答涉及的 SQL、指标、Python 执行及表列来源。
 - **Skill 系统**：从文件系统 / Git / Nacos 多源加载可复用的查询流程（"已验证查询模式"）。
 - **MCP 配置管理（开发中）**：提供外部 MCP Server 的配置增删改查与启停状态管理；当前尚未将外部 MCP 工具接入 Agent 工具箱。
+- **外部 Agent 接入**：可直接通过 npm 安装 `data-agent-cli`，并提供可直接复制到 Claude Code、Codex、Cursor、OpenCode 等 Skill 目录的 `data-agent-skill/`。
 - **可观测性（OpenTelemetry）**：HTTP、Agent、LLM、工具与 JDBC 调用统一走 OTel trace；标准 OTLP 导出，可接入任意 OTel 后端（Jaeger / Tempo / SigNoz / Langfuse 等），仓库自带 Grafana LGTM 本地示例。
 
 ## 💡 核心设计亮点
@@ -76,6 +77,30 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 - 仓库自带 `docker/observability/docker-compose.yml`（Grafana LGTM）作为本地示例，一条命令即可查看 trace/metrics/logs。
 
 详见 [docs/observability.md](docs/observability.md)。
+
+## 🤖 外部 Agent 接入
+
+Data Agent 支持面向外部 Agent 的只读接入：
+
+- 用户在「API 访问令牌」页面（`/settings/tokens`）创建 PAT
+- 通过 `/agent/health`、`/agent/tools`、`/agent/tools/{name}` 调用只读工具
+- 使用 `data-agent-cli` 完成登录、工具发现和工具调用
+- 将 `data-agent-skill/` 复制到外部 Agent 的 Skill 存储目录，即可安装问数 Skill
+
+```bash
+npm install -g @malone-talk/data-agent-cli
+data-agent-cli auth login --token pat_xxx
+data-agent-cli tools list
+data-agent-cli skill
+```
+
+外部 Agent 可按自身约定复制 Skill：
+
+```bash
+cp -R data-agent-skill <your-agent-skill-directory>/
+```
+
+当前对外暴露 `get_datasources`、`get_domains`、`get_tables`、`get_table_schema`、`get_metric_caliber` 和 `execute_sql`，`execute_sql` 只允许 SELECT。完整说明见 [docs/external-agent.md](docs/external-agent.md)。
 
 ## 🚀 快速开始
 

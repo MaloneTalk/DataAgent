@@ -299,3 +299,23 @@ CREATE TABLE IF NOT EXISTS sys_role_permission (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (role_id, permission_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色功能权限';
+
+-- 用户个人访问令牌（PAT）：只保存哈希，明文仅在创建时返回一次。
+CREATE TABLE IF NOT EXISTS `user_pat` (
+    `id`            BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_id`       INT NOT NULL COMMENT '用户ID，关联 sys_user.id',
+    `name`          VARCHAR(64) NOT NULL COMMENT '令牌名称',
+    `token_prefix`  VARCHAR(16) NOT NULL COMMENT '令牌前缀，用于列表展示',
+    `token_hash`    CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT 'SHA-256 十六进制哈希',
+    `expires_at`    DATETIME NOT NULL COMMENT '过期时间',
+    `last_used_at`  DATETIME NULL COMMENT '最后使用时间',
+    `revoked_at`    DATETIME NULL COMMENT '吊销时间；NULL 表示未吊销',
+    `creator_id`    BIGINT DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater_id`    BIGINT DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted`    TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_pat_token_hash` (`token_hash`),
+    KEY `idx_user_pat_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户个人访问令牌';

@@ -103,7 +103,7 @@
   - **HTTP/SSE 型**：保存 `url` / `headers` / `queryParams`。
 - `enable` / `disable` 更新配置记录的启停状态。
 
-当前 `AgentService.init()` 只注册 `MarkAgentTool` Bean 和 Skill；尚未读取 MCP 配置来启动进程、建立远程连接或注册外部工具。保存和启用配置不会立即扩展 Agent 能力，也未提供将 Data Agent 作为 MCP Server 对外暴露的入口。
+当前 `AgentService.init()` 只注册 `DataAgentTool` Bean 和 Skill；尚未读取 MCP 配置来启动进程、建立远程连接或注册外部工具。保存和启用配置不会立即扩展 Agent 能力，也未提供将 Data Agent 作为 MCP Server 对外暴露的入口。
 
 ## 5. API 概览（常用端点）
 
