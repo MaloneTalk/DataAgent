@@ -1,6 +1,6 @@
 {
   "name": "@malone-talk/data-agent-cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CLI for calling DataAgent agent tools over REST with a personal access token.",
   "type": "module",
   "bin": {
@@ -38,5 +38,32 @@
     "typescript-eslint": "^8.18.1",
     "vitest": "^3.0.8"
   },
-  "license": "AGPL-3.0-or-later"
+  "license": "AGPL-3.0-or-later",
+  "author": {
+    "name": "MaloneTalk",
+    "url": "https://github.com/MaloneTalk"
+  },
+  "contributors": [
+    {
+      "name": "lzq",
+      "url": "https://github.com/lzq986"
+    },
+    {
+      "name": "VLSMB",
+      "url": "https://github.com/VLSMB"
+    },
+    {
+      "name": "mengnankkkk",
+      "url": "https://github.com/mengnankkkk"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MaloneTalk/DataAgent.git",
+    "directory": "data-agent-cli"
+  },
+  "homepage": "https://github.com/MaloneTalk/DataAgent",
+  "bugs": {
+    "url": "https://github.com/MaloneTalk/DataAgent/issues"
+  }
 }

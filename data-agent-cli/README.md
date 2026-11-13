@@ -141,5 +141,3 @@ npm run format:check
 npm run build
 npm test
 ```
-
-构建产物输出到 `dist/`。npm 包由维护者手动发布。

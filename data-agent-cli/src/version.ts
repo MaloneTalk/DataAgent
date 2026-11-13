@@ -17,8 +17,21 @@
 
 import { readFileSync } from 'node:fs';
 
+interface Contributor {
+  name: string;
+  url?: string;
+}
+
+interface PackageMetadata {
+  version: string;
+  author?: Contributor;
+  contributors?: Contributor[];
+}
+
 const packageJson = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-) as { version: string };
+) as PackageMetadata;
 
 export const VERSION = packageJson.version;
+export const AUTHOR = packageJson.author;
+export const CONTRIBUTORS = packageJson.contributors ?? [];

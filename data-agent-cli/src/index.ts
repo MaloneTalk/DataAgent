@@ -22,14 +22,27 @@ import { registerSkillCommand } from './commands/skill.js';
 import { registerToolsCommands } from './commands/tools.js';
 import { exitCodeOf } from './errors.js';
 import { printError } from './output.js';
-import { VERSION } from './version.js';
+import { AUTHOR, CONTRIBUTORS, VERSION } from './version.js';
+
+function versionText(): string {
+  const label = (person: { name: string; url?: string }) =>
+    person.url ? `${person.name} <${person.url}>` : person.name;
+  const lines = [VERSION, '', 'Author:'];
+  if (AUTHOR) {
+    lines.push(label(AUTHOR));
+  }
+  if (CONTRIBUTORS.length > 0) {
+    lines.push(...CONTRIBUTORS.map(person => `    ${label(person)}`));
+  }
+  return lines.join('\n');
+}
 
 async function main(): Promise<void> {
   const program = new Command();
   program
     .name('data-agent-cli')
     .description('Call DataAgent agent tools with a personal access token')
-    .version(VERSION)
+    .version(versionText(), '-v, --version')
     .showSuggestionAfterError();
 
   registerAuthCommands(program);
