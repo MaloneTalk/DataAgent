@@ -18,14 +18,8 @@
 package io.github.malonetalk.service.csv;
 
 import static io.github.malonetalk.enums.CsvImportStatus.CLEANING;
-import static io.github.malonetalk.enums.CsvImportStatus.CLEANUP_FAILED;
 import static io.github.malonetalk.enums.CsvImportStatus.DATA_READY;
-import static io.github.malonetalk.enums.CsvImportStatus.DELETE_FAILED;
-import static io.github.malonetalk.enums.CsvImportStatus.DELETING;
-import static io.github.malonetalk.enums.CsvImportStatus.EXPIRED;
 import static io.github.malonetalk.enums.CsvImportStatus.IMPORTING;
-import static io.github.malonetalk.enums.CsvImportStatus.IMPORT_FAILED;
-import static io.github.malonetalk.enums.CsvImportStatus.PREVIEWED;
 import static io.github.malonetalk.enums.CsvImportStatus.QUEUED;
 import static io.github.malonetalk.enums.CsvImportStatus.READY;
 import static io.github.malonetalk.enums.CsvImportStatus.SYNCING;
@@ -44,11 +38,6 @@ import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.PermissionService;
 import jakarta.annotation.Resource;
-import java.nio.file.Files;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,7 +55,7 @@ public class CsvImportWorker {
     private final CsvDatasourceService datasources;
     private final CsvTableImportService tables;
     private final CsvImportPublishService publisher;
-    private final CsvFileService files;
+    private final CsvImportCleanupService cleanup;
     private final PermissionService permissions;
     private final UserContextHolder holder;
     private final ExceptionResponseMapper exceptionResponses;
@@ -127,7 +116,7 @@ public class CsvImportWorker {
                                 .set(CsvImportPo::getRowCount, count)
                                 .set(CsvImportPo::getStatus, DATA_READY));
         if (changed != 1) {
-            discardStaleTable(task);
+            cleanup.discardStaleTable(task);
             return false;
         }
         task.setRowCount(count);
@@ -150,7 +139,7 @@ public class CsvImportWorker {
         if (!transition(task, DATA_READY, SYNCING)) return;
         publisher.publish(task, publisher.snapshot(task, datasource));
         task.setStatus(READY);
-        removeFile(task);
+        cleanup.removeFile(task);
     }
 
     private boolean transition(CsvImportPo task, CsvImportStatus from, CsvImportStatus to) {
@@ -186,144 +175,9 @@ public class CsvImportWorker {
                                         message.substring(0, Math.min(500, message.length()))));
         if (changed == 1 && target == CLEANING) {
             task.setStatus(CLEANING);
-            cleanupTable(task);
+            cleanup.cleanupTable(task);
         } else if (changed == 0 && task.getStatus() == IMPORTING) {
-            discardStaleTable(task);
-        }
-    }
-
-    private void discardStaleTable(CsvImportPo task) {
-        try {
-            // Each data retry has its own table, so this cannot drop the new attempt's data.
-            tables.drop(task, datasources.requireActive());
-        } catch (Exception e) {
-            logTaskFailure(task, "stale table cleanup", e);
-        }
-    }
-
-    private void cleanupTable(CsvImportPo task) {
-        try {
-            tables.drop(task, datasources.requireActive());
-            transition(task, CLEANING, IMPORT_FAILED);
-        } catch (Exception e) {
-            logTaskFailure(task, "table cleanup", e);
-            transition(task, CLEANING, CLEANUP_FAILED);
-        }
-    }
-
-    private void removeFile(CsvImportPo task) {
-        try {
-            files.delete(task.getId());
-            imports.update(
-                    Wrappers.<CsvImportPo>lambdaUpdate()
-                            .eq(CsvImportPo::getId, task.getId())
-                            .eq(CsvImportPo::getAttemptId, task.getAttemptId())
-                            .set(CsvImportPo::getExpiresAt, null));
-        } catch (Exception e) {
-            logTaskFailure(task, "file cleanup", e);
-        }
-    }
-
-    @Scheduled(fixedDelay = 60000, initialDelay = 60000)
-    public void cleanup() {
-        if (config.getDatasourceId() <= 0) return;
-        LocalDateTime now = LocalDateTime.now();
-        recoverTimedOutTasks(now);
-        for (CsvImportPo task : cleanupCandidates(now)) {
-            try {
-                cleanupTask(task, now);
-            } catch (Exception e) {
-                logTaskFailure(task, "recovery", e);
-            }
-        }
-        cleanupOrphanFiles();
-        cleanupOrphanTables();
-    }
-
-    private void recoverTimedOutTasks(LocalDateTime now) {
-        // Ten minutes is a recovery threshold, not proof that the old worker has stopped.
-        // Attempt-guarded updates and distinct retry tables fence workers that later resume.
-        imports.update(
-                Wrappers.<CsvImportPo>lambdaUpdate()
-                        .eq(CsvImportPo::getDatasourceId, config.getDatasourceId())
-                        .in(CsvImportPo::getStatus, IMPORTING, CLEANING)
-                        .lt(CsvImportPo::getUpdateTime, now.minusMinutes(10))
-                        .set(CsvImportPo::getStatus, CLEANUP_FAILED)
-                        .set(CsvImportPo::getErrorMessage, "导入任务中断，请重新确认导入。"));
-        imports.update(
-                Wrappers.<CsvImportPo>lambdaUpdate()
-                        .eq(CsvImportPo::getDatasourceId, config.getDatasourceId())
-                        .eq(CsvImportPo::getStatus, SYNCING)
-                        .lt(CsvImportPo::getUpdateTime, now.minusMinutes(10))
-                        .set(CsvImportPo::getStatus, SYNC_FAILED)
-                        .set(CsvImportPo::getErrorMessage, "语义同步中断，请重试同步。"));
-    }
-
-    private List<CsvImportPo> cleanupCandidates(LocalDateTime now) {
-        var query =
-                Wrappers.<CsvImportPo>lambdaQuery()
-                        .eq(CsvImportPo::getDatasourceId, config.getDatasourceId());
-        query.and(
-                filter ->
-                        filter.in(CsvImportPo::getStatus, CLEANUP_FAILED, DELETING)
-                                .or()
-                                .in(
-                                        CsvImportPo::getStatus,
-                                        PREVIEWED,
-                                        IMPORT_FAILED,
-                                        READY,
-                                        EXPIRED)
-                                .isNotNull(CsvImportPo::getExpiresAt)
-                                .lt(CsvImportPo::getExpiresAt, now));
-        return imports.selectList(query.orderByAsc(CsvImportPo::getUpdateTime).last("LIMIT 100"));
-    }
-
-    private void cleanupTask(CsvImportPo task, LocalDateTime now) {
-        if (task.getStatus() == CLEANUP_FAILED && transition(task, CLEANUP_FAILED, CLEANING))
-            cleanupTable(task);
-        if (task.getStatus() == DELETING && task.getUpdateTime().isBefore(now.minusMinutes(10)))
-            transition(task, DELETING, DELETE_FAILED);
-        // A cleaned failed import can also expire during this pass.
-        if (task.getStatus() == READY || task.getStatus() == EXPIRED) removeFile(task);
-        else if ((task.getStatus() == PREVIEWED || task.getStatus() == IMPORT_FAILED)
-                && task.getExpiresAt().isBefore(now)) {
-            if (transition(task, task.getStatus(), EXPIRED)) removeFile(task);
-        }
-    }
-
-    private void cleanupOrphanTables() {
-        try {
-            tables.dropOrphanTables(
-                    datasources.requireActive(),
-                    table ->
-                            imports.selectCount(
-                                            Wrappers.<CsvImportPo>lambdaQuery()
-                                                    .eq(CsvImportPo::getPhysicalTableName, table))
-                                    > 0);
-        } catch (Exception e) {
-            logDatasourceFailure("orphan table cleanup", e);
-        }
-    }
-
-    private void cleanupOrphanFiles() {
-        if (!Files.isDirectory(config.getDirectory())) return;
-        Instant expiresBefore = Instant.now().minus(1, ChronoUnit.DAYS);
-        try (var paths = Files.list(config.getDirectory())) {
-            var candidates =
-                    paths.filter(
-                                    path ->
-                                            path.getFileName()
-                                                    .toString()
-                                                    .matches("[a-f0-9]{32}[.]csv"))
-                            .iterator();
-            while (candidates.hasNext()) {
-                var path = candidates.next();
-                String id = path.getFileName().toString().substring(0, 32);
-                if (Files.getLastModifiedTime(path).toInstant().isBefore(expiresBefore)
-                        && Optional.ofNullable(imports.selectById(id)).isEmpty()) files.delete(id);
-            }
-        } catch (Exception e) {
-            logDatasourceFailure("orphan file cleanup", e);
+            cleanup.discardStaleTable(task);
         }
     }
 
@@ -336,11 +190,6 @@ public class CsvImportWorker {
                                 task.getAttemptId(),
                                 task.getStatus(),
                                 task.getPhysicalTableName());
-        exceptionResponses.logMapped(log, error, exceptionResponses.resolve(error), context);
-    }
-
-    private void logDatasourceFailure(String phase, Exception error) {
-        String context = "CSV %s [datasourceId=%s]".formatted(phase, config.getDatasourceId());
         exceptionResponses.logMapped(log, error, exceptionResponses.resolve(error), context);
     }
 }

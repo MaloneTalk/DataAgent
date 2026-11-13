@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -48,7 +49,8 @@ public class SemanticSyncApplyService {
     private final SemanticSyncDiffService semanticSyncDiffService;
     private final SemanticSyncConverter converter;
 
-    @Transactional
+    // Both interactive sync and CSV publication hold the datasource lock before entering.
+    @Transactional(propagation = Propagation.MANDATORY)
     public List<SyncTableResult> applyTableSync(
             Integer datasourceId,
             List<TableSyncSourceBo> presentTables,
@@ -78,19 +80,14 @@ public class SemanticSyncApplyService {
         return diff.results();
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public List<SyncTableResult> refreshPhysicalStatus(
-            Integer datasourceId,
+            List<TableInfo> semanticTables,
+            List<ColumnInfo> semanticColumns,
             Set<String> physicalTableNames,
             Map<String, Set<String>> physicalColumnNamesByTable) {
-        // 全量对比语义缓存与物理结构，在内存中收集差异后统一批量更新。
-        List<TableInfo> semanticTables = tableInfoMapper.selectByDatasourceId(datasourceId);
-        if (semanticTables.isEmpty()) {
-            return List.of();
-        }
-        List<String> tableNames = semanticTables.stream().map(TableInfo::getTableName).toList();
-        Map<String, List<ColumnInfo>> columnsByTableName =
-                loadSemanticColumnsByTable(datasourceId, tableNames);
+        // The caller captured and locked this scope before reading the physical schema.
+        Map<String, List<ColumnInfo>> columnsByTableName = indexSemanticColumns(semanticColumns);
         SemanticSyncDiffBo diff =
                 semanticSyncDiffService.comparePhysicalStatus(
                         semanticTables,
@@ -99,7 +96,14 @@ public class SemanticSyncApplyService {
                         physicalColumnNamesByTable);
 
         LocalDateTime now = LocalDateTime.now();
-        markMissingTables(datasourceId, diff.missingTableNames(), now);
+        Set<String> missingTableNames = Set.copyOf(diff.missingTableNames());
+        List<Integer> missingTableIds =
+                semanticTables.stream()
+                        .filter(table -> missingTableNames.contains(tableKey(table.getTableName())))
+                        .map(TableInfo::getId)
+                        .toList();
+        if (!missingTableIds.isEmpty())
+            tableInfoMapper.markPhysicalMissingByIds(missingTableIds, now);
         markMissingColumns(diff.missingColumnIds(), now);
         return diff.results();
     }
@@ -229,10 +233,14 @@ public class SemanticSyncApplyService {
 
     private Map<String, List<ColumnInfo>> loadSemanticColumnsByTable(
             Integer datasourceId, List<String> tableNames) {
-        Map<String, List<ColumnInfo>> result = new LinkedHashMap<>();
-        for (ColumnInfo column :
+        return indexSemanticColumns(
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNames(
-                        datasourceId, tableNames)) {
+                        datasourceId, tableNames));
+    }
+
+    private Map<String, List<ColumnInfo>> indexSemanticColumns(List<ColumnInfo> columns) {
+        Map<String, List<ColumnInfo>> result = new LinkedHashMap<>();
+        for (ColumnInfo column : columns) {
             String tableName =
                     SemanticUtils.normalizeObjectName(
                             column.getTableName(), "Missing semantic tableName.");

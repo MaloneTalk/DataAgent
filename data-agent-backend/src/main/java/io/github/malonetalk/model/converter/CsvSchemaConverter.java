@@ -20,56 +20,21 @@ package io.github.malonetalk.model.converter;
 import static io.github.malonetalk.common.CsvLimits.MAX_COLUMNS;
 import static io.github.malonetalk.common.CsvLimits.MAX_NAME_LENGTH;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.dto.CsvColumnDto;
-import io.github.malonetalk.model.dto.CsvParseOptions;
 import io.github.malonetalk.utils.DateTimeUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import org.mapstruct.Named;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class CsvSchemaConverter {
-    private final ObjectMapper objectMapper;
-
-    @Named("csvJson")
-    public String json(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot serialize CSV metadata", e);
-        }
-    }
-
-    public List<CsvColumnDto> columns(String json) {
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot read CSV columns", e);
-        }
-    }
-
-    public CsvParseOptions options(String json) {
-        try {
-            return objectMapper.readValue(json, CsvParseOptions.class);
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot read CSV options", e);
-        }
-    }
-
     public void validate(List<CsvColumnDto> columns, int expected) {
         if (columns.size() != expected || expected < 1 || expected > MAX_COLUMNS) {
             throw BusinessException.of(
@@ -152,8 +117,8 @@ public class CsvSchemaConverter {
                                     ErrorCode.CSV_SCHEMA_INVALID, "布尔值必须为 true 或 false。");
                         yield Boolean.parseBoolean(text);
                     }
-                    case "DATE" -> Date.valueOf(DateTimeUtils.parseMysqlDate(text));
-                    case "DATETIME" -> Timestamp.valueOf(DateTimeUtils.parseMysqlDateTime(text));
+                    case "DATE" -> DateTimeUtils.parseMysqlDate(text);
+                    case "DATETIME" -> DateTimeUtils.parseMysqlDateTime(text);
                     default ->
                             throw BusinessException.of(ErrorCode.CSV_SCHEMA_INVALID, "不支持的字段类型。");
                 };

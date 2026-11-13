@@ -108,8 +108,10 @@ public class CsvImportService {
                         Wrappers.<CsvImportPo>lambdaUpdate()
                                 .eq(CsvImportPo::getId, id)
                                 .in(CsvImportPo::getStatus, PREVIEWED, IMPORT_FAILED)
-                                .set(CsvImportPo::getParseOptionsJson, schema.json(options))
-                                .set(CsvImportPo::getColumnsJson, schema.json(preview.columns())));
+                                .set(CsvImportPo::getParseOptionsJson, converter.json(options))
+                                .set(
+                                        CsvImportPo::getColumnsJson,
+                                        converter.json(preview.columns())));
         if (updated != 1)
             throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务状态已变化，请刷新后重试。");
         return converter.toVo(accessible(id), preview.rows());
@@ -121,7 +123,7 @@ public class CsvImportService {
         var submitted = Set.of(QUEUED, IMPORTING, DATA_READY, SYNCING, READY, SYNC_FAILED);
         if (submitted.contains(task.getStatus())) return converter.toVo(task, List.of());
         requirePreviewable(task);
-        schema.validate(request.columns(), schema.columns(task.getColumnsJson()).size());
+        schema.validate(request.columns(), converter.columns(task.getColumnsJson()).size());
         String attemptId = UUID.randomUUID().toString().replace("-", "");
         int updated =
                 imports.update(
@@ -133,7 +135,7 @@ public class CsvImportService {
                                 .set(
                                         CsvImportPo::getDescription,
                                         Optional.ofNullable(request.description()).orElse(""))
-                                .set(CsvImportPo::getColumnsJson, schema.json(request.columns()))
+                                .set(CsvImportPo::getColumnsJson, converter.json(request.columns()))
                                 .set(CsvImportPo::getStatus, QUEUED)
                                 // A new table isolates a resumed worker from the retry's data.
                                 .set(

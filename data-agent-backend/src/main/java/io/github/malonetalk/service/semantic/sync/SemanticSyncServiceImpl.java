@@ -26,14 +26,17 @@ import io.github.malonetalk.dto.semantic.RefreshPhysicalStatusRequest;
 import io.github.malonetalk.dto.semantic.SyncTableResult;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsRequest;
 import io.github.malonetalk.dto.semantic.SyncTableSemanticsResponse;
+import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.bo.TableSyncSourceBo;
 import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.DatasourceWriteLockService;
 import io.github.malonetalk.service.csv.CsvAccessService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.ArrayList;
@@ -46,13 +49,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class SemanticSyncServiceImpl implements SemanticSyncService {
 
     private final DatasourceService datasourceService;
+    private final DatasourceWriteLockService datasourceWriteLock;
     private final TableInfoMapper tableInfoMapper;
+    private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final SchemaReader schemaReader;
     private final SemanticSyncApplyService semanticSyncApplyService;
     private final SemanticSyncResultService semanticSyncResultService;
@@ -130,8 +136,10 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     }
 
     @Override
+    @Transactional
     public SyncTableSemanticsResponse syncTables(SyncTableSemanticsRequest request) {
-        DatasourcePo datasource = requireDatasource(request.datasourceId());
+        SemanticUtils.requireDatasourceId(request.datasourceId());
+        DatasourcePo datasource = datasourceWriteLock.lock(request.datasourceId());
         Map<String, PhysicalTableInfo> physicalTables = loadPhysicalTableIndex(datasource);
         Map<String, String> selectedTableNames = new LinkedHashMap<>();
         for (String tableName : request.tableNames()) {
@@ -146,7 +154,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
 
         List<TableSyncSourceBo> presentTables = new ArrayList<>();
         List<String> missingTableNames = new ArrayList<>();
-        // 先读取并整理全部物理结构，再交给事务方法批量写库，避免事务中访问外部数据源。
+        // Keep publication/deletion out of the interval between reading and applying the snapshot.
         for (Map.Entry<String, String> selectedTable : selectedTableNames.entrySet()) {
             PhysicalTableInfo physicalTable = physicalTables.get(selectedTable.getKey());
             if (physicalTable == null) {
@@ -163,14 +171,24 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
     }
 
     @Override
+    @Transactional
     public SyncTableSemanticsResponse refreshPhysicalStatus(RefreshPhysicalStatusRequest request) {
-        DatasourcePo datasource = requireDatasource(request.datasourceId());
+        SemanticUtils.requireDatasourceId(request.datasourceId());
+        // Lock before any ordinary reads, so a waiting transaction sees the latest CSV READY state.
+        DatasourcePo datasource = datasourceWriteLock.lock(request.datasourceId());
+        List<TableInfo> semanticTables =
+                tableInfoMapper.selectByDatasourceIdForUpdate(datasource.getId());
+        if (semanticTables.isEmpty()) return semanticSyncResultService.summarize(List.of());
+        List<ColumnInfo> semanticColumns =
+                columnSemanticInfoMapper.selectByDatasourceIdForUpdate(datasource.getId());
+        // Hold these rows through the physical read; update_time has only second precision.
         Map<String, PhysicalTableInfo> physicalTables = loadPhysicalTableIndex(datasource);
         Map<String, Set<String>> physicalColumnNamesByTable =
                 loadPhysicalColumnNamesByTable(datasource, physicalTables);
         List<SyncTableResult> results =
                 semanticSyncApplyService.refreshPhysicalStatus(
-                        request.datasourceId(),
+                        semanticTables,
+                        semanticColumns,
                         physicalTables.keySet(),
                         physicalColumnNamesByTable);
         return semanticSyncResultService.summarize(results);
@@ -189,7 +207,6 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
 
     private TableSyncSourceBo readTableSyncSource(
             DatasourcePo datasource, PhysicalTableInfo physicalTable) {
-        // 在开启写事务前读取物理列快照，避免 JDBC 元数据读取延长事务时间。
         return converter.toTable(
                 physicalTable.tableName(),
                 physicalTable.remarks(),

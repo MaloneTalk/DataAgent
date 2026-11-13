@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+  import { onBeforeUnmount, reactive, ref, watch } from 'vue';
   import { useRouter } from 'vue-router';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useUserStore } from '@/stores/user';
@@ -29,12 +29,7 @@
   } from '@/api/csvImport';
   import CsvUploadDialog from './CsvUploadDialog.vue';
 
-  const props = defineProps<{ modelValue: boolean }>();
-  const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void }>();
-  const visible = computed({
-    get: () => props.modelValue,
-    set: value => emit('update:modelValue', value),
-  });
+  const visible = defineModel<boolean>({ required: true });
   const user = useUserStore();
   const router = useRouter();
   const rows = ref<CsvImport[]>([]);
@@ -47,13 +42,23 @@
   const operating = reactive(new Set<string>());
   let timer: ReturnType<typeof setTimeout> | undefined;
   let loadRequest = 0;
-  const pending = new Set<CsvImportStatus>([
+  const pollingStatuses = new Set<CsvImportStatus>([
     'QUEUED',
     'IMPORTING',
     'DATA_READY',
     'SYNCING',
     'CLEANING',
+    'CLEANUP_FAILED',
     'DELETING',
+  ]);
+  const deletableStatuses = new Set<CsvImportStatus>([
+    'PREVIEWED',
+    'READY',
+    'IMPORT_FAILED',
+    'SYNC_FAILED',
+    'CLEANUP_FAILED',
+    'DELETE_FAILED',
+    'EXPIRED',
   ]);
   const statusLabels: Record<CsvImportStatus, string> = {
     PREVIEWED: '待确认',
@@ -91,7 +96,7 @@
       if (requestId !== loadRequest || !visible.value || requestedPage !== page.value) return;
       rows.value = result.items;
       total.value = result.total;
-      if (visible.value && rows.value.some(row => pending.has(row.status)))
+      if (visible.value && rows.value.some(row => pollingStatuses.has(row.status)))
         timer = setTimeout(load, 3000);
     } catch {
       // The request interceptor displays the error; refresh explicitly to retry.
@@ -100,19 +105,16 @@
     }
   }
 
-  watch(
-    () => props.modelValue,
-    open => {
-      if (open) {
-        page.value = 1;
-        load();
-      } else {
-        loadRequest++;
-        loading.value = false;
-        stopPolling();
-      }
-    },
-  );
+  watch(visible, open => {
+    if (open) {
+      page.value = 1;
+      load();
+    } else {
+      loadRequest++;
+      loading.value = false;
+      stopPolling();
+    }
+  });
   onBeforeUnmount(() => {
     loadRequest++;
     stopPolling();
@@ -228,7 +230,7 @@
             重试同步
           </el-button>
           <el-button
-            v-if="!pending.has(row.status)"
+            v-if="deletableStatuses.has(row.status)"
             v-permission="'data:csv:delete'"
             link
             type="danger"

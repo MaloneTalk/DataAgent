@@ -46,6 +46,8 @@ public interface TableInfoMapper {
 
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
+    List<TableInfo> selectByDatasourceIdForUpdate(@Param("datasourceId") Integer datasourceId);
+
     IPage<TableInfo> selectPageByDatasourceId(
             IPage<TableInfo> page,
             @Param("query") TableSemanticPageQuery query,
@@ -65,6 +67,8 @@ public interface TableInfoMapper {
             @Param("datasourceId") Integer datasourceId,
             @Param("tableNames") List<String> tableNames,
             @Param("now") LocalDateTime now);
+
+    int markPhysicalMissingByIds(@Param("ids") List<Integer> ids, @Param("now") LocalDateTime now);
 
     int countByDomain(@Param("domain") String domain);
 

@@ -21,6 +21,7 @@ import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.config.CsvImportConfig;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.converter.CsvImportConverter;
 import io.github.malonetalk.model.converter.CsvSchemaConverter;
 import io.github.malonetalk.model.dto.CsvColumnDto;
 import io.github.malonetalk.model.po.CsvImportPo;
@@ -50,13 +51,14 @@ public class CsvTableImportService {
     private final CsvImportConfig config;
     private final CsvFileService files;
     private final CsvSchemaConverter converter;
+    private final CsvImportConverter importConverter;
 
     public long importTable(CsvImportPo task, DatasourcePo datasource, LongConsumer progress)
             throws Exception {
         if (!datasource.getId().equals(task.getDatasourceId()))
             throw BusinessException.of(ErrorCode.CSV_TASK_STATE_CONFLICT, "任务不属于当前 CSV 数据源。");
         files.verify(task.getId(), task.getFileSha256());
-        List<CsvColumnDto> columns = converter.columns(task.getColumnsJson());
+        List<CsvColumnDto> columns = importConverter.columns(task.getColumnsJson());
         converter.validate(columns, columns.size());
         try (Connection connection = connect(datasource)) {
             progress.accept(0);
@@ -135,7 +137,7 @@ public class CsvTableImportService {
             List<CsvColumnDto> columns,
             LongConsumer progress)
             throws Exception {
-        var options = converter.options(task.getParseOptionsJson());
+        var options = importConverter.options(task.getParseOptionsJson());
         String placeholders = columns.stream().map(column -> "?").collect(Collectors.joining(","));
         try (CSVParser parser = files.open(task.getId(), options);
                 PreparedStatement statement =

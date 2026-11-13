@@ -25,19 +25,15 @@
     previewCsv,
     repreviewCsv,
     type CsvImport,
+    type CsvImportConfirm,
   } from '@/api/csvImport';
 
-  const props = defineProps<{ modelValue: boolean; initial?: CsvImport }>();
-  const emit = defineEmits<{
-    (e: 'update:modelValue', value: boolean): void;
-    (e: 'imported'): void;
-  }>();
+  const visible = defineModel<boolean>({ required: true });
+  const props = defineProps<{ initial?: CsvImport }>();
+  const emit = defineEmits<{ imported: [] }>();
   const user = useUserStore();
-  const visible = computed({
-    get: () => props.modelValue,
-    set: value => emit('update:modelValue', value),
-  });
   const options = reactive({ encoding: 'UTF-8', delimiter: ',', header: true, emptyAsNull: true });
+  const form = reactive<CsvImportConfirm>({ displayName: '', description: '', columns: [] });
   const file = ref<File>();
   const task = ref<CsvImport>();
   const busy = ref(false);
@@ -48,34 +44,39 @@
     () => user.hasPermission('data:csv:import') && user.hasPermission('semantic:table:sync'),
   );
 
-  watch(
-    () => props.modelValue,
-    async open => {
-      // Closing/reopening invalidates responses from the previous dialog session.
-      previewRequest++;
-      busy.value = false;
-      if (!open) return;
-      file.value = undefined;
+  watch(visible, async open => {
+    // Closing/reopening invalidates responses from the previous dialog session.
+    previewRequest++;
+    busy.value = false;
+    if (!open) return;
+    file.value = undefined;
+    task.value = props.initial;
+    Object.assign(form, {
+      displayName: props.initial?.displayName ?? '',
+      description: props.initial?.description ?? '',
       // Keep nested form edits local even if re-preview fails.
-      task.value = props.initial ? window.structuredClone(toRaw(props.initial)) : undefined;
-      Object.assign(
-        options,
-        props.initial?.options ?? {
-          encoding: 'UTF-8',
-          delimiter: ',',
-          header: true,
-          emptyAsNull: true,
-        },
-      );
-      if (props.initial) await preview();
-    },
-  );
+      columns: props.initial ? window.structuredClone(toRaw(props.initial.columns)) : [],
+    });
+    previewOptions.value = '';
+    Object.assign(
+      options,
+      props.initial?.options ?? {
+        encoding: 'UTF-8',
+        delimiter: ',',
+        header: true,
+        emptyAsNull: true,
+      },
+    );
+    if (props.initial) await preview();
+  });
 
   function chooseFile(event: Event) {
     if (!(event.target instanceof window.HTMLInputElement)) return;
     previewRequest++;
     file.value = event.target.files?.[0];
     task.value = undefined;
+    Object.assign(form, { displayName: '', description: '', columns: [] });
+    previewOptions.value = '';
   }
 
   async function preview() {
@@ -95,6 +96,11 @@
         ? await repreviewCsv(task.value.id, parseOptions)
         : await previewCsv(file.value!, parseOptions);
       if (requestId !== previewRequest || !visible.value) return;
+      if (!task.value) {
+        form.displayName = result.displayName;
+        form.description = result.description;
+      }
+      form.columns = window.structuredClone(result.columns);
       task.value = result;
       previewOptions.value = JSON.stringify(parseOptions);
     } catch {
@@ -106,14 +112,14 @@
 
   async function confirm() {
     if (!task.value || changed.value) return;
-    if (!task.value.displayName.trim() || task.value.columns.some(column => !column.name.trim())) {
+    if (!form.displayName.trim() || form.columns.some(column => !column.name.trim())) {
       ElMessage.warning('请填写表名称及所有字段名称');
       return;
     }
     const requestId = previewRequest;
     busy.value = true;
     try {
-      await confirmCsv(task.value);
+      await confirmCsv(task.value.id, form);
       emit('imported');
       if (requestId !== previewRequest || !visible.value) return;
       ElMessage.success('已提交导入，可在记录中查看进度');
@@ -180,13 +186,13 @@
           :closable="false"
         />
         <el-form-item label="表名称">
-          <el-input v-model="task.displayName" :maxlength="200" />
+          <el-input v-model="form.displayName" :maxlength="200" />
         </el-form-item>
         <el-form-item label="说明">
-          <el-input v-model="task.description" type="textarea" :maxlength="400" />
+          <el-input v-model="form.description" type="textarea" :maxlength="400" />
         </el-form-item>
         <p>根据前 1,000 条数据推断类型。编号有前导零时请使用文本；金额请使用 DECIMAL。</p>
-        <el-table :data="task.columns" max-height="300">
+        <el-table :data="form.columns" max-height="300">
           <el-table-column label="字段名称" min-width="150">
             <template #default="{ row }"><el-input v-model="row.name" :maxlength="200" /></template>
           </el-table-column>
@@ -234,7 +240,7 @@
         <p>数据预览（最多 20 条）</p>
         <el-table :data="task.preview" max-height="240">
           <el-table-column
-            v-for="column in task.columns"
+            v-for="column in form.columns"
             :key="column.index"
             :label="column.name"
             :prop="String(column.index)"

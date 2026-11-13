@@ -39,6 +39,7 @@ import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.DatasourceWriteLockService;
 import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
@@ -65,6 +66,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     private final LogicalTableRelationMapper logicalTableRelationMapper;
     private final LogicalTableRelationHelper logicalTableRelationHelper;
     private final SemanticConverter semanticConverter;
+    private final DatasourceWriteLockService datasourceLocks;
 
     @Override
     public PageResponse<LogicalTableRelationResponse> getRelationPage(
@@ -100,7 +102,8 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     @Transactional
     public LogicalTableRelationResponse createRelationSemantic(
             String tableName, BindLogicalTableRelationRequest request) {
-        requireDatasource(request.datasourceId());
+        datasourceLocks.lock(request.datasourceId());
+        // Load CSV READY visibility only after taking the same lock as import deletion.
         var scope = dataPermissions.loadScope(holder.checkAndGet(), request.datasourceId());
         LogicalTableRelation relation = buildRelation(tableName, request, scope);
         logicalTableRelationMapper.insert(relation);
@@ -111,7 +114,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     @Transactional
     public LogicalTableRelationResponse updateRelationSemantic(
             String tableName, UpdateLogicalTableRelationRequest request) {
-        requireDatasource(request.datasourceId());
+        datasourceLocks.lock(request.datasourceId());
         var scope = dataPermissions.loadScope(holder.checkAndGet(), request.datasourceId());
         LogicalTableRelation existing =
                 requireRelation(request.datasourceId(), tableName, request.relationId(), scope);
@@ -125,7 +128,7 @@ public class RelationSemanticServiceImpl implements RelationSemanticService {
     @Transactional
     public boolean updateRelationSemanticEnabled(
             String tableName, UpdateLogicalTableRelationEnabledRequest request) {
-        requireDatasource(request.datasourceId());
+        datasourceLocks.lock(request.datasourceId());
         RequestAssert.requireNonNull(request.enabled(), "enabled cannot be null.");
         var scope = dataPermissions.loadScope(holder.checkAndGet(), request.datasourceId());
         LogicalTableRelation relation =

@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service;
 
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.po.MetricInfoPo;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.HashSet;
@@ -29,13 +31,25 @@ import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.AllTableColumns;
 import org.springframework.stereotype.Service;
 
-/** Conservative expression lineage for deletion: unknown references block the operation. */
+/** Conservative expression lineage for deletion and CSV metric reference validation. */
 @Service
 public class MetricTableReferenceService {
     public boolean mayReference(MetricInfoPo metric, String table, Set<String> knownTables) {
+        return references(metric, knownTables)
+                .map(references -> references.contains(SemanticUtils.normalizeIdentifier(table)))
+                .orElse(true);
+    }
+
+    public void requireReadyTables(MetricInfoPo metric, Set<String> readyTables) {
+        if (references(metric, readyTables).isEmpty())
+            throw BusinessException.of(
+                    ErrorCode.CSV_TABLE_NOT_READY, "CSV 指标必须明确引用已就绪的表，请使用表名限定字段并检查相关导入任务。");
+    }
+
+    private Optional<Set<String>> references(MetricInfoPo metric, Set<String> knownTables) {
         if (Optional.ofNullable(metric.getMeasureExpr())
                 .filter(value -> !value.isBlank())
-                .isEmpty()) return true;
+                .isEmpty()) return Optional.empty();
         Set<String> references = new HashSet<>();
         Consumer<Table> collect =
                 source -> {
@@ -73,9 +87,8 @@ public class MetricTableReferenceService {
                 inspector.inspect(CCJSqlParserUtil.parseExpression(expression, false));
             }
         } catch (Exception e) {
-            return true;
+            return Optional.empty();
         }
-        return references.isEmpty()
-                || references.contains(SemanticUtils.normalizeIdentifier(table));
+        return references.isEmpty() ? Optional.empty() : Optional.of(Set.copyOf(references));
     }
 }

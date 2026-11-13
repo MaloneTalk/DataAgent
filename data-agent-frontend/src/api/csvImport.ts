@@ -85,6 +85,8 @@ export interface CsvImportPage {
   pageSize: number;
 }
 
+export type CsvImportConfirm = Pick<CsvImport, 'displayName' | 'description' | 'columns'>;
+
 export function previewCsv(file: File, options: CsvParseOptions) {
   const data = new FormData();
   data.append('file', file);
@@ -100,13 +102,9 @@ export function repreviewCsv(id: string, options: CsvParseOptions) {
     .then(res => res.data.data);
 }
 
-export function confirmCsv(task: CsvImport) {
+export function confirmCsv(id: string, data: CsvImportConfirm) {
   return request
-    .post<ApiResponse<CsvImport>>(`/csv-imports/${task.id}/confirm`, {
-      displayName: task.displayName,
-      description: task.description,
-      columns: task.columns,
-    })
+    .post<ApiResponse<CsvImport>>(`/csv-imports/${id}/confirm`, data)
     .then(res => res.data.data);
 }
 

@@ -33,6 +33,7 @@ import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
 import io.github.malonetalk.model.po.CsvImportPo;
+import io.github.malonetalk.service.DatasourceWriteLockService;
 import io.github.malonetalk.service.MetricTableReferenceService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.Optional;
@@ -40,6 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -52,9 +54,19 @@ public class CsvImportDeleteService {
     private final RoleTablePermissionMapper tablePermissions;
     private final RoleHiddenColumnMapper hiddenColumns;
     private final MetricTableReferenceService metricReferences;
+    private final DatasourceWriteLockService datasourceLocks;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public CsvImportPo begin(String id) {
+        // Resolve the immutable datasource before locking; subsequent reads must see its winner.
+        Integer datasourceId =
+                Optional.ofNullable(imports.selectById(id))
+                        .map(CsvImportPo::getDatasourceId)
+                        .orElseThrow(
+                                () ->
+                                        BusinessException.of(
+                                                ErrorCode.CSV_TASK_NOT_FOUND, "导入记录不存在。"));
+        datasourceLocks.lock(datasourceId);
         CsvImportPo task =
                 Optional.ofNullable(
                                 imports.selectOne(
@@ -109,6 +121,7 @@ public class CsvImportDeleteService {
 
     @Transactional
     public void finish(CsvImportPo task) {
+        datasourceLocks.lock(task.getDatasourceId());
         Optional.ofNullable(
                         imports.selectOne(
                                 Wrappers.<CsvImportPo>lambdaQuery()
