@@ -24,6 +24,8 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 import jakarta.annotation.PreDestroy;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +52,13 @@ public class DynamicDataSourceManager {
                 dataSourcePool.computeIfAbsent(
                         datasource.getId(), id -> createDataSource(datasource));
         return jdbcTelemetry.wrap(pool);
+    }
+
+    public boolean testConnection(DatasourcePo datasource) throws SQLException {
+        try (HikariDataSource pool = createDataSource(datasource);
+                Connection connection = pool.getConnection()) {
+            return connection.isValid(5);
+        }
     }
 
     private HikariDataSource createDataSource(DatasourcePo datasource) {

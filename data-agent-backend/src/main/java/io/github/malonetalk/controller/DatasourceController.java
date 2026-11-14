@@ -31,9 +31,11 @@ import io.github.malonetalk.model.vo.BooleanVo;
 import io.github.malonetalk.model.vo.DatasourceColumnsVo;
 import io.github.malonetalk.model.vo.DatasourceObjectVo;
 import io.github.malonetalk.model.vo.DatasourceOptionVo;
+import io.github.malonetalk.model.vo.DatasourceTestVo;
 import io.github.malonetalk.model.vo.DatasourceVo;
 import io.github.malonetalk.model.vo.ListVo;
 import io.github.malonetalk.service.DataPermissionService;
+import io.github.malonetalk.service.DatasourceInspectionService;
 import io.github.malonetalk.service.DatasourceService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -55,6 +57,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DatasourceController {
 
     private final DatasourceService dataSourceService;
+    private final DatasourceInspectionService datasourceInspectionService;
     private final DataPermissionService dataPermissions;
     private final UserContextHolder holder;
     private final DatasourceConverter datasourceConverter;
@@ -200,5 +203,11 @@ public class DatasourceController {
                                                 ds.getType(),
                                                 ds.getStatus()))
                         .toList());
+    }
+
+    @PostMapping("/{id}/test")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_UPDATE)
+    public DatasourceTestVo testConnection(@PathVariable Integer id) {
+        return datasourceInspectionService.testConnection(id);
     }
 }

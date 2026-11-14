@@ -28,6 +28,7 @@
     activateDatasource,
     deactivateDatasource,
     getDatasourceList,
+    testDatasource,
     type DatasourceResponse,
   } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
@@ -148,6 +149,28 @@
     }
   };
 
+  const testingIds = reactive(new Set<number>());
+
+  const handleTestConnection = async (row: DatasourceResponse) => {
+    if (testingIds.has(row.id)) return;
+
+    testingIds.add(row.id);
+
+    try {
+      const result = await testDatasource(row.id);
+
+      if (result.success) {
+        ElMessage.success(result.message);
+      } else {
+        ElMessage.error(result.message);
+      }
+    } catch {
+      // 请求异常由现有 request 拦截器统一提示。
+    } finally {
+      testingIds.delete(row.id);
+    }
+  };
+
   const handleActivate = async (row: DatasourceResponse) => {
     try {
       await activateDatasource(row.id);
@@ -250,8 +273,18 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="300">
+      <el-table-column label="操作" width="420">
         <template #default="{ row }">
+          <el-button
+            v-permission="'data:datasource:update'"
+            link
+            type="primary"
+            :loading="testingIds.has(row.id)"
+            :disabled="testingIds.has(row.id)"
+            @click="handleTestConnection(row)"
+          >
+            测试连接
+          </el-button>
           <el-button
             v-permission="'semantic:table:read'"
             link

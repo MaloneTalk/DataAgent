@@ -101,3 +101,14 @@ export function getDatasourceOptions() {
     .get<ApiResponse<DatasourceOption[]>>('/datasource/options')
     .then(res => res.data.data);
 }
+
+export interface DatasourceTestResponse {
+  success: boolean;
+  message: string;
+}
+
+export function testDatasource(id: number) {
+  return request
+    .post<ApiResponse<DatasourceTestResponse>>(`/datasource/${id}/test`)
+    .then(res => res.data.data);
+}
