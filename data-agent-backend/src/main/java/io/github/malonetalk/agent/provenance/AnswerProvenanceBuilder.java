@@ -232,6 +232,9 @@ public class AnswerProvenanceBuilder {
                     (old, next) ->
                             new TableUse(
                                     old.name(),
+                                    next.objectType() == null
+                                            ? old.objectType()
+                                            : next.objectType(),
                                     old.domain(),
                                     old.description(),
                                     mergeDistinct(old.columns(), next.columns())));

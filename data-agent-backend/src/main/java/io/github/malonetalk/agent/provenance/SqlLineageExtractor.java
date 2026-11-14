@@ -85,6 +85,7 @@ public class SqlLineageExtractor {
                         tables.add(
                                 new TableUse(
                                         name,
+                                        info == null ? null : info.getObjectType(),
                                         info == null ? null : info.getDomain(),
                                         info == null ? null : info.getTableDescription(),
                                         columns));

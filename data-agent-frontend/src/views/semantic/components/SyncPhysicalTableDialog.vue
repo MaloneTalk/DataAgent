@@ -118,7 +118,7 @@
 
   const handleConfirm = async () => {
     if (selectedTableNameSet.value.size === 0) {
-      ElMessage.warning('请至少选择一张物理表');
+      ElMessage.warning('请至少选择一个表或视图');
       return;
     }
     if (props.datasourceId === null) {
@@ -151,12 +151,12 @@
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="同步物理表" width="860px" :close-on-click-modal="false">
+  <el-dialog v-model="visible" title="同步表或视图" width="860px" :close-on-click-modal="false">
     <div class="sync-toolbar">
       <el-input
         v-model="keyword"
         clearable
-        placeholder="按表名搜索"
+        placeholder="按表或视图名搜索"
         @keyup.enter="loadCandidates"
       />
       <el-button @click="loadCandidates">查询</el-button>
@@ -169,7 +169,14 @@
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="48" />
-      <el-table-column prop="tableName" label="物理表名" min-width="220" />
+      <el-table-column prop="tableName" label="对象名称" min-width="220" />
+      <el-table-column label="类型" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.objectType === 'VIEW' ? 'warning' : 'info'" size="small">
+            {{ row.objectType === 'VIEW' ? '普通视图' : '表' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="语义层" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.synced ? 'info' : 'success'" size="small">

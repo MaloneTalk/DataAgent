@@ -86,7 +86,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                                 table.getTableName(),
                                                 "Missing semantic tableName."))
                         .collect(Collectors.toSet());
-        // SchemaReader 一次性读取物理表，筛选、排序和分页统一在内存中完成。
+        // SchemaReader 一次性读取表和普通视图，筛选、排序和分页统一在内存中完成。
         List<PhysicalTableInfo> filteredTables =
                 loadCandidateTables(datasource, semanticTables).stream()
                         .filter(
@@ -108,6 +108,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                                         new PhysicalTableCandidateResponse(
                                                 table.tableName(),
                                                 SemanticUtils.trimToNull(table.remarks()),
+                                                table.objectType(),
                                                 syncedTableNames.contains(
                                                         SemanticUtils.normalizeObjectName(
                                                                 table.tableName(),
@@ -120,7 +121,7 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
             DatasourcePo datasource, List<TableInfo> semanticTables) {
         Map<String, PhysicalTableInfo> candidates = loadPhysicalTableIndex(datasource);
         var ready = csvAccess.readyFilter(datasource);
-        // 保留语义缓存中的表，供用户发现已从物理数据源消失的表。
+        // 保留语义缓存中的对象，供用户发现已从数据源消失的表或视图。
         for (TableInfo table : semanticTables) {
             if (!ready.test(table.getTableName())) continue;
             String tableName =
@@ -130,7 +131,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
                     SemanticUtils.normalizeObjectName(tableName, "Missing semantic tableName."),
                     new PhysicalTableInfo(
                             tableName,
-                            SemanticUtils.trimToNull(table.getPhysicalTableDescription())));
+                            SemanticUtils.trimToNull(table.getPhysicalTableDescription()),
+                            table.getObjectType()));
         }
         return List.copyOf(candidates.values());
     }
@@ -210,7 +212,8 @@ public class SemanticSyncServiceImpl implements SemanticSyncService {
         return converter.toTable(
                 physicalTable.tableName(),
                 physicalTable.remarks(),
-                schemaReader.getTableSchema(datasource, physicalTable.tableName()));
+                physicalTable.objectType(),
+                schemaReader.getTableSchema(datasource, physicalTable));
     }
 
     private Map<String, Set<String>> loadPhysicalColumnNamesByTable(

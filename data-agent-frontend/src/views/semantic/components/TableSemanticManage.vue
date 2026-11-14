@@ -168,8 +168,8 @@
         表语义
         <HelpTip>
           <strong>表语义</strong>
-          说明一张物理表在业务上代表什么、属于哪个领域、是否允许被 AI
-          查询，以及它和其他表的逻辑关系。数据粒度用于说明表中一行代表什么。
+          说明表或普通视图在业务上代表什么、属于哪个领域、是否对 AI
+          可见，以及它和其他对象的逻辑关系。数据粒度用于说明一行代表什么。
         </HelpTip>
       </h2>
     </div>
@@ -192,7 +192,7 @@
             :value="item.id"
           />
         </el-select>
-        <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
+        <el-tag type="primary" effect="plain">共 {{ page.total }} 个表或视图</el-tag>
         <el-button
           v-permission="'semantic:table:sync'"
           :loading="refreshingPhysicalStatus"
@@ -207,7 +207,7 @@
           :disabled="datasourceId === null || refreshingPhysicalStatus"
           @click="handleOpenSync"
         >
-          同步表
+          同步表或视图
         </el-button>
       </div>
     </div>
@@ -223,7 +223,14 @@
       :data="rows"
       :empty-text="datasourceId === null ? '暂无可访问的数据源' : '暂无表语义'"
     >
-      <el-table-column prop="tableName" label="表名" min-width="150" />
+      <el-table-column prop="tableName" label="对象名称" min-width="150" />
+      <el-table-column label="类型" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.objectType === 'VIEW' ? 'warning' : 'info'" size="small">
+            {{ row.objectType === 'VIEW' ? '普通视图' : '表' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="domain" label="领域" min-width="120" />
       <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">

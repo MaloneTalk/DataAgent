@@ -251,7 +251,10 @@
             <header class="relation-node-header">
               <div>
                 <h4>{{ node.tableName }}</h4>
-                <p>{{ node.domain || '未设置业务域' }}</p>
+                <p>
+                  {{ node.objectType === 'VIEW' ? '普通视图' : '表' }} ·
+                  {{ node.domain || '未设置业务域' }}
+                </p>
               </div>
               <el-tag v-if="!node.operable" type="warning" size="small">
                 {{ node.invalidReason || '不可操作' }}

@@ -58,7 +58,7 @@ function dialog(t, overrides = {}) {
     '@/api/sysRole': api,
     '@/api/datasource': {
       getDatasourceList: async () => [{ id: 1, name: 'Source' }],
-      getDatasourceTables: async () => ['orders'],
+      getDatasourceObjects: async () => [{ tableName: 'orders', objectType: 'TABLE' }],
     },
   };
   const module = { exports: {} };

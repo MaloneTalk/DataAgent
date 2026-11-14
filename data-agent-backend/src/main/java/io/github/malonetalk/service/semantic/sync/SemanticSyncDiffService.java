@@ -154,6 +154,17 @@ public class SemanticSyncDiffService {
         }
         int missingColumnsMarked =
                 collectMissingColumnIds(existingColumns, physicalColumnNames, missingColumnIds);
+        boolean tableUpdated =
+                existingTable
+                        .map(
+                                existing ->
+                                        !Objects.equals(
+                                                        existing.getObjectType(),
+                                                        table.objectType())
+                                                || !Objects.equals(
+                                                        existing.getPhysicalTableDescription(),
+                                                        table.description()))
+                        .orElse(false);
         return SyncTableResult.builder()
                 .tableName(table.tableName())
                 .physicalTableFound(true)
@@ -163,14 +174,7 @@ public class SemanticSyncDiffService {
                                 .map(TableInfo::getPhysicalStatus)
                                 .filter(Boolean.FALSE::equals)
                                 .isPresent())
-                .tableUpdated(
-                        existingTable
-                                .filter(
-                                        existing ->
-                                                !Objects.equals(
-                                                        existing.getPhysicalTableDescription(),
-                                                        table.description()))
-                                .isPresent())
+                .tableUpdated(tableUpdated)
                 .addedColumns(addedColumns)
                 .reactivatedColumns(reactivatedColumns)
                 .updatedColumns(updatedColumns)
@@ -196,7 +200,7 @@ public class SemanticSyncDiffService {
                                                 !Boolean.FALSE.equals(existing.getPhysicalStatus()))
                                 .isPresent())
                 .missingColumnsMarked(missingColumnsMarked)
-                .message("物理表不存在")
+                .message("数据库对象不存在或当前连接账号不可见")
                 .build();
     }
 

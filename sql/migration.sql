@@ -854,6 +854,20 @@ PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
 
+-- 普通视图与表共用语义元数据和授权；历史对象在下次同步时刷新实际类型。
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'table_info'
+          AND COLUMN_NAME = 'object_type'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `table_info` ADD COLUMN `object_type` VARCHAR(16) NOT NULL DEFAULT ''TABLE'' COMMENT ''数据库对象类型：TABLE/VIEW'' AFTER `table_name`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
 -- 用户个人访问令牌（PAT）：只保存哈希，明文仅在创建时返回一次。
 CREATE TABLE IF NOT EXISTS `user_pat` (
     `id`            BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
