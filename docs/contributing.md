@@ -6,7 +6,7 @@
 
 ### 后端
 
-- JDK 25+，Maven 3.9+
+- JDK 17+（推荐 21），Maven 3.9+
 - 导入 `data-agent-backend`（标准 Maven 项目，Spring Boot）
 - 配置元数据库、LLM 与首次管理员密码（见 [configuration.md](configuration.md)）
 - 从 `data-agent-backend/` 启动并加载仓库 Skill：`mvn spring-boot:run "-Dspring-boot.run.arguments=--io.github.malonetalk.skill.filesystem[0].path=../skills"`

@@ -1,5 +1,5 @@
 # Stage 1: Build (使用 maven 镜像，自带 Maven)
-FROM maven:3.9-eclipse-temurin-25 AS builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ COPY data-agent-backend/src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn -B clean package -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:25-jre-noble
+FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 

@@ -94,7 +94,7 @@ Grafana：http://localhost:3001（`admin` / `admin`），在 Explore 中分别�
 
 | 依赖 | 版本要求 | 说明 |
 | --- | --- | --- |
-| JDK | 25 或更高 | 后端基于 Spring Boot 4 |
+| JDK | 17 或更高（推荐 21） | 后端基于 Spring Boot 4 |
 | Maven | 3.9+ | 构建与运行后端 |
 | Node.js | 22（≥ 22.13） | 与前端 CI 对齐；现有 ESLint 10 不支持 Node 18 |
 | npm | 随 Node.js 安装 | 按 `package-lock.json` 安装；可选 pnpm 11.24.0，与 Docker 构建一致 |
