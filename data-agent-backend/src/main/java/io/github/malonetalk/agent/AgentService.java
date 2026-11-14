@@ -52,11 +52,11 @@ import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.SessionDatasourceService;
+import io.github.malonetalk.utils.DateTimeUtils;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.instrumentation.reactor.v3_1.ContextPropagationOperator;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -73,8 +73,6 @@ import reactor.core.scheduler.Schedulers;
 @Service
 @RequiredArgsConstructor
 public class AgentService {
-
-    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final ModelFactory modelFactory;
     private final List<DataAgentTool> allToolBeans;
@@ -296,7 +294,7 @@ public class AgentService {
     }
 
     private String systemPrompt() {
-        LocalDate today = LocalDate.now(DEFAULT_ZONE);
+        LocalDate today = LocalDate.now(DateTimeUtils.DEFAULT_ZONE);
         return """
         你是一个数据助手，可以帮助用户查询数据库中的数据。
         当前时区是 Asia/Shanghai。

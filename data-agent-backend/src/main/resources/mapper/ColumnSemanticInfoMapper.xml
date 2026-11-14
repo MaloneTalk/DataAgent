@@ -32,6 +32,13 @@
         ORDER BY table_meta.table_name ASC, c.column_name ASC, c.id ASC
     </select>
 
+    <select id="selectByDatasourceIdForUpdate" resultMap="BaseResultMap">
+        <include refid="ColumnsWithTableName"/>
+        WHERE c.datasource_id = #{datasourceId}
+        ORDER BY c.table_id ASC, c.id ASC
+        FOR UPDATE
+    </select>
+
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
         <include refid="ColumnsWithTableName"/>
         WHERE c.datasource_id = #{datasourceId}

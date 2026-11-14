@@ -28,6 +28,7 @@ import io.github.malonetalk.model.bo.DataPermissionScopeBo;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleTablePermission;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -43,9 +44,21 @@ public class DataPermissionService {
     private final RoleTablePermissionMapper tables;
     private final RoleHiddenColumnMapper columns;
     private final DatasourceService datasources;
+    private final CsvAccessService csvAccess;
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public DataPermissionScopeBo loadScope(UserContextBo user, Integer datasourceId) {
+        return datasources
+                .findById(datasourceId)
+                .map(
+                        datasource ->
+                                csvAccess.restrict(
+                                        datasource, loadGrantedScope(user, datasourceId)))
+                .orElseGet(() -> new DataPermissionScopeBo(false, Map.of(), Map.of()));
+    }
+
+    /** Role grants for management operations; analysis must use loadScope to enforce CSV readiness. */
+    public DataPermissionScopeBo loadGrantedScope(UserContextBo user, Integer datasourceId) {
         if (Boolean.TRUE.equals(user.superAdmin()))
             return new DataPermissionScopeBo(true, Map.of(), Map.of());
         if (user.roleId() == null || user.roleId() <= 0)
@@ -59,23 +72,9 @@ public class DataPermissionService {
         return new DataPermissionScopeBo(false, granted, hiddenByTable(user, datasourceId));
     }
 
-    /**
-     * Returns the granted physical name, never the client-supplied spelling.
-     */
-    public void requireTable(UserContextBo user, Integer datasourceId, String table) {
-        authorizedTableName(user, datasourceId, table)
-                .orElseThrow(
-                        () -> BusinessException.of(ErrorCode.FORBIDDEN, "Table access denied."));
-    }
-
-    private Optional<String> authorizedTableName(
-            UserContextBo user, Integer datasourceId, String table) {
-        if (Boolean.TRUE.equals(user.superAdmin())) return Optional.of(table);
-        if (user.roleId() == null || user.roleId() <= 0) return Optional.empty();
-        return tables.selectByRoleAndDatasource(user.roleId(), datasourceId).stream()
-                .map(RoleTablePermission::getTableName)
-                .filter(name -> normalizeIdentifier(name).equals(normalizeIdentifier(table)))
-                .findFirst();
+    /** Returns the granted physical name, never the client-supplied spelling. */
+    public String requireTable(UserContextBo user, Integer datasourceId, String table) {
+        return loadScope(user, datasourceId).requireTable(table);
     }
 
     public boolean canDatasource(UserContextBo user, Integer datasourceId) {

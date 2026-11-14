@@ -77,7 +77,6 @@ export function useRelationWorkspaceData() {
   const relationNodes = ref<TableNodeLayout[]>([]);
   const relationRecords = ref<LogicalTableRelationResponse[]>([]);
   const relationLoadToken = ref(0);
-  const suppressDatasourceWatch = ref(false);
   const workspacePage = reactive({ page: 1, pageSize: 20, total: 0 });
 
   function readManageStateSnapshot(): RelationManageStateSnapshot | null {
@@ -128,21 +127,23 @@ export function useRelationWorkspaceData() {
       relationError.value = (error as Error).message;
       relationNodes.value = [];
       relationRecords.value = [];
+      workspacePage.total = 0;
     } finally {
       if (loadToken === relationLoadToken.value) relationLoading.value = false;
     }
   }
 
   async function loadRelationData() {
+    const loadToken = ++relationLoadToken.value;
+    relationNodes.value = [];
+    relationRecords.value = [];
+    relationError.value = '';
     if (typeof selectedDatasourceId.value !== 'number') {
-      relationNodes.value = [];
-      relationRecords.value = [];
-      relationError.value = '';
+      workspacePage.total = 0;
+      relationLoading.value = false;
       return;
     }
     const datasourceId = selectedDatasourceId.value;
-    const loadToken = relationLoadToken.value + 1;
-    relationLoadToken.value = loadToken;
     await loadRelationWorkspace(datasourceId, loadToken);
   }
 
@@ -150,20 +151,17 @@ export function useRelationWorkspaceData() {
     await fetchDatasourceList();
     const savedState = readManageStateSnapshot();
     const savedDatasource = datasourceList.value.find(item => item.id === savedState?.datasourceId);
-    suppressDatasourceWatch.value = true;
     if (typeof selectedDatasourceId.value !== 'number') {
       const firstActive = datasourceList.value.find(item => item.status === 'ACTIVE');
       selectedDatasourceId.value =
         savedDatasource?.id ?? firstActive?.id ?? datasourceList.value[0]?.id;
     }
-    if (typeof savedState?.page === 'number') workspacePage.page = savedState.page;
-    if (typeof savedState?.pageSize === 'number') workspacePage.pageSize = savedState.pageSize;
-    try {
-      await loadRelationData();
-    } finally {
-      suppressDatasourceWatch.value = false;
-      persistManageStateSnapshot();
+    if (savedDatasource && typeof savedState?.page === 'number') {
+      workspacePage.page = savedState.page;
     }
+    if (typeof savedState?.pageSize === 'number') workspacePage.pageSize = savedState.pageSize;
+    await loadRelationData();
+    persistManageStateSnapshot();
   }
 
   return {
@@ -176,7 +174,6 @@ export function useRelationWorkspaceData() {
     relationNodes,
     relationRecords,
     workspacePage,
-    suppressDatasourceWatch,
     persistManageStateSnapshot,
     loadRelationData,
     initializeDatasource,

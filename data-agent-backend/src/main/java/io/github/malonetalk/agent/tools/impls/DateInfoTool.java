@@ -26,6 +26,7 @@ import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.model.bo.ToolResultBo;
+import io.github.malonetalk.utils.DateTimeUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -52,7 +53,6 @@ import org.springframework.util.StringUtils;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class DateInfoTool implements DataAgentTool {
 
-    private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
     private static final String HOLIDAY_API_BASE_URL = "https://timor.tech/api/holiday/info";
 
     private final ObjectMapper objectMapper;
@@ -122,10 +122,12 @@ public class DateInfoTool implements DataAgentTool {
 
     DateInfo resolve(String startDateText, String endDateText, String timezoneText) {
         ZoneId zoneId =
-                ZoneId.of(StringUtils.hasText(timezoneText) ? timezoneText : DEFAULT_TIMEZONE);
+                StringUtils.hasText(timezoneText)
+                        ? ZoneId.of(timezoneText)
+                        : DateTimeUtils.DEFAULT_ZONE;
         LocalDate startDate =
                 StringUtils.hasText(startDateText)
-                        ? LocalDate.parse(startDateText)
+                        ? DateTimeUtils.parseDate(startDateText)
                         : LocalDate.now(clock.withZone(zoneId));
         Optional<HolidayApiResponse> holidayApiResponse = queryHolidayApi(startDate);
         HolidayDetail holiday = holidayApiResponse.map(HolidayApiResponse::holiday).orElse(null);
@@ -144,7 +146,7 @@ public class DateInfoTool implements DataAgentTool {
                 .holidayDataAvailable(holidayApiResponse.isPresent())
                 .dateDiff(
                         StringUtils.hasText(endDateText)
-                                ? resolveDateDiff(startDate, LocalDate.parse(endDateText))
+                                ? resolveDateDiff(startDate, DateTimeUtils.parseDate(endDateText))
                                 : null)
                 .build();
     }

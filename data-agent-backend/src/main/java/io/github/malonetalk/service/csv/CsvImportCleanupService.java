@@ -1,0 +1,223 @@
+/*
+ * Copyright (C) 2026 github.com/MaloneTalk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * limitations under the License.
+ */
+package io.github.malonetalk.service.csv;
+
+import static io.github.malonetalk.enums.CsvImportStatus.CLEANING;
+import static io.github.malonetalk.enums.CsvImportStatus.CLEANUP_FAILED;
+import static io.github.malonetalk.enums.CsvImportStatus.DELETE_FAILED;
+import static io.github.malonetalk.enums.CsvImportStatus.DELETING;
+import static io.github.malonetalk.enums.CsvImportStatus.EXPIRED;
+import static io.github.malonetalk.enums.CsvImportStatus.IMPORTING;
+import static io.github.malonetalk.enums.CsvImportStatus.IMPORT_FAILED;
+import static io.github.malonetalk.enums.CsvImportStatus.PREVIEWED;
+import static io.github.malonetalk.enums.CsvImportStatus.READY;
+import static io.github.malonetalk.enums.CsvImportStatus.SYNCING;
+import static io.github.malonetalk.enums.CsvImportStatus.SYNC_FAILED;
+
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import io.github.malonetalk.config.CsvImportConfig;
+import io.github.malonetalk.enums.CsvImportStatus;
+import io.github.malonetalk.exception.ExceptionResponseMapper;
+import io.github.malonetalk.mapper.CsvImportMapper;
+import io.github.malonetalk.model.po.CsvImportPo;
+import java.nio.file.Files;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class CsvImportCleanupService {
+    private final CsvImportConfig config;
+    private final CsvImportMapper imports;
+    private final CsvDatasourceService datasources;
+    private final CsvTableImportService tables;
+    private final CsvFileService files;
+    private final ExceptionResponseMapper exceptionResponses;
+
+    public void discardStaleTable(CsvImportPo task) {
+        try {
+            // Each data retry has its own table, so this cannot drop the new attempt's data.
+            tables.drop(task, datasources.requireActive());
+        } catch (Exception e) {
+            logTaskFailure(task, "stale table cleanup", e);
+        }
+    }
+
+    public void cleanupTable(CsvImportPo task) {
+        try {
+            tables.drop(task, datasources.requireActive());
+            transition(task, CLEANING, IMPORT_FAILED);
+        } catch (Exception e) {
+            logTaskFailure(task, "table cleanup", e);
+            transition(task, CLEANING, CLEANUP_FAILED);
+        }
+    }
+
+    public void removeFile(CsvImportPo task) {
+        try {
+            files.delete(task.getId());
+            imports.update(
+                    Wrappers.<CsvImportPo>lambdaUpdate()
+                            .eq(CsvImportPo::getId, task.getId())
+                            .eq(CsvImportPo::getAttemptId, task.getAttemptId())
+                            .set(CsvImportPo::getExpiresAt, null));
+        } catch (Exception e) {
+            logTaskFailure(task, "file cleanup", e);
+        }
+    }
+
+    @Scheduled(fixedDelay = 60000, initialDelay = 60000)
+    public void cleanup() {
+        if (config.getDatasourceId() <= 0) return;
+        LocalDateTime now = LocalDateTime.now();
+        recoverTimedOutTasks(now);
+        for (CsvImportPo task : cleanupCandidates(now)) {
+            try {
+                cleanupTask(task, now);
+            } catch (Exception e) {
+                logTaskFailure(task, "recovery", e);
+            }
+        }
+        cleanupOrphanFiles();
+        cleanupOrphanTables();
+    }
+
+    private void recoverTimedOutTasks(LocalDateTime now) {
+        // Ten minutes is a recovery threshold, not proof that the old worker has stopped.
+        // Attempt-guarded updates and distinct retry tables fence workers that later resume.
+        imports.update(
+                Wrappers.<CsvImportPo>lambdaUpdate()
+                        .eq(CsvImportPo::getDatasourceId, config.getDatasourceId())
+                        .in(CsvImportPo::getStatus, IMPORTING, CLEANING)
+                        .lt(CsvImportPo::getUpdateTime, now.minusMinutes(10))
+                        .set(CsvImportPo::getStatus, CLEANUP_FAILED)
+                        .set(CsvImportPo::getErrorMessage, "导入任务中断，请重新确认导入。"));
+        imports.update(
+                Wrappers.<CsvImportPo>lambdaUpdate()
+                        .eq(CsvImportPo::getDatasourceId, config.getDatasourceId())
+                        .eq(CsvImportPo::getStatus, SYNCING)
+                        .lt(CsvImportPo::getUpdateTime, now.minusMinutes(10))
+                        .set(CsvImportPo::getStatus, SYNC_FAILED)
+                        .set(CsvImportPo::getErrorMessage, "语义同步中断，请重试同步。"));
+    }
+
+    private List<CsvImportPo> cleanupCandidates(LocalDateTime now) {
+        var query =
+                Wrappers.<CsvImportPo>lambdaQuery()
+                        .eq(CsvImportPo::getDatasourceId, config.getDatasourceId());
+        query.and(
+                filter ->
+                        filter.in(CsvImportPo::getStatus, CLEANUP_FAILED, DELETING)
+                                .or()
+                                .in(
+                                        CsvImportPo::getStatus,
+                                        PREVIEWED,
+                                        IMPORT_FAILED,
+                                        READY,
+                                        EXPIRED)
+                                .isNotNull(CsvImportPo::getExpiresAt)
+                                .lt(CsvImportPo::getExpiresAt, now));
+        return imports.selectList(query.orderByAsc(CsvImportPo::getUpdateTime).last("LIMIT 100"));
+    }
+
+    private void cleanupTask(CsvImportPo task, LocalDateTime now) {
+        if (task.getStatus() == CLEANUP_FAILED && transition(task, CLEANUP_FAILED, CLEANING))
+            cleanupTable(task);
+        if (task.getStatus() == DELETING && task.getUpdateTime().isBefore(now.minusMinutes(10)))
+            transition(task, DELETING, DELETE_FAILED);
+        // A cleaned failed import can also expire during this pass.
+        if (task.getStatus() == READY || task.getStatus() == EXPIRED) removeFile(task);
+        else if ((task.getStatus() == PREVIEWED || task.getStatus() == IMPORT_FAILED)
+                && task.getExpiresAt().isBefore(now)) {
+            if (transition(task, task.getStatus(), EXPIRED)) removeFile(task);
+        }
+    }
+
+    private void cleanupOrphanTables() {
+        try {
+            tables.dropOrphanTables(
+                    datasources.requireActive(),
+                    table ->
+                            imports.selectCount(
+                                            Wrappers.<CsvImportPo>lambdaQuery()
+                                                    .eq(CsvImportPo::getPhysicalTableName, table))
+                                    > 0);
+        } catch (Exception e) {
+            logDatasourceFailure("orphan table cleanup", e);
+        }
+    }
+
+    private void cleanupOrphanFiles() {
+        if (!Files.isDirectory(config.getDirectory())) return;
+        Instant expiresBefore = Instant.now().minus(1, ChronoUnit.DAYS);
+        try (var paths = Files.list(config.getDirectory())) {
+            var candidates =
+                    paths.filter(
+                                    path ->
+                                            path.getFileName()
+                                                    .toString()
+                                                    .matches("[a-f0-9]{32}[.]csv"))
+                            .iterator();
+            while (candidates.hasNext()) {
+                var path = candidates.next();
+                String id = path.getFileName().toString().substring(0, 32);
+                if (Files.getLastModifiedTime(path).toInstant().isBefore(expiresBefore)
+                        && Optional.ofNullable(imports.selectById(id)).isEmpty()) files.delete(id);
+            }
+        } catch (Exception e) {
+            logDatasourceFailure("orphan file cleanup", e);
+        }
+    }
+
+    private boolean transition(CsvImportPo task, CsvImportStatus from, CsvImportStatus to) {
+        int changed =
+                imports.update(
+                        Wrappers.<CsvImportPo>lambdaUpdate()
+                                .eq(CsvImportPo::getId, task.getId())
+                                .eq(CsvImportPo::getAttemptId, task.getAttemptId())
+                                .eq(CsvImportPo::getStatus, from)
+                                .set(CsvImportPo::getStatus, to));
+        if (changed == 1) task.setStatus(to);
+        return changed == 1;
+    }
+
+    private void logTaskFailure(CsvImportPo task, String phase, Exception error) {
+        String context =
+                "CSV %s [taskId=%s, attemptId=%s, status=%s, table=%s]"
+                        .formatted(
+                                phase,
+                                task.getId(),
+                                task.getAttemptId(),
+                                task.getStatus(),
+                                task.getPhysicalTableName());
+        exceptionResponses.logMapped(log, error, exceptionResponses.resolve(error), context);
+    }
+
+    private void logDatasourceFailure(String phase, Exception error) {
+        String context = "CSV %s [datasourceId=%s]".formatted(phase, config.getDatasourceId());
+        exceptionResponses.logMapped(log, error, exceptionResponses.resolve(error), context);
+    }
+}

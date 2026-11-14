@@ -106,6 +106,61 @@ public enum ErrorCode {
             HttpStatus.NOT_ACCEPTABLE,
             "No acceptable response media type is available."),
 
+    /** 上传文件或 multipart 请求超过服务器配置的大小限制。 */
+    PAYLOAD_TOO_LARGE(
+            "PAYLOAD_TOO_LARGE",
+            HttpStatus.PAYLOAD_TOO_LARGE,
+            "Uploaded file or request exceeds the size limit."),
+
+    /** CSV 托管数据源或专用写入连接尚未正确配置。 */
+    CSV_NOT_CONFIGURED(
+            "CSV_NOT_CONFIGURED",
+            HttpStatus.BAD_REQUEST,
+            "CSV import is not configured correctly."),
+
+    /** CSV 托管数据源已被停用。 */
+    CSV_DATASOURCE_DISABLED(
+            "CSV_DATASOURCE_DISABLED", HttpStatus.BAD_REQUEST, "The CSV datasource is disabled."),
+
+    /** CSV 文件格式、编码、内容或大小不符合导入要求。 */
+    CSV_FILE_INVALID(
+            "CSV_FILE_INVALID",
+            HttpStatus.BAD_REQUEST,
+            "The CSV file does not meet import requirements."),
+
+    /** CSV 字段定义或字段值与所选类型不匹配。 */
+    CSV_SCHEMA_INVALID(
+            "CSV_SCHEMA_INVALID",
+            HttpStatus.BAD_REQUEST,
+            "The CSV column definition or value is invalid."),
+
+    /** CSV 导入记录不存在或已删除。 */
+    CSV_TASK_NOT_FOUND("CSV_TASK_NOT_FOUND", HttpStatus.NOT_FOUND, "CSV import task not found."),
+
+    /** CSV 任务当前状态不允许该操作，或并发请求已改变任务状态。 */
+    CSV_TASK_STATE_CONFLICT(
+            "CSV_TASK_STATE_CONFLICT",
+            HttpStatus.CONFLICT,
+            "The CSV task state does not allow this operation."),
+
+    /** CSV 表未发布就绪，或不属于当前数据源。 */
+    CSV_TABLE_NOT_READY(
+            "CSV_TABLE_NOT_READY",
+            HttpStatus.FORBIDDEN,
+            "The CSV table is not ready or does not belong to this datasource."),
+
+    /** CSV 表仍被关联关系或指标引用，不能删除。 */
+    CSV_TABLE_REFERENCED(
+            "CSV_TABLE_REFERENCED",
+            HttpStatus.CONFLICT,
+            "The CSV table is still referenced and cannot be deleted."),
+
+    /** CSV 物理表、上传文件或语义元数据删除失败。 */
+    CSV_DELETE_FAILED(
+            "CSV_DELETE_FAILED",
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "Failed to delete the CSV import. Please try again later."),
+
     /** 读取数据库 schema 失败，通常是数据源连接或元数据读取异常。 */
     SCHEMA_READ_FAILED(
             "SCHEMA_READ_FAILED",

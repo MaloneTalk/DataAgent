@@ -31,7 +31,9 @@ import io.github.malonetalk.model.converter.MetricPromptConverter;
 import io.github.malonetalk.model.dto.MetricCreateDto;
 import io.github.malonetalk.model.dto.MetricQueryDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.MetricInfoPo;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -41,10 +43,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -59,7 +64,9 @@ public class MetricServiceImpl implements MetricService {
     private final MetricInfoMapper metricInfoMapper;
     private final MetricConverter metricConverter;
     private final MetricPromptConverter metricPromptConverter;
-    private final DatasourceService datasourceService;
+    private final DatasourceWriteLockService datasourceLocks;
+    private final CsvAccessService csvAccess;
+    private final MetricTableReferenceService metricReferences;
 
     @Override
     public MetricLookup lookupCaliber(Integer datasourceId, String hint) {
@@ -129,8 +136,10 @@ public class MetricServiceImpl implements MetricService {
     }
 
     @Override
+    @Transactional
     public MetricInfoBo create(MetricCreateDto dto) {
-        Integer dsId = requireDatasource(dto.datasourceId());
+        DatasourcePo datasource = datasourceLocks.lock(dto.datasourceId());
+        Integer dsId = datasource.getId();
         String key = SemanticUtils.normalizeObjectName(dto.metricKey(), "指标 key 不能为空");
         if (metricInfoMapper.selectByKey(dsId, key) != null) {
             throw new IllegalArgumentException("指标 key 已存在: " + key);
@@ -139,21 +148,32 @@ public class MetricServiceImpl implements MetricService {
         po.setDatasourceId(dsId);
         po.setMetricKey(key);
         normalizeBusinessProperties(po);
+        requireReadyCsvReferences(po, datasource);
         metricInfoMapper.insert(po);
         return metricConverter.toBo(po);
     }
 
     @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public MetricInfoBo update(Integer id, MetricUpdateDto dto) {
         if (id == null) {
             throw new IllegalArgumentException("id 不能为空");
         }
-        MetricInfoPo po = requireById(id);
+        // Re-read after locking: another edit may have committed while locating the datasource.
+        DatasourcePo datasource = datasourceLocks.lock(requireById(id).getDatasourceId());
+        MetricInfoPo po =
+                Optional.ofNullable(
+                                metricInfoMapper.selectOne(
+                                        Wrappers.<MetricInfoPo>lambdaQuery()
+                                                .eq(MetricInfoPo::getId, id)
+                                                .last("FOR UPDATE")))
+                        .orElseThrow(() -> new IllegalArgumentException("指标不存在: id=" + id));
         metricConverter.toPoForUpdate(dto, po);
         normalizeBusinessProperties(po);
         if (!StringUtils.hasText(dto.name())) {
             po.setName(null);
         }
+        requireReadyCsvReferences(po, datasource);
         metricInfoMapper.updateById(po);
         return metricConverter.toBo(po);
     }
@@ -189,11 +209,13 @@ public class MetricServiceImpl implements MetricService {
         return page.convert(metricConverter::toBo);
     }
 
-    private Integer requireDatasource(Integer datasourceId) {
-        if (datasourceService.findById(datasourceId).isEmpty()) {
-            throw BusinessException.of(ErrorCode.BAD_REQUEST, "数据源不存在: " + datasourceId);
-        }
-        return datasourceId;
+    private void requireReadyCsvReferences(MetricInfoPo metric, DatasourcePo datasource) {
+        if (!csvAccess.managed(datasource)) return;
+        var readyTables =
+                csvAccess.ready(datasource).stream()
+                        .map(task -> SemanticUtils.normalizeIdentifier(task.getPhysicalTableName()))
+                        .collect(Collectors.toSet());
+        metricReferences.requireReadyTables(metric, readyTables);
     }
 
     private MetricInfoPo requireById(Integer id) {

@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, ref, watch } from 'vue';
+  import { onMounted, ref } from 'vue';
   import HelpTip from '@/components/common/HelpTip.vue';
   import RelationEditDialog from './RelationEditDialog.vue';
   import RelationWorkspace from './RelationWorkspace.vue';
@@ -33,7 +33,6 @@
     relationNodes,
     relationRecords,
     workspacePage,
-    suppressDatasourceWatch,
     persistManageStateSnapshot,
     loadRelationData,
     initializeDatasource,
@@ -83,13 +82,13 @@
     void initializeDatasource();
   });
 
-  watch(selectedDatasourceId, async value => {
-    if (typeof value !== 'number' || suppressDatasourceWatch.value) return;
+  async function handleDatasourceChange() {
     workspacePage.page = 1;
+    workspacePage.total = 0;
     persistManageStateSnapshot();
     resetRelationForm();
     await loadRelationData();
-  });
+  }
 </script>
 
 <template>
@@ -113,6 +112,8 @@
           filterable
           placeholder="选择数据源"
           :loading="datasourceLoading"
+          :disabled="datasourceLoading || relationSubmitLoading"
+          @change="handleDatasourceChange"
         >
           <el-option
             v-for="item in datasourceList"
@@ -132,6 +133,7 @@
 
     <section class="content-card">
       <RelationWorkspace
+        :key="selectedDatasourceId ?? 'none'"
         ref="relationWorkspaceRef"
         :loading="relationLoading"
         :relation-error="relationError"
@@ -159,6 +161,7 @@
     </section>
 
     <RelationEditDialog
+      :key="selectedDatasourceId ?? 'none'"
       v-model:visible="relationDialogVisible"
       :loading="relationSubmitLoading"
       :relation="selectedRelation"

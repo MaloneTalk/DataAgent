@@ -16,12 +16,13 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, ref } from 'vue';
+  import { onMounted, ref, watch } from 'vue';
+  import { useRoute, useRouter } from 'vue-router';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
+  import { useDatasource } from '@/composables/useDatasource';
   import { formatDateTime } from '@/utils/dateTime';
   import {
-    getActiveDatasourceId,
     getTableSemanticPage,
     refreshPhysicalStatus,
     resetTableSemantic,
@@ -33,6 +34,14 @@
   import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
   import { buildSyncSummary, physicalStatusSyncSummaryFields } from '../utils';
 
+  const route = useRoute();
+  const router = useRouter();
+  const {
+    list: datasourceList,
+    loading: datasourceLoading,
+    error: datasourceError,
+    fetchList: fetchDatasourceList,
+  } = useDatasource();
   const datasourceId = ref<number | null>(null);
   const editingTable = ref<TableSemanticInfo | null>(null);
 
@@ -42,27 +51,39 @@
 
   const syncDialogVisible = ref(false);
   const refreshingPhysicalStatus = ref(false);
-  let datasourceRequest: Promise<number | null> | undefined;
-
-  const ensureDatasourceId = async () => {
-    if (datasourceId.value !== null) {
-      return datasourceId.value;
-    }
-    datasourceRequest ??= getActiveDatasourceId().finally(() => {
-      datasourceRequest = undefined;
-    });
-    datasourceId.value = await datasourceRequest;
-    return datasourceId.value;
-  };
 
   const { loading, error, rows, page, loadPage, handlePageChange, handleSizeChange } =
     useSemanticPage<TableSemanticInfo>(async pagination => {
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) throw new Error('请先激活一个数据源');
-      return getTableSemanticPage({ datasourceId: activeDatasourceId, ...pagination });
+      if (datasourceId.value === null) return { items: [], total: 0 };
+      return getTableSemanticPage({ datasourceId: datasourceId.value, ...pagination });
     });
 
+  const handleDatasourceChange = async () => {
+    editingTable.value = null;
+    columnDrawerVisible.value = false;
+    selectedTableForColumns.value = '';
+    syncDialogVisible.value = false;
+    page.page = 1;
+    page.total = 0;
+    if (datasourceId.value !== null && route.query.datasourceId !== String(datasourceId.value)) {
+      void router.replace({ query: { ...route.query, datasourceId: datasourceId.value } });
+    }
+    await loadPage();
+  };
+
+  watch(
+    () => route.query.datasourceId,
+    value => {
+      const datasource = datasourceList.value.find(item => String(item.id) === value);
+      if (!datasource || datasource.id === datasourceId.value) return;
+      datasourceId.value = datasource.id;
+      void handleDatasourceChange();
+    },
+  );
+
   const handleReset = async (row: TableSemanticInfo) => {
+    const selectedDatasourceId = datasourceId.value;
+    if (selectedDatasourceId === null) return;
     try {
       await ElMessageBox.confirm(
         `确认重置表 ${row.tableName} 的语义信息吗？若该表当前已标记为物理缺失，还会删除该表及其列的语义记录和所有关联到该表的逻辑关系；重新同步不会恢复这些关系。`,
@@ -71,9 +92,7 @@
           type: 'warning',
         },
       );
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) return;
-      await resetTableSemantic(activeDatasourceId, row.tableName);
+      await resetTableSemantic(selectedDatasourceId, row.tableName);
       ElMessage.success('重置成功');
       await loadPage();
     } catch (err) {
@@ -83,8 +102,8 @@
     }
   };
 
-  const handleManageColumns = async (row: TableSemanticInfo) => {
-    if ((await ensureDatasourceId()) === null) return;
+  const handleManageColumns = (row: TableSemanticInfo) => {
+    if (datasourceId.value === null) return;
     selectedTableForColumns.value = row.tableName;
     columnDrawerVisible.value = true;
   };
@@ -93,22 +112,17 @@
     void columnManageRef.value?.handleTableChange(selectedTableForColumns.value);
   };
 
-  const handleOpenSync = async () => {
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) {
-      return;
-    }
+  const handleOpenSync = () => {
+    if (datasourceId.value === null) return;
     syncDialogVisible.value = true;
   };
 
   const handleRefreshPhysicalStatus = async () => {
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) {
-      return;
-    }
+    const selectedDatasourceId = datasourceId.value;
+    if (selectedDatasourceId === null) return;
     refreshingPhysicalStatus.value = true;
     try {
-      const result = await refreshPhysicalStatus(activeDatasourceId);
+      const result = await refreshPhysicalStatus(selectedDatasourceId);
       ElMessage.success(buildSyncSummary(result, physicalStatusSyncSummaryFields));
       await loadPage();
       if (columnDrawerVisible.value && selectedTableForColumns.value && columnManageRef.value) {
@@ -136,8 +150,14 @@
     }
   };
 
-  onMounted(() => {
-    loadPage();
+  onMounted(async () => {
+    await fetchDatasourceList();
+    const requested = datasourceList.value.find(
+      item => String(item.id) === route.query.datasourceId,
+    );
+    const firstActive = datasourceList.value.find(item => item.status === 'ACTIVE');
+    datasourceId.value = requested?.id ?? firstActive?.id ?? datasourceList.value[0]?.id ?? null;
+    await loadPage();
   });
 </script>
 
@@ -156,25 +176,53 @@
 
     <div class="section-header">
       <div class="section-header-actions">
+        <el-select
+          v-model="datasourceId"
+          class="datasource-field"
+          filterable
+          placeholder="选择数据源"
+          :loading="datasourceLoading"
+          :disabled="datasourceLoading || refreshingPhysicalStatus"
+          @change="handleDatasourceChange"
+        >
+          <el-option
+            v-for="item in datasourceList"
+            :key="item.id"
+            :label="`${item.name} (${item.type})`"
+            :value="item.id"
+          />
+        </el-select>
         <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
         <el-button
           v-permission="'semantic:table:sync'"
           :loading="refreshingPhysicalStatus"
+          :disabled="datasourceId === null"
           @click="handleRefreshPhysicalStatus"
         >
           刷新物理状态
         </el-button>
-        <el-button v-permission="'semantic:table:sync'" type="primary" @click="handleOpenSync">
+        <el-button
+          v-permission="'semantic:table:sync'"
+          type="primary"
+          :disabled="datasourceId === null || refreshingPhysicalStatus"
+          @click="handleOpenSync"
+        >
           同步表
         </el-button>
       </div>
     </div>
 
-    <div v-if="error" class="error-banner">
-      <el-alert type="error" :closable="false" show-icon>{{ error }}</el-alert>
+    <div v-if="datasourceError || error" class="error-banner">
+      <el-alert type="error" :closable="false" show-icon>
+        {{ datasourceError ? `数据源加载失败：${datasourceError.message}` : error }}
+      </el-alert>
     </div>
 
-    <el-table v-loading="loading" :data="rows">
+    <el-table
+      v-loading="datasourceLoading || loading"
+      :data="rows"
+      :empty-text="datasourceId === null ? '暂无可访问的数据源' : '暂无表语义'"
+    >
       <el-table-column prop="tableName" label="表名" min-width="150" />
       <el-table-column prop="domain" label="领域" min-width="120" />
       <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
@@ -269,10 +317,15 @@
       size="90%"
       @opened="handleColumnsDrawerOpened"
     >
-      <ColumnSemanticManage ref="columnManageRef" :datasource-id="datasourceId" />
+      <ColumnSemanticManage
+        v-if="columnDrawerVisible"
+        ref="columnManageRef"
+        :datasource-id="datasourceId"
+      />
     </el-drawer>
 
     <SyncPhysicalTableDialog
+      :key="datasourceId ?? 0"
       v-model="syncDialogVisible"
       :datasource-id="datasourceId"
       @synced="handleSyncCompleted"
@@ -281,6 +334,10 @@
 </template>
 
 <style scoped>
+  .datasource-field {
+    width: 240px;
+  }
+
   .error-banner {
     margin-bottom: 16px;
   }

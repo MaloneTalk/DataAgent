@@ -14,6 +14,7 @@
 | 6 | [external-agent.md](external-agent.md) | 要接入外部 Agent 的人 | PAT、`/agent/**` REST、CLI、Skill 安装与使用 |
 | 7 | [observability.md](observability.md) | 要观测/排障的人 | OpenTelemetry trace/metrics/logs、配置开关、任意 OTLP 后端（Grafana LGTM 示例） |
 | 8 | [permissions.md](permissions.md) | 要配置权限的人 | 权限点、角色授权、数据范围与数据库升级 |
+| 9 | [csv-import.md](csv-import.md) | 要导入文件的人 | CSV 导入库配置、字段类型、任务恢复与权限 |
 
 ## 贡献相关
 

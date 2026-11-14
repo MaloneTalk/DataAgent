@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,22 +32,28 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.mapper.CsvImportMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.converter.UserConverter;
+import io.github.malonetalk.model.po.CsvImportPo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import java.util.List;
+import java.util.Optional;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.Select;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class PermissionSimplificationTest {
     private final SysUserMapper users = mock(SysUserMapper.class);
@@ -57,10 +64,17 @@ class PermissionSimplificationTest {
     private final ColumnSemanticInfoMapper metadata = mock(ColumnSemanticInfoMapper.class);
     private final PermissionService permissions =
             new PermissionService(users, capabilities, converter);
+    private final DatasourceService datasources = mock(DatasourceService.class);
+    private final CsvImportMapper imports = mock(CsvImportMapper.class);
     private final DataPermissionService data =
-            new DataPermissionService(tables, columns, mock(DatasourceService.class));
+            new DataPermissionService(tables, columns, datasources, new CsvAccessService(imports));
     private final UserContextBo user =
             UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
+
+    @BeforeEach
+    void configureDatasourceMetadata() {
+        when(datasources.findById(1)).thenReturn(Optional.of(new DatasourcePo()));
+    }
 
     @Test
     void authRejectsMissingOrInactiveUsers() {
@@ -175,6 +189,32 @@ class PermissionSimplificationTest {
                 data.loadScope(user, 1)
                         .hasHiddenColumns("orders", List.of("id", "amount", "`PHONE`")));
         verify(columns, times(1)).selectByRoleAndDatasource(2, 1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void csvScopeOnlyAllowsReadyTables(boolean superAdmin) {
+        var datasource = new DatasourcePo();
+        datasource.setId(1);
+        datasource.setSourceType("CSV");
+        when(datasources.findById(1)).thenReturn(Optional.of(datasource));
+        var ready = new CsvImportPo();
+        ready.setPhysicalTableName("Csv_Ready");
+        when(imports.selectList(any())).thenReturn(List.of(ready));
+        var readyGrant = new RoleTablePermission();
+        readyGrant.setTableName("Csv_Ready");
+        var pendingGrant = new RoleTablePermission();
+        pendingGrant.setTableName("Csv_Pending");
+        when(tables.selectByRoleAndDatasource(2, 1)).thenReturn(List.of(readyGrant, pendingGrant));
+        var context = UserContextBo.builder().userId(7).roleId(2).superAdmin(superAdmin).build();
+
+        assertEquals("Csv_Ready", data.requireTable(context, 1, "`CSV_READY`"));
+        assertEquals(
+                ErrorCode.FORBIDDEN,
+                assertThrows(
+                                BusinessException.class,
+                                () -> data.requireTable(context, 1, "Csv_Pending"))
+                        .getErrorCode());
     }
 
     @ParameterizedTest

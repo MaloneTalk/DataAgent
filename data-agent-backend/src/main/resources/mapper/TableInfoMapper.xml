@@ -22,6 +22,13 @@
         ORDER BY table_name ASC, id ASC
     </select>
 
+    <select id="selectByDatasourceIdForUpdate" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+
     <select id="selectPageByDatasourceId" resultMap="BaseResultMap">
         SELECT * FROM table_info
         WHERE datasource_id = #{query.datasourceId}
@@ -131,6 +138,17 @@
           AND LOWER(table_name) IN
         <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
             LOWER(#{tableName})
+        </foreach>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
+    </update>
+
+    <update id="markPhysicalMissingByIds">
+        UPDATE table_info
+        SET physical_status = 0,
+            update_time = #{now}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
         </foreach>
           AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>

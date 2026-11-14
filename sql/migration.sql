@@ -672,6 +672,68 @@ PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
 
+-- CSV source type; legacy JDBC sources keep their existing behavior.
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datasource' AND COLUMN_NAME = 'source_type'),
+    'SELECT 1',
+    'ALTER TABLE `datasource` ADD COLUMN `source_type` VARCHAR(20) NOT NULL DEFAULT ''DATABASE'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- CSV import registry (MySQL 5.7). Physical CSV tables live in a separate database.
+CREATE TABLE IF NOT EXISTS `csv_import` (
+    `id` CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    `datasource_id` INT NOT NULL,
+    `display_name` VARCHAR(200) NOT NULL,
+    `description` VARCHAR(400) DEFAULT NULL,
+    `original_filename` VARCHAR(255) NOT NULL,
+    `file_sha256` CHAR(64) NOT NULL,
+    `file_size` BIGINT NOT NULL,
+    `physical_table_name` VARCHAR(64) NOT NULL,
+    `attempt_id` CHAR(32) NOT NULL DEFAULT '' COMMENT '执行批次标识',
+    `submitted_by` INT DEFAULT NULL COMMENT '本次提交执行的用户ID',
+    `parse_options_json` JSON NOT NULL,
+    `columns_json` JSON NOT NULL,
+    `status` VARCHAR(20) NOT NULL,
+    `processed_rows` BIGINT NOT NULL DEFAULT 0,
+    `row_count` BIGINT NOT NULL DEFAULT 0,
+    `error_message` VARCHAR(500) DEFAULT NULL,
+    `expires_at` DATETIME DEFAULT NULL,
+    `creator_id` BIGINT DEFAULT NULL,
+    `updater_id` BIGINT DEFAULT NULL,
+    `create_time` DATETIME DEFAULT NULL,
+    `update_time` DATETIME DEFAULT NULL,
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_csv_datasource_table` (`datasource_id`, `physical_table_name`),
+    KEY `idx_csv_status_time` (`status`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='CSV 导入任务与托管表';
+
+-- Upgrade environments that already enabled CSV imports. Stop older backend instances first.
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'csv_import' AND COLUMN_NAME = 'attempt_id'),
+    'SELECT 1',
+    'ALTER TABLE `csv_import` ADD COLUMN `attempt_id` CHAR(32) NOT NULL DEFAULT '''' COMMENT ''执行批次标识'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'csv_import' AND COLUMN_NAME = 'submitted_by'),
+    'SELECT 1',
+    'ALTER TABLE `csv_import` ADD COLUMN `submitted_by` INT DEFAULT NULL COMMENT ''本次提交执行的用户ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+UPDATE csv_import SET submitted_by = creator_id WHERE submitted_by IS NULL;
+
 -- 会话数据源范围使用逻辑删除和 MP 审计字段；id 作为单列主键，业务列只保留普通索引。
 CREATE TABLE IF NOT EXISTS `session_datasource` (
     `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -687,7 +749,7 @@ CREATE TABLE IF NOT EXISTS `session_datasource` (
     KEY `idx_datasource_id` (`datasource_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话允许使用的数据源列表';
 
--- 为 MyBatis-Plus 提供单列 @TableId；旧表可能还是 (session_id, datasource_id) 复合主键。
+-- 为 MyBatis-Plus 提供单列 @TableId；兼容旧 session_id 主键和 (session_id, datasource_id) 复合主键。
 SET @migration_sql = IF(
     EXISTS(
         SELECT 1 FROM information_schema.COLUMNS

@@ -20,6 +20,7 @@ package io.github.malonetalk.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
+import io.github.malonetalk.enums.DatasourceSourceType;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -59,6 +60,7 @@ public class DatasourceServiceImpl implements DatasourceService {
         DataSourceType type = requireDatasourceType(request.type());
         DatasourcePo datasource = converter.toPo(request);
         datasource.setType(type.getCode());
+        datasource.setSourceType(DatasourceSourceType.DATABASE.name());
         datasource.setStatus(Status.INACTIVE.getCode());
         requireOperationSuccess(
                 dataSourceMapper.insert(datasource), "Failed to save the datasource.");
@@ -68,6 +70,7 @@ public class DatasourceServiceImpl implements DatasourceService {
     public void update(Integer id, DatasourceDto request) {
         DataSourceType type = requireDatasourceType(request.type());
         DatasourcePo datasource = requireById(id);
+        requireEditable(datasource);
         converter.update(request, datasource);
         datasource.setType(type.getCode());
         // 与旧接口保持一致：null 不覆盖已有字段，空密码表示继续使用原密码。
@@ -81,7 +84,7 @@ public class DatasourceServiceImpl implements DatasourceService {
 
     @Override
     public void deleteById(Integer id) {
-        requireById(id);
+        requireEditable(requireById(id));
         requireOperationSuccess(
                 dataSourceMapper.deleteById(id), "Failed to delete the datasource.");
         dynamicDataSourceManager.removeDataSource(id);
@@ -131,6 +134,12 @@ public class DatasourceServiceImpl implements DatasourceService {
                                 BusinessException.of(
                                         ErrorCode.UNSUPPORTED_DATASOURCE_TYPE,
                                         "Unsupported datasource type: " + type));
+    }
+
+    private void requireEditable(DatasourcePo datasource) {
+        if (DatasourceSourceType.CSV.name().equals(datasource.getSourceType())) {
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "CSV 托管数据源的连接由管理员配置，不能修改或删除。");
+        }
     }
 
     private void requireOperationSuccess(int affectedRows, String message) {

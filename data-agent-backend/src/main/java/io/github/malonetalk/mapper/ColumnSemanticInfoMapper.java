@@ -31,6 +31,8 @@ public interface ColumnSemanticInfoMapper {
 
     List<ColumnInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
+    List<ColumnInfo> selectByDatasourceIdForUpdate(@Param("datasourceId") Integer datasourceId);
+
     List<ColumnInfo> selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 

@@ -25,11 +25,13 @@ import static org.mockito.Mockito.when;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.TableInfoMapper;
-import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.ColumnSyncSource;
-import io.github.malonetalk.service.semantic.sync.SemanticSyncApplyService.TableSyncSource;
+import io.github.malonetalk.model.bo.ColumnSyncSourceBo;
+import io.github.malonetalk.model.bo.TableSyncSourceBo;
+import io.github.malonetalk.model.converter.SemanticSyncConverter;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -41,6 +43,7 @@ class SemanticSyncApplyServiceTest {
     @Mock private TableInfoMapper tableInfoMapper;
     @Mock private ColumnSemanticInfoMapper columnSemanticInfoMapper;
     @Spy private SemanticSyncDiffService semanticSyncDiffService;
+    @Spy private SemanticSyncConverter converter = Mappers.getMapper(SemanticSyncConverter.class);
     @InjectMocks private SemanticSyncApplyService service;
 
     @Test
@@ -58,11 +61,11 @@ class SemanticSyncApplyServiceTest {
         service.applyTableSync(
                 7,
                 List.of(
-                        new TableSyncSource(
+                        new TableSyncSourceBo(
                                 "orders",
                                 "orders table",
                                 List.of(
-                                        new ColumnSyncSource(
+                                        new ColumnSyncSourceBo(
                                                 "id", "order id", "BIGINT", true, "PRIMARY")))),
                 List.of());
 

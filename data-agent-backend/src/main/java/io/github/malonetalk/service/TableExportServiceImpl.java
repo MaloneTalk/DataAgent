@@ -20,6 +20,7 @@ package io.github.malonetalk.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.agent.SessionService;
+import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.dto.TableExportPageQuery;
@@ -141,7 +142,7 @@ public class TableExportServiceImpl implements TableExportService {
                                 new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             stmt.setFetchSize(
-                    "mysql".equalsIgnoreCase(datasource.getType())
+                    DataSourceType.MYSQL.getCode().equalsIgnoreCase(datasource.getType())
                             ? Integer.MIN_VALUE
                             : FETCH_SIZE);
             writer.write('\ufeff');

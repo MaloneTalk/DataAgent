@@ -16,7 +16,7 @@
  -->
 
 <script setup lang="ts">
-  import { computed, onMounted, ref } from 'vue';
+  import { computed, onMounted, onScopeDispose, ref } from 'vue';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
   import { useDatasource } from '@/composables/useDatasource';
@@ -49,6 +49,7 @@
 
   const metricDialogVisible = ref(false);
   const selectedMetric = ref<MetricInfo | null>(null);
+  let metricRequestId = 0;
 
   const filteredRows = computed(() => {
     const kw = keyword.value.trim().toLowerCase();
@@ -64,32 +65,40 @@
   });
 
   const loadMetrics = async () => {
+    const requestId = ++metricRequestId;
+    metricRows.value = [];
+    metricError.value = '';
     if (selectedDatasourceId.value === undefined) {
-      metricRows.value = [];
       total.value = 0;
+      metricLoading.value = false;
       return;
     }
     metricLoading.value = true;
-    metricError.value = '';
     try {
       const result = await listMetrics({
         datasourceId: selectedDatasourceId.value,
         page: page.value,
         pageSize: pageSize.value,
       });
+      if (requestId !== metricRequestId) return;
       metricRows.value = result.items;
       total.value = result.total;
     } catch (error) {
+      if (requestId !== metricRequestId) return;
       metricError.value = (error as Error).message;
       metricRows.value = [];
       total.value = 0;
     } finally {
-      metricLoading.value = false;
+      if (requestId === metricRequestId) metricLoading.value = false;
     }
   };
 
   const handleDatasourceChange = () => {
+    metricDialogVisible.value = false;
+    selectedMetric.value = null;
+    keyword.value = '';
     page.value = 1;
+    total.value = 0;
     void loadMetrics();
   };
 
@@ -115,6 +124,7 @@
   };
 
   const handleDelete = async (row: MetricInfo) => {
+    const datasourceId = selectedDatasourceId.value;
     try {
       await ElMessageBox.confirm(`确定要删除指标口径 ${row.name} 吗？`, '提示', {
         type: 'warning',
@@ -123,6 +133,7 @@
       });
       await deleteMetric(row.id);
       ElMessage.success('指标口径已删除');
+      if (datasourceId !== selectedDatasourceId.value) return;
       if (metricRows.value.length === 1 && page.value > 1) {
         page.value -= 1;
       }
@@ -149,6 +160,10 @@
   onMounted(() => {
     void initialize();
   });
+
+  onScopeDispose(() => {
+    metricRequestId++;
+  });
 </script>
 
 <template>
@@ -173,6 +188,7 @@
             filterable
             placeholder="选择数据源"
             :loading="datasourceLoading"
+            :disabled="datasourceLoading"
             @change="handleDatasourceChange"
           >
             <el-option
@@ -192,6 +208,7 @@
             v-permission="'semantic:metric:create'"
             v-if="!datasourceEmpty"
             type="primary"
+            :disabled="selectedDatasourceId === undefined"
             @click="handleOpenCreate"
           >
             新增指标
@@ -304,6 +321,7 @@
     </section>
 
     <MetricEditDialog
+      :key="selectedDatasourceId ?? 'none'"
       v-model="metricDialogVisible"
       :metric="selectedMetric"
       :datasource-id="selectedDatasourceId"

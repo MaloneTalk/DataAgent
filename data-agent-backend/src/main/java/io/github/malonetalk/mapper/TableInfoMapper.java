@@ -22,6 +22,7 @@ import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.entity.TableInfo;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -45,6 +46,8 @@ public interface TableInfoMapper {
 
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
+    List<TableInfo> selectByDatasourceIdForUpdate(@Param("datasourceId") Integer datasourceId);
+
     IPage<TableInfo> selectPageByDatasourceId(
             IPage<TableInfo> page,
             @Param("query") TableSemanticPageQuery query,
@@ -65,10 +68,18 @@ public interface TableInfoMapper {
             @Param("tableNames") List<String> tableNames,
             @Param("now") LocalDateTime now);
 
+    int markPhysicalMissingByIds(@Param("ids") List<Integer> ids, @Param("now") LocalDateTime now);
+
     int countByDomain(@Param("domain") String domain);
 
     int updateDomain(
             @Param("oldDomain") String oldDomain,
             @Param("newDomain") String newDomain,
             @Param("now") LocalDateTime now);
+
+    @Delete(
+            "DELETE FROM table_info WHERE datasource_id = #{datasourceId} AND table_name ="
+                    + " #{tableName}")
+    int deleteImportedTable(
+            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

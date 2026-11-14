@@ -29,6 +29,7 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.mapper.CsvImportMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
@@ -38,8 +39,10 @@ import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleHiddenColumn;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +57,8 @@ class SqlAuthorizationRegressionTest {
     @BeforeEach
     void setup() {
         var users = mock(SysUserMapper.class);
+        var datasources = mock(DatasourceService.class);
+        when(datasources.findById(1)).thenReturn(Optional.of(datasource));
         var capabilities = mock(RoleCapabilityMapper.class);
         var tables = mock(RoleTablePermissionMapper.class);
         var columns = mock(RoleHiddenColumnMapper.class);
@@ -79,7 +84,11 @@ class SqlAuthorizationRegressionTest {
                 new SqlPermissionService(
                         new PermissionService(
                                 users, capabilities, Mappers.getMapper(UserConverter.class)),
-                        new DataPermissionService(tables, columns, mock(DatasourceService.class)),
+                        new DataPermissionService(
+                                tables,
+                                columns,
+                                datasources,
+                                new CsvAccessService(mock(CsvImportMapper.class))),
                         metadata);
         executor = new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
         datasource.setId(1);

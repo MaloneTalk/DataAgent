@@ -71,6 +71,12 @@ services:
       # 初始管理员密码（首次启动时使用）
       ADMIN_INIT_PASSWORD: ${ADMIN_INIT_PASSWORD:-admin}
 
+      CSV_DATASOURCE_ID: ${CSV_DATASOURCE_ID:-0}
+      CSV_IMPORT_DIRECTORY: /app/csv-imports
+      CSV_WRITER_URL: ${CSV_WRITER_URL:-}
+      CSV_WRITER_USERNAME: ${CSV_WRITER_USERNAME:-}
+      CSV_WRITER_PASSWORD: ${CSV_WRITER_PASSWORD:-}
+
       # OpenTelemetry（可选）：配合 docker/observability 的 Grafana LGTM 栈查看 trace/metrics/logs
       TRACING_OTLP_EXPORT_ENABLED: ${TRACING_OTLP_EXPORT_ENABLED:-false}
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://otel-lgtm:4318/v1/traces}
@@ -80,6 +86,8 @@ services:
       OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-http://otel-lgtm:4318/v1/logs}
 
       TZ: Asia/Shanghai
+    volumes:
+      - data-agent-csv-imports:/app/csv-imports
     ports:
       # 可通过 .env.example 覆盖：BACKEND_PORT=8081
       - "${BACKEND_PORT:-8080}:8080"
@@ -106,6 +114,7 @@ services:
       - data-agent-network
 
 volumes:
+  data-agent-csv-imports:
   data-agent-mysql:
     name: data-agent-mysql
 
