@@ -58,6 +58,14 @@ public class SqlPermissionService {
     private final ColumnSemanticInfoMapper metadata;
 
     public AuthorizedSqlBo authorize(Integer userId, DatasourcePo datasource, Select select) {
+        return authorize(userId, datasource, select, Map.of());
+    }
+
+    public AuthorizedSqlBo authorize(
+            Integer userId,
+            DatasourcePo datasource,
+            Select select,
+            Map<String, Set<String>> previousColumns) {
         var user = permissions.require(userId, PermissionEnum.ANALYSIS_SQL_EXECUTE);
         var scope = data.loadScope(user, datasource.getId());
         if (scope.unrestricted()) {
@@ -69,7 +77,7 @@ public class SqlPermissionService {
         }
         if (scope.tables().isEmpty()) throw denied();
         try {
-            Inspector inspector = new Inspector(scope, datasource);
+            Inspector inspector = new Inspector(scope, datasource, previousColumns);
             inspector.inspect(select, Optional.empty());
             return new AuthorizedSqlBo(select, columnSnapshot(inspector.visibleColumns));
         } catch (BusinessException ex) {
@@ -99,10 +107,15 @@ public class SqlPermissionService {
         private final DataPermissionScopeBo scope;
         private final Integer datasourceId;
         private final String identifierQuote;
+        private final Map<String, Set<String>> previousColumns;
         private final Map<String, List<ColumnInfo>> visibleColumns = new HashMap<>();
 
-        Inspector(DataPermissionScopeBo scope, DatasourcePo datasource) {
+        Inspector(
+                DataPermissionScopeBo scope,
+                DatasourcePo datasource,
+                Map<String, Set<String>> previousColumns) {
             this.scope = scope;
+            this.previousColumns = previousColumns;
             this.datasourceId = datasource.getId();
             var type =
                     DataSourceType.fromCode(datasource.getType())
@@ -236,7 +249,8 @@ public class SqlPermissionService {
             query.addSource(
                     table.getAlias() == null ? table.getName() : table.getAlias().getName(),
                     columns.stream().map(ColumnInfo::getColumnName).collect(Collectors.toSet()),
-                    scope.hidden(name));
+                    scope.hidden(name),
+                    previousColumns.getOrDefault(normalizeIdentifier(name), Set.of()));
             String projection =
                     columns.stream()
                             .map(c -> quote(c.getColumnName()))

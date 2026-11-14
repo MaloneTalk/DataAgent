@@ -37,6 +37,18 @@ export interface ToolResultInfo {
   id: string;
   name: string;
   output: string;
+  chart?: ChartPayload | null;
+}
+
+export interface ChartPayload {
+  spec: {
+    chartType: 'bar' | 'line' | 'pie' | 'scatter';
+    title: string;
+    xField: string;
+    yFields: string[];
+    seriesField: string;
+  };
+  rows: Record<string, string | number | boolean | null>[];
 }
 
 export interface AnswerProvenance {
