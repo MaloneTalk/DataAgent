@@ -33,12 +33,20 @@
   } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import CsvImportPanel from './components/CsvImportPanel.vue';
+  import DatasourceTablesDrawer from './components/DatasourceTablesDrawer.vue';
 
   const router = useRouter();
   const { list: dataSourceList, loading, error, fetchList } = useDatasource(getDatasourceList);
 
   const dialogVisible = ref(false);
   const csvVisible = ref(false);
+  const tablesVisible = ref(false);
+  const selectedDatasource = ref<DatasourceResponse>();
+
+  const handleViewTables = (row: DatasourceResponse) => {
+    selectedDatasource.value = row;
+    tablesVisible.value = true;
+  };
   const submitLoading = ref(false);
   const isEdit = ref(false);
   const formRef = ref<FormInstance>();
@@ -273,7 +281,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="420">
+      <el-table-column label="操作" width="500">
         <template #default="{ row }">
           <el-button
             v-permission="'data:datasource:update'"
@@ -284,6 +292,14 @@
             @click="handleTestConnection(row)"
           >
             测试连接
+          </el-button>
+          <el-button
+            v-permission="'data:datasource:update'"
+            link
+            type="primary"
+            @click="handleViewTables(row)"
+          >
+            查看表
           </el-button>
           <el-button
             v-permission="'semantic:table:read'"
@@ -339,6 +355,14 @@
   </div>
 
   <CsvImportPanel v-model="csvVisible" />
+
+  <DatasourceTablesDrawer
+    v-if="tablesVisible && selectedDatasource"
+    :key="selectedDatasource.id"
+    v-model="tablesVisible"
+    :datasource-id="selectedDatasource.id"
+    :datasource-name="selectedDatasource.name"
+  />
 
   <el-dialog
     v-model="dialogVisible"

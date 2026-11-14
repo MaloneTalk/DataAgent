@@ -112,3 +112,15 @@ export function testDatasource(id: number) {
     .post<ApiResponse<DatasourceTestResponse>>(`/datasource/${id}/test`)
     .then(res => res.data.data);
 }
+
+export interface DatasourceTable {
+  tableName: string;
+  objectType: string;
+  remarks: string | null;
+}
+
+export function getDatasourcePhysicalTables(id: number) {
+  return request
+    .get<ApiResponse<DatasourceTable[]>>(`/datasource/${id}/physical-tables`)
+    .then(res => res.data.data);
+}

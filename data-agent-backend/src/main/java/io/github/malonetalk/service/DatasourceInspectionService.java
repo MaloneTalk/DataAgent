@@ -18,10 +18,14 @@
 package io.github.malonetalk.service;
 
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
+import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.model.vo.DatasourceTableVo;
 import io.github.malonetalk.model.vo.DatasourceTestVo;
 import java.sql.SQLException;
+import java.util.Comparator;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +37,7 @@ public class DatasourceInspectionService {
 
     private final DatasourceService datasourceService;
     private final DynamicDataSourceManager dynamicDataSourceManager;
+    private final SchemaReader schemaReader;
 
     public DatasourceTestVo testConnection(Integer id) {
         DatasourcePo datasource = datasourceService.requireById(id);
@@ -48,5 +53,19 @@ public class DatasourceInspectionService {
 
             return new DatasourceTestVo(false, "连接失败，请检查地址、端口、数据库名、账号密码及网络");
         }
+    }
+
+    public List<DatasourceTableVo> listPhysicalTables(Integer id) {
+        DatasourcePo datasource = datasourceService.requireById(id);
+
+        return schemaReader.getTables(datasource).stream()
+                .map(
+                        table ->
+                                new DatasourceTableVo(
+                                        table.tableName(), table.objectType(), table.remarks()))
+                .sorted(
+                        Comparator.comparing(
+                                DatasourceTableVo::tableName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 }
