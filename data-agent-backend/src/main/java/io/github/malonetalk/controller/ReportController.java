@@ -22,6 +22,7 @@ import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.ReportPageQuery;
 import io.github.malonetalk.dto.ReportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.service.ReportService;
 import io.github.malonetalk.utils.RequestAssert;
 import jakarta.validation.Valid;
@@ -40,12 +41,13 @@ public class ReportController {
     private final ReportService reportService;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.ASSET_REPORT_READ)
     public Result<PageResponse<ReportResponse>> findReports(@Valid ReportPageQuery query) {
         return Result.success(reportService.getReportPage(query));
     }
 
-    @RequirePermission
     @DeleteMapping("/{id}")
+    @RequirePermission(PermissionEnum.ASSET_REPORT_DELETE)
     public Result<Boolean> delete(@PathVariable Integer id) {
         RequestAssert.requireNonNegative(id, "id must be non-negative.");
         reportService.deleteById(id);

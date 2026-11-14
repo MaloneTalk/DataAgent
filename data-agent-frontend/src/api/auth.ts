@@ -17,12 +17,16 @@
  */
 
 import request from './request';
+import type { ApiResponse } from './request';
 import type { BooleanVo } from './types';
 
 export interface UserInfoResponse {
   userId: number;
   username: string;
   displayName: string;
+  roleId: number;
+  superAdmin: boolean;
+  permissions: string[];
 }
 
 export interface LoginResponse {
@@ -40,19 +44,18 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
-// 沿用项目约定：泛型为完整 ApiResponse 结构，调用处取 res.data.data。
-type ApiResult<T> = { code: number; message: string; data: T };
-
 export function login(payload: LoginRequest) {
-  return request.post<ApiResult<LoginResponse>>('/auth/login', payload).then(res => res.data.data);
+  return request
+    .post<ApiResponse<LoginResponse>>('/auth/login', payload)
+    .then(res => res.data.data);
 }
 
 export function fetchMe() {
-  return request.get<ApiResult<UserInfoResponse>>('/auth/me').then(res => res.data.data);
+  return request.get<ApiResponse<UserInfoResponse>>('/auth/me').then(res => res.data.data);
 }
 
 export function changePassword(payload: ChangePasswordRequest) {
   return request
-    .post<ApiResult<BooleanVo>>('/auth/change-password', payload)
+    .post<ApiResponse<BooleanVo>>('/auth/change-password', payload)
     .then(res => res.data.data);
 }

@@ -1,7 +1,9 @@
+-- MySQL 5.7: initialize a new metadata database; use migration.sql for existing databases.
 CREATE TABLE IF NOT EXISTS `datasource` (
     `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `name` VARCHAR(255) DEFAULT NULL COMMENT '数据源名称',
     `type` VARCHAR(50) DEFAULT NULL COMMENT '数据源类型',
+    `source_type` VARCHAR(20) NOT NULL DEFAULT 'DATABASE' COMMENT '来源：DATABASE/CSV',
     `host` VARCHAR(255) DEFAULT NULL COMMENT '主机地址',
     `port` INT(11) DEFAULT NULL COMMENT '端口号',
     `database_name` VARCHAR(255) DEFAULT NULL COMMENT '数据库名称',
@@ -12,6 +14,8 @@ CREATE TABLE IF NOT EXISTS `datasource` (
     `test_status` VARCHAR(20) DEFAULT NULL COMMENT '测试状态',
     `description` TEXT DEFAULT NULL COMMENT '描述',
     `creator_id` BIGINT(20) DEFAULT NULL COMMENT '创建者ID',
+    `updater_id` BIGINT(20) DEFAULT NULL COMMENT '更新者ID',
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已删除',
     `create_time` DATETIME DEFAULT NULL COMMENT '创建时间',
     `update_time` DATETIME DEFAULT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`)
@@ -19,14 +23,15 @@ CREATE TABLE IF NOT EXISTS `datasource` (
 
 CREATE TABLE IF NOT EXISTS `table_info` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `table_name` VARCHAR(255) NOT NULL COMMENT '表名',
+    `table_name` VARCHAR(255) NOT NULL COMMENT '表或视图名',
+    `object_type` VARCHAR(16) NOT NULL DEFAULT 'TABLE' COMMENT '数据库对象类型：TABLE/VIEW',
     `physical_table_description` VARCHAR(500) DEFAULT NULL COMMENT '物理表原始描述',
     `table_description` VARCHAR(500) DEFAULT NULL COMMENT '表描述',
     `data_granularity` VARCHAR(500) DEFAULT NULL COMMENT '数据粒度（一行代表的业务实体或事件）',
     `domain` VARCHAR(255) DEFAULT NULL COMMENT '领域',
     `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
     `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见',
-    `physical_status` TINYINT(1) DEFAULT 1 COMMENT '物理表是否存在',
+    `physical_status` TINYINT(1) DEFAULT 1 COMMENT '表或视图是否存在',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -40,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `table_info` (
 CREATE TABLE IF NOT EXISTS `column_info` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
-    `table_name` VARCHAR(255) NOT NULL COMMENT '表名',
+    `table_id` INT NOT NULL COMMENT '关联表信息ID',
     `column_name` VARCHAR(255) NOT NULL COMMENT '列名',
     `physical_column_description` VARCHAR(500) DEFAULT NULL COMMENT '物理列原始描述',
     `type_name` VARCHAR(255) DEFAULT NULL COMMENT '物理列类型',
@@ -53,34 +58,32 @@ CREATE TABLE IF NOT EXISTS `column_info` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `index_info` TEXT COMMENT 'physical index info',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_datasource_table_column` (`datasource_id`, `table_name`, `column_name`),
-    KEY `idx_datasource_table_visible` (`datasource_id`, `table_name`, `is_visible`),
-    KEY `idx_datasource_table_visible_column`
-        (`datasource_id`, `table_name`, `is_visible`, `column_name`)
+    UNIQUE KEY `uk_table_column` (`table_id`, `column_name`),
+    KEY `idx_datasource_id` (`datasource_id`),
+    CONSTRAINT `fk_column_info_table`
+        FOREIGN KEY (`table_id`) REFERENCES `table_info` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='列信息表';
 
 CREATE TABLE IF NOT EXISTS `logical_table_relation` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
-    `source_table_name` VARCHAR(255) NOT NULL COMMENT '源表名',
+    `source_table_id` INT NOT NULL COMMENT '源表信息ID',
     `source_column_names_json` TEXT NOT NULL COMMENT '源列名JSON',
-    `source_column_signature` VARCHAR(500) NOT NULL COMMENT '源列签名',
-    `target_table_name` VARCHAR(255) NOT NULL COMMENT '目标表名',
+    `target_table_id` INT NOT NULL COMMENT '目标表信息ID',
     `target_column_names_json` TEXT NOT NULL COMMENT '目标列名JSON',
-    `target_column_signature` VARCHAR(500) NOT NULL COMMENT '目标列签名',
     `relation_type` VARCHAR(64) NOT NULL COMMENT '关系类型',
     `description` VARCHAR(1000) DEFAULT NULL COMMENT '关系描述',
     `is_enabled` TINYINT(1) DEFAULT 1 COMMENT '是否启用',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_relation_source_signature`
-        (`datasource_id`, `source_table_name`, `source_column_signature`),
-    KEY `idx_relation_source_table` (`datasource_id`, `source_table_name`),
-    KEY `idx_relation_source_enabled` (`datasource_id`, `source_table_name`, `is_enabled`),
-    KEY `idx_relation_source_enabled_id` (`datasource_id`, `source_table_name`, `is_enabled`, `id`),
-    KEY `idx_relation_source_target_id`
-        (`datasource_id`, `source_table_name`, `target_table_name`, `id`)
+    KEY `idx_relation_source_table` (`source_table_id`),
+    KEY `idx_relation_target_table` (`target_table_id`),
+    KEY `idx_relation_source_enabled_id` (`datasource_id`, `source_table_id`, `is_enabled`, `id`),
+    CONSTRAINT `fk_relation_source_table`
+        FOREIGN KEY (`source_table_id`) REFERENCES `table_info` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+    CONSTRAINT `fk_relation_target_table`
+        FOREIGN KEY (`target_table_id`) REFERENCES `table_info` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逻辑表关系表';
 
 CREATE TABLE IF NOT EXISTS `domain_info` (
@@ -132,13 +135,32 @@ CREATE TABLE IF NOT EXISTS  `agentscope_sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `session_datasource` (
-    `session_id`    VARCHAR(255) NOT NULL COMMENT '会话ID（主键，一会话一源）',
-    `datasource_id` INT          NOT NULL COMMENT '绑定的数据源ID',
-    `create_time`   DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time`   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间（绑定一次性写入，实际不会更新，列可留可删）',
-    PRIMARY KEY (`session_id`),
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `session_id`    VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `datasource_id` INT          NOT NULL COMMENT '本会话允许/选择的数据源ID',
+    `creator_id`    BIGINT       DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME     DEFAULT NULL COMMENT '创建时间',
+    `updater_id`    BIGINT       DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME     DEFAULT NULL COMMENT '更新时间',
+    `is_deleted`    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    KEY `idx_session_datasource` (`session_id`, `datasource_id`),
     KEY `idx_datasource_id` (`datasource_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话与数据源绑定表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话允许使用的数据源列表';
+
+CREATE TABLE IF NOT EXISTS `answer_provenance` (
+    `answer_id` VARCHAR(255) NOT NULL COMMENT '初始用户消息ID',
+    `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `status` VARCHAR(16) NOT NULL COMMENT '记录状态：COMPLETE/PARTIAL',
+    `datasources_json` JSON NOT NULL COMMENT '使用的数据源',
+    `sql_executions_json` JSON NOT NULL COMMENT '执行的SQL',
+    `metric_references_json` JSON NOT NULL COMMENT '引用的指标口径',
+    `python_executions_json` JSON NOT NULL COMMENT '执行的Python代码',
+    `tables_json` JSON NOT NULL COMMENT '表和字段血缘',
+    `warnings_json` JSON NOT NULL COMMENT '溯源警告',
+    PRIMARY KEY (`answer_id`),
+    KEY `idx_answer_provenance_session` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='回答数据证据';
 
 CREATE TABLE IF NOT EXISTS `metric_info` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -149,12 +171,19 @@ CREATE TABLE IF NOT EXISTS `metric_info` (
     `measure_expr` VARCHAR(500) DEFAULT NULL COMMENT '度量表达式,如 SUM(paid_amount)',
     `filters` TEXT DEFAULT NULL COMMENT '过滤条件,如 status=''paid'' AND is_test=0',
     `time_field` VARCHAR(255) DEFAULT NULL COMMENT '时间维度字段,如 settle_time',
+    `calculation_type` VARCHAR(32) NOT NULL DEFAULT 'EXPRESSION' COMMENT '计算方式:EXPRESSION/DISTINCT_COUNT/RATIO/SNAPSHOT',
+    `value_type` VARCHAR(16) DEFAULT NULL COMMENT '结果类型:NUMBER/MONEY/PERCENT,NULL表示未配置',
+    `unit` VARCHAR(32) DEFAULT NULL COMMENT '标准结果单位,如元/人/次,百分比比值为1',
+    `result_multiplier` DECIMAL(24,12) NOT NULL DEFAULT 1 COMMENT '标准结果=度量表达式原始结果乘以此倍率',
+    `currency_code` VARCHAR(3) DEFAULT NULL COMMENT '金额币种代码,如CNY/USD',
     `description` TEXT DEFAULT NULL COMMENT '业务口径说明/规则',
+    `creator_id` BIGINT DEFAULT NULL COMMENT '创建人ID',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater_id` BIGINT DEFAULT NULL COMMENT '修改人ID',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_datasource_metric_key` (`datasource_id`, `metric_key`),
+    KEY `idx_datasource_metric_key` (`datasource_id`, `metric_key`),
     KEY `idx_datasource_name` (`datasource_id`, `name`),
     KEY `idx_datasource_aliases` (`datasource_id`, `aliases`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='指标口径表';
@@ -162,10 +191,12 @@ CREATE TABLE IF NOT EXISTS `metric_info` (
 -- 示例:销售额口径。请按你实际的 datasource_id 调整后再执行(取消注释)。
 -- INSERT INTO `metric_info`
 --   (`datasource_id`, `metric_key`, `name`, `aliases`,
---    `measure_expr`, `filters`, `time_field`, `description`)
+--    `measure_expr`, `filters`, `time_field`, `calculation_type`, `value_type`,
+--    `unit`, `result_multiplier`, `currency_code`, `description`)
 -- VALUES
 --   (1, 'sales', '销售额', 'GMV,营收,流水,成交额',
 --    'SUM(paid_amount)', 'status=''paid'' AND is_test=0', 'settle_time',
+--    'EXPRESSION', 'MONEY', '元', 1, 'CNY',
 --    '已支付净额,使用结算时间,排除测试账号');
 
 -- 权限管理：角色表 + 表级白名单 + 列级黑名单。
@@ -209,7 +240,7 @@ CREATE TABLE IF NOT EXISTS `role_hidden_column` (
 CREATE TABLE IF NOT EXISTS `sys_user` (
     `id`            INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `username`      VARCHAR(64)  NOT NULL COMMENT '登录名；外部身份源用户=身份源昵称（可重名，靠 idp_user_id 区分）',
-    `password_hash` VARCHAR(255) NULL COMMENT 'PBKDF2 哈希，仅 LOCAL 身份源使用；外部身份源用户为空',
+    `password_hash` VARCHAR(255) NULL COMMENT 'BCrypt 哈希，仅 LOCAL 身份源使用；外部身份源用户为空',
     `display_name`  VARCHAR(64)  NOT NULL COMMENT '显示名',
     `role_id`       INT NOT NULL DEFAULT 0 COMMENT '角色ID；0=未分配角色（无任何表权限）',
     `is_super_admin` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否超级管理员:0否,1是',
@@ -234,7 +265,7 @@ CREATE TABLE IF NOT EXISTS `user_session` (
     `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID（对应 agentscope_sessions.session_id）',
     `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`user_id`, `session_id`),
-    KEY `idx_session_id` (`session_id`)
+    UNIQUE KEY `uk_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-会话归属表';
 
 CREATE TABLE IF NOT EXISTS `mcp_server` (
@@ -263,3 +294,59 @@ CREATE TABLE IF NOT EXISTS `mcp_server` (
     UNIQUE KEY `uk_mcp_server_name` (`name`),
     KEY `idx_mcp_server_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP Server 配置表';
+
+CREATE TABLE IF NOT EXISTS sys_role_permission (
+    role_id INT NOT NULL,
+    permission_code VARCHAR(100) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_id, permission_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色功能权限';
+
+-- CSV import registry (MySQL 5.7). Physical CSV tables live in a separate database.
+CREATE TABLE IF NOT EXISTS `csv_import` (
+    `id` CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    `datasource_id` INT NOT NULL,
+    `display_name` VARCHAR(200) NOT NULL,
+    `description` VARCHAR(400) DEFAULT NULL,
+    `original_filename` VARCHAR(255) NOT NULL,
+    `file_sha256` CHAR(64) NOT NULL,
+    `file_size` BIGINT NOT NULL,
+    `physical_table_name` VARCHAR(64) NOT NULL,
+    `attempt_id` CHAR(32) NOT NULL DEFAULT '' COMMENT '执行批次标识',
+    `submitted_by` INT DEFAULT NULL COMMENT '本次提交执行的用户ID',
+    `parse_options_json` JSON NOT NULL,
+    `columns_json` JSON NOT NULL,
+    `status` VARCHAR(20) NOT NULL,
+    `processed_rows` BIGINT NOT NULL DEFAULT 0,
+    `row_count` BIGINT NOT NULL DEFAULT 0,
+    `error_message` VARCHAR(500) DEFAULT NULL,
+    `expires_at` DATETIME DEFAULT NULL,
+    `creator_id` BIGINT DEFAULT NULL,
+    `updater_id` BIGINT DEFAULT NULL,
+    `create_time` DATETIME DEFAULT NULL,
+    `update_time` DATETIME DEFAULT NULL,
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_csv_datasource_table` (`datasource_id`, `physical_table_name`),
+    KEY `idx_csv_status_time` (`status`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='CSV 导入任务与托管表';
+
+-- 用户个人访问令牌（PAT）：只保存哈希，明文仅在创建时返回一次。
+CREATE TABLE IF NOT EXISTS `user_pat` (
+    `id`            BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_id`       INT NOT NULL COMMENT '用户ID，关联 sys_user.id',
+    `name`          VARCHAR(64) NOT NULL COMMENT '令牌名称',
+    `token_prefix`  VARCHAR(16) NOT NULL COMMENT '令牌前缀，用于列表展示',
+    `token_hash`    CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT 'SHA-256 十六进制哈希',
+    `expires_at`    DATETIME NOT NULL COMMENT '过期时间',
+    `last_used_at`  DATETIME NULL COMMENT '最后使用时间',
+    `revoked_at`    DATETIME NULL COMMENT '吊销时间；NULL 表示未吊销',
+    `creator_id`    BIGINT DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater_id`    BIGINT DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted`    TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_pat_token_hash` (`token_hash`),
+    KEY `idx_user_pat_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户个人访问令牌';

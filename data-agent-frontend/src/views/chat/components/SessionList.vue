@@ -43,6 +43,11 @@
     }
   }
 
+  function datasourceLabel(s: SessionInfo): string {
+    const names = (s.datasources ?? []).map(d => d.name ?? `#${d.id}`);
+    return names.length ? names.join('、') : '未绑定数据源';
+  }
+
   function formatTime(iso: string): string {
     if (!iso) return '';
     const d = new Date(iso);
@@ -109,10 +114,15 @@
         <div class="session-item__row">
           <div class="session-item__main">
             <div class="session-item__title">{{ s.title || s.sessionId }}</div>
-            <div class="session-item__ds">{{ s.datasourceName ?? '未绑定数据源' }}</div>
+            <div class="session-item__ds">{{ datasourceLabel(s) }}</div>
             <div class="session-item__time">{{ formatTime(s.lastActiveAt) }}</div>
           </div>
-          <button class="session-item__delete" @click="e => handleDelete(e, s)" title="删除会话">
+          <button
+            v-permission="'analysis:session:delete'"
+            class="session-item__delete"
+            @click="e => handleDelete(e, s)"
+            title="删除会话"
+          >
             ×
           </button>
         </div>
@@ -120,7 +130,13 @@
     </div>
 
     <div class="session-list__footer">
-      <el-button class="new-session-btn" @click="handleNewSession">新建会话</el-button>
+      <el-button
+        v-permission="'analysis:chat:use'"
+        class="new-session-btn"
+        @click="handleNewSession"
+      >
+        新建会话
+      </el-button>
     </div>
   </div>
 </template>

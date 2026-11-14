@@ -44,6 +44,12 @@
         LIMIT 1
     </select>
 
+    <select id="selectByIdForUpdate" resultMap="BaseResultMap">
+        SELECT * FROM domain_info
+        WHERE id = #{id}
+        LIMIT 1 FOR UPDATE
+    </select>
+
     <insert id="insert" parameterType="io.github.malonetalk.entity.DomainInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO domain_info (
             name, description,

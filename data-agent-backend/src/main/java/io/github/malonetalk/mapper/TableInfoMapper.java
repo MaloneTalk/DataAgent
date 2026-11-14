@@ -17,10 +17,12 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.entity.TableInfo;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -33,14 +35,24 @@ public interface TableInfoMapper {
 
     int updatePhysicalCacheFields(TableInfo tableInfo);
 
-    int deleteByDatasourceIdAndIds(
+    int fillSemanticDescriptionIfBlank(
+            @Param("id") Integer id, @Param("description") String description);
+
+    int resetSemanticFieldsByIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
+
+    int deletePhysicalMissingByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 
     List<TableInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
-    List<TableInfo> selectPageByDatasourceId(
+    List<TableInfo> selectByDatasourceIdForUpdate(@Param("datasourceId") Integer datasourceId);
+
+    IPage<TableInfo> selectPageByDatasourceId(
+            IPage<TableInfo> page,
             @Param("query") TableSemanticPageQuery query,
-            @Param("sortDescending") boolean sortDescending);
+            @Param("sortDescending") boolean sortDescending,
+            @Param("roleId") Integer roleId);
 
     TableInfo selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
@@ -56,8 +68,18 @@ public interface TableInfoMapper {
             @Param("tableNames") List<String> tableNames,
             @Param("now") LocalDateTime now);
 
-    List<TableInfo> selectByDatasourceIdAndDomains(
-            @Param("datasourceId") Integer datasourceId, @Param("domains") List<String> domains);
+    int markPhysicalMissingByIds(@Param("ids") List<Integer> ids, @Param("now") LocalDateTime now);
 
     int countByDomain(@Param("domain") String domain);
+
+    int updateDomain(
+            @Param("oldDomain") String oldDomain,
+            @Param("newDomain") String newDomain,
+            @Param("now") LocalDateTime now);
+
+    @Delete(
+            "DELETE FROM table_info WHERE datasource_id = #{datasourceId} AND table_name ="
+                    + " #{tableName}")
+    int deleteImportedTable(
+            @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 }

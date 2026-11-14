@@ -19,8 +19,10 @@ package io.github.malonetalk.dto.datasource;
 
 import java.util.List;
 import java.util.Locale;
+import lombok.Builder;
 
 /** 物理数据源列信息，由 SchemaReader 从 JDBC 元数据读取 */
+@Builder
 public record PhysicalColumnInfo(
         String columnName,
         String typeName,

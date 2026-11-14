@@ -21,26 +21,19 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.enums.ColumnInvalidReasonEnum;
 import io.github.malonetalk.service.semantic.enums.TableInvalidReasonEnum;
-import io.github.malonetalk.service.semantic.enums.UsageLevelEnum;
 import java.util.Objects;
 
 public final class SemanticAvailabilityHelper {
 
     private SemanticAvailabilityHelper() {}
 
-    public static boolean isTableAvailable(TableInfo tableInfo, UsageLevelEnum usageLevel) {
+    public static boolean isTableAvailable(TableInfo tableInfo) {
         Objects.requireNonNull(tableInfo, "tableInfo should not be null");
-        if (usageLevel == UsageLevelEnum.FRONTEND_DISPLAY) {
-            return true;
-        }
         return Boolean.TRUE.equals(tableInfo.getIsVisible()) && hasPhysicalTable(tableInfo);
     }
 
-    public static boolean isColumnAvailable(ColumnInfo columnInfo, UsageLevelEnum usageLevel) {
+    public static boolean isColumnAvailable(ColumnInfo columnInfo) {
         Objects.requireNonNull(columnInfo, "columnInfo should not be null");
-        if (usageLevel == UsageLevelEnum.FRONTEND_DISPLAY) {
-            return true;
-        }
         return Boolean.TRUE.equals(columnInfo.getIsVisible()) && hasPhysicalColumn(columnInfo);
     }
 
@@ -54,30 +47,24 @@ public final class SemanticAvailabilityHelper {
         return !Boolean.FALSE.equals(columnInfo.getPhysicalStatus());
     }
 
-    public static String tableInvalidReason(TableInfo tableInfo, UsageLevelEnum usageLevel) {
-        if (isTableAvailable(tableInfo, usageLevel)) {
+    public static String tableInvalidReason(TableInfo tableInfo) {
+        if (isTableAvailable(tableInfo)) {
             return null;
         }
         if (!hasPhysicalTable(tableInfo)) {
             return TableInvalidReasonEnum.PHYSICAL_TABLE_NOT_FOUND.getReason();
         }
-        if (!Boolean.TRUE.equals(tableInfo.getIsVisible())) {
-            return TableInvalidReasonEnum.TABLE_HIDDEN.getReason();
-        }
-        return TableInvalidReasonEnum.TABLE_UNAVAILABLE.getReason();
+        return TableInvalidReasonEnum.TABLE_HIDDEN.getReason();
     }
 
-    public static String columnInvalidReason(ColumnInfo columnInfo, UsageLevelEnum usageLevel) {
-        if (isColumnAvailable(columnInfo, usageLevel)) {
+    public static String columnInvalidReason(ColumnInfo columnInfo) {
+        if (isColumnAvailable(columnInfo)) {
             return null;
         }
         if (!hasPhysicalColumn(columnInfo)) {
             return ColumnInvalidReasonEnum.PHYSICAL_COLUMN_NOT_FOUND.getReason();
         }
-        if (!Boolean.TRUE.equals(columnInfo.getIsVisible())) {
-            return ColumnInvalidReasonEnum.COLUMN_HIDDEN.getReason();
-        }
-        return ColumnInvalidReasonEnum.COLUMN_UNAVAILABLE.getReason();
+        return ColumnInvalidReasonEnum.COLUMN_HIDDEN.getReason();
     }
 
     public static String unavailableMessage(String fieldName, String objectName, String reason) {

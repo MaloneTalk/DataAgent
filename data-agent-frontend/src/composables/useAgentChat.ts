@@ -16,7 +16,13 @@
  */
 
 import { ref, shallowRef } from 'vue';
-import { streamChat, fetchSessionHistory, type ChatStreamEventType } from '@/api/agent';
+import {
+  streamChat,
+  fetchSessionHistory,
+  createSession,
+  type ChatStreamEventType,
+  type ToolResultInfo,
+} from '@/api/agent';
 import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
 export interface PendingQuestion {
@@ -29,7 +35,7 @@ export interface TraceStep {
   type: ChatStreamEventType;
   content: string | null;
   toolCall: { id: string; name: string; input: Record<string, unknown> } | null;
-  toolResult: { id: string; name: string; output: string } | null;
+  toolResult: ToolResultInfo | null;
   errorCode: string | null;
 }
 
@@ -47,16 +53,11 @@ function nextId(): string {
   return `msg_${Date.now()}_${++seq}`;
 }
 
-function generateSessionId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 export function useAgentChat(initialSessionId?: string) {
   const messages = shallowRef<ChatMessage[]>([]);
   const isStreaming = ref(false);
-  const sessionId = ref(initialSessionId || generateSessionId());
-  // 待绑定/已绑定的数据源 id；新会话选源后设置，首条消息随请求落库。
-  const datasourceId = ref<number | null>(null);
+  const sessionId = ref<string | null>(initialSessionId || null);
+  let sessionCreation: Promise<string> | null = null;
   const abortController = shallowRef<AbortController | null>(null);
   const pendingQuestion = ref<PendingQuestion | null>(null);
   const lastReportContent = ref<string | null>(null);
@@ -112,9 +113,25 @@ export function useAgentChat(initialSessionId?: string) {
     }));
   }
 
+  async function ensureSession(): Promise<string> {
+    if (sessionId.value) return sessionId.value;
+    if (!sessionCreation) {
+      sessionCreation = createSession()
+        .then(sid => {
+          sessionId.value = sid;
+          return sid;
+        })
+        .finally(() => {
+          sessionCreation = null;
+        });
+    }
+    return sessionCreation;
+  }
+
   async function sendMessage(text: string) {
     if (isStreaming.value || !text.trim()) return;
 
+    const currentSessionId = await ensureSession();
     addUserMessage(text);
     const agentMsg = addAgentMessage();
     isStreaming.value = true;
@@ -129,13 +146,12 @@ export function useAgentChat(initialSessionId?: string) {
     const request =
       pq != null
         ? {
-            sessionId: sessionId.value,
+            sessionId: currentSessionId,
             toolResults: [{ toolCallId: pq.toolCallId, toolName: pq.toolName, output: text }],
           }
         : {
-            sessionId: sessionId.value,
+            sessionId: currentSessionId,
             message: text,
-            datasourceId: datasourceId.value ?? undefined,
           };
 
     try {
@@ -212,6 +228,7 @@ export function useAgentChat(initialSessionId?: string) {
     toolResult: TraceStep['toolResult'];
     errorCode?: string | null;
   }): TraceStep {
+    if (event.errorCode === 'FORBIDDEN') window.dispatchEvent(new Event('permissions-changed'));
     return {
       type: event.type,
       content: event.content,
@@ -225,28 +242,22 @@ export function useAgentChat(initialSessionId?: string) {
     abortController.value?.abort();
   }
 
-  function clearMessages() {
-    messages.value = [];
-  }
-
   function newSession() {
     stopStreaming();
-    clearMessages();
-    sessionId.value = generateSessionId();
-    datasourceId.value = null;
+    messages.value = [];
+    sessionId.value = null;
   }
 
   return {
     messages,
     isStreaming,
     sessionId,
-    datasourceId,
     pendingQuestion,
     lastReportContent,
     loadHistory,
+    ensureSession,
     sendMessage,
     stopStreaming,
-    clearMessages,
     newSession,
   };
 }

@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.entity.TableExport;
-import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -27,8 +27,10 @@ public interface TableExportMapper {
 
     int insert(TableExport tableExport);
 
-    List<TableExport> selectPage(
-            @Param("sessionId") String sessionId, @Param("userId") Integer userId);
+    IPage<TableExport> selectPage(
+            IPage<TableExport> page,
+            @Param("sessionId") String sessionId,
+            @Param("userId") Integer userId);
 
     TableExport selectById(@Param("id") String id);
 

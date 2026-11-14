@@ -26,6 +26,7 @@ import io.github.malonetalk.dto.semantic.LogicalTableRelationResponse;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationEnabledRequest;
 import io.github.malonetalk.dto.semantic.UpdateLogicalTableRelationRequest;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -43,7 +44,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @Validated
 @RequestMapping("/api/semantic/tables/relations/{tableName}")
@@ -53,6 +53,7 @@ public class TableRelationSemanticController {
     private final RelationSemanticService relationSemanticService;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_RELATION_READ)
     public Result<PageResponse<LogicalTableRelationResponse>> listByTable(
             @PathVariable @NotBlank String tableName, @Valid RelationSemanticPageQuery query) {
         return Result.success(
@@ -68,6 +69,7 @@ public class TableRelationSemanticController {
     }
 
     @PostMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_RELATION_CREATE)
     public Result<LogicalTableRelationResponse> create(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BindLogicalTableRelationRequest request) {
@@ -75,6 +77,7 @@ public class TableRelationSemanticController {
     }
 
     @PutMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_RELATION_UPDATE)
     public Result<LogicalTableRelationResponse> update(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody UpdateLogicalTableRelationRequest request) {
@@ -82,6 +85,7 @@ public class TableRelationSemanticController {
     }
 
     @PutMapping("/enabled")
+    @RequirePermission(PermissionEnum.SEMANTIC_RELATION_UPDATE)
     public Result<Boolean> updateEnabled(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody UpdateLogicalTableRelationEnabledRequest request) {
@@ -90,6 +94,7 @@ public class TableRelationSemanticController {
     }
 
     @DeleteMapping("/{relationId}")
+    @RequirePermission(PermissionEnum.SEMANTIC_RELATION_DELETE)
     public Result<Boolean> delete(
             @PathVariable @NotBlank String tableName,
             @PathVariable @NotNull @Min(1) Integer relationId,
@@ -100,6 +105,7 @@ public class TableRelationSemanticController {
     }
 
     @DeleteMapping("/batch")
+    @RequirePermission(PermissionEnum.SEMANTIC_RELATION_DELETE)
     public Result<Integer> deleteBatch(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BatchDeleteLogicalTableRelationRequest request) {

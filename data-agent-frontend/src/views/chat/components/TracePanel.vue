@@ -17,7 +17,6 @@
 
 <script setup lang="ts">
   import { computed, ref } from 'vue';
-  import type { ChatStreamEventType } from '@/api/agent';
   import type { ChatMessage, TraceStep } from '@/composables/useAgentChat';
   import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
@@ -35,46 +34,35 @@
     isExpanded.value = !isExpanded.value;
   }
 
-  const stepCounts = computed(() => {
-    const counts: Record<string, number> = {};
-    for (const step of props.message.traceSteps) {
-      counts[step.type] = (counts[step.type] || 0) + 1;
-    }
-    return counts;
-  });
-
-  const toolCallCount = computed(() => stepCounts.value.tool_call || 0);
-  const toolResultCount = computed(() => stepCounts.value.tool_result || 0);
-
   const summaryLabel = computed(() => {
-    const parts: string[] = [];
-    const total = toolCallCount.value + toolResultCount.value;
-    if (total > 0) {
-      parts.push(`${total} 次工具调用`);
+    let toolStepCount = 0;
+    let thinkCount = 0;
+    for (const step of props.message.traceSteps) {
+      if (step.type === 'tool_call' || step.type === 'tool_result') {
+        toolStepCount += 1;
+      } else if (step.type === 'thinking') {
+        thinkCount += 1;
+      }
     }
-    const thinkCount = stepCounts.value.thinking || 0;
+
+    const parts: string[] = [];
+    if (toolStepCount > 0) {
+      parts.push(`${toolStepCount} 次工具调用`);
+    }
     if (thinkCount > 0) {
       parts.push(`${thinkCount} 条思考`);
     }
     return parts.join(' | ') || `${props.message.traceSteps.length} 个步骤`;
   });
 
-  interface StepRenderer {
-    label: string;
-  }
-
-  const stepRenderers: Record<string, StepRenderer> = {
-    thinking: { label: '思考' },
-    tool_call: { label: '动作' },
-    tool_result: { label: '观察' },
-    question: { label: '问题' },
-    report: { label: '报告' },
-    error: { label: '错误' },
+  const stepLabels: Record<string, string> = {
+    thinking: '思考',
+    tool_call: '动作',
+    tool_result: '观察',
+    question: '问题',
+    report: '报告',
+    error: '错误',
   };
-
-  function getStepRenderer(type: ChatStreamEventType): StepRenderer {
-    return stepRenderers[type] ?? { label: type };
-  }
 
   function stepLabel(step: TraceStep): string {
     if (step.type === 'tool_call' && isInteractiveTool(step.toolCall?.name)) {
@@ -83,7 +71,7 @@
     if (step.type === 'tool_result' && isInteractiveTool(step.toolResult?.name)) {
       return `[${INTERACTIVE_TOOLS[step.toolResult!.name].resultLabel}]`;
     }
-    return `[${getStepRenderer(step.type).label}]`;
+    return `[${stepLabels[step.type] ?? step.type}]`;
   }
 
   function stepContent(step: TraceStep): string {

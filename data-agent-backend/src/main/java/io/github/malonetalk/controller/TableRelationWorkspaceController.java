@@ -21,23 +21,24 @@ import io.github.malonetalk.annotation.RequirePermission;
 import io.github.malonetalk.common.Result;
 import io.github.malonetalk.dto.semantic.RelationWorkspacePageQuery;
 import io.github.malonetalk.dto.semantic.RelationWorkspaceResponse;
-import io.github.malonetalk.service.semantic.relation.RelationSemanticService;
+import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.service.semantic.relation.RelationWorkspaceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @RequestMapping("/api/semantic/tables/relations/workspace")
 @RequiredArgsConstructor
 public class TableRelationWorkspaceController {
 
-    private final RelationSemanticService relationSemanticService;
+    private final RelationWorkspaceService relationWorkspaceService;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_RELATION_READ)
     public Result<RelationWorkspaceResponse> getWorkspace(@Valid RelationWorkspacePageQuery query) {
-        return Result.success(relationSemanticService.getRelationWorkspace(query));
+        return Result.success(relationWorkspaceService.getRelationWorkspace(query));
     }
 }

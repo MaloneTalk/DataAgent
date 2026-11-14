@@ -16,57 +16,34 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, nextTick } from 'vue';
-  import type { FormInstance, FormRules } from 'element-plus';
+  import { onMounted, ref, watch } from 'vue';
+  import { useRoute, useRouter } from 'vue-router';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HelpTip from '@/components/common/HelpTip.vue';
-  import { useFieldErrors } from '@/composables/useFieldErrors';
-  import { getDomainNames } from '@/api/domain';
+  import { useDatasource } from '@/composables/useDatasource';
+  import { formatDateTime } from '@/utils/dateTime';
   import {
-    getActiveDatasourceId,
     getTableSemanticPage,
     refreshPhysicalStatus,
     resetTableSemantic,
-    updateTableSemantic,
     type TableSemanticInfo,
   } from '@/api/semantic';
+  import { useSemanticPage } from '../composables/useSemanticPage';
+  import TableSemanticEditDialog from './TableSemanticEditDialog.vue';
   import ColumnSemanticManage from './ColumnSemanticManage.vue';
   import SyncPhysicalTableDialog from './SyncPhysicalTableDialog.vue';
-  import { buildSyncSummary, formatDateTime, physicalStatusSyncSummaryFields } from '../utils';
+  import { buildSyncSummary, physicalStatusSyncSummaryFields } from '../utils';
 
-  interface TableEditForm {
-    tableName: string;
-    domain: string;
-    tableDescription: string;
-    dataGranularity: string;
-    isVisible: boolean;
-  }
-
-  const loading = ref(false);
-  const error = ref('');
-  const rows = ref<TableSemanticInfo[]>([]);
+  const route = useRoute();
+  const router = useRouter();
+  const {
+    list: datasourceList,
+    loading: datasourceLoading,
+    error: datasourceError,
+    fetchList: fetchDatasourceList,
+  } = useDatasource();
   const datasourceId = ref<number | null>(null);
-  const domainOptions = ref<string[]>([]);
-  const page = reactive({
-    page: 1,
-    pageSize: 10,
-    total: 0,
-  });
-
-  const dialogVisible = ref(false);
-  const submitLoading = ref(false);
-  const formRef = ref<FormInstance>();
-  const form = reactive<TableEditForm>({
-    tableName: '',
-    domain: '',
-    tableDescription: '',
-    dataGranularity: '',
-    isVisible: true,
-  });
-  const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
-  const rules: FormRules<TableEditForm> = {
-    tableName: [{ required: true, message: '表名不能为空', trigger: 'blur' }],
-  };
+  const editingTable = ref<TableSemanticInfo | null>(null);
 
   const columnDrawerVisible = ref(false);
   const selectedTableForColumns = ref('');
@@ -75,113 +52,47 @@
   const syncDialogVisible = ref(false);
   const refreshingPhysicalStatus = ref(false);
 
-  const ensureDatasourceId = async () => {
-    if (datasourceId.value !== null) {
-      return datasourceId.value;
-    }
-    datasourceId.value = await getActiveDatasourceId();
-    if (datasourceId.value === null) {
-      error.value = '请先激活一个数据源';
-      rows.value = [];
-      page.total = 0;
-    }
-    return datasourceId.value;
-  };
-
-  const loadDomainOptions = async () => {
-    try {
-      const response = await getDomainNames();
-      domainOptions.value = response.data.data;
-    } catch {
-      domainOptions.value = [];
-    }
-  };
-
-  const loadPage = async () => {
-    loading.value = true;
-    error.value = '';
-    try {
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) {
-        return;
-      }
-      const response = await getTableSemanticPage({
-        datasourceId: activeDatasourceId,
-        page: page.page,
-        pageSize: page.pageSize,
-      });
-      const pageData = response.data.data;
-      rows.value = pageData.items;
-      page.total = pageData.total;
-    } catch (err) {
-      error.value = (err as Error).message;
-      rows.value = [];
-      page.total = 0;
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const handlePageChange = async (p: number) => {
-    page.page = p;
-    await loadPage();
-  };
-
-  const handleSizeChange = async (pageSize: number) => {
-    page.pageSize = pageSize;
-    page.page = 1;
-    await loadPage();
-  };
-
-  const handleOpenEdit = (row: TableSemanticInfo) => {
-    clearFieldErrors();
-    Object.assign(form, {
-      tableName: row.tableName,
-      domain: row.domain,
-      tableDescription: row.tableDescription ?? '',
-      dataGranularity: row.dataGranularity ?? '',
-      isVisible: row.isVisible,
+  const { loading, error, rows, page, loadPage, handlePageChange, handleSizeChange } =
+    useSemanticPage<TableSemanticInfo>(async pagination => {
+      if (datasourceId.value === null) return { items: [], total: 0 };
+      return getTableSemanticPage({ datasourceId: datasourceId.value, ...pagination });
     });
-    // 加载领域选项
-    loadDomainOptions();
-    dialogVisible.value = true;
+
+  const handleDatasourceChange = async () => {
+    editingTable.value = null;
+    columnDrawerVisible.value = false;
+    selectedTableForColumns.value = '';
+    syncDialogVisible.value = false;
+    page.page = 1;
+    page.total = 0;
+    if (datasourceId.value !== null && route.query.datasourceId !== String(datasourceId.value)) {
+      void router.replace({ query: { ...route.query, datasourceId: datasourceId.value } });
+    }
+    await loadPage();
   };
 
-  const handleSubmit = async () => {
-    if (!formRef.value) return;
-    clearFieldErrors();
-    const valid = await formRef.value.validate().catch(() => false);
-    if (!valid) return;
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) return;
-    submitLoading.value = true;
-    try {
-      await updateTableSemantic({
-        datasourceId: activeDatasourceId,
-        tableName: form.tableName,
-        domain: form.domain.trim() || undefined,
-        tableDescription: form.tableDescription.trim() || undefined,
-        dataGranularity: form.dataGranularity.trim() || undefined,
-        isVisible: form.isVisible,
-      });
-      ElMessage.success('更新成功');
-      dialogVisible.value = false;
-      await loadPage();
-    } catch (err) {
-      applyFieldErrors(err);
-    } finally {
-      submitLoading.value = false;
-    }
-  };
+  watch(
+    () => route.query.datasourceId,
+    value => {
+      const datasource = datasourceList.value.find(item => String(item.id) === value);
+      if (!datasource || datasource.id === datasourceId.value) return;
+      datasourceId.value = datasource.id;
+      void handleDatasourceChange();
+    },
+  );
 
   const handleReset = async (row: TableSemanticInfo) => {
+    const selectedDatasourceId = datasourceId.value;
+    if (selectedDatasourceId === null) return;
     try {
-      await ElMessageBox.confirm(`确认重置表 ${row.tableName} 的语义信息吗？`, '确认重置', {
-        type: 'warning',
-      });
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) return;
-      await resetTableSemantic(activeDatasourceId, row.tableName);
+      await ElMessageBox.confirm(
+        `确认重置表 ${row.tableName} 的语义信息吗？若该表当前已标记为物理缺失，还会删除该表及其列的语义记录和所有关联到该表的逻辑关系；重新同步不会恢复这些关系。`,
+        '确认重置',
+        {
+          type: 'warning',
+        },
+      );
+      await resetTableSemantic(selectedDatasourceId, row.tableName);
       ElMessage.success('重置成功');
       await loadPage();
     } catch (err) {
@@ -191,33 +102,28 @@
     }
   };
 
-  const handleManageColumns = async (row: TableSemanticInfo) => {
+  const handleManageColumns = (row: TableSemanticInfo) => {
+    if (datasourceId.value === null) return;
     selectedTableForColumns.value = row.tableName;
     columnDrawerVisible.value = true;
-    // 等待 drawer 打开
-    await nextTick();
-    if (columnManageRef.value) {
-      await columnManageRef.value.handleTableChange(row.tableName);
-    }
   };
 
-  const handleOpenSync = async () => {
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) {
-      return;
-    }
+  const handleColumnsDrawerOpened = () => {
+    void columnManageRef.value?.handleTableChange(selectedTableForColumns.value);
+  };
+
+  const handleOpenSync = () => {
+    if (datasourceId.value === null) return;
     syncDialogVisible.value = true;
   };
 
   const handleRefreshPhysicalStatus = async () => {
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) {
-      return;
-    }
+    const selectedDatasourceId = datasourceId.value;
+    if (selectedDatasourceId === null) return;
     refreshingPhysicalStatus.value = true;
     try {
-      const response = await refreshPhysicalStatus(activeDatasourceId);
-      ElMessage.success(buildSyncSummary(response.data.data, physicalStatusSyncSummaryFields));
+      const result = await refreshPhysicalStatus(selectedDatasourceId);
+      ElMessage.success(buildSyncSummary(result, physicalStatusSyncSummaryFields));
       await loadPage();
       if (columnDrawerVisible.value && selectedTableForColumns.value && columnManageRef.value) {
         await columnManageRef.value.handleTableChange(selectedTableForColumns.value);
@@ -244,12 +150,14 @@
     }
   };
 
-  defineExpose({
-    loadPage,
-  });
-
-  onMounted(() => {
-    loadPage();
+  onMounted(async () => {
+    await fetchDatasourceList();
+    const requested = datasourceList.value.find(
+      item => String(item.id) === route.query.datasourceId,
+    );
+    const firstActive = datasourceList.value.find(item => item.status === 'ACTIVE');
+    datasourceId.value = requested?.id ?? firstActive?.id ?? datasourceList.value[0]?.id ?? null;
+    await loadPage();
   });
 </script>
 
@@ -260,28 +168,69 @@
         表语义
         <HelpTip>
           <strong>表语义</strong>
-          说明一张物理表在业务上代表什么、属于哪个领域、是否允许被 AI
-          查询，以及它和其他表的逻辑关系。数据粒度用于说明表中一行代表什么。
+          说明表或普通视图在业务上代表什么、属于哪个领域、是否对 AI
+          可见，以及它和其他对象的逻辑关系。数据粒度用于说明一行代表什么。
         </HelpTip>
       </h2>
     </div>
 
     <div class="section-header">
-      <div class="header-actions">
-        <el-tag type="primary" effect="plain">共 {{ page.total }} 张表</el-tag>
-        <el-button :loading="refreshingPhysicalStatus" @click="handleRefreshPhysicalStatus">
+      <div class="section-header-actions">
+        <el-select
+          v-model="datasourceId"
+          class="datasource-field"
+          filterable
+          placeholder="选择数据源"
+          :loading="datasourceLoading"
+          :disabled="datasourceLoading || refreshingPhysicalStatus"
+          @change="handleDatasourceChange"
+        >
+          <el-option
+            v-for="item in datasourceList"
+            :key="item.id"
+            :label="`${item.name} (${item.type})`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-tag type="primary" effect="plain">共 {{ page.total }} 个表或视图</el-tag>
+        <el-button
+          v-permission="'semantic:table:sync'"
+          :loading="refreshingPhysicalStatus"
+          :disabled="datasourceId === null"
+          @click="handleRefreshPhysicalStatus"
+        >
           刷新物理状态
         </el-button>
-        <el-button type="primary" @click="handleOpenSync">同步表</el-button>
+        <el-button
+          v-permission="'semantic:table:sync'"
+          type="primary"
+          :disabled="datasourceId === null || refreshingPhysicalStatus"
+          @click="handleOpenSync"
+        >
+          同步表或视图
+        </el-button>
       </div>
     </div>
 
-    <div v-if="error" class="error-banner">
-      <el-alert type="error" :closable="false" show-icon>{{ error }}</el-alert>
+    <div v-if="datasourceError || error" class="error-banner">
+      <el-alert type="error" :closable="false" show-icon>
+        {{ datasourceError ? `数据源加载失败：${datasourceError.message}` : error }}
+      </el-alert>
     </div>
 
-    <el-table v-loading="loading" :data="rows">
-      <el-table-column prop="tableName" label="表名" min-width="150" />
+    <el-table
+      v-loading="datasourceLoading || loading"
+      :data="rows"
+      :empty-text="datasourceId === null ? '暂无可访问的数据源' : '暂无表语义'"
+    >
+      <el-table-column prop="tableName" label="对象名称" min-width="150" />
+      <el-table-column label="类型" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.objectType === 'VIEW' ? 'warning' : 'info'" size="small">
+            {{ row.objectType === 'VIEW' ? '普通视图' : '表' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="domain" label="领域" min-width="120" />
       <el-table-column label="语义描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
@@ -315,11 +264,26 @@
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
-          <el-button link type="primary" size="small" @click="handleManageColumns(row)">
+          <el-button
+            v-permission="'semantic:table:update'"
+            link
+            type="primary"
+            size="small"
+            @click="editingTable = row"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'semantic:column:read'"
+            link
+            type="primary"
+            size="small"
+            @click="handleManageColumns(row)"
+          >
             管理列
           </el-button>
           <el-button
+            v-permission="'semantic:table:update'"
             v-if="row.id !== null"
             link
             type="warning"
@@ -345,78 +309,30 @@
       />
     </div>
 
-    <el-dialog
-      v-model="dialogVisible"
-      title="编辑表语义"
-      width="600px"
-      :close-on-click-modal="false"
-    >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="表名" prop="tableName" :error="fieldErrors.tableName">
-          <el-input v-model="form.tableName" disabled placeholder="请输入表名" />
-        </el-form-item>
-        <el-form-item label="领域" prop="domain" :error="fieldErrors.domain">
-          <el-select
-            v-model="form.domain"
-            placeholder="请选择领域"
-            filterable
-            allow-create
-            default-first-option
-            clearable
-          >
-            <el-option
-              v-for="domain in domainOptions"
-              :key="domain"
-              :label="domain"
-              :value="domain"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item
-          label="语义描述"
-          prop="tableDescription"
-          :error="fieldErrors.tableDescription"
-        >
-          <el-input
-            v-model="form.tableDescription"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入表的语义描述信息"
-          />
-        </el-form-item>
-        <el-form-item label="数据粒度" prop="dataGranularity" :error="fieldErrors.dataGranularity">
-          <el-input
-            v-model="form.dataGranularity"
-            type="textarea"
-            :rows="2"
-            placeholder="说明一行代表什么，例如：每行代表一份订单"
-          />
-        </el-form-item>
-        <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">
-          <el-switch v-model="form.isVisible" active-text="可见" inactive-text="隐藏" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+    <TableSemanticEditDialog
+      v-if="editingTable && datasourceId !== null"
+      :table="editingTable"
+      :datasource-id="datasourceId"
+      @close="editingTable = null"
+      @saved="loadPage"
+    />
 
     <el-drawer
       v-model="columnDrawerVisible"
       :title="`列语义管理 - ${selectedTableForColumns}`"
       direction="rtl"
       size="90%"
+      @opened="handleColumnsDrawerOpened"
     >
       <ColumnSemanticManage
+        v-if="columnDrawerVisible"
         ref="columnManageRef"
-        :keyword="''"
-        :sort-order="'asc'"
-        :table-name="selectedTableForColumns"
+        :datasource-id="datasourceId"
       />
     </el-drawer>
 
     <SyncPhysicalTableDialog
+      :key="datasourceId ?? 0"
       v-model="syncDialogVisible"
       :datasource-id="datasourceId"
       @synced="handleSyncCompleted"
@@ -425,18 +341,8 @@
 </template>
 
 <style scoped>
-  .section-header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .datasource-field {
+    width: 240px;
   }
 
   .error-banner {
@@ -444,8 +350,6 @@
   }
 
   .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20px;
   }
 </style>

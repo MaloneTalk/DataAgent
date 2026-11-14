@@ -80,14 +80,13 @@
     }
     loading.value = true;
     try {
-      const response = await getPhysicalTableCandidatePage({
+      const pageData = await getPhysicalTableCandidatePage({
         datasourceId: props.datasourceId,
         page: page.page,
         pageSize: page.pageSize,
         keyword: keyword.value.trim() || undefined,
         sortOrder: 'asc',
       });
-      const pageData = response.data.data;
       rows.value = pageData.items;
       page.total = pageData.total;
       await syncCurrentPageSelection();
@@ -119,7 +118,7 @@
 
   const handleConfirm = async () => {
     if (selectedTableNameSet.value.size === 0) {
-      ElMessage.warning('请至少选择一张物理表');
+      ElMessage.warning('请至少选择一个表或视图');
       return;
     }
     if (props.datasourceId === null) {
@@ -128,8 +127,8 @@
     submitting.value = true;
     try {
       const selectedTableNames = Array.from(selectedTableNameSet.value);
-      const response = await syncTableSemantics(props.datasourceId, selectedTableNames);
-      ElMessage.success(buildSyncSummary(response.data.data));
+      const result = await syncTableSemantics(props.datasourceId, selectedTableNames);
+      ElMessage.success(buildSyncSummary(result));
       emit('synced', selectedTableNames);
       visible.value = false;
     } catch (err) {
@@ -152,12 +151,12 @@
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="同步物理表" width="860px" :close-on-click-modal="false">
+  <el-dialog v-model="visible" title="同步表或视图" width="860px" :close-on-click-modal="false">
     <div class="sync-toolbar">
       <el-input
         v-model="keyword"
         clearable
-        placeholder="按表名搜索"
+        placeholder="按表或视图名搜索"
         @keyup.enter="loadCandidates"
       />
       <el-button @click="loadCandidates">查询</el-button>
@@ -170,7 +169,14 @@
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="48" />
-      <el-table-column prop="tableName" label="物理表名" min-width="220" />
+      <el-table-column prop="tableName" label="对象名称" min-width="220" />
+      <el-table-column label="类型" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.objectType === 'VIEW' ? 'warning' : 'info'" size="small">
+            {{ row.objectType === 'VIEW' ? '普通视图' : '表' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="语义层" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.synced ? 'info' : 'success'" size="small">
@@ -180,7 +186,7 @@
       </el-table-column>
     </el-table>
 
-    <div class="pagination-wrap sync-pagination">
+    <div class="pagination-wrap">
       <el-pagination
         background
         layout="total, sizes, prev, pager, next"
@@ -206,15 +212,5 @@
     grid-template-columns: minmax(240px, 1fr) auto;
     gap: 12px;
     margin-bottom: 16px;
-  }
-
-  .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 20px;
-  }
-
-  .sync-pagination {
-    margin-top: 16px;
   }
 </style>

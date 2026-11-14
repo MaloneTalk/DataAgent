@@ -25,7 +25,6 @@ import lombok.Builder;
 @Builder
 public record LogicalTableRelationResponse(
         Integer id,
-        String relationKey,
         Integer datasourceId,
         String source,
         String sourceTableName,

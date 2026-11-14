@@ -26,7 +26,7 @@ description: 一句话描述这个 Skill 做什么。
 ```
 
 - **frontmatter**（必填）：`name`（Skill 标识）、`description`（用途说明）。
-- **正文**：写清流程步骤和可用工具，会被拼入 LLM 的 system prompt。可引用的工具列表见 [architecture.md](architecture.md#4-api-概览)。
+- **正文**：写清流程步骤和可用工具，由 AgentScope 的 `SkillBox` 注册给 Agent 使用。可引用的工具列表见 [architecture.md](architecture.md#7-agent-内置工具)。Skill 不授予权限，工具仍按当前用户权限和数据范围执行。
 
 ## 添加自定义 Skill
 
@@ -37,7 +37,16 @@ mkdir -p skills/my-skill
 # 编写 skills/my-skill/SKILL.md
 ```
 
-默认配置已覆盖 `skills/` 目录，放进去就能用。更多加载方式见 [configuration.md](configuration.md#5-skill-加载源)。
+默认文件系统路径为 `./skills`，相对于后端进程工作目录解析。从 `data-agent-backend/` 启动时，仓库根目录的 Skill 应通过 `../skills` 加载：
+
+```bash
+cd data-agent-backend
+mvn spring-boot:run "-Dspring-boot.run.arguments=--io.github.malonetalk.skill.filesystem[0].path=../skills"
+```
+
+启动日志会显示解析后的绝对路径及 `Registered skill` 记录，可据此确认是否加载成功。`AgentService.init()` 在启动时创建工具箱与 SkillBox；新增或修改本地 Skill 后需重启后端。
+
+Docker 镜像将仓库 `skills/` 复制到 `/app/skills`，默认路径可直接使用；修改后需重新构建后端镜像。更多来源与 Git、Nacos 配置见 [configuration.md](configuration.md#5-skill-加载源)。
 
 ## 内置 Skill
 

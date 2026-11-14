@@ -1,0 +1,237 @@
+/*
+ * Copyright (C) 2026 github.com/MaloneTalk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * limitations under the License.
+ */
+package io.github.malonetalk.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import io.github.malonetalk.entity.ColumnInfo;
+import io.github.malonetalk.enums.PermissionEnum;
+import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.mapper.CsvImportMapper;
+import io.github.malonetalk.mapper.RoleCapabilityMapper;
+import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
+import io.github.malonetalk.mapper.RoleTablePermissionMapper;
+import io.github.malonetalk.mapper.SysUserMapper;
+import io.github.malonetalk.model.bo.UserContextBo;
+import io.github.malonetalk.model.converter.UserConverter;
+import io.github.malonetalk.model.po.CsvImportPo;
+import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.model.po.RoleHiddenColumn;
+import io.github.malonetalk.model.po.RoleTablePermission;
+import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.service.csv.CsvAccessService;
+import java.util.List;
+import java.util.Optional;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.select.Select;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+class PermissionSimplificationTest {
+    private final SysUserMapper users = mock(SysUserMapper.class);
+    private final UserConverter converter = mock(UserConverter.class);
+    private final RoleCapabilityMapper capabilities = mock(RoleCapabilityMapper.class);
+    private final RoleTablePermissionMapper tables = mock(RoleTablePermissionMapper.class);
+    private final RoleHiddenColumnMapper columns = mock(RoleHiddenColumnMapper.class);
+    private final ColumnSemanticInfoMapper metadata = mock(ColumnSemanticInfoMapper.class);
+    private final PermissionService permissions =
+            new PermissionService(users, capabilities, converter);
+    private final DatasourceService datasources = mock(DatasourceService.class);
+    private final CsvImportMapper imports = mock(CsvImportMapper.class);
+    private final DataPermissionService data =
+            new DataPermissionService(tables, columns, datasources, new CsvAccessService(imports));
+    private final UserContextBo user =
+            UserContextBo.builder().userId(7).roleId(2).superAdmin(false).build();
+
+    @BeforeEach
+    void configureDatasourceMetadata() {
+        when(datasources.findById(1)).thenReturn(Optional.of(new DatasourcePo()));
+    }
+
+    @Test
+    void authRejectsMissingOrInactiveUsers() {
+        var mapper = mock(SysUserMapper.class);
+        var converter = mock(UserConverter.class);
+        var service = new PermissionService(mapper, capabilities, converter);
+        assertEquals(
+                ErrorCode.UNAUTHORIZED,
+                assertThrows(BusinessException.class, () -> service.user(7)).getErrorCode());
+        var stored = new SysUserPo();
+        when(mapper.selectAuthProjection(7)).thenReturn(stored);
+        assertEquals(
+                ErrorCode.UNAUTHORIZED,
+                assertThrows(BusinessException.class, () -> service.user(7)).getErrorCode());
+        stored.setStatus(0);
+        assertEquals(
+                ErrorCode.UNAUTHORIZED,
+                assertThrows(BusinessException.class, () -> service.user(7)).getErrorCode());
+        stored.setStatus(1);
+        when(converter.toContextBo(stored)).thenReturn(user);
+        assertSame(user, service.user(7));
+    }
+
+    @Test
+    void sharedSqlGateLoadsIdentityOnceAndStillRejectsRevocationAndHiddenColumns()
+            throws Exception {
+        var stored = new SysUserPo();
+        stored.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(stored);
+        when(converter.toContextBo(stored)).thenReturn(user);
+        when(capabilities.selectCodes(2)).thenReturn(List.of("analysis:sql:execute"));
+        RoleTablePermission table = new RoleTablePermission();
+        table.setTableName("orders");
+        when(tables.selectByRoleAndDatasource(2, 1)).thenReturn(List.of(table));
+        RoleHiddenColumn hidden = new RoleHiddenColumn();
+        hidden.setTableName("orders");
+        hidden.setColumnName("phone");
+        when(columns.selectByRoleAndDatasource(2, 1)).thenReturn(List.of(hidden));
+        ColumnInfo id = new ColumnInfo();
+        id.setColumnName("id");
+        when(metadata.selectByDatasourceIdAndTableName(1, "orders")).thenReturn(List.of(id));
+        DatasourcePo datasource = new DatasourcePo();
+        datasource.setId(1);
+        datasource.setType("mysql");
+        SqlPermissionService sql = new SqlPermissionService(permissions, data, metadata);
+
+        assertTrue(
+                sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT * FROM orders"))
+                        .select()
+                        .toString()
+                        .contains("SELECT `id` FROM `orders`"));
+        verify(users).selectAuthProjection(7);
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT phone FROM orders")));
+        when(capabilities.selectCodes(2)).thenReturn(List.of());
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT * FROM orders")));
+        when(users.selectAuthProjection(7)).thenReturn(null);
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        sql.authorize(
+                                7,
+                                datasource,
+                                (Select) CCJSqlParserUtil.parse("SELECT * FROM orders")));
+    }
+
+    @Test
+    void allRequiredPermissionsAndReservedPermissionsStillApply() {
+        var stored = new SysUserPo();
+        stored.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(stored);
+        when(converter.toContextBo(stored)).thenReturn(user);
+        when(capabilities.selectCodes(2))
+                .thenReturn(List.of("analysis:chat:use", "sys:role:grant", "unknown"));
+        assertSame(user, permissions.require(7, PermissionEnum.ANALYSIS_CHAT_USE));
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        permissions.require(
+                                7,
+                                PermissionEnum.ANALYSIS_CHAT_USE,
+                                PermissionEnum.ANALYSIS_SQL_EXECUTE));
+        assertThrows(
+                BusinessException.class,
+                () -> permissions.require(7, PermissionEnum.SYS_ROLE_GRANT));
+        assertEquals(1, permissions.codes(user).size());
+        var admin = UserContextBo.builder().userId(1).superAdmin(true).build();
+        permissions.require(admin, PermissionEnum.SYS_ROLE_GRANT);
+    }
+
+    @Test
+    void hiddenColumnListIsLoadedOnceForAllReferencedColumns() {
+        RoleHiddenColumn hidden = new RoleHiddenColumn();
+        hidden.setTableName("orders");
+        hidden.setColumnName("phone");
+        when(columns.selectByRoleAndDatasource(2, 1)).thenReturn(List.of(hidden));
+        assertTrue(
+                data.loadScope(user, 1)
+                        .hasHiddenColumns("orders", List.of("id", "amount", "`PHONE`")));
+        verify(columns, times(1)).selectByRoleAndDatasource(2, 1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void csvScopeOnlyAllowsReadyTables(boolean superAdmin) {
+        var datasource = new DatasourcePo();
+        datasource.setId(1);
+        datasource.setSourceType("CSV");
+        when(datasources.findById(1)).thenReturn(Optional.of(datasource));
+        var ready = new CsvImportPo();
+        ready.setPhysicalTableName("Csv_Ready");
+        when(imports.selectList(any())).thenReturn(List.of(ready));
+        var readyGrant = new RoleTablePermission();
+        readyGrant.setTableName("Csv_Ready");
+        var pendingGrant = new RoleTablePermission();
+        pendingGrant.setTableName("Csv_Pending");
+        when(tables.selectByRoleAndDatasource(2, 1)).thenReturn(List.of(readyGrant, pendingGrant));
+        var context = UserContextBo.builder().userId(7).roleId(2).superAdmin(superAdmin).build();
+
+        assertEquals("Csv_Ready", data.requireTable(context, 1, "`CSV_READY`"));
+        assertEquals(
+                ErrorCode.FORBIDDEN,
+                assertThrows(
+                                BusinessException.class,
+                                () -> data.requireTable(context, 1, "Csv_Pending"))
+                        .getErrorCode());
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = PermissionEnum.class,
+            names = "SYS_ROLE_GRANT",
+            mode = EnumSource.Mode.EXCLUDE)
+    void everyPermissionExceptAuthorizationManagementCanBeUsedByAnAssignedRole(
+            PermissionEnum permission) {
+        var stored = new SysUserPo();
+        stored.setStatus(1);
+        when(users.selectAuthProjection(7)).thenReturn(stored);
+        when(converter.toContextBo(stored)).thenReturn(user);
+        when(capabilities.selectCodes(2)).thenReturn(List.of(permission.getCode()));
+
+        assertSame(user, permissions.require(7, permission));
+        when(capabilities.selectCodes(2)).thenReturn(List.of());
+        assertThrows(BusinessException.class, () -> permissions.require(7, permission));
+    }
+}

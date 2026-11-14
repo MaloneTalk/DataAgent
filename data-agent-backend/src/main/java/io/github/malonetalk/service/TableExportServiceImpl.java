@@ -17,20 +17,23 @@
  */
 package io.github.malonetalk.service;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.agent.SessionService;
+import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableExport;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableExportMapper;
+import io.github.malonetalk.model.bo.TableExportResultBo;
+import io.github.malonetalk.model.converter.JdbcCsvValueConverter;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
@@ -46,7 +49,6 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -63,10 +65,11 @@ public class TableExportServiceImpl implements TableExportService {
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlExecutor sqlExecutor;
     private final SessionService sessionService;
+    private final JdbcCsvValueConverter jdbcCsvValueConverter;
 
     @Override
-    public TableExportResponse create(
-            String sessionId, Datasource datasource, String title, String sql) {
+    public TableExportResultBo create(
+            String sessionId, DatasourcePo datasource, String title, String sql, Integer userId) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -74,7 +77,9 @@ public class TableExportServiceImpl implements TableExportService {
         if (exportTitle.length() > MAX_TITLE_LENGTH) {
             exportTitle = exportTitle.substring(0, MAX_TITLE_LENGTH);
         }
-        String safeSql = sqlExecutor.validateSelectSql(sql);
+        sessionService.requireOwnership(userId, exportSessionId);
+        var authorized = sqlExecutor.authorizeSelect(datasource, sql, userId);
+        String safeSql = authorized.select().toString();
 
         String exportId = UUID.randomUUID().toString();
         CsvResult csv = writeCsv(datasource, safeSql);
@@ -88,7 +93,8 @@ public class TableExportServiceImpl implements TableExportService {
         if (tableExportMapper.insert(tableExport) <= 0) {
             throw BusinessException.of(ErrorCode.OPERATION_FAILED, "Failed to save table export.");
         }
-        return toResponse(tableExport);
+        return new TableExportResultBo(
+                toResponse(tableExport), safeSql, authorized.authorizedColumns());
     }
 
     @Override
@@ -100,16 +106,11 @@ public class TableExportServiceImpl implements TableExportService {
         }
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        Page<Object> startedPage = PageHelper.startPage(pageNumber, pageSize);
-        try {
-            Page<TableExport> page =
-                    (Page<TableExport>) tableExportMapper.selectPage(sessionId, userId);
-            List<TableExportResponse> responses =
-                    page.getResult().stream().map(this::toResponse).toList();
-            return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
-        } finally {
-            startedPage.close();
-        }
+        IPage<TableExport> page =
+                tableExportMapper.selectPage(new Page<>(pageNumber, pageSize), sessionId, userId);
+        List<TableExportResponse> responses =
+                page.getRecords().stream().map(this::toResponse).toList();
+        return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override
@@ -128,8 +129,9 @@ public class TableExportServiceImpl implements TableExportService {
         }
     }
 
-    private CsvResult writeCsv(Datasource datasource, String sql) {
-        DataSource dataSource = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+    private CsvResult writeCsv(DatasourcePo datasource, String sql) {
+        javax.sql.DataSource dataSource =
+                dynamicDataSourceManager.getOrCreateDataSource(datasource);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt =
@@ -140,7 +142,7 @@ public class TableExportServiceImpl implements TableExportService {
                                 new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             stmt.setFetchSize(
-                    "mysql".equalsIgnoreCase(datasource.getType())
+                    DataSourceType.MYSQL.getCode().equalsIgnoreCase(datasource.getType())
                             ? Integer.MIN_VALUE
                             : FETCH_SIZE);
             writer.write('\ufeff');
@@ -182,8 +184,7 @@ public class TableExportServiceImpl implements TableExportService {
                 if (i > 1) {
                     writer.write(',');
                 }
-                Object value = rs.getObject(i);
-                writer.write(csvCell(value == null ? "" : String.valueOf(value)));
+                writer.write(csvCell(jdbcCsvValueConverter.convert(rs, metaData, i)));
             }
             writer.newLine();
             rowCount++;

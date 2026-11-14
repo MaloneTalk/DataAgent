@@ -17,5 +17,5 @@
  */
 package io.github.malonetalk.dto.datasource;
 
-/** 物理数据源表信息，由 SchemaReader 从 JDBC 元数据读取 */
-public record PhysicalTableInfo(String tableName, String remarks) {}
+/** 数据库表或普通视图信息，由 SchemaReader 从 JDBC 元数据读取。 */
+public record PhysicalTableInfo(String tableName, String remarks, String objectType) {}

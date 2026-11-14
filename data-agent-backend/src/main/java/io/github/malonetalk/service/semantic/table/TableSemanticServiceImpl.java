@@ -17,34 +17,41 @@
  */
 package io.github.malonetalk.service.semantic.table;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class TableSemanticServiceImpl implements TableSemanticService {
 
     private final DatasourceService datasourceService;
+    private final DataPermissionService dataPermissions;
+    private final UserContextHolder holder;
     private final TableInfoMapper tableInfoMapper;
     private final SemanticMergeService semanticMergeService;
     private final SemanticConverter semanticConverter;
@@ -54,35 +61,35 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         SemanticUtils.requireDatasourceId(query.datasourceId());
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        Datasource datasource = datasourceService.findById(query.datasourceId());
-        if (datasource == null) {
+        if (datasourceService.findById(query.datasourceId()).isEmpty()) {
             return PageResponse.empty(pageNumber, pageSize);
         }
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-        PageHelper.startPage(pageNumber, pageSize);
-        Page<TableInfo> page =
-                (Page<TableInfo>)
-                        tableInfoMapper.selectPageByDatasourceId(
-                                new TableSemanticPageQuery(
-                                        query.datasourceId(),
-                                        pageNumber,
-                                        pageSize,
-                                        SemanticUtils.trimToNull(query.keyword()),
-                                        query.sortOrder()),
-                                sortDescending);
+        IPage<TableInfo> page =
+                tableInfoMapper.selectPageByDatasourceId(
+                        new Page<>(pageNumber, pageSize),
+                        new TableSemanticPageQuery(
+                                query.datasourceId(),
+                                pageNumber,
+                                pageSize,
+                                SemanticUtils.trimToNull(query.keyword()),
+                                query.sortOrder()),
+                        sortDescending,
+                        dataPermissions.roleScope(holder.checkAndGet()).orElse(null));
         List<TableSemanticResponse> responses =
-                page.stream().map(semanticConverter::toResponse).toList();
-        long total = page.getTotal();
-        return PageResponse.of(responses, total, pageNumber, pageSize);
+                page.getRecords().stream().map(semanticConverter::toResponse).toList();
+        return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
     @Override
     public List<String> listTableNames(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             return List.of();
         }
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
         return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
+                .filter(table -> scope.canTable(table.getTableName()))
                 .map(TableInfo::getTableName)
                 .filter(tableName -> tableName != null && !tableName.isBlank())
                 .map(String::trim)
@@ -94,10 +101,12 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     @Override
     public List<String> listAvailableDomains(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             return List.of();
         }
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
         return tableInfoMapper.selectByDatasourceId(datasourceId).stream()
+                .filter(table -> scope.canTable(table.getTableName()))
                 .map(TableInfo::getDomain)
                 .filter(domain -> domain != null && !domain.isBlank())
                 .map(String::trim)
@@ -107,50 +116,34 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     @Override
-    public List<TableInfo> listTableInfosByDatasourceId(Integer datasourceId) {
-        SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
-            return List.of();
-        }
-        return tableInfoMapper.selectByDatasourceId(datasourceId);
-    }
-
-    @Override
-    public List<TableInfo> listTableInfosByDomains(Integer datasourceId, List<String> domains) {
-        SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
-            return List.of();
-        }
-        if (domains == null || domains.isEmpty()) {
-            return listTableInfosByDatasourceId(datasourceId);
-        }
-        return tableInfoMapper.selectByDatasourceIdAndDomains(datasourceId, domains);
-    }
-
-    @Override
     public List<TablePromptResponse> listMergedTablesByDomains(
             Integer datasourceId, List<String> domains) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        Datasource datasource = datasourceService.findById(datasourceId);
-        if (datasource == null) {
-            return List.of();
-        }
-        return semanticMergeService.listVisibleTablesByDomains(datasource, domains);
+        return datasourceService
+                .findById(datasourceId)
+                .map(
+                        datasource ->
+                                semanticMergeService.listVisibleTablesByDomains(
+                                        datasource, domains))
+                .orElseGet(List::of);
     }
 
     @Override
     public void updateTableSemantic(TableSemanticUpdateRequest request) {
         requireDatasource(request.datasourceId());
-        String normalizedTableName =
-                SemanticUtils.normalizeObjectName(
+        String tableName =
+                SemanticUtils.requireTrimmed(
                         request.tableName(), "Missing tableName for table semantic update.");
+        String normalizedTableName = tableName.toLowerCase(Locale.ROOT);
+        dataPermissions.requireTable(
+                holder.checkAndGet(), request.datasourceId(), normalizedTableName);
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(
                         request.datasourceId(), normalizedTableName);
         if (existing == null) {
             TableInfo tableInfo = new TableInfo();
             tableInfo.setDatasourceId(request.datasourceId());
-            tableInfo.setTableName(normalizedTableName);
+            tableInfo.setTableName(tableName);
             tableInfo.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
             tableInfo.setDataGranularity(SemanticUtils.trimToNull(request.dataGranularity()));
             tableInfo.setDomain(SemanticUtils.normalizeDomain(request.domain()));
@@ -161,7 +154,6 @@ public class TableSemanticServiceImpl implements TableSemanticService {
             tableInfoMapper.insert(tableInfo);
             return;
         }
-        existing.setTableName(normalizedTableName);
         existing.setTableDescription(SemanticUtils.trimToNull(request.tableDescription()));
         existing.setDataGranularity(SemanticUtils.trimToNull(request.dataGranularity()));
         existing.setDomain(SemanticUtils.normalizeDomain(request.domain()));
@@ -171,21 +163,24 @@ public class TableSemanticServiceImpl implements TableSemanticService {
     }
 
     @Override
+    @Transactional
     public void resetTableSemantic(Integer datasourceId, String tableName) {
         requireDatasource(datasourceId);
         String normalizedTableName =
                 SemanticUtils.requireTrimmed(
                         tableName, "Missing tableName for table semantic reset.");
+        dataPermissions.requireTable(holder.checkAndGet(), datasourceId, normalizedTableName);
         TableInfo existing =
                 tableInfoMapper.selectByDatasourceIdAndTableName(datasourceId, normalizedTableName);
         if (existing == null) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Table semantic metadata does not exist.");
         }
-        tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, List.of(existing.getId()));
+        resetTableRecords(datasourceId, List.of(existing));
     }
 
     @Override
+    @Transactional
     public int resetTableSemantics(Integer datasourceId, List<String> tableNames) {
         requireDatasource(datasourceId);
         if (tableNames == null || tableNames.isEmpty()) {
@@ -199,35 +194,46 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                                 name,
                                                 "Missing tableName for batch table semantic"
                                                         + " reset."))
-                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        List<Integer> matchedIds =
-                tableInfoMapper.selectByDatasourceId(datasourceId).stream()
-                        .filter(
-                                table ->
-                                        normalizedNames.contains(
-                                                SemanticUtils.normalizeObjectName(
-                                                        table.getTableName(),
-                                                        "Missing tableName while matching table"
-                                                                + " semantic reset.")))
-                        .map(TableInfo::getId)
-                        .distinct()
-                        .toList();
-        if (matchedIds.isEmpty()) {
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        normalizedNames.forEach(scope::requireTable);
+        List<TableInfo> matchedTables =
+                tableInfoMapper.selectByDatasourceIdAndTableNames(
+                        datasourceId, List.copyOf(normalizedNames));
+        if (matchedTables.isEmpty()) {
             return 0;
         }
-        if (matchedIds.size() != normalizedNames.size()) {
+        if (matchedTables.size() != normalizedNames.size()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND,
                     "Some table semantic metadata does not exist for datasource "
                             + datasourceId
                             + ".");
         }
-        return tableInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        return resetTableRecords(datasourceId, matchedTables);
+    }
+
+    private int resetTableRecords(Integer datasourceId, List<TableInfo> tables) {
+        List<Integer> resetIds = new ArrayList<>();
+        List<Integer> deleteIds = new ArrayList<>();
+        // 仅删除明确标记为物理缺失的表；其他记录保留并重置语义字段。
+        for (TableInfo table : tables) {
+            (Boolean.FALSE.equals(table.getPhysicalStatus()) ? deleteIds : resetIds)
+                    .add(table.getId());
+        }
+        int affected = 0;
+        if (!deleteIds.isEmpty()) {
+            affected += tableInfoMapper.deletePhysicalMissingByIds(datasourceId, deleteIds);
+        }
+        if (!resetIds.isEmpty()) {
+            affected += tableInfoMapper.resetSemanticFieldsByIds(datasourceId, resetIds);
+        }
+        return affected;
     }
 
     private void requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
+        if (datasourceService.findById(datasourceId).isEmpty()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
         }

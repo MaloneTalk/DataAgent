@@ -19,9 +19,12 @@ package io.github.malonetalk.agent.datasource;
 
 import io.github.malonetalk.dto.datasource.PhysicalColumnInfo;
 import io.github.malonetalk.dto.datasource.PhysicalTableInfo;
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.converter.JdbcColumnMetadataConverter;
+import io.github.malonetalk.model.po.CsvImportPo;
+import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -33,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import lombok.AllArgsConstructor;
@@ -45,12 +49,15 @@ import org.springframework.stereotype.Component;
 public class SchemaReader {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
+    private final JdbcColumnMetadataConverter columnMetadataConverter;
+    private final CsvAccessService csvAccess;
 
-    public List<PhysicalTableInfo> getTables(Datasource datasource) {
+    public List<PhysicalTableInfo> getTables(DatasourcePo datasource) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            return getTables(conn);
+            var ready = csvAccess.readyFilter(datasource);
+            return getTables(conn).stream().filter(table -> ready.test(table.tableName())).toList();
         } catch (SQLException e) {
             log.error("Failed to read tables: {}", e.getMessage(), e);
             throw BusinessException.of(
@@ -60,13 +67,26 @@ public class SchemaReader {
         }
     }
 
-    public List<PhysicalColumnInfo> getTableSchema(Datasource datasource, String tableName) {
+    public List<PhysicalColumnInfo> getTableSchema(
+            DatasourcePo datasource, PhysicalTableInfo table) {
+        csvAccess.requireReady(datasource, table.tableName());
+        return readTableSchema(datasource, table.tableName(), "VIEW".equals(table.objectType()));
+    }
+
+    public List<PhysicalColumnInfo> getImportTableSchema(
+            DatasourcePo datasource, CsvImportPo task) {
+        csvAccess.requireImportTable(datasource, task);
+        return readTableSchema(datasource, task.getPhysicalTableName(), false);
+    }
+
+    private List<PhysicalColumnInfo> readTableSchema(
+            DatasourcePo datasource, String tableName, boolean view) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            List<String> primaryKeys = getPrimaryKeys(conn, tableName);
+            List<String> primaryKeys = view ? List.of() : getPrimaryKeys(conn, tableName);
             Map<String, List<String>> indexesByColumn =
-                    getIndexesByColumn(conn, tableName, primaryKeys);
+                    view ? Map.of() : getIndexesByColumn(conn, tableName, primaryKeys);
             return getColumns(conn, tableName, primaryKeys, indexesByColumn);
         } catch (SQLException e) {
             log.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
@@ -78,12 +98,14 @@ public class SchemaReader {
     }
 
     public Map<String, Set<String>> getTableColumnNames(
-            Datasource datasource, Collection<String> tableNames) {
+            DatasourcePo datasource, Collection<String> tableNames) {
         if (tableNames == null || tableNames.isEmpty()) {
             return Map.of();
         }
         Map<String, Set<String>> columnNamesByTable = new LinkedHashMap<>();
+        var ready = csvAccess.readyFilter(datasource);
         for (String tableName : tableNames) {
+            if (!ready.test(tableName)) continue;
             columnNamesByTable.putIfAbsent(tableName, new LinkedHashSet<>());
         }
 
@@ -92,7 +114,8 @@ public class SchemaReader {
         try (Connection conn = ds.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             try (ResultSet rs =
-                    metaData.getColumns(conn.getCatalog(), conn.getSchema(), "%", null)) {
+                    metaData.getColumns(
+                            conn.getCatalog(), schemaPattern(conn).orElse(null), "%", null)) {
                 while (rs.next()) {
                     Set<String> columnNames = columnNamesByTable.get(rs.getString("TABLE_NAME"));
                     if (columnNames != null) {
@@ -116,10 +139,16 @@ public class SchemaReader {
 
         try (ResultSet rs =
                 metaData.getTables(
-                        conn.getCatalog(), conn.getSchema(), "%", new String[] {"TABLE"})) {
+                        conn.getCatalog(),
+                        schemaPattern(conn).orElse(null),
+                        "%",
+                        new String[] {"TABLE", "VIEW"})) {
             while (rs.next()) {
                 tables.add(
-                        new PhysicalTableInfo(rs.getString("TABLE_NAME"), rs.getString("REMARKS")));
+                        new PhysicalTableInfo(
+                                rs.getString("TABLE_NAME"),
+                                rs.getString("REMARKS"),
+                                rs.getString("TABLE_TYPE")));
             }
         }
 
@@ -190,34 +219,35 @@ public class SchemaReader {
         DatabaseMetaData metaData = conn.getMetaData();
 
         try (ResultSet rs =
-                metaData.getColumns(conn.getCatalog(), conn.getSchema(), tableName, null)) {
+                metaData.getColumns(
+                        conn.getCatalog(),
+                        schemaPattern(conn).orElse(null),
+                        escapeMetadataPattern(tableName, metaData.getSearchStringEscape()),
+                        null)) {
             while (rs.next()) {
-                String columnName = rs.getString("COLUMN_NAME");
-                String typeName = rs.getString("TYPE_NAME");
-                int columnSize = rs.getInt("COLUMN_SIZE");
-                int decimalDigits = rs.getInt("DECIMAL_DIGITS");
-                String nullableStr = rs.getString("IS_NULLABLE");
-                boolean nullable = "YES".equalsIgnoreCase(nullableStr);
-                String defaultValue = rs.getString("COLUMN_DEF");
-                String remarks = rs.getString("REMARKS");
-                String normalizedColumnName = normalizeColumnName(columnName);
-                boolean isPk = primaryKeys.contains(normalizedColumnName);
-
-                columns.add(
-                        new PhysicalColumnInfo(
-                                columnName,
-                                typeName,
-                                columnSize,
-                                decimalDigits,
-                                nullable,
-                                defaultValue,
-                                isPk,
-                                remarks,
-                                indexesByColumn.getOrDefault(normalizedColumnName, List.of())));
+                if (!tableName.equals(rs.getString("TABLE_NAME"))) {
+                    continue;
+                }
+                columns.add(columnMetadataConverter.convert(rs, primaryKeys, indexesByColumn));
             }
         }
 
         return columns;
+    }
+
+    private Optional<String> schemaPattern(Connection conn) throws SQLException {
+        String escape = conn.getMetaData().getSearchStringEscape();
+        return Optional.ofNullable(conn.getSchema())
+                .map(schema -> escapeMetadataPattern(schema, escape));
+    }
+
+    private static String escapeMetadataPattern(String name, String escape) {
+        if (escape == null || escape.isEmpty()) {
+            return name;
+        }
+        return name.replace(escape, escape + escape)
+                .replace("_", escape + "_")
+                .replace("%", escape + "%");
     }
 
     private static String normalizeColumnName(String columnName) {

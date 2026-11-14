@@ -16,11 +16,14 @@
  -->
 
 <script setup lang="ts">
-  import { computed, nextTick, reactive, ref, watch } from 'vue';
+  import { computed, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
-  import type { LogicalTableRelationResponse } from '@/api/semantic';
+  import type {
+    LogicalTableRelationResponse,
+    RelationWorkspaceColumnResponse,
+  } from '@/api/semantic';
   import { logicalRelationTypeOptions } from '../utils';
-  import type { RelationColumnNode, RelationForm, TableNodeLayout } from '../types';
+  import type { RelationForm, TableNodeLayout } from '../types';
 
   const props = defineProps<{
     visible: boolean;
@@ -28,8 +31,8 @@
     relation: LogicalTableRelationResponse | null;
     form: RelationForm;
     nodes: TableNodeLayout[];
-    sourceColumns: RelationColumnNode[];
-    targetColumns: RelationColumnNode[];
+    sourceColumns: RelationWorkspaceColumnResponse[];
+    targetColumns: RelationWorkspaceColumnResponse[];
     fieldErrors: Record<string, string>;
   }>();
 
@@ -43,16 +46,6 @@
   }>();
 
   const formRef = ref<FormInstance>();
-  const syncingFromProps = ref(false);
-  const localForm = reactive<RelationForm>({
-    sourceTableName: '',
-    sourceColumnNames: [],
-    targetTableName: '',
-    targetColumnNames: [],
-    relationType: '',
-    description: '',
-    enabled: true,
-  });
 
   const rules: FormRules<RelationForm> = {
     sourceTableName: [{ required: true, message: '请选择源表', trigger: 'change' }],
@@ -64,44 +57,9 @@
 
   const title = computed(() => (props.relation ? '编辑逻辑外键' : '新增逻辑外键'));
 
-  watch(
-    () => props.form,
-    value => {
-      syncingFromProps.value = true;
-      Object.assign(localForm, {
-        sourceTableName: value.sourceTableName,
-        sourceColumnNames: [...value.sourceColumnNames],
-        targetTableName: value.targetTableName,
-        targetColumnNames: [...value.targetColumnNames],
-        relationType: value.relationType,
-        description: value.description,
-        enabled: value.enabled,
-      });
-      void nextTick(() => {
-        syncingFromProps.value = false;
-      });
-    },
-    { immediate: true, deep: true },
-  );
-
-  watch(
-    localForm,
-    value => {
-      if (syncingFromProps.value) {
-        return;
-      }
-      emit('update:form', {
-        sourceTableName: value.sourceTableName,
-        sourceColumnNames: [...value.sourceColumnNames],
-        targetTableName: value.targetTableName,
-        targetColumnNames: [...value.targetColumnNames],
-        relationType: value.relationType,
-        description: value.description,
-        enabled: value.enabled,
-      });
-    },
-    { deep: true },
-  );
+  function updateForm<K extends keyof RelationForm>(field: K, value: RelationForm[K]) {
+    emit('update:form', { ...props.form, [field]: value });
+  }
 
   const handleClose = () => {
     emit('update:visible', false);
@@ -118,20 +76,19 @@
     }
     emit('submit');
   };
-
-  defineExpose({
-    validate: handleSubmit,
-  });
 </script>
 
 <template>
   <el-dialog :model-value="visible" :title="title" width="720px" @close="handleClose">
-    <el-form ref="formRef" :model="localForm" :rules="rules" label-width="120px">
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
       <el-form-item label="源表" prop="sourceTableName" :error="fieldErrors.sourceTableName">
         <el-select
-          v-model="localForm.sourceTableName"
+          :model-value="form.sourceTableName"
           filterable
           placeholder="选择源表"
+          @update:model-value="
+            (value: string | number | boolean) => updateForm('sourceTableName', String(value))
+          "
           @change="(value: string | number | boolean) => emit('source-table-change', String(value))"
         >
           <el-option
@@ -146,11 +103,12 @@
 
       <el-form-item label="源列" prop="sourceColumnNames" :error="fieldErrors.sourceColumnNames">
         <el-select
-          v-model="localForm.sourceColumnNames"
+          :model-value="form.sourceColumnNames"
           multiple
           collapse-tags
           collapse-tags-tooltip
           placeholder="选择源列"
+          @update:model-value="(value: string[]) => updateForm('sourceColumnNames', value)"
         >
           <el-option
             v-for="column in sourceColumns"
@@ -164,9 +122,12 @@
 
       <el-form-item label="目标表" prop="targetTableName" :error="fieldErrors.targetTableName">
         <el-select
-          v-model="localForm.targetTableName"
+          :model-value="form.targetTableName"
           filterable
           placeholder="选择目标表"
+          @update:model-value="
+            (value: string | number | boolean) => updateForm('targetTableName', String(value))
+          "
           @change="(value: string | number | boolean) => emit('target-table-change', String(value))"
         >
           <el-option
@@ -181,11 +142,12 @@
 
       <el-form-item label="目标列" prop="targetColumnNames" :error="fieldErrors.targetColumnNames">
         <el-select
-          v-model="localForm.targetColumnNames"
+          :model-value="form.targetColumnNames"
           multiple
           collapse-tags
           collapse-tags-tooltip
           placeholder="选择目标列"
+          @update:model-value="(value: string[]) => updateForm('targetColumnNames', value)"
         >
           <el-option
             v-for="column in targetColumns"
@@ -198,7 +160,13 @@
       </el-form-item>
 
       <el-form-item label="关系方式" prop="relationType" :error="fieldErrors.relationType">
-        <el-select v-model="localForm.relationType" placeholder="选择关系方式">
+        <el-select
+          :model-value="form.relationType"
+          placeholder="选择关系方式"
+          @update:model-value="
+            (value: RelationForm['relationType']) => updateForm('relationType', value)
+          "
+        >
           <el-option
             v-for="option in logicalRelationTypeOptions"
             :key="option.value"
@@ -210,15 +178,19 @@
 
       <el-form-item label="关系备注" prop="description" :error="fieldErrors.description">
         <el-input
-          v-model="localForm.description"
+          :model-value="form.description"
           type="textarea"
           :rows="3"
           placeholder="可选填写这条逻辑外键的业务说明"
+          @update:model-value="(value: string) => updateForm('description', value)"
         />
       </el-form-item>
 
       <el-form-item label="启用关系" prop="enabled" :error="fieldErrors.enabled">
-        <el-switch v-model="localForm.enabled" />
+        <el-switch
+          :model-value="form.enabled"
+          @update:model-value="(value: boolean) => updateForm('enabled', value)"
+        />
       </el-form-item>
     </el-form>
 

@@ -22,8 +22,8 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - data-agent-mysql:/var/lib/mysql
-      # 自动挂载项目根目录的 sql/ 文件夹进行初始化
-      - ../sql:/docker-entrypoint-initdb.d:ro
+      # 新库仅执行主文件；已有数据库升级时手动执行 sql/migration.sql
+      - ../sql/data_source.sql:/docker-entrypoint-initdb.d/data_source.sql:ro
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -45,6 +45,8 @@ services:
     build:
       context: ..
       dockerfile: docker/backend/Dockerfile
+      # 构建阶段共享宿主机网络
+      network: host
     container_name: data-agent-backend
     restart: unless-stopped
     environment:
@@ -69,7 +71,23 @@ services:
       # 初始管理员密码（首次启动时使用）
       ADMIN_INIT_PASSWORD: ${ADMIN_INIT_PASSWORD:-admin}
 
+      CSV_DATASOURCE_ID: ${CSV_DATASOURCE_ID:-0}
+      CSV_IMPORT_DIRECTORY: /app/csv-imports
+      CSV_WRITER_URL: ${CSV_WRITER_URL:-}
+      CSV_WRITER_USERNAME: ${CSV_WRITER_USERNAME:-}
+      CSV_WRITER_PASSWORD: ${CSV_WRITER_PASSWORD:-}
+
+      # OpenTelemetry（可选）：配合 docker/observability 的 Grafana LGTM 栈查看 trace/metrics/logs
+      TRACING_OTLP_EXPORT_ENABLED: ${TRACING_OTLP_EXPORT_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://otel-lgtm:4318/v1/traces}
+      METRICS_OTLP_EXPORT_ENABLED: ${METRICS_OTLP_EXPORT_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-http://otel-lgtm:4318/v1/metrics}
+      LOGS_OTLP_EXPORT_ENABLED: ${LOGS_OTLP_EXPORT_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-http://otel-lgtm:4318/v1/logs}
+
       TZ: Asia/Shanghai
+    volumes:
+      - data-agent-csv-imports:/app/csv-imports
     ports:
       # 可通过 .env.example 覆盖：BACKEND_PORT=8081
       - "${BACKEND_PORT:-8080}:8080"
@@ -96,6 +114,7 @@ services:
       - data-agent-network
 
 volumes:
+  data-agent-csv-imports:
   data-agent-mysql:
     name: data-agent-mysql
 

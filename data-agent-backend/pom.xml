@@ -73,16 +73,17 @@
         <spotless.version>3.4.0</spotless.version>
         <google-java-format.version>1.28.0</google-java-format.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
-        <pagehelper.version>6.1.1</pagehelper.version>
         <lombok.version>1.18.42</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <jsqlparser.version>5.2</jsqlparser.version>
         <jsonwebtoken.version>0.12.6</jsonwebtoken.version>
+        <opentelemetry-instrumentation.version>2.9.0-alpha</opentelemetry-instrumentation.version>
+        <opentelemetry-api-incubator.version>1.55.0-alpha</opentelemetry-api-incubator.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- PageHelper 与 MyBatis-Plus 都依赖 jsqlparser，classpath 只能保留一个版本，统一钉死为 MP 提供的 5.2。 -->
+            <!-- SqlExecutor 直接使用 jsqlparser，统一固定版本。 -->
             <dependency>
                 <groupId>com.github.jsqlparser</groupId>
                 <artifactId>jsqlparser</artifactId>
@@ -93,6 +94,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.14.1</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -100,6 +106,45 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
+
+        <!--
+          agentscope TelemetryTracer 依赖 Reactor 库的 ContextPropagationOperator；
+          Logback appender 用于把应用日志接入 OTel。
+          该 instrumentation 系列无正式版（2.x 全部为 -alpha），统一锁定 2.9.0-alpha：
+          它基于 OTel API 1.43 编译，可在 Boot 4.0.3 管理的 1.55 上向后兼容运行；
+          更新的 2.33.0-alpha 基于 OTel 1.67 编译，搭配 1.55 有 NoSuchMethodError 风险。
+        -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-reactor-3.1</artifactId>
+            <version>${opentelemetry-instrumentation.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-logback-appender-1.0</artifactId>
+            <version>${opentelemetry-instrumentation.version}</version>
+        </dependency>
+
+        <!-- JDBC 插桩：把 MyBatis 与动态数据源的 SQL 调用记录为 db.* span -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-jdbc</artifactId>
+            <version>${opentelemetry-instrumentation.version}</version>
+        </dependency>
+
+        <!-- OTel SDK logs 1.55 运行时需要同版本的 incubator API（ExtendedLogRecord/ExtendedAttributes） -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api-incubator</artifactId>
+            <version>${opentelemetry-api-incubator.version}</version>
+            <scope>runtime</scope>
         </dependency>
 
         <dependency>
@@ -117,13 +162,6 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <version>${mybatis-plus.version}</version>
-        </dependency>
-
-        <!-- 过渡期分页：仅引核心包并手动注册 PageInterceptor，避免 starter 传递依赖 mybatis-spring-boot-starter。 -->
-        <dependency>
-            <groupId>com.github.pagehelper</groupId>
-            <artifactId>pagehelper</artifactId>
-            <version>${pagehelper.version}</version>
         </dependency>
 
         <dependency>
@@ -164,7 +202,7 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
-        <!-- JWT 签发/校验（HS256）；唯一为登录引入的依赖，密码哈希走 JDK 标准库无新依赖 -->
+        <!-- JWT 签发/校验（HS256）；唯一为登录引入的依赖 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -181,6 +219,12 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>${jsonwebtoken.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring 密码哈希库-->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
         </dependency>
     </dependencies>
 

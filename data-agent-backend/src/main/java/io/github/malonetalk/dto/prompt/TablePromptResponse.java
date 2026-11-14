@@ -21,9 +21,10 @@ import java.util.List;
 import lombok.Builder;
 
 /** Agent-facing DTO for LLM prompt formatting. */
-@Builder
+@Builder(toBuilder = true)
 public record TablePromptResponse(
         String name,
+        String objectType,
         String domain,
         String description,
         String dataGranularity,

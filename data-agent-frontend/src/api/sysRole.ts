@@ -17,6 +17,7 @@
  */
 
 import request from './request';
+import type { ApiResponse } from './request';
 
 export interface RoleResponse {
   id: number;
@@ -35,9 +36,10 @@ export interface TablePermissionResponse {
   tableNames: string[];
 }
 
-export interface SaveTablePermissionRequest {
+export interface RoleDataScopeRequest {
   datasourceId: number;
   tableNames: string[];
+  hiddenColumns: Record<string, string[]>;
 }
 
 export interface ColumnPermissionResponse {
@@ -45,61 +47,65 @@ export interface ColumnPermissionResponse {
   columnNames: string[];
 }
 
-export interface SaveColumnPermissionRequest {
-  datasourceId: number;
-  tableName: string;
-  columnNames: string[];
-}
-
-type ApiResult<T> = { code: number; message: string; data: T };
-
 export function listRoles() {
-  return request.get<ApiResult<RoleResponse[]>>('/sys/role').then(res => res.data.data);
+  return request.get<ApiResponse<RoleResponse[]>>('/sys/role').then(res => res.data.data);
 }
 
 export function createRole(payload: RoleRequest) {
-  return request.post<ApiResult<RoleResponse>>('/sys/role', payload).then(res => res.data.data);
+  return request.post<ApiResponse<RoleResponse>>('/sys/role', payload).then(res => res.data.data);
 }
 
 export function updateRole(id: number, payload: RoleRequest) {
   return request
-    .put<ApiResult<RoleResponse>>(`/sys/role/${id}`, payload)
+    .put<ApiResponse<RoleResponse>>(`/sys/role/${id}`, payload)
     .then(res => res.data.data);
 }
 
 export function deleteRole(id: number) {
-  return request.delete<ApiResult<boolean>>(`/sys/role/${id}`).then(res => res.data.data);
+  return request.delete<ApiResponse<boolean>>(`/sys/role/${id}`).then(res => res.data.data);
 }
 
 export function getPermissions(roleId: number) {
   return request
-    .get<ApiResult<TablePermissionResponse[]>>(`/sys/role/${roleId}/permissions`)
+    .get<ApiResponse<TablePermissionResponse[]>>(`/sys/role/${roleId}/permissions`)
     .then(res => res.data.data);
 }
 
-export function savePermissions(roleId: number, payload: SaveTablePermissionRequest) {
+export function saveDataScope(roleId: number, payload: RoleDataScopeRequest) {
   return request
-    .put<ApiResult<boolean>>(`/sys/role/${roleId}/permissions`, payload)
+    .put<ApiResponse<boolean>>(`/sys/role/${roleId}/data-scope`, payload)
     .then(res => res.data.data);
 }
 
 export function getColumnPermissions(roleId: number, datasourceId: number) {
   return request
-    .get<ApiResult<ColumnPermissionResponse[]>>(`/sys/role/${roleId}/columns`, {
+    .get<ApiResponse<ColumnPermissionResponse[]>>(`/sys/role/${roleId}/columns`, {
       params: { datasourceId },
     })
-    .then(res => res.data.data);
-}
-
-export function saveColumnPermissions(roleId: number, payload: SaveColumnPermissionRequest) {
-  return request
-    .put<ApiResult<boolean>>(`/sys/role/${roleId}/columns`, payload)
     .then(res => res.data.data);
 }
 
 /** 一次性获取数据源下所有表的列名，避免 N 次请求。 */
 export function getAllTableColumns(datasourceId: number) {
   return request
-    .get<ApiResult<Record<string, string[]>>>(`/datasource/${datasourceId}/columns`)
+    .get<ApiResponse<Record<string, string[]>>>(`/datasource/${datasourceId}/columns`)
     .then(res => res.data.data);
+}
+
+export interface PermissionDefinition {
+  code: string;
+  name: string;
+  module: string;
+  superAdminOnly: boolean;
+}
+export function getPermissionCatalog() {
+  return request
+    .get<ApiResponse<PermissionDefinition[]>>('/sys/permissions')
+    .then(r => r.data.data);
+}
+export function getCapabilities(id: number) {
+  return request.get<ApiResponse<string[]>>(`/sys/role/${id}/capabilities`).then(r => r.data.data);
+}
+export function saveCapabilities(id: number, codes: string[]) {
+  return request.put(`/sys/role/${id}/capabilities`, { codes });
 }

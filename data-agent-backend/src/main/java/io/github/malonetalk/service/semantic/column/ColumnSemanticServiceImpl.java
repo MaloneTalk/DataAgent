@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service.semantic.column;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.convertor.SemanticConverter;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.dto.prompt.ColumnPromptResponse;
@@ -26,25 +26,37 @@ import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
 import io.github.malonetalk.entity.ColumnInfo;
-import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
+import io.github.malonetalk.mapper.TableInfoMapper;
+import io.github.malonetalk.model.holder.UserContextHolder;
+import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.semantic.SemanticMergeService;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     private final DatasourceService datasourceService;
+    private final DataPermissionService dataPermissions;
+    private final UserContextHolder holder;
+    private final TableInfoMapper tableInfoMapper;
     private final ColumnSemanticInfoMapper columnSemanticInfoMapper;
     private final SemanticMergeService semanticMergeService;
     private final SemanticConverter semanticConverter;
@@ -57,25 +69,24 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                         query.tableName(), "Missing tableName for column semantic page query.");
         int pageNumber = PageResponse.resolvePage(query.page());
         int pageSize = PageResponse.resolvePageSize(query.pageSize());
-        Datasource datasource = datasourceService.findById(query.datasourceId());
-        if (datasource == null) {
+        if (datasourceService.findById(query.datasourceId()).isEmpty()) {
             return PageResponse.empty(pageNumber, pageSize);
         }
         boolean sortDescending = SemanticUtils.isDescendingSort(query.sortOrder());
-        PageHelper.startPage(pageNumber, pageSize);
-        Page<ColumnInfo> page =
-                (Page<ColumnInfo>)
-                        columnSemanticInfoMapper.selectPageByDatasourceIdAndTableName(
-                                new ColumnSemanticPageQuery(
-                                        query.datasourceId(),
-                                        normalizedTableName,
-                                        pageNumber,
-                                        pageSize,
-                                        SemanticUtils.trimToNull(query.keyword()),
-                                        query.sortOrder()),
-                                sortDescending);
+        IPage<ColumnInfo> page =
+                columnSemanticInfoMapper.selectPageByDatasourceIdAndTableName(
+                        new Page<>(pageNumber, pageSize),
+                        new ColumnSemanticPageQuery(
+                                query.datasourceId(),
+                                normalizedTableName,
+                                pageNumber,
+                                pageSize,
+                                SemanticUtils.trimToNull(query.keyword()),
+                                query.sortOrder()),
+                        sortDescending,
+                        dataPermissions.roleScope(holder.checkAndGet()).orElse(null));
         List<ColumnSemanticResponse> responses =
-                page.stream().map(semanticConverter::toResponse).toList();
+                page.getRecords().stream().map(semanticConverter::toResponse).toList();
         return PageResponse.of(responses, page.getTotal(), pageNumber, pageSize);
     }
 
@@ -85,17 +96,28 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
         String normalizedTableName =
                 SemanticUtils.normalizeObjectName(
                         tableName, "Missing tableName for column semantic update.");
-        String normalizedColumnName =
-                SemanticUtils.normalizeObjectName(
+        String columnName =
+                SemanticUtils.requireTrimmed(
                         request.columnName(), "Missing columnName for column semantic update.");
+        String normalizedColumnName = columnName.toLowerCase(Locale.ROOT);
+        requireColumnAccess(
+                request.datasourceId(), normalizedTableName, List.of(normalizedColumnName));
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         request.datasourceId(), normalizedTableName, normalizedColumnName);
         if (existing == null) {
+            TableInfo tableInfo =
+                    tableInfoMapper.selectByDatasourceIdAndTableName(
+                            request.datasourceId(), normalizedTableName);
+            if (tableInfo == null) {
+                throw BusinessException.of(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Table semantic metadata does not exist: " + normalizedTableName);
+            }
             ColumnInfo columnInfo = new ColumnInfo();
             columnInfo.setDatasourceId(request.datasourceId());
-            columnInfo.setTableName(normalizedTableName);
-            columnInfo.setColumnName(normalizedColumnName);
+            columnInfo.setTableId(tableInfo.getId());
+            columnInfo.setColumnName(columnName);
             columnInfo.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
             columnInfo.setSemanticType(request.semanticType());
             columnInfo.setIsVisible(request.isVisible());
@@ -105,8 +127,6 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             columnSemanticInfoMapper.insert(columnInfo);
             return;
         }
-        existing.setTableName(normalizedTableName);
-        existing.setColumnName(normalizedColumnName);
         existing.setColumnDescription(SemanticUtils.trimToNull(request.columnDescription()));
         existing.setSemanticType(request.semanticType());
         existing.setIsVisible(request.isVisible());
@@ -116,14 +136,14 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
 
     @Override
     public List<ColumnPromptResponse> getMergedTableSchema(Integer datasourceId, String tableName) {
-        requireDatasource(datasourceId);
-        Datasource datasource = datasourceService.findById(datasourceId);
-        return semanticMergeService.getTableSchema(datasource, tableName);
+        return semanticMergeService.getTableSchema(requireDatasource(datasourceId), tableName);
     }
 
     @Override
+    @Transactional
     public void resetColumnSemantic(Integer datasourceId, String tableName, String columnName) {
         requireDatasource(datasourceId);
+        requireColumnAccess(datasourceId, tableName, List.of(columnName));
         ColumnInfo existing =
                 columnSemanticInfoMapper.selectByDatasourceIdAndTableNameAndColumnName(
                         datasourceId, tableName, columnName);
@@ -131,11 +151,11 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND, "Column semantic metadata does not exist.");
         }
-        columnSemanticInfoMapper.deleteByDatasourceIdAndIds(
-                datasourceId, List.of(existing.getId()));
+        resetColumnRecords(datasourceId, List.of(existing));
     }
 
     @Override
+    @Transactional
     public int resetColumnSemantics(
             Integer datasourceId, String tableName, List<String> columnNames) {
         requireDatasource(datasourceId);
@@ -153,8 +173,9 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                 columnName,
                                                 "Missing columnName for batch column semantic"
                                                         + " reset."))
-                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        List<Integer> matchedIds =
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        requireColumnAccess(datasourceId, normalizedTableName, normalizedColumnNames);
+        List<ColumnInfo> matchedColumns =
                 columnSemanticInfoMapper
                         .selectByDatasourceIdAndTableName(datasourceId, normalizedTableName)
                         .stream()
@@ -165,27 +186,55 @@ public class ColumnSemanticServiceImpl implements ColumnSemanticService {
                                                         column.getColumnName(),
                                                         "Missing columnName while matching column"
                                                                 + " semantic reset.")))
-                        .map(ColumnInfo::getId)
-                        .distinct()
                         .toList();
-        if (matchedIds.isEmpty()) {
+        if (matchedColumns.isEmpty()) {
             return 0;
         }
-        if (matchedIds.size() != normalizedColumnNames.size()) {
+        if (matchedColumns.size() != normalizedColumnNames.size()) {
             throw BusinessException.of(
                     ErrorCode.RESOURCE_NOT_FOUND,
                     "Some column semantic metadata does not exist for table "
                             + normalizedTableName
                             + ".");
         }
-        return columnSemanticInfoMapper.deleteByDatasourceIdAndIds(datasourceId, matchedIds);
+        return resetColumnRecords(datasourceId, matchedColumns);
     }
 
-    private void requireDatasource(Integer datasourceId) {
+    private int resetColumnRecords(Integer datasourceId, List<ColumnInfo> columns) {
+        List<Integer> resetIds = new ArrayList<>();
+        List<Integer> deleteIds = new ArrayList<>();
+        // 仅删除明确标记为物理缺失的列；其他记录保留并重置语义字段。
+        for (ColumnInfo column : columns) {
+            (Boolean.FALSE.equals(column.getPhysicalStatus()) ? deleteIds : resetIds)
+                    .add(column.getId());
+        }
+        int affected = 0;
+        if (!deleteIds.isEmpty()) {
+            affected +=
+                    columnSemanticInfoMapper.deletePhysicalMissingByIds(datasourceId, deleteIds);
+        }
+        if (!resetIds.isEmpty()) {
+            affected += columnSemanticInfoMapper.resetSemanticFieldsByIds(datasourceId, resetIds);
+        }
+        return affected;
+    }
+
+    private DatasourcePo requireDatasource(Integer datasourceId) {
         SemanticUtils.requireDatasourceId(datasourceId);
-        if (datasourceService.findById(datasourceId) == null) {
-            throw BusinessException.of(
-                    ErrorCode.RESOURCE_NOT_FOUND, "Datasource does not exist: " + datasourceId);
+        return datasourceService
+                .findById(datasourceId)
+                .orElseThrow(
+                        () ->
+                                BusinessException.of(
+                                        ErrorCode.RESOURCE_NOT_FOUND,
+                                        "Datasource does not exist: " + datasourceId));
+    }
+
+    private void requireColumnAccess(
+            Integer datasourceId, String table, Collection<String> columns) {
+        var scope = dataPermissions.loadScope(holder.checkAndGet(), datasourceId);
+        if (!scope.canColumns(table, columns)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN);
         }
     }
 }

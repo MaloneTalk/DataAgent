@@ -30,7 +30,7 @@ import org.springframework.stereotype.Component;
 /**
  * {@link BasePo} 审计字段自动填充：insert 写创建/修改人与时间，update 只写修改人与时间。
  *
- * <p>仅在字段为 null 时填充，不覆盖调用方显式设置的值；无登录上下文（启动引导、异步线程）时
+ * <p>强制覆盖调用方显式设置的值（数据表审计列允许为 null）；无登录上下文（启动引导、异步线程）时
  * 用户 ID 为 null，不阻断写入。
  */
 @Component
@@ -46,10 +46,10 @@ public class AuditMetaObjectHandler implements MetaObjectHandler {
         }
         Long userId = currentUserId();
         LocalDateTime now = LocalDateTime.now();
-        strictInsertFill(metaObject, BasePoConstants.CREATOR_ID, Long.class, userId);
-        strictInsertFill(metaObject, BasePoConstants.CREATE_TIME, LocalDateTime.class, now);
-        strictInsertFill(metaObject, BasePoConstants.UPDATE_ID, Long.class, userId);
-        strictInsertFill(metaObject, BasePoConstants.UPDATE_TIME, LocalDateTime.class, now);
+        setFieldValByName(BasePoConstants.CREATOR_ID, userId, metaObject);
+        setFieldValByName(BasePoConstants.CREATE_TIME, now, metaObject);
+        setFieldValByName(BasePoConstants.UPDATE_ID, userId, metaObject);
+        setFieldValByName(BasePoConstants.UPDATE_TIME, now, metaObject);
     }
 
     @Override
@@ -57,9 +57,8 @@ public class AuditMetaObjectHandler implements MetaObjectHandler {
         if (isNotBasePo(metaObject)) {
             return;
         }
-        strictUpdateFill(metaObject, BasePoConstants.UPDATE_ID, Long.class, currentUserId());
-        strictUpdateFill(
-                metaObject, BasePoConstants.UPDATE_TIME, LocalDateTime.class, LocalDateTime.now());
+        setFieldValByName(BasePoConstants.UPDATE_ID, currentUserId(), metaObject);
+        setFieldValByName(BasePoConstants.UPDATE_TIME, LocalDateTime.now(), metaObject);
     }
 
     private boolean isNotBasePo(MetaObject metaObject) {

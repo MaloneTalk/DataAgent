@@ -17,10 +17,12 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.dto.semantic.RelationSemanticPageQuery;
 import io.github.malonetalk.entity.LogicalTableRelation;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -31,17 +33,15 @@ public interface LogicalTableRelationMapper {
 
     List<LogicalTableRelation> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
-    List<LogicalTableRelation> selectByDatasourceIdAndSourceTable(
+    List<LogicalTableRelation> selectByDatasourceIdAndSourceTableIds(
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName);
+            @Param("sourceTableIds") Set<Integer> sourceTableIds);
 
-    List<LogicalTableRelation> selectByDatasourceIdAndSourceTables(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableNames") List<String> sourceTableNames);
-
-    List<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
+    IPage<LogicalTableRelation> selectPageByDatasourceIdAndSourceTable(
+            IPage<LogicalTableRelation> page,
             @Param("query") RelationSemanticPageQuery query,
-            @Param("sortDescending") boolean sortDescending);
+            @Param("sortDescending") boolean sortDescending,
+            @Param("roleId") Integer roleId);
 
     int insert(LogicalTableRelation logicalTableRelation);
 
@@ -50,21 +50,17 @@ public interface LogicalTableRelationMapper {
     int updateEnabled(
             @Param("id") Integer id,
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName,
+            @Param("sourceTableId") Integer sourceTableId,
             @Param("isEnabled") Boolean isEnabled,
             @Param("updateTime") LocalDateTime updateTime);
 
     int deleteById(
             @Param("id") Integer id,
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName);
+            @Param("sourceTableId") Integer sourceTableId);
 
     int deleteByIdsAndSourceTable(
             @Param("datasourceId") Integer datasourceId,
-            @Param("sourceTableName") String sourceTableName,
+            @Param("sourceTableId") Integer sourceTableId,
             @Param("ids") List<Integer> ids);
-
-    int deleteByIds(@Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
-
-    int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
 }

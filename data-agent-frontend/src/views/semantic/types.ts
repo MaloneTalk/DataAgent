@@ -15,7 +15,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { EditableLogicalTableRelationType, LogicalTableRelationType } from '@/api/semantic';
+import type {
+  EditableLogicalTableRelationType,
+  LogicalTableRelationType,
+  RelationWorkspaceTableResponse,
+} from '@/api/semantic';
 
 export interface RelationForm {
   sourceTableName: string;
@@ -36,29 +40,11 @@ export interface RelationDraftPreview {
   enabled: boolean;
 }
 
-export interface RelationTableNode {
-  tableName: string;
-  domain: string | null;
-  description: string | null;
-  operable: boolean;
-  invalidReason: string | null;
-}
-
-export interface RelationColumnNode {
-  columnName: string;
-  description: string | null;
-  typeName: string | null;
-  primaryKey: boolean | null;
-  operable: boolean;
-  invalidReason: string | null;
-}
-
-export interface TableNodeLayout extends RelationTableNode {
+export interface TableNodeLayout extends RelationWorkspaceTableResponse {
   x: number;
   y: number;
   width: number;
   height: number;
-  columns: RelationColumnNode[];
 }
 
 export interface RelationViewportState {
@@ -78,9 +64,4 @@ export interface SemanticRelationLayoutSnapshot {
   version?: number;
   nodes: Record<string, { x: number; y: number }>;
   viewport: RelationViewportState;
-  canvasOrigin?: {
-    minX: number;
-    minY: number;
-  };
-  updatedAt: string;
 }

@@ -17,10 +17,12 @@
  */
 package io.github.malonetalk.mapper;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.entity.ColumnInfo;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -29,6 +31,8 @@ public interface ColumnSemanticInfoMapper {
 
     List<ColumnInfo> selectByDatasourceId(@Param("datasourceId") Integer datasourceId);
 
+    List<ColumnInfo> selectByDatasourceIdForUpdate(@Param("datasourceId") Integer datasourceId);
+
     List<ColumnInfo> selectByDatasourceIdAndTableName(
             @Param("datasourceId") Integer datasourceId, @Param("tableName") String tableName);
 
@@ -36,9 +40,14 @@ public interface ColumnSemanticInfoMapper {
             @Param("datasourceId") Integer datasourceId,
             @Param("tableNames") List<String> tableNames);
 
-    List<ColumnInfo> selectPageByDatasourceIdAndTableName(
+    List<ColumnInfo> selectByDatasourceIdAndTableIds(
+            @Param("datasourceId") Integer datasourceId, @Param("tableIds") Set<Integer> tableIds);
+
+    IPage<ColumnInfo> selectPageByDatasourceIdAndTableName(
+            IPage<ColumnInfo> page,
             @Param("query") ColumnSemanticPageQuery query,
-            @Param("sortDescending") boolean sortDescending);
+            @Param("sortDescending") boolean sortDescending,
+            @Param("roleId") Integer roleId);
 
     ColumnInfo selectByDatasourceIdAndTableNameAndColumnName(
             @Param("datasourceId") Integer datasourceId,
@@ -53,13 +62,14 @@ public interface ColumnSemanticInfoMapper {
 
     int updatePhysicalCacheFields(ColumnInfo columnInfo);
 
-    int markPhysicalMissingByIds(
-            @Param("datasourceId") Integer datasourceId,
-            @Param("ids") List<Integer> ids,
-            @Param("now") LocalDateTime now);
+    int fillSemanticDescriptionIfBlank(
+            @Param("id") Integer id, @Param("description") String description);
 
-    int deleteByDatasourceId(@Param("datasourceId") Integer datasourceId);
+    int markPhysicalMissingByIds(@Param("ids") List<Integer> ids, @Param("now") LocalDateTime now);
 
-    int deleteByDatasourceIdAndIds(
+    int resetSemanticFieldsByIds(
+            @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
+
+    int deletePhysicalMissingByIds(
             @Param("datasourceId") Integer datasourceId, @Param("ids") List<Integer> ids);
 }

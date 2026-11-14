@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApiError, handleUnauthorized } from './request';
+import request, { handleApiError, type ApiResponse } from './request';
 
 export type ChatStreamEventType =
   | 'summary'
@@ -37,6 +37,50 @@ export interface ToolResultInfo {
   id: string;
   name: string;
   output: string;
+  chart?: ChartPayload | null;
+}
+
+export interface ChartPayload {
+  spec: {
+    chartType: 'bar' | 'line' | 'pie' | 'scatter';
+    title: string;
+    xField: string;
+    yFields: string[];
+    seriesField: string;
+  };
+  rows: Record<string, string | number | boolean | null>[];
+}
+
+export interface AnswerProvenance {
+  status: string;
+  datasources: { id: number; name: string | null; databaseName: string | null }[];
+  sqlExecutions: {
+    callId: string;
+    sql: string;
+    executedSql: string | null;
+    status: string;
+    returnedRows: number | null;
+    truncated: boolean | null;
+  }[];
+  metricReferences: {
+    key: string;
+    name: string;
+    measureExpr: string | null;
+    filters: string | null;
+  }[];
+  pythonExecutions: {
+    callId: string;
+    code: string;
+    status: string;
+  }[];
+  tables: {
+    name: string;
+    objectType?: 'TABLE' | 'VIEW' | null;
+    domain: string | null;
+    description: string | null;
+    columns: { name: string; description: string | null }[];
+  }[];
+  warnings: string[];
 }
 
 export interface ToolResultInput {
@@ -60,43 +104,20 @@ export interface SessionInfo {
   title: string;
   createdAt: string;
   lastActiveAt: string;
-  datasourceId: number | null;
-  datasourceName: string | null;
+  datasources: Array<{ id: number; name: string | null }>;
 }
 
 export interface ChatRequest {
   sessionId: string;
   message?: string;
   toolResults?: ToolResultInput[];
-  datasourceId?: number;
+  datasourceIds?: number[];
 }
 
 export interface TurnItem {
   role: string;
   content: string;
   traceSteps: ChatStreamEvent[];
-}
-
-interface ApiErrorBody {
-  code?: number;
-  errorCode?: string;
-  message?: string;
-  data?: unknown;
-}
-
-async function resolveApiError(response: Response, fallback: string): Promise<ApiError> {
-  try {
-    const body = (await response.json()) as ApiErrorBody;
-    return new ApiError(body.message || fallback, {
-      code: body.code,
-      errorCode: body.errorCode,
-      details: body.data,
-    });
-  } catch {
-    return new ApiError(fallback, {
-      code: response.status,
-    });
-  }
 }
 
 function authHeaders(): Record<string, string> {
@@ -108,46 +129,25 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
-async function fetchJson<T>(url: string, fallback: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) },
-  });
-  if (response.status === 401) {
-    handleUnauthorized();
-    throw new ApiError('登录已过期，请重新登录', { code: 401 });
-  }
-  if (!response.ok) {
-    throw await resolveApiError(response, `${fallback}: ${response.status} ${response.statusText}`);
-  }
-  const body = await response.json();
-  if (body.code !== 200) {
-    throw new ApiError(body.message || fallback, {
-      code: body.code,
-      errorCode: body.errorCode,
-      details: body.data,
-    });
-  }
-  return body.data as T;
+export async function createSession(): Promise<string> {
+  const response = await request.post<ApiResponse<string>>('/agent/session');
+  return response.data.data;
 }
 
 export async function fetchSessionList(): Promise<SessionInfo[]> {
-  return fetchJson<SessionInfo[]>('/api/agent/sessions', 'Failed to fetch session list');
+  const response = await request.get<ApiResponse<SessionInfo[]>>('/agent/sessions');
+  return response.data.data;
 }
 
 export async function fetchSessionHistory(sessionId: string): Promise<TurnItem[]> {
-  return fetchJson<TurnItem[]>(
-    `/api/agent/session/${encodeURIComponent(sessionId)}/history`,
-    'Failed to fetch session history',
+  const response = await request.get<ApiResponse<TurnItem[]>>(
+    `/agent/session/${encodeURIComponent(sessionId)}/history`,
   );
+  return response.data.data;
 }
 
 export async function clearSession(sessionId: string): Promise<void> {
-  await fetchJson<boolean>(
-    `/api/agent/session/${encodeURIComponent(sessionId)}`,
-    'Failed to delete session',
-    { method: 'DELETE' },
-  );
+  await request.delete<ApiResponse<boolean>>(`/agent/session/${encodeURIComponent(sessionId)}`);
 }
 
 export async function* streamChat(
@@ -161,15 +161,12 @@ export async function* streamChat(
     signal: abortSignal,
   });
 
-  if (response.status === 401) {
-    handleUnauthorized();
-    throw new ApiError('登录已过期，请重新登录', { code: 401 });
-  }
-
   if (!response.ok) {
-    throw await resolveApiError(
-      response,
+    const body = (await response.json().catch(() => undefined)) as Partial<ApiResponse> | undefined;
+    throw handleApiError(
+      body,
       `Chat stream failed: ${response.status} ${response.statusText}`,
+      response.status,
     );
   }
 

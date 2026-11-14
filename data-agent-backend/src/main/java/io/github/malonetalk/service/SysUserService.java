@@ -19,15 +19,12 @@ package io.github.malonetalk.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.model.bo.SysUserBo;
-import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.dto.BaseBatchQueryDto;
 import io.github.malonetalk.model.dto.UserCreateDto;
 import io.github.malonetalk.model.dto.UserUpdateDto;
 
 /** 用户业务：以 {@link SysUserBo} 作为领域对象，异常与校验在此层完成。 */
 public interface SysUserService {
-
-    UserContextBo selectAuthProjection(Integer userId);
 
     /**
      * 启动引导：无任何用户时创建初始超级管理员 admin；已有用户返回 null。
@@ -43,6 +40,8 @@ public interface SysUserService {
     SysUserBo create(UserCreateDto dto);
 
     SysUserBo update(Integer id, UserUpdateDto dto);
+
+    void assignRole(Integer id, Integer roleId);
 
     void changePassword(Integer userId, String oldPassword, String newPassword);
 

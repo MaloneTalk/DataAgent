@@ -17,7 +17,13 @@
  */
 package io.github.malonetalk.agent;
 
+import java.util.List;
 import lombok.Builder;
 
 @Builder
-public record ToolCallContext(String sessionId, Integer userId) {}
+public record ToolCallContext(String sessionId, Integer userId, List<Integer> datasourceIds) {
+
+    public ToolCallContext {
+        datasourceIds = datasourceIds == null ? List.of() : List.copyOf(datasourceIds);
+    }
+}

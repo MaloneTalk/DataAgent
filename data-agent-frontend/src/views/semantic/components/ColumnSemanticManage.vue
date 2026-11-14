@@ -16,19 +16,19 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, watch } from 'vue';
+  import { reactive, ref, watch } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import {
-    getActiveDatasourceId,
     getColumnSemanticPage,
     resetColumnSemantic,
     updateColumnSemantic,
     type ColumnSemanticInfo,
     type ColumnSemanticType,
   } from '@/api/semantic';
-  import { formatDateTime } from '../utils';
+  import { useSemanticPage } from '../composables/useSemanticPage';
+  import { formatDateTime } from '@/utils/dateTime';
 
   interface ColumnEditForm {
     tableName: string;
@@ -50,20 +50,8 @@
     semanticTypeOptions.find(option => option.value === value)?.label ?? '-';
 
   const props = defineProps<{
-    keyword: string;
-    sortOrder: 'asc' | 'desc';
-    tableName?: string;
+    datasourceId: number | null;
   }>();
-
-  const loading = ref(false);
-  const error = ref('');
-  const rows = ref<ColumnSemanticInfo[]>([]);
-  const datasourceId = ref<number | null>(null);
-  const page = reactive({
-    page: 1,
-    pageSize: 10,
-    total: 0,
-  });
 
   const selectedTableName = ref('');
   const dialogVisible = ref(false);
@@ -82,78 +70,28 @@
     columnName: [{ required: true, message: '列名不能为空', trigger: 'blur' }],
   };
 
-  // 监听 props.tableName 变化
-  watch(
-    () => props.tableName,
-    newTableName => {
-      if (newTableName) {
-        selectedTableName.value = newTableName;
-      }
-    },
-    { immediate: true },
-  );
-
-  const ensureDatasourceId = async () => {
-    if (datasourceId.value !== null) {
-      return datasourceId.value;
-    }
-    datasourceId.value = await getActiveDatasourceId();
-    if (datasourceId.value === null) {
-      error.value = '请先激活一个数据源';
-      rows.value = [];
-      page.total = 0;
-    }
-    return datasourceId.value;
-  };
-
-  const loadPage = async () => {
-    if (!selectedTableName.value) {
-      rows.value = [];
-      page.total = 0;
-      return;
-    }
-    loading.value = true;
-    error.value = '';
-    try {
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) {
-        return;
-      }
-      const response = await getColumnSemanticPage(selectedTableName.value, {
-        datasourceId: activeDatasourceId,
-        page: page.page,
-        pageSize: page.pageSize,
-        keyword: props.keyword.trim() || undefined,
-        sortOrder: props.sortOrder,
+  const { loading, error, rows, page, loadPage, handlePageChange, handleSizeChange } =
+    useSemanticPage<ColumnSemanticInfo>(async pagination => {
+      if (!selectedTableName.value) return { items: [], total: 0 };
+      if (props.datasourceId === null) throw new Error('请先选择一个数据源');
+      return getColumnSemanticPage(selectedTableName.value, {
+        datasourceId: props.datasourceId,
+        ...pagination,
+        sortOrder: 'asc',
       });
-      const pageData = response.data.data;
-      rows.value = pageData.items;
-      page.total = pageData.total;
-    } catch (err) {
-      error.value = (err as Error).message;
-      rows.value = [];
-      page.total = 0;
-    } finally {
-      loading.value = false;
-    }
-  };
+    });
 
   const handleTableChange = async (tableName: string) => {
+    dialogVisible.value = false;
     selectedTableName.value = tableName;
     page.page = 1;
     await loadPage();
   };
 
-  const handlePageChange = async (p: number) => {
-    page.page = p;
-    await loadPage();
-  };
-
-  const handleSizeChange = async (pageSize: number) => {
-    page.pageSize = pageSize;
-    page.page = 1;
-    await loadPage();
-  };
+  watch(
+    () => props.datasourceId,
+    () => handleTableChange(selectedTableName.value),
+  );
 
   const handleOpenEdit = (row: ColumnSemanticInfo) => {
     clearFieldErrors();
@@ -172,12 +110,11 @@
     clearFieldErrors();
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
-    const activeDatasourceId = await ensureDatasourceId();
-    if (activeDatasourceId === null) return;
+    if (props.datasourceId === null) return;
     submitLoading.value = true;
     try {
-      await updateColumnSemantic(selectedTableName.value, {
-        datasourceId: activeDatasourceId,
+      await updateColumnSemantic(form.tableName, {
+        datasourceId: props.datasourceId,
         columnName: form.columnName,
         columnDescription: form.columnDescription.trim() || undefined,
         semanticType: form.semanticType || undefined,
@@ -198,9 +135,8 @@
       await ElMessageBox.confirm(`确认重置列 ${row.columnName} 的语义信息吗？`, '确认重置', {
         type: 'warning',
       });
-      const activeDatasourceId = await ensureDatasourceId();
-      if (activeDatasourceId === null) return;
-      await resetColumnSemantic(activeDatasourceId, selectedTableName.value, row.columnName);
+      if (props.datasourceId === null) return;
+      await resetColumnSemantic(props.datasourceId, selectedTableName.value, row.columnName);
       ElMessage.success('重置成功');
       await loadPage();
     } catch (err) {
@@ -211,14 +147,7 @@
   };
 
   defineExpose({
-    loadPage,
     handleTableChange,
-  });
-
-  onMounted(async () => {
-    if (selectedTableName.value) {
-      await loadPage();
-    }
   });
 </script>
 
@@ -298,8 +227,17 @@
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleOpenEdit(row)">编辑</el-button>
           <el-button
+            v-permission="'semantic:column:update'"
+            link
+            type="primary"
+            size="small"
+            @click="handleOpenEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'semantic:column:update'"
             v-if="row.id !== null"
             link
             type="warning"
@@ -374,11 +312,7 @@
 
 <style scoped>
   .section-header {
-    display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
   }
 
   .section-header h3 {
@@ -393,8 +327,6 @@
   }
 
   .pagination-wrap {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20px;
   }
 </style>

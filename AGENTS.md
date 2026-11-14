@@ -12,6 +12,12 @@
 
 **Prefer official Spring Boot starters over hand-rolled infrastructure.** If a problem can be solved by adding an official Spring starter plus a small amount of glue code, use the starter instead of building custom infrastructure.
 
+**Keep Mapper operations atomic; put business logic in Services.** Each Mapper method should perform one focused persistence operation, such as a query, insert, update, delete, or batch operation. Business validation, business decisions, cross-Mapper coordination, and multi-step transaction orchestration belong in the Service layer, not Mapper default methods or XML. Complex queries and batch SQL are allowed when needed, but must not become business workflows.
+
+**Put lengthy conversions in the conversion layer.** Multi-step field mapping, object assembly, and format conversion belong in the existing converter layer, not embedded in Service methods. Prefer MapStruct for mechanical mappings; use focused converters for custom conversion logic. Services should call converters and concentrate on business behavior. Trivial field assignments do not require a new converter abstraction.
+
+**Keep Services small and focused on atomic business capabilities.** Each Service method should perform one clearly defined business operation, and each Service class should own a cohesive responsibility. Avoid large Services that combine unrelated CRUD, conversion, synchronization, and orchestration logic. Split growing Services by actual business responsibility, following the file and method size guidelines above. When an operation needs several steps, let a focused Service coordinate them and own the transaction boundary; do not introduce empty forwarding layers just to split files.
+
 **Use chaining and fluent style where natural, but don't force one-liners.** Break long expressions into multiple lines if that improves readability — especially when dealing with Optional chains, complex ternaries, or multi-step transformations.
 
 **Avoid over-encapsulation: don't abstract before duplication appears.** A helper method used only once is just indirection, not cleanliness. Extract when the same pattern appears in ≥2 places — not earlier. **But one-off private methods that clarify intent are not "duplication" — they're organization.**
@@ -22,6 +28,13 @@
 
 **Write code for the next reader, not for the compiler.** The compiler can parse anything. A human shouldn't have to. Choose names that reveal intent, structure code in small logical steps, and prefer clarity over cleverness. If a line makes you pause — it will make someone else pause too.
 
+**Use `Optional` for nullable values passed between internal Java layers (e.g., Service).** When an internal method may return or accept a null value, wrap it in `Optional` to make the possibility explicit and avoid null-check boilerplate. Only fall back to a plain null reference at the boundary where the object leaves the service (controllers, external APIs, serialization). The goal is to keep `if (x != null)` boilerplate out of the service layer.
+
 **Write MySQL 5.7 compatible SQL — no window functions (`ROW_NUMBER()`, `RANK()`, etc.), no CTE (`WITH ... AS`), no other MySQL 8.0+ syntax.**
 
 **New data entities belong in `io.github.malonetalk.model`.** Place new PO/DTO/VO/BO under `io.github.malonetalk.model.{po,dto,vo,bo}`. Do not add new classes to the deprecated `io.github.malonetalk.dto` and `io.github.malonetalk.entity` packages.
+
+**Follow the project's persistence and response conventions for new entities:**
+- **PO** classes must extend `io.github.malonetalk.model.po.BasePo`, which provides the shared audit fields (creator/updater and timestamps, logical delete).
+- **VO** classes must implement the `io.github.malonetalk.model.vo.BaseVo` marker interface. Controllers must return the `BaseVo` implementation directly instead of wrapping it in the deprecated `io.github.malonetalk.common.Result`; uniform wrapping is handled by `BaseVoResponseAdvice`.
+- **Mapper** interfaces must extend `io.github.malonetalk.mapper.AuditableMapper<T>` (which in turn extends MyBatis-Plus `BaseMapper<T>`) and use MyBatis-Plus APIs. Do not create a mapper XML file unless a method genuinely requires complex SQL.

@@ -15,11 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export function formatDateTime(time: string) {
-  if (!time) return '-';
-  const date = new Date(time);
-  if (Number.isNaN(date.getTime())) {
-    return time;
+export function formatDateTime(value: string | null | undefined): string {
+  if (!value) {
+    return '-';
   }
-  return date.toLocaleString('zh-CN');
+  const matched = value.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/);
+  return matched ? `${matched[1]} ${matched[2]}` : value.replace('T', ' ');
 }

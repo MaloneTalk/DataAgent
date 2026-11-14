@@ -22,7 +22,6 @@ import io.github.malonetalk.dto.prompt.TablePromptResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.TableSemanticResponse;
 import io.github.malonetalk.dto.semantic.TableSemanticUpdateRequest;
-import io.github.malonetalk.entity.TableInfo;
 import java.util.List;
 
 public interface TableSemanticService {
@@ -33,11 +32,7 @@ public interface TableSemanticService {
 
     List<String> listAvailableDomains(Integer datasourceId);
 
-    List<TableInfo> listTableInfosByDatasourceId(Integer datasourceId);
-
     void updateTableSemantic(TableSemanticUpdateRequest request);
-
-    List<TableInfo> listTableInfosByDomains(Integer datasourceId, List<String> domains);
 
     List<TablePromptResponse> listMergedTablesByDomains(Integer datasourceId, List<String> domains);
 

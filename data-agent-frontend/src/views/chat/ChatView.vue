@@ -19,86 +19,52 @@
   import { ref, nextTick, watch, onMounted, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
-  import { fetchSessionList } from '@/api/agent';
-  import { getDatasourceList, type DatasourceResponse } from '@/api/datasource';
+  import { useUserStore } from '@/stores/user';
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
   import ReportPreviewDialog from '@/views/report/ReportPreviewDialog.vue';
   import ReportList from '@/views/report/ReportList.vue';
+  import EvidenceList from '@/views/evidence/EvidenceList.vue';
 
   const route = useRoute();
   const router = useRouter();
+  const userStore = useUserStore();
+  const canChat = computed(() => userStore.hasPermission('analysis:chat:use'));
+  const canReadSessions = computed(() => userStore.hasPermission('analysis:session:read'));
 
   const {
     messages,
     isStreaming,
     sessionId,
-    datasourceId,
     pendingQuestion,
     lastReportContent,
     sendMessage,
     stopStreaming,
     newSession,
     loadHistory,
+    ensureSession,
   } = useAgentChat();
 
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
-  const showSessionList = ref(false);
+  const showSessionList = ref(!canChat.value);
   const reportDialogVisible = ref(false);
-  const reportListKey = ref(0);
+  const evidenceDialogVisible = ref(false);
   const previewVisible = ref(false);
   const previewContent = ref('');
-  const datasources = ref<DatasourceResponse[]>([]);
-
-  // 已发过消息 = 绑定已落库 = 不可再切换数据源（锁定语义）。
-  const isBound = computed(() => messages.value.length > 0);
 
   // 用户在当前会话中发过的消息文本（用于输入框上下键历史导航）
   const userMessages = computed(() =>
     messages.value.filter(m => m.role === 'user').map(m => m.content),
   );
 
-  // 未绑定的旧会话实际跟随全局激活源，展示其名字以免用户误以为可自由选源。
-  const activeDatasourceName = computed(() => {
-    if (datasourceId.value != null) return null;
-    return datasources.value.find(d => d.status === 'ACTIVE')?.name ?? null;
-  });
-
-  const dsPlaceholder = computed(() => {
-    if (isBound.value) {
-      return activeDatasourceName.value
-        ? `跟随全局激活源（${activeDatasourceName.value}）`
-        : '跟随全局激活源';
-    }
-    return '选择数据源';
-  });
-
-  // 绑定源已被删除时下拉列表里没有对应项，补一个占位项。
-  const boundUnknown = computed(() => {
-    if (datasourceId.value == null) return false;
-    return !datasources.value.some(d => d.id === datasourceId.value);
-  });
-
-  async function loadDatasources() {
-    try {
-      const res = await getDatasourceList();
-      datasources.value = res.data.data ?? [];
-    } catch {
-      datasources.value = [];
-    }
-  }
-
-  // 重进会话时从会话列表回显绑定源；无绑定（旧会话/新会话未落库）也要重置为 null，
-  // 避免残留上一个会话的绑定。
-  async function resolveBoundDatasource(sid: string) {
-    try {
-      const list = await fetchSessionList();
-      const found = list.find(s => s.sessionId === sid);
-      datasourceId.value = found?.datasourceId ?? null;
-    } catch {
-      // 会话列表加载失败不阻断会话展示。
+  async function loadSession(sid: string) {
+    if (canReadSessions.value) {
+      await loadHistory(sid);
+    } else {
+      newSession();
+      sessionId.value = sid;
     }
   }
 
@@ -132,11 +98,9 @@
   watch(messages, () => scrollToBottom(), { deep: true });
 
   onMounted(async () => {
-    loadDatasources();
     const sid = route.params.sessionId as string | undefined;
     if (sid) {
-      await loadHistory(sid);
-      await resolveBoundDatasource(sid);
+      await loadSession(sid);
     }
   });
 
@@ -144,9 +108,10 @@
     () => route.params.sessionId,
     async newSid => {
       // Avoid triggering loadHistory when router.replace updates URL on first message
-      if (newSid && typeof newSid === 'string' && newSid !== sessionId.value) {
-        await loadHistory(newSid);
-        await resolveBoundDatasource(newSid);
+      if (typeof newSid !== 'string') {
+        newSession();
+      } else if (newSid !== sessionId.value) {
+        await loadSession(newSid);
       }
     },
   );
@@ -157,22 +122,26 @@
     }
   });
 
-  function handleSend(text: string) {
+  async function handleSend(text: string) {
+    if (!canChat.value) return;
+    const sid = await ensureSession();
     sendMessage(text);
     if (!activeSessionId.value) {
-      router.replace(`/chat/${sessionId.value}`);
+      router.replace(`/chat/${sid}`);
     }
   }
 
   function handleNewSession() {
+    if (!canChat.value) return;
     newSession();
-    router.push(`/chat/${sessionId.value}`);
+    router.push('/chat');
   }
 </script>
 
 <template>
   <div class="chat-view">
     <div
+      v-if="canReadSessions"
       class="chat-view__session-panel"
       :class="{ 'chat-view__session-panel--hidden': !showSessionList }"
     >
@@ -187,44 +156,31 @@
     <div class="chat-view__main">
       <div class="chat-view__header">
         <div class="chat-view__header-left">
-          <button class="chat-view__toggle-btn" @click="toggleSessionList">
+          <button v-if="canReadSessions" class="chat-view__toggle-btn" @click="toggleSessionList">
             {{ showSessionList ? '◁' : '▷' }}
           </button>
         </div>
         <div class="chat-view__header-right">
-          <el-select
-            v-model="datasourceId"
-            :disabled="isBound"
-            :placeholder="dsPlaceholder"
-            size="small"
-            style="width: 180px"
-            :title="isBound ? '会话已绑定数据源，不可切换' : undefined"
-          >
-            <el-option v-for="ds in datasources" :key="ds.id" :label="ds.name" :value="ds.id" />
-            <el-option
-              v-if="boundUnknown"
-              :key="datasourceId"
-              :label="`已删除数据源 #${datasourceId}`"
-              :value="datasourceId"
-            />
-          </el-select>
-          <el-button
-            text
-            @click="
-              reportDialogVisible = true;
-              reportListKey++;
-            "
-          >
+          <el-button v-permission="'asset:report:read'" text @click="reportDialogVisible = true">
             会话报告
           </el-button>
-          <el-button text @click="handleNewSession">新建会话</el-button>
+          <el-button
+            v-permission="'asset:evidence:read'"
+            text
+            @click="evidenceDialogVisible = true"
+          >
+            数据证据
+          </el-button>
+          <el-button v-if="canChat" text @click="handleNewSession">新建会话</el-button>
         </div>
       </div>
 
       <div ref="messagesContainer" class="chat-view__messages">
         <div v-if="messages.length === 0" class="chat-view__empty">
-          <div class="chat-view__empty-text">开始对话，让 AI 帮你分析数据</div>
-          <div class="chat-view__empty-hints">
+          <div class="chat-view__empty-text">
+            {{ canChat ? '开始对话，让 AI 帮你分析数据' : '选择会话查看历史记录' }}
+          </div>
+          <div v-if="canChat" class="chat-view__empty-hints">
             <div
               class="hint-item"
               @click="handleSend('帮我查一下上个月高价值用户都买了哪些品类的商品？')"
@@ -253,7 +209,8 @@
       </div>
 
       <ChatInput
-        :key="sessionId"
+        v-if="canChat"
+        :key="sessionId ?? 'new'"
         :is-streaming="isStreaming"
         :pending-question="pendingQuestion"
         :user-messages="userMessages"
@@ -274,7 +231,17 @@
         top="30px"
         destroy-on-close
       >
-        <ReportList :key="reportListKey" :fixed-session-id="sessionId" embedded />
+        <ReportList :fixed-session-id="sessionId ?? undefined" embedded />
+      </el-dialog>
+
+      <el-dialog
+        v-model="evidenceDialogVisible"
+        title="数据证据"
+        width="960px"
+        top="30px"
+        destroy-on-close
+      >
+        <EvidenceList :fixed-session-id="sessionId ?? undefined" />
       </el-dialog>
     </div>
   </div>

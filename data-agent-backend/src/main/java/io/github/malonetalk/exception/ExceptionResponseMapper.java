@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.exception;
 
+import io.agentscope.core.model.exception.AuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.springframework.dao.DataAccessException;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** 将已知异常统一映射为 ErrorCode 和对外提示，供 HTTP、SSE、agent tool 共用。 */
@@ -48,6 +50,13 @@ public class ExceptionResponseMapper {
     private ErrorResponse map(Throwable current) {
         if (current instanceof BusinessException businessException) {
             return fromBusinessException(businessException);
+        }
+        if (current instanceof AuthenticationException) {
+            return of(ErrorCode.MODEL_AUTHENTICATION_FAILED);
+        }
+        // Multipart limits are enforced before controller validation runs.
+        if (current instanceof MaxUploadSizeExceededException) {
+            return of(ErrorCode.PAYLOAD_TOO_LARGE);
         }
         if (current instanceof IllegalArgumentException) {
             // 未迁移的裸参数断言统一视为请求参数错误，避免落成 500；
@@ -96,11 +105,18 @@ public class ExceptionResponseMapper {
 
     /** 统一日志策略：5xx 记完整堆栈，4xx 记一行摘要；HTTP、SSE、tool 三出口共用。 */
     public void logMapped(Logger logger, Throwable exception, ErrorResponse errorResponse) {
+        logMapped(logger, exception, errorResponse, "Mapped");
+    }
+
+    /** Carries task or operation context while preserving the shared exception logging policy. */
+    public void logMapped(
+            Logger logger, Throwable exception, ErrorResponse errorResponse, String context) {
         if (errorResponse.isServerError()) {
-            logger.error("Mapped server exception", exception);
+            logger.error("{} server exception: {}", context, errorResponse.errorCode(), exception);
         } else {
             logger.warn(
-                    "Mapped client error: {} - {}",
+                    "{} client error: {} - {}",
+                    context,
                     errorResponse.errorCode(),
                     errorResponse.message());
         }

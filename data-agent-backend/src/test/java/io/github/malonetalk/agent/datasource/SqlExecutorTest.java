@@ -20,10 +20,20 @@ package io.github.malonetalk.agent.datasource;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.bo.AuthorizedSqlBo;
+import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.SqlPermissionService;
+import java.util.Map;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -34,10 +44,33 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class SqlExecutorTest {
 
-    private final SqlExecutor executor = new SqlExecutor(mock(DynamicDataSourceManager.class));
+    private final SqlPermissionService permissions = mock(SqlPermissionService.class);
+    private final SqlExecutor executor =
+            new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
 
     @Test
-    void acceptsBusinessTableCountsAndAppliesOuterRowLimit() {
+    void sharedSelectEntryPassesParsedSelectToDataAuthorization() {
+        DatasourcePo datasource = new DatasourcePo();
+        when(permissions.authorize(eq(7), same(datasource), any(Select.class)))
+                .thenAnswer(invocation -> new AuthorizedSqlBo(invocation.getArgument(2), Map.of()));
+        assertEquals(
+                "SELECT id FROM orders",
+                executor.authorizeSelect(datasource, "SELECT id FROM orders;", 7)
+                        .select()
+                        .toString());
+        verify(permissions).authorize(eq(7), same(datasource), any(Select.class));
+    }
+
+    @Test
+    void sharedSelectEntryRejectsWritesBeforeAuthorization() {
+        assertThrows(
+                BusinessException.class,
+                () -> executor.authorizeSelect(new DatasourcePo(), "DELETE FROM orders", 7));
+        verifyNoInteractions(permissions);
+    }
+
+    @Test
+    void acceptsBusinessTableCountsAndAppliesOuterRowLimit() throws Exception {
         String sql =
                 """
                 SELECT 'ticket' t, COUNT(*) c FROM ticket
@@ -52,7 +85,7 @@ class SqlExecutorTest {
 
         assertEquals(sql, executor.validateSelectSql(sql + ";"));
         assertEquals(
-                "SELECT * FROM (" + sql + ") AS _sandbox LIMIT 200",
+                "SELECT * FROM (" + CCJSqlParserUtil.parse(sql) + ") AS _sandbox LIMIT 201",
                 executor.validateAndTransform(sql));
     }
 
@@ -86,7 +119,7 @@ class SqlExecutorTest {
                         + "UNION ALL (SELECT operator_id FROM status_event LIMIT 10)";
 
         assertEquals(
-                "SELECT * FROM (" + sql + ") AS _sandbox LIMIT 200",
+                "SELECT * FROM (" + sql + ") AS _sandbox LIMIT 201",
                 executor.validateAndTransform(sql));
     }
 
@@ -116,6 +149,15 @@ class SqlExecutorTest {
                 assertThrows(BusinessException.class, () -> executor.validateSelectSql(sql));
 
         assertEquals(ErrorCode.SQL_NOT_ALLOWED, error.getErrorCode());
+    }
+
+    @Test
+    void truncateFallsBackOnBlankAndCapsLongMessages() {
+        assertEquals("unknown database error", SqlExecutor.truncate(null));
+        assertEquals("unknown database error", SqlExecutor.truncate("  "));
+        assertEquals("duplicate key value", SqlExecutor.truncate("duplicate key value"));
+        assertEquals(203, SqlExecutor.truncate("x".repeat(400)).length());
+        assertEquals("x".repeat(200) + "...", SqlExecutor.truncate("x".repeat(400)));
     }
 
     @ParameterizedTest

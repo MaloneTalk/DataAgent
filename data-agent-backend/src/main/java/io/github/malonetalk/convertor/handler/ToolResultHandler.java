@@ -18,9 +18,9 @@
 package io.github.malonetalk.convertor.handler;
 
 import io.agentscope.core.message.ToolResultBlock;
+import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.dto.ChatStreamEvent;
 import io.github.malonetalk.enums.ChatStreamEventType;
-import io.github.malonetalk.exception.ToolExceptionMapper;
 
 public interface ToolResultHandler {
 
@@ -47,7 +47,11 @@ public interface ToolResultHandler {
                 .isLast(isLast)
                 .toolResult(
                         new ChatStreamEvent.ToolResultInfo(
-                                block.getId(), block.getName(), text, block.isSuspended()))
+                                block.getId(),
+                                block.getName(),
+                                text,
+                                block.isSuspended(),
+                                block.getMetadata()))
                 .build();
     }
 }

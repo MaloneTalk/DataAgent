@@ -23,6 +23,7 @@ import lombok.Builder;
 @Builder
 public record RelationWorkspaceTableResponse(
         String tableName,
+        String objectType,
         String domain,
         String description,
         boolean operable,

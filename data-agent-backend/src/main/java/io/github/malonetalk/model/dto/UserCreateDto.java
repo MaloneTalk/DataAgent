@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.model.dto;
 
+import io.github.malonetalk.annotation.MaxBytes;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -25,7 +26,8 @@ import jakarta.validation.constraints.Size;
 public record UserCreateDto(
         @NotBlank(message = "username 不能为空") String username,
         @NotBlank(message = "password 不能为空")
-                @Size(min = 6, max = 64, message = "password 长度需在 6-64 之间")
+                @Size(min = 6, message = "password 长度至少 6 位")
+                @MaxBytes(value = 72, message = "password 不能超过 72 字节")
                 String password,
         @NotBlank(message = "displayName 不能为空") String displayName,
         @NotNull @PositiveOrZero(message = "roleId 不能为负") Integer roleId) {}

@@ -24,6 +24,7 @@ import lombok.Builder;
 public record TableSemanticResponse(
         Integer id,
         String tableName,
+        String objectType,
         String domain,
         String physicalTableDescription,
         String tableDescription,

@@ -17,11 +17,13 @@
  */
 package io.github.malonetalk.model.dto;
 
+import io.github.malonetalk.annotation.MaxBytes;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record ChangePasswordDto(
         @NotBlank(message = "oldPassword 不能为空") String oldPassword,
         @NotBlank(message = "newPassword 不能为空")
-                @Size(min = 6, max = 64, message = "newPassword 长度需在 6-64 之间")
+                @Size(min = 6, message = "newPassword 长度至少 6 位")
+                @MaxBytes(value = 72, message = "newPassword 不能超过 72 字节")
                 String newPassword) {}

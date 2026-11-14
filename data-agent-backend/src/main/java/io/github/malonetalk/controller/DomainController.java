@@ -24,6 +24,7 @@ import io.github.malonetalk.dto.DomainPageQuery;
 import io.github.malonetalk.dto.DomainUpdateRequest;
 import io.github.malonetalk.dto.pagination.PageResponse;
 import io.github.malonetalk.entity.DomainInfo;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.service.semantic.DomainService;
@@ -40,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @RequestMapping("/api/domains")
 @RequiredArgsConstructor
@@ -49,16 +49,19 @@ public class DomainController {
     private final DomainService domainService;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_DOMAIN_READ)
     public Result<PageResponse<DomainInfo>> findDomains(@Valid DomainPageQuery query) {
         return Result.success(domainService.getDomainPage(query));
     }
 
     @GetMapping("/names")
+    @RequirePermission(PermissionEnum.SEMANTIC_DOMAIN_READ)
     public Result<List<String>> listDomainNames() {
         return Result.success(domainService.listDomainNames());
     }
 
     @GetMapping("/{id}")
+    @RequirePermission(PermissionEnum.SEMANTIC_DOMAIN_READ)
     public Result<DomainInfo> findById(@PathVariable Integer id) {
         requireNonNegativeId(id);
         DomainInfo domain = domainService.findById(id);
@@ -69,11 +72,13 @@ public class DomainController {
     }
 
     @PostMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_DOMAIN_CREATE)
     public Result<DomainInfo> create(@Valid @RequestBody DomainCreateRequest request) {
         return Result.success(domainService.create(request));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission(PermissionEnum.SEMANTIC_DOMAIN_UPDATE)
     public Result<DomainInfo> update(
             @PathVariable Integer id, @Valid @RequestBody DomainUpdateRequest request) {
         requireNonNegativeId(id);
@@ -81,6 +86,7 @@ public class DomainController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission(PermissionEnum.SEMANTIC_DOMAIN_DELETE)
     public Result<Boolean> delete(@PathVariable Integer id) {
         requireNonNegativeId(id);
         domainService.delete(id);

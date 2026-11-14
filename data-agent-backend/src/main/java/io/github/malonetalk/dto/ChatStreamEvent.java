@@ -17,8 +17,11 @@
  */
 package io.github.malonetalk.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.malonetalk.enums.ChatStreamEventType;
+import io.github.malonetalk.model.bo.ChartPayloadBo;
 import java.util.Map;
 import lombok.Builder;
 
@@ -35,10 +38,21 @@ public record ChatStreamEvent(
 
     public record ToolCallInfo(String id, String name, Map<String, Object> input) {}
 
-    public record ToolResultInfo(String id, String name, String output, boolean suspended) {
+    public record ToolResultInfo(
+            String id,
+            String name,
+            String output,
+            boolean suspended,
+            @JsonIgnore Map<String, Object> metadata) {
 
-        public ToolResultInfo(String id, String name, String output) {
-            this(id, name, output, false);
+        public ToolResultInfo(String id, String name, String output, boolean suspended) {
+            this(id, name, output, suspended, Map.of());
+        }
+
+        @JsonProperty("chart")
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public Object chart() {
+            return metadata.get(ChartPayloadBo.METADATA_KEY);
         }
     }
 }

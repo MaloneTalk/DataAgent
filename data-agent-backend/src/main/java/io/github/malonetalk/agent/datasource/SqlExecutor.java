@@ -17,9 +17,11 @@
  */
 package io.github.malonetalk.agent.datasource;
 
-import io.github.malonetalk.entity.Datasource;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.model.bo.AuthorizedSqlBo;
+import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.SqlPermissionService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -30,7 +32,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import javax.sql.DataSource;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.JSQLParserException;
@@ -49,24 +51,51 @@ import org.springframework.stereotype.Component;
 public class SqlExecutor {
 
     static final int MAX_ROWS = 200;
+    private static final int MAX_PROBE_ROWS = MAX_ROWS + 1;
     private static final int QUERY_TIMEOUT_SECONDS = 30;
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
+    private final SqlPermissionService sqlPermissions;
 
-    public QueryResult execute(Datasource datasource, String sql) {
-        String validatedSql = validateAndTransform(sql);
+    public SqlExecution executeDetailed(DatasourcePo datasource, String sql, Integer userId) {
+        var authorized = authorizeSelect(datasource, sql, userId);
+        String validatedSql = applyRowLimit(authorized.select());
 
-        DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
+        javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            return doExecute(conn, validatedSql);
+            return new SqlExecution(
+                    validatedSql, doExecute(conn, validatedSql), authorized.authorizedColumns());
         } catch (SQLException e) {
             log.error("SQL execution failed: {}", e.getMessage(), e);
             throw BusinessException.of(
                     ErrorCode.SQL_EXECUTION_FAILED,
-                    ErrorCode.SQL_EXECUTION_FAILED.getDefaultMessage(),
+                    "SQL execution failed: " + truncate(e.getMessage()),
                     e);
         }
+    }
+
+    public record SqlExecution(
+            String executedSql, QueryResult result, Map<String, Set<String>> authorizedColumns) {}
+
+    static String truncate(String message) {
+        if (message == null || message.isBlank()) {
+            return "unknown database error";
+        }
+        return message.length() > 200 ? message.substring(0, 200) + "..." : message;
+    }
+
+    public AuthorizedSqlBo authorizeSelect(DatasourcePo datasource, String sql, Integer userId) {
+        return sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
+    }
+
+    public AuthorizedSqlBo authorizeSelect(
+            DatasourcePo datasource,
+            String sql,
+            Integer userId,
+            Map<String, Set<String>> previousColumns) {
+        return sqlPermissions.authorize(
+                userId, datasource, parseAllowedSelect(sql), previousColumns);
     }
 
     public String validateSelectSql(String sql) {
@@ -75,12 +104,15 @@ public class SqlExecutor {
     }
 
     String validateAndTransform(String sql) {
-        Select select = parseAllowedSelect(sql);
-        String safeSql = trimTrailingSemicolon(sql);
+        return applyRowLimit(parseAllowedSelect(sql));
+    }
 
-        //  inject LIMIT if absent, to prevent full table scans
+    private String applyRowLimit(Select select) {
+        String safeSql = select.toString();
+
+        // 多取一行判断是否截断；保留查询原有的 LIMIT/FETCH 语义。
         if (!hasLimit(select)) {
-            return "SELECT * FROM (" + safeSql + ") AS _sandbox LIMIT " + MAX_ROWS;
+            return "SELECT * FROM (" + safeSql + ") AS _sandbox LIMIT " + MAX_PROBE_ROWS;
         }
         return safeSql;
     }
@@ -164,7 +196,8 @@ public class SqlExecutor {
                         sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
 
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
-            stmt.setFetchSize(MAX_ROWS);
+            stmt.setMaxRows(MAX_PROBE_ROWS);
+            stmt.setFetchSize(MAX_PROBE_ROWS);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 return mapResultSet(rs);
@@ -185,17 +218,16 @@ public class SqlExecutor {
         boolean truncated = false;
 
         while (rs.next()) {
+            if (rowCount == MAX_ROWS) {
+                truncated = true;
+                break;
+            }
             Map<String, Object> row = new LinkedHashMap<>();
             for (int i = 1; i <= columnCount; i++) {
                 row.put(metaData.getColumnLabel(i), rs.getObject(i));
             }
             builder.addRow(row);
             rowCount++;
-
-            if (rowCount >= MAX_ROWS) {
-                truncated = true;
-                break;
-            }
         }
 
         builder.totalRows(rowCount).truncated(truncated);

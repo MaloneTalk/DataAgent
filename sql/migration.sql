@@ -1,0 +1,889 @@
+-- MySQL 5.7: upgrade existing metadata, semantic references and role permissions.
+-- Back up the database and stop writes before running this single migration script.
+-- ALTER TABLE commits implicitly. Every schema step is conditional so an interrupted
+-- migration can be rerun after the cause of failure has been fixed.
+
+DROP PROCEDURE IF EXISTS `migrate_primary_key_relations`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_primary_key_relations`()
+BEGIN
+    DECLARE old_column_name INT DEFAULT 0;
+    DECLARE old_source_name INT DEFAULT 0;
+    DECLARE old_target_name INT DEFAULT 0;
+    DECLARE has_column_id INT DEFAULT 0;
+    DECLARE has_source_id INT DEFAULT 0;
+    DECLARE has_target_id INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO old_column_name FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info' AND COLUMN_NAME = 'table_name';
+    SELECT COUNT(*) INTO old_source_name FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+      AND COLUMN_NAME = 'source_table_name';
+    SELECT COUNT(*) INTO old_target_name FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+      AND COLUMN_NAME = 'target_table_name';
+    SELECT COUNT(*) INTO has_column_id FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info' AND COLUMN_NAME = 'table_id';
+    SELECT COUNT(*) INTO has_source_id FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+      AND COLUMN_NAME = 'source_table_id';
+    SELECT COUNT(*) INTO has_target_id FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+      AND COLUMN_NAME = 'target_table_id';
+
+    IF (old_column_name = 0 AND has_column_id = 0)
+       OR (old_source_name = 0 AND has_source_id = 0)
+       OR (old_target_name = 0 AND has_target_id = 0) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Unsupported schema: table name and ID are both absent';
+    END IF;
+
+    -- Validate legacy data before the first ALTER TABLE. Never guess which duplicate
+    -- table should own a column or relation.
+    IF EXISTS (
+        SELECT 1 FROM `table_info`
+        GROUP BY `datasource_id`, LOWER(`table_name`)
+        HAVING COUNT(*) > 1
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'table_info has duplicate datasource/table names';
+    END IF;
+    IF old_column_name = 1 THEN
+        IF EXISTS (
+            SELECT 1 FROM `column_info`
+            GROUP BY `datasource_id`, LOWER(`table_name`), LOWER(`column_name`)
+            HAVING COUNT(*) > 1
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'column_info has duplicate datasource/table/column names';
+        END IF;
+        IF EXISTS (
+            SELECT 1 FROM `column_info` c
+            LEFT JOIN `table_info` t ON t.`datasource_id` = c.`datasource_id`
+                AND LOWER(t.`table_name`) = LOWER(c.`table_name`)
+            WHERE t.`id` IS NULL
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'column_info has table names missing from table_info';
+        END IF;
+    END IF;
+    IF old_source_name = 1 THEN
+        IF EXISTS (
+            SELECT 1 FROM `logical_table_relation` r
+            LEFT JOIN `table_info` t ON t.`datasource_id` = r.`datasource_id`
+                AND LOWER(t.`table_name`) = LOWER(r.`source_table_name`)
+            WHERE t.`id` IS NULL
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'logical_table_relation has missing source tables';
+        END IF;
+    END IF;
+    IF old_target_name = 1 THEN
+        IF EXISTS (
+            SELECT 1 FROM `logical_table_relation` r
+            LEFT JOIN `table_info` t ON t.`datasource_id` = r.`datasource_id`
+                AND LOWER(t.`table_name`) = LOWER(r.`target_table_name`)
+            WHERE t.`id` IS NULL
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'logical_table_relation has missing target tables';
+        END IF;
+    END IF;
+
+    IF has_column_id = 0 THEN
+        ALTER TABLE `column_info`
+            ADD COLUMN `table_id` INT NULL COMMENT '关联表信息ID' AFTER `datasource_id`;
+    END IF;
+    IF has_source_id = 0 THEN
+        ALTER TABLE `logical_table_relation`
+            ADD COLUMN `source_table_id` INT NULL COMMENT '源表信息ID' AFTER `datasource_id`;
+    END IF;
+    IF has_target_id = 0 THEN
+        ALTER TABLE `logical_table_relation`
+            ADD COLUMN `target_table_id` INT NULL COMMENT '目标表信息ID'
+            AFTER `source_column_names_json`;
+    END IF;
+
+    IF old_column_name = 1 THEN
+        UPDATE `column_info` c
+        INNER JOIN `table_info` t ON t.`datasource_id` = c.`datasource_id`
+            AND LOWER(t.`table_name`) = LOWER(c.`table_name`)
+        SET c.`table_id` = t.`id`;
+    END IF;
+    IF old_source_name = 1 THEN
+        UPDATE `logical_table_relation` r
+        INNER JOIN `table_info` t ON t.`datasource_id` = r.`datasource_id`
+            AND LOWER(t.`table_name`) = LOWER(r.`source_table_name`)
+        SET r.`source_table_id` = t.`id`;
+    END IF;
+    IF old_target_name = 1 THEN
+        UPDATE `logical_table_relation` r
+        INNER JOIN `table_info` t ON t.`datasource_id` = r.`datasource_id`
+            AND LOWER(t.`table_name`) = LOWER(r.`target_table_name`)
+        SET r.`target_table_id` = t.`id`;
+    END IF;
+
+    -- Validate IDs even when resuming from a partially migrated schema.
+    IF EXISTS (
+        SELECT 1 FROM `column_info` c
+        LEFT JOIN `table_info` t ON t.`id` = c.`table_id`
+            AND t.`datasource_id` = c.`datasource_id`
+        WHERE t.`id` IS NULL
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'column_info has invalid table_id references';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM `column_info`
+        GROUP BY `table_id`, LOWER(`column_name`)
+        HAVING COUNT(*) > 1
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'column_info has duplicate table_id/column names';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM `logical_table_relation` r
+        LEFT JOIN `table_info` s ON s.`id` = r.`source_table_id`
+            AND s.`datasource_id` = r.`datasource_id`
+        LEFT JOIN `table_info` t ON t.`id` = r.`target_table_id`
+            AND t.`datasource_id` = r.`datasource_id`
+        WHERE s.`id` IS NULL OR t.`id` IS NULL
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'logical_table_relation has invalid table_id references';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info'
+          AND COLUMN_NAME = 'table_id' AND IS_NULLABLE = 'YES'
+    ) THEN
+        ALTER TABLE `column_info`
+            MODIFY COLUMN `table_id` INT NOT NULL COMMENT '关联表信息ID';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info'
+          AND INDEX_NAME = 'uk_table_column'
+    ) THEN
+        ALTER TABLE `column_info`
+            ADD UNIQUE KEY `uk_table_column` (`table_id`, `column_name`);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info'
+          AND INDEX_NAME = 'idx_datasource_id'
+    ) THEN
+        ALTER TABLE `column_info` ADD KEY `idx_datasource_id` (`datasource_id`);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
+        WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info'
+          AND CONSTRAINT_NAME = 'fk_column_info_table'
+    ) THEN
+        ALTER TABLE `column_info`
+            ADD CONSTRAINT `fk_column_info_table`
+            FOREIGN KEY (`table_id`) REFERENCES `table_info` (`id`)
+            ON DELETE CASCADE ON UPDATE RESTRICT;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info'
+          AND INDEX_NAME = 'uk_datasource_table_column'
+    ) THEN
+        ALTER TABLE `column_info` DROP INDEX `uk_datasource_table_column`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info'
+          AND INDEX_NAME = 'idx_datasource_table_visible'
+    ) THEN
+        ALTER TABLE `column_info` DROP INDEX `idx_datasource_table_visible`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'column_info'
+          AND INDEX_NAME = 'idx_datasource_table_visible_column'
+    ) THEN
+        ALTER TABLE `column_info` DROP INDEX `idx_datasource_table_visible_column`;
+    END IF;
+    IF old_column_name = 1 THEN
+        ALTER TABLE `column_info` DROP COLUMN `table_name`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND COLUMN_NAME = 'source_table_id' AND IS_NULLABLE = 'YES'
+    ) THEN
+        ALTER TABLE `logical_table_relation`
+            MODIFY COLUMN `source_table_id` INT NOT NULL COMMENT '源表信息ID';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND COLUMN_NAME = 'target_table_id' AND IS_NULLABLE = 'YES'
+    ) THEN
+        ALTER TABLE `logical_table_relation`
+            MODIFY COLUMN `target_table_id` INT NOT NULL COMMENT '目标表信息ID';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_source_signature'
+    ) THEN
+        ALTER TABLE `logical_table_relation` DROP INDEX `idx_relation_source_signature`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_source_enabled'
+    ) THEN
+        ALTER TABLE `logical_table_relation` DROP INDEX `idx_relation_source_enabled`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_source_target_id'
+    ) THEN
+        ALTER TABLE `logical_table_relation` DROP INDEX `idx_relation_source_target_id`;
+    END IF;
+    -- These two index names are reused; remove only the legacy definitions.
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_source_table' AND COLUMN_NAME = 'source_table_name'
+    ) THEN
+        ALTER TABLE `logical_table_relation` DROP INDEX `idx_relation_source_table`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_source_enabled_id'
+          AND COLUMN_NAME = 'source_table_name'
+    ) THEN
+        ALTER TABLE `logical_table_relation` DROP INDEX `idx_relation_source_enabled_id`;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_source_table'
+    ) THEN
+        ALTER TABLE `logical_table_relation`
+            ADD KEY `idx_relation_source_table` (`source_table_id`);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_target_table'
+    ) THEN
+        ALTER TABLE `logical_table_relation`
+            ADD KEY `idx_relation_target_table` (`target_table_id`);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND INDEX_NAME = 'idx_relation_source_enabled_id'
+    ) THEN
+        ALTER TABLE `logical_table_relation`
+            ADD KEY `idx_relation_source_enabled_id`
+                (`datasource_id`, `source_table_id`, `is_enabled`, `id`);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
+        WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND CONSTRAINT_NAME = 'fk_relation_source_table'
+    ) THEN
+        ALTER TABLE `logical_table_relation`
+            ADD CONSTRAINT `fk_relation_source_table`
+            FOREIGN KEY (`source_table_id`) REFERENCES `table_info` (`id`)
+            ON DELETE CASCADE ON UPDATE RESTRICT;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
+        WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND CONSTRAINT_NAME = 'fk_relation_target_table'
+    ) THEN
+        ALTER TABLE `logical_table_relation`
+            ADD CONSTRAINT `fk_relation_target_table`
+            FOREIGN KEY (`target_table_id`) REFERENCES `table_info` (`id`)
+            ON DELETE CASCADE ON UPDATE RESTRICT;
+    END IF;
+    IF old_source_name = 1 THEN
+        ALTER TABLE `logical_table_relation` DROP COLUMN `source_table_name`;
+    END IF;
+    IF old_target_name = 1 THEN
+        ALTER TABLE `logical_table_relation` DROP COLUMN `target_table_name`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND COLUMN_NAME = 'source_column_signature'
+    ) THEN
+        ALTER TABLE `logical_table_relation` DROP COLUMN `source_column_signature`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'logical_table_relation'
+          AND COLUMN_NAME = 'target_column_signature'
+    ) THEN
+        ALTER TABLE `logical_table_relation` DROP COLUMN `target_column_signature`;
+    END IF;
+END$$
+DELIMITER ;
+
+CALL `migrate_primary_key_relations`();
+DROP PROCEDURE `migrate_primary_key_relations`;
+
+-- Compatibility changes for older metadata schemas follow. They are independently
+-- conditional, so they can run after the primary-key migration and on reruns.
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'table_info'
+          AND COLUMN_NAME = 'data_granularity'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `table_info` ADD COLUMN `data_granularity` VARCHAR(500) DEFAULT NULL COMMENT ''数据粒度（一行代表的业务实体或事件）'' AFTER `table_description`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'column_info'
+          AND COLUMN_NAME = 'semantic_type'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `column_info` ADD COLUMN `semantic_type` VARCHAR(32) DEFAULT NULL COMMENT ''语义类型：IDENTIFIER/DIMENSION/MEASURE/TIME/LOCATION'' AFTER `column_description`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND COLUMN_NAME = 'is_super_admin'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `sys_user` ADD COLUMN `is_super_admin` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''是否超级管理员:0否,1是'' AFTER `role_id`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- sys_user 审计字段：creator_id / create_time / updater_id / update_time / is_deleted
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND COLUMN_NAME = 'creator_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `sys_user` ADD COLUMN `creator_id` BIGINT DEFAULT NULL COMMENT ''创建人ID'' AFTER `status`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND COLUMN_NAME = 'create_time'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `sys_user` ADD COLUMN `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT ''创建时间'' AFTER `creator_id`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND COLUMN_NAME = 'updater_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `sys_user` ADD COLUMN `updater_id` BIGINT DEFAULT NULL COMMENT ''修改人ID'' AFTER `create_time`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND COLUMN_NAME = 'update_time'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `sys_user` ADD COLUMN `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT ''更新时间'' AFTER `updater_id`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND COLUMN_NAME = 'is_deleted'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `sys_user` ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''逻辑删除标记:0-未删除,1-已删除'' AFTER `update_time`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- 逻辑删除后允许同身份源用户重建：唯一键改为普通索引
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'sys_user'
+          AND INDEX_NAME = 'uk_idp'
+    ),
+    'ALTER TABLE `sys_user` DROP INDEX `uk_idp`, ADD KEY `idx_idp` (`idp_type`, `idp_user_id`)',
+    IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'sys_user'
+              AND INDEX_NAME = 'idx_idp'
+        ),
+        'SELECT 1',
+        'ALTER TABLE `sys_user` ADD KEY `idx_idp` (`idp_type`, `idp_user_id`)'
+    )
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- metric_info 业务属性：保留旧表达式及数值，不猜测单位、币种和结果类型。
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'calculation_type'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `calculation_type` VARCHAR(32) NOT NULL DEFAULT ''EXPRESSION'' COMMENT ''计算方式:EXPRESSION/DISTINCT_COUNT/RATIO/SNAPSHOT'' AFTER `time_field`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'value_type'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `value_type` VARCHAR(16) DEFAULT NULL COMMENT ''结果类型:NUMBER/MONEY/PERCENT,NULL表示未配置'' AFTER `calculation_type`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'unit'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `unit` VARCHAR(32) DEFAULT NULL COMMENT ''标准结果单位,如元/人/次,百分比比值为1'' AFTER `value_type`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'result_multiplier'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `result_multiplier` DECIMAL(24,12) NOT NULL DEFAULT 1 COMMENT ''标准结果=度量表达式原始结果乘以此倍率'' AFTER `unit`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'currency_code'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `currency_code` VARCHAR(3) DEFAULT NULL COMMENT ''金额币种代码,如CNY/USD'' AFTER `result_multiplier`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- metric_info 审计字段：creator_id / updater_id
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'creator_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `creator_id` BIGINT DEFAULT NULL COMMENT ''创建人ID'' AFTER `description`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'metric_info'
+          AND COLUMN_NAME = 'updater_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `metric_info` ADD COLUMN `updater_id` BIGINT DEFAULT NULL COMMENT ''修改人ID'' AFTER `create_time`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- 逻辑删除后保留行以便审计：同 key 软删后允许重新创建，唯一键改为普通索引
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'metric_info'
+          AND INDEX_NAME = 'uk_datasource_metric_key'
+    ),
+    'ALTER TABLE `metric_info` DROP INDEX `uk_datasource_metric_key`, ADD KEY `idx_datasource_metric_key` (`datasource_id`, `metric_key`)',
+    IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'metric_info'
+              AND INDEX_NAME = 'idx_datasource_metric_key'
+        ),
+        'SELECT 1',
+        'ALTER TABLE `metric_info` ADD KEY `idx_datasource_metric_key` (`datasource_id`, `metric_key`)'
+    )
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- 回答数据证据快照
+CREATE TABLE IF NOT EXISTS `answer_provenance` (
+    `answer_id` VARCHAR(255) NOT NULL COMMENT '初始用户消息ID',
+    `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `status` VARCHAR(16) NOT NULL COMMENT '记录状态：COMPLETE/PARTIAL',
+    `datasources_json` JSON NOT NULL COMMENT '使用的数据源',
+    `sql_executions_json` JSON NOT NULL COMMENT '执行的SQL',
+    `metric_references_json` JSON NOT NULL COMMENT '引用的指标口径',
+    `python_executions_json` JSON NOT NULL COMMENT '执行的Python代码',
+    `tables_json` JSON NOT NULL COMMENT '表和字段血缘',
+    `warnings_json` JSON NOT NULL COMMENT '溯源警告',
+    PRIMARY KEY (`answer_id`),
+    KEY `idx_answer_provenance_session` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='回答数据证据';
+
+-- Role permissions: no automatic grants; super administrators configure existing roles.
+CREATE TABLE IF NOT EXISTS sys_role_permission (
+    role_id INT NOT NULL,
+    permission_code VARCHAR(100) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_id, permission_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色功能权限';
+
+-- Resolve duplicate owners before adding the constraint; never choose an owner automatically.
+-- SELECT session_id, COUNT(*) FROM user_session GROUP BY session_id HAVING COUNT(*) > 1;
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_session'
+          AND INDEX_NAME = 'uk_session_id' AND NON_UNIQUE = 0
+    ),
+    'SELECT 1',
+    'ALTER TABLE `user_session` ADD UNIQUE KEY `uk_session_id` (`session_id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- Datasource audit fields and logical deletion; existing rows remain visible.
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datasource'
+          AND COLUMN_NAME = 'updater_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `datasource` ADD COLUMN `updater_id` BIGINT(20) DEFAULT NULL COMMENT ''更新者ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datasource'
+          AND COLUMN_NAME = 'is_deleted'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `datasource` ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''是否已删除'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- CSV source type; legacy JDBC sources keep their existing behavior.
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datasource' AND COLUMN_NAME = 'source_type'),
+    'SELECT 1',
+    'ALTER TABLE `datasource` ADD COLUMN `source_type` VARCHAR(20) NOT NULL DEFAULT ''DATABASE'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- CSV import registry (MySQL 5.7). Physical CSV tables live in a separate database.
+CREATE TABLE IF NOT EXISTS `csv_import` (
+    `id` CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    `datasource_id` INT NOT NULL,
+    `display_name` VARCHAR(200) NOT NULL,
+    `description` VARCHAR(400) DEFAULT NULL,
+    `original_filename` VARCHAR(255) NOT NULL,
+    `file_sha256` CHAR(64) NOT NULL,
+    `file_size` BIGINT NOT NULL,
+    `physical_table_name` VARCHAR(64) NOT NULL,
+    `attempt_id` CHAR(32) NOT NULL DEFAULT '' COMMENT '执行批次标识',
+    `submitted_by` INT DEFAULT NULL COMMENT '本次提交执行的用户ID',
+    `parse_options_json` JSON NOT NULL,
+    `columns_json` JSON NOT NULL,
+    `status` VARCHAR(20) NOT NULL,
+    `processed_rows` BIGINT NOT NULL DEFAULT 0,
+    `row_count` BIGINT NOT NULL DEFAULT 0,
+    `error_message` VARCHAR(500) DEFAULT NULL,
+    `expires_at` DATETIME DEFAULT NULL,
+    `creator_id` BIGINT DEFAULT NULL,
+    `updater_id` BIGINT DEFAULT NULL,
+    `create_time` DATETIME DEFAULT NULL,
+    `update_time` DATETIME DEFAULT NULL,
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_csv_datasource_table` (`datasource_id`, `physical_table_name`),
+    KEY `idx_csv_status_time` (`status`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='CSV 导入任务与托管表';
+
+-- Upgrade environments that already enabled CSV imports. Stop older backend instances first.
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'csv_import' AND COLUMN_NAME = 'attempt_id'),
+    'SELECT 1',
+    'ALTER TABLE `csv_import` ADD COLUMN `attempt_id` CHAR(32) NOT NULL DEFAULT '''' COMMENT ''执行批次标识'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'csv_import' AND COLUMN_NAME = 'submitted_by'),
+    'SELECT 1',
+    'ALTER TABLE `csv_import` ADD COLUMN `submitted_by` INT DEFAULT NULL COMMENT ''本次提交执行的用户ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+UPDATE csv_import SET submitted_by = creator_id WHERE submitted_by IS NULL;
+
+-- 会话数据源范围使用逻辑删除和 MP 审计字段；id 作为单列主键，业务列只保留普通索引。
+CREATE TABLE IF NOT EXISTS `session_datasource` (
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `session_id`    VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `datasource_id` INT          NOT NULL COMMENT '本会话允许/选择的数据源ID',
+    `creator_id`    BIGINT       DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME     DEFAULT NULL COMMENT '创建时间',
+    `updater_id`    BIGINT       DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME     DEFAULT NULL COMMENT '更新时间',
+    `is_deleted`    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    KEY `idx_session_datasource` (`session_id`, `datasource_id`),
+    KEY `idx_datasource_id` (`datasource_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话允许使用的数据源列表';
+
+-- 为 MyBatis-Plus 提供单列 @TableId；兼容旧 session_id 主键和 (session_id, datasource_id) 复合主键。
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `id` BIGINT NOT NULL AUTO_INCREMENT FIRST, ADD UNIQUE KEY `uk_session_datasource_id` (`id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'PRIMARY' AND COLUMN_NAME = 'session_id'
+    ),
+    'ALTER TABLE `session_datasource` DROP PRIMARY KEY',
+    'SELECT 1'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'PRIMARY'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD PRIMARY KEY (`id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'uk_session_datasource_id'
+    ),
+    'ALTER TABLE `session_datasource` DROP INDEX `uk_session_datasource_id`',
+    'SELECT 1'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'idx_session_datasource'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD KEY `idx_session_datasource` (`session_id`, `datasource_id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'creator_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `creator_id` BIGINT DEFAULT NULL COMMENT ''创建人ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'updater_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `updater_id` BIGINT DEFAULT NULL COMMENT ''修改人ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'is_deleted'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''逻辑删除标记:0-未删除,1-已删除'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- 普通视图与表共用语义元数据和授权；历史对象在下次同步时刷新实际类型。
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'table_info'
+          AND COLUMN_NAME = 'object_type'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `table_info` ADD COLUMN `object_type` VARCHAR(16) NOT NULL DEFAULT ''TABLE'' COMMENT ''数据库对象类型：TABLE/VIEW'' AFTER `table_name`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- 用户个人访问令牌（PAT）：只保存哈希，明文仅在创建时返回一次。
+CREATE TABLE IF NOT EXISTS `user_pat` (
+    `id`            BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_id`       INT NOT NULL COMMENT '用户ID，关联 sys_user.id',
+    `name`          VARCHAR(64) NOT NULL COMMENT '令牌名称',
+    `token_prefix`  VARCHAR(16) NOT NULL COMMENT '令牌前缀，用于列表展示',
+    `token_hash`    CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT 'SHA-256 十六进制哈希',
+    `expires_at`    DATETIME NOT NULL COMMENT '过期时间',
+    `last_used_at`  DATETIME NULL COMMENT '最后使用时间',
+    `revoked_at`    DATETIME NULL COMMENT '吊销时间；NULL 表示未吊销',
+    `creator_id`    BIGINT DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater_id`    BIGINT DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted`    TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_pat_token_hash` (`token_hash`),
+    KEY `idx_user_pat_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户个人访问令牌';

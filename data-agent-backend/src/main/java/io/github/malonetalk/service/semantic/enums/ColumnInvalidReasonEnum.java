@@ -24,7 +24,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum ColumnInvalidReasonEnum {
     PHYSICAL_COLUMN_NOT_FOUND("物理列不存在"),
-    COLUMN_HIDDEN("列已隐藏"),
-    COLUMN_UNAVAILABLE("列不可用");
+    COLUMN_HIDDEN("列已隐藏");
     private final String reason;
 }

@@ -20,8 +20,8 @@ import { createPinia } from 'pinia';
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
-import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import router from './router';
+import { permission } from './directives/permission';
 import App from './App.vue';
 import { useUserStore } from './stores/user';
 import './styles/theme.css';
@@ -29,15 +29,30 @@ import './styles/main.css';
 
 const app = createApp(App);
 
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component);
-}
-
 const pinia = createPinia();
 app.use(pinia);
+app.directive('permission', permission);
 // 启动时从 localStorage 恢复登录态（路由守卫据此决定是否放行）。
 useUserStore(pinia).restore();
 app.use(router);
 app.use(ElementPlus, { locale: zhCn });
+
+window.addEventListener('permissions-changed', async () => {
+  const store = useUserStore(pinia);
+  if (store.isLoggedIn) {
+    try {
+      await store.refreshPermissions();
+      const current = router.currentRoute.value;
+      await router.replace({
+        path: current.path,
+        query: current.query,
+        hash: current.hash,
+        force: true,
+      });
+    } catch {
+      /* request handler displays errors */
+    }
+  }
+});
 
 app.mount('#app');

@@ -17,11 +17,15 @@
  */
 package io.github.malonetalk.dto;
 
-/** 会话摘要；datasourceId/datasourceName 为绑定的数据源信息，未绑定为 null。 */
+import java.util.List;
+
+/** 会话摘要；datasources 为本会话允许/选择的数据源。 */
 public record SessionInfo(
         String sessionId,
         String title,
         String createdAt,
         String lastActiveAt,
-        Integer datasourceId,
-        String datasourceName) {}
+        List<Datasource> datasources) {
+
+    public record Datasource(Integer id, String name) {}
+}

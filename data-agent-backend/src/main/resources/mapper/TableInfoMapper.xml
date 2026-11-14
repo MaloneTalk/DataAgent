@@ -5,6 +5,7 @@
     <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.TableInfo">
         <id column="id" property="id"/>
         <result column="table_name" property="tableName"/>
+        <result column="object_type" property="objectType"/>
         <result column="physical_table_description" property="physicalTableDescription"/>
         <result column="table_description" property="tableDescription"/>
         <result column="data_granularity" property="dataGranularity"/>
@@ -16,40 +17,26 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <sql id="DeduplicatedTables">
-        SELECT t.*
-        FROM table_info t
-        WHERE t.id = (
-            SELECT t2.id
-            FROM table_info t2
-            WHERE t2.datasource_id = t.datasource_id
-                AND LOWER(t2.table_name) = LOWER(t.table_name)
-            ORDER BY
-                CASE
-                    WHEN t2.table_description IS NOT NULL AND t2.table_description &lt;&gt; '' THEN 0
-                    WHEN t2.is_visible = 0 THEN 0
-                    ELSE 1
-                END ASC,
-                t2.update_time DESC,
-                t2.create_time DESC,
-                t2.id DESC
-            LIMIT 1
-        )
-    </sql>
-
     <select id="selectByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}
         ORDER BY table_name ASC, id ASC
     </select>
 
+    <select id="selectByDatasourceIdForUpdate" resultMap="BaseResultMap">
+        SELECT * FROM table_info
+        WHERE datasource_id = #{datasourceId}
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+
     <select id="selectPageByDatasourceId" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{query.datasourceId}
+        <if test="roleId != null">
+            AND EXISTS (SELECT 1 FROM role_table_permission rp WHERE rp.role_id = #{roleId}
+                AND rp.datasource_id = table_info.datasource_id AND LOWER(rp.table_name) = LOWER(table_info.table_name))
+        </if>
         <if test="query.keyword != null and query.keyword != ''">
             AND LOWER(table_name) LIKE CONCAT('%', LOWER(#{query.keyword}), '%')
         </if>
@@ -64,18 +51,14 @@
     </select>
 
     <select id="selectByDatasourceIdAndTableName" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) = LOWER(#{tableName})
         LIMIT 1
     </select>
 
     <select id="selectByDatasourceIdAndTableNames" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT * FROM table_info
         WHERE datasource_id = #{datasourceId}
           AND LOWER(table_name) IN
         <foreach collection="tableNames" item="tableName" open="(" separator="," close=")">
@@ -86,12 +69,12 @@
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO table_info (
-            table_name, physical_table_description, table_description, data_granularity, domain,
+            table_name, object_type, physical_table_description, table_description, data_granularity, domain,
             datasource_id,
             is_visible, physical_status,
             create_time, update_time
         ) VALUES (
-            #{tableName}, #{physicalTableDescription}, #{tableDescription}, #{dataGranularity},
+            #{tableName}, #{objectType}, #{physicalTableDescription}, #{tableDescription}, #{dataGranularity},
             #{domain}, #{datasourceId}, COALESCE(#{isVisible}, 1),
             COALESCE(#{physicalStatus}, 1),
             COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
@@ -100,18 +83,19 @@
 
     <insert id="batchUpsertPhysicalCache">
         INSERT INTO table_info (
-            table_name, physical_table_description, table_description, domain, datasource_id,
+            table_name, object_type, physical_table_description, table_description, domain, datasource_id,
             is_visible, physical_status, create_time, update_time
         ) VALUES
         <foreach collection="tables" item="table" separator=",">
             (
-                #{table.tableName}, #{table.physicalTableDescription}, #{table.tableDescription},
+                #{table.tableName}, #{table.objectType}, #{table.physicalTableDescription}, #{table.tableDescription},
                 #{table.domain}, #{table.datasourceId}, COALESCE(#{table.isVisible}, 1),
                 COALESCE(#{table.physicalStatus}, 1),
                 COALESCE(#{table.createTime}, NOW()), COALESCE(#{table.updateTime}, NOW())
             )
         </foreach>
         ON DUPLICATE KEY UPDATE
+            object_type = VALUES(object_type),
             physical_table_description = VALUES(physical_table_description),
             table_description = COALESCE(NULLIF(table_description, ''), VALUES(table_description)),
             physical_status = VALUES(physical_status),
@@ -121,7 +105,6 @@
     <update id="updateSemanticFields" parameterType="io.github.malonetalk.entity.TableInfo">
         UPDATE table_info
         <set>
-            <if test="tableName != null">table_name = #{tableName},</if>
             table_description = #{tableDescription},
             data_granularity = #{dataGranularity},
             domain = #{domain},
@@ -135,12 +118,19 @@
         UPDATE table_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
+            <if test="objectType != null">object_type = #{objectType},</if>
             physical_table_description = #{physicalTableDescription},
-            table_description = COALESCE(NULLIF(table_description, ''), #{tableDescription}),
             <if test="physicalStatus != null">physical_status = #{physicalStatus},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </set>
         WHERE id = #{id}
+    </update>
+
+    <update id="fillSemanticDescriptionIfBlank">
+        UPDATE table_info
+        SET table_description = #{description}
+        WHERE id = #{id}
+          AND (table_description IS NULL OR table_description = '')
     </update>
 
     <update id="markPhysicalMissingByDatasourceIdAndTableNames">
@@ -155,32 +145,52 @@
           AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
     </update>
 
-    <select id="selectByDatasourceIdAndDomains" resultMap="BaseResultMap">
-        SELECT * FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
-        WHERE datasource_id = #{datasourceId}
-          AND domain IN
-        <foreach collection="domains" item="domain" open="(" separator="," close=")">
-            #{domain}
+    <update id="markPhysicalMissingByIds">
+        UPDATE table_info
+        SET physical_status = 0,
+            update_time = #{now}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
         </foreach>
-        ORDER BY table_name ASC, id ASC
-    </select>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
+    </update>
 
     <select id="countByDomain" resultType="int">
-        SELECT COUNT(1) FROM (
-            <include refid="DeduplicatedTables"/>
-        ) table_info
+        SELECT COUNT(1) FROM table_info
         WHERE LOWER(domain) = LOWER(#{domain})
     </select>
 
-    <delete id="deleteByDatasourceIdAndIds">
+    <update id="updateDomain">
+        UPDATE table_info
+        SET domain = #{newDomain},
+            update_time = #{now}
+        WHERE LOWER(domain) = LOWER(#{oldDomain})
+    </update>
+
+    <update id="resetSemanticFieldsByIds">
+        UPDATE table_info
+        SET table_description = physical_table_description,
+            data_granularity = NULL,
+            domain = 'default',
+            is_visible = 1,
+            update_time = NOW()
+        WHERE datasource_id = #{datasourceId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND (physical_status IS NULL OR physical_status &lt;&gt; 0)
+    </update>
+
+    <delete id="deletePhysicalMissingByIds">
         DELETE FROM table_info
         WHERE datasource_id = #{datasourceId}
           AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+          AND physical_status = 0
     </delete>
 
 </mapper>

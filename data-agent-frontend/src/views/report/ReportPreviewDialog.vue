@@ -39,12 +39,9 @@
   }
 
   function handleExport() {
-    const html = buildReportHtml(props.title, props.content);
-    downloadHtml(`${props.title || 'report'}.html`, html);
+    downloadHtml(`${props.title || 'report'}.html`, iframeSrcdoc.value);
     ElMessage.success('导出成功');
   }
-
-  defineExpose({});
 </script>
 
 <template>

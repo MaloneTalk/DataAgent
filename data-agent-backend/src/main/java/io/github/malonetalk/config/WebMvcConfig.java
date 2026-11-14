@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.config;
 
+import io.github.malonetalk.interceptor.AgentAuthInterceptor;
 import io.github.malonetalk.interceptor.AuthInterceptor;
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Configuration;
@@ -29,11 +30,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
+    private final AgentAuthInterceptor agentAuthInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/api/auth/login", "/error");
+        registry.addInterceptor(agentAuthInterceptor).addPathPatterns("/agent/**");
     }
 }

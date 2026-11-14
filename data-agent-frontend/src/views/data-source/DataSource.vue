@@ -17,25 +17,27 @@
 
 <script setup lang="ts">
   import { ref, reactive, onMounted, computed } from 'vue';
+  import { useRouter } from 'vue-router';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
-  import type { DatasourceResponse } from '@/api/datasource';
+  import {
+    createDatasource,
+    updateDatasource,
+    deleteDatasource,
+    activateDatasource,
+    deactivateDatasource,
+    getDatasourceList,
+    type DatasourceResponse,
+  } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
+  import CsvImportPanel from './components/CsvImportPanel.vue';
 
-  const {
-    list: dataSourceList,
-    loading,
-    error,
-    fetchList,
-    addDatasource,
-    editDatasource,
-    removeDatasource,
-    activate,
-    deactivate,
-  } = useDatasource();
+  const router = useRouter();
+  const { list: dataSourceList, loading, error, fetchList } = useDatasource(getDatasourceList);
 
   const dialogVisible = ref(false);
+  const csvVisible = ref(false);
   const submitLoading = ref(false);
   const isEdit = ref(false);
   const formRef = ref<FormInstance>();
@@ -138,7 +140,8 @@
         cancelButtonText: '取消',
         type: 'warning',
       });
-      await removeDatasource(row.id);
+      await deleteDatasource(row.id);
+      await fetchList();
       ElMessage.success('删除成功');
     } catch {
       // 用户取消或错误已由拦截器处理
@@ -147,7 +150,8 @@
 
   const handleActivate = async (row: DatasourceResponse) => {
     try {
-      await activate(row.id);
+      await activateDatasource(row.id);
+      await fetchList();
       ElMessage.success('激活成功');
     } catch {
       // 错误已由 request 拦截器统一处理
@@ -156,7 +160,8 @@
 
   const handleDeactivate = async (row: DatasourceResponse) => {
     try {
-      await deactivate(row.id);
+      await deactivateDatasource(row.id);
+      await fetchList();
       ElMessage.success('禁用成功');
     } catch {
       // 错误已由 request 拦截器统一处理
@@ -172,10 +177,12 @@
     submitLoading.value = true;
     try {
       if (isEdit.value) {
-        await editDatasource(form);
+        await updateDatasource(form);
+        await fetchList();
         ElMessage.success('编辑成功');
       } else {
-        await addDatasource(form);
+        await createDatasource(form);
+        await fetchList();
         ElMessage.success('新增成功');
       }
       dialogVisible.value = false;
@@ -192,10 +199,15 @@
 </script>
 
 <template>
-  <div class="data-source">
+  <div>
     <div class="page-header">
       <h2 class="page-title">数据源管理</h2>
-      <el-button type="primary" @click="handleAdd">新增数据源</el-button>
+      <div>
+        <el-button @click="csvVisible = true">CSV 分析空间</el-button>
+        <el-button v-permission="'data:datasource:create'" type="primary" @click="handleAdd">
+          新增数据源
+        </el-button>
+      </div>
     </div>
     <el-table v-loading="loading" :data="dataSourceList" style="width: 100%">
       <el-table-column type="expand">
@@ -225,7 +237,11 @@
         </template>
       </el-table-column>
       <el-table-column prop="name" label="名称" />
-      <el-table-column prop="type" label="类型" />
+      <el-table-column label="类型">
+        <template #default="{ row }">
+          {{ row.sourceType === 'CSV' ? 'CSV（MySQL）' : row.type }}
+        </template>
+      </el-table-column>
       <el-table-column prop="host" label="主机地址" />
       <el-table-column prop="status" label="激活状态">
         <template #default="{ row }">
@@ -236,8 +252,25 @@
       </el-table-column>
       <el-table-column label="操作" width="300">
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
           <el-button
+            v-permission="'semantic:table:read'"
+            link
+            type="primary"
+            @click="router.push({ path: '/semantic/table', query: { datasourceId: row.id } })"
+          >
+            表语义
+          </el-button>
+          <el-button
+            v-permission="'data:datasource:update'"
+            v-if="row.sourceType !== 'CSV'"
+            link
+            type="primary"
+            @click="handleEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-permission="'data:datasource:set-status'"
             v-if="row.status !== 'ACTIVE'"
             link
             type="success"
@@ -245,8 +278,24 @@
           >
             激活
           </el-button>
-          <el-button v-else link type="warning" @click="handleDeactivate(row)">禁用</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button
+            v-permission="'data:datasource:set-status'"
+            v-else
+            link
+            type="warning"
+            @click="handleDeactivate(row)"
+          >
+            禁用
+          </el-button>
+          <el-button
+            v-permission="'data:datasource:delete'"
+            v-if="row.sourceType !== 'CSV'"
+            link
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -255,6 +304,8 @@
       <el-button type="primary" link @click="fetchList">点击重试</el-button>
     </div>
   </div>
+
+  <CsvImportPanel v-model="csvVisible" />
 
   <el-dialog
     v-model="dialogVisible"
@@ -326,24 +377,6 @@
 </template>
 
 <style scoped>
-  .data-source {
-    padding: 0;
-  }
-
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-
-  .page-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--app-text-primary);
-    margin: 0;
-  }
-
   .error-tip {
     text-align: center;
     padding: 16px 0;

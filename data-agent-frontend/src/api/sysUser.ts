@@ -17,13 +17,14 @@
  */
 
 import request from './request';
+import type { ApiResponse } from './request';
 import type { BooleanVo, PageResponse } from './types';
 
 export interface UserResponse {
   id: number;
   username: string;
   displayName: string;
-  roleId: number; // 1=管理员 0=普通用户
+  roleId: number; // 0=未分配角色
   superAdmin: boolean; // 是否超级管理员
   status: number; // 1=启用 0=禁用
   createTime: string;
@@ -38,7 +39,6 @@ export interface UserCreateRequest {
 
 export interface UserUpdateRequest {
   displayName: string;
-  roleId: number | null;
 }
 
 /** 对应后端 BaseBatchQueryDto。 */
@@ -48,34 +48,36 @@ export interface UserQueryParams {
   sortOrder?: 'asc' | 'desc';
 }
 
-type ApiResult<T> = { code: number; message: string; data: T };
-
 export function listUsers(params?: UserQueryParams) {
   return request
-    .get<ApiResult<PageResponse<UserResponse>>>('/sys/user', { params })
+    .get<ApiResponse<PageResponse<UserResponse>>>('/sys/user', { params })
     .then(res => res.data.data);
 }
 
 export function createUser(payload: UserCreateRequest) {
-  return request.post<ApiResult<UserResponse>>('/sys/user', payload).then(res => res.data.data);
+  return request.post<ApiResponse<UserResponse>>('/sys/user', payload).then(res => res.data.data);
 }
 
 export function updateUser(id: number, payload: UserUpdateRequest) {
   return request
-    .put<ApiResult<UserResponse>>(`/sys/user/${id}`, payload)
+    .put<ApiResponse<UserResponse>>(`/sys/user/${id}`, payload)
     .then(res => res.data.data);
 }
 
 export function resetPassword(id: number, newPassword: string) {
   return request
-    .put<ApiResult<BooleanVo>>(`/sys/user/${id}/password`, { newPassword })
+    .put<ApiResponse<BooleanVo>>(`/sys/user/${id}/password`, { newPassword })
     .then(res => res.data.data);
 }
 
 export function updateStatus(id: number, status: number) {
   return request
-    .put<ApiResult<BooleanVo>>(`/sys/user/${id}/status`, null, {
+    .put<ApiResponse<BooleanVo>>(`/sys/user/${id}/status`, null, {
       params: { status },
     })
     .then(res => res.data.data);
+}
+
+export function assignRole(id: number, roleId: number) {
+  return request.put(`/sys/user/${id}/role`, { roleId });
 }

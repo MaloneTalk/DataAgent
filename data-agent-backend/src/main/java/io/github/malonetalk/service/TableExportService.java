@@ -21,11 +21,13 @@ import io.github.malonetalk.dto.TableExportPageQuery;
 import io.github.malonetalk.dto.TableExportResource;
 import io.github.malonetalk.dto.TableExportResponse;
 import io.github.malonetalk.dto.pagination.PageResponse;
-import io.github.malonetalk.entity.Datasource;
+import io.github.malonetalk.model.bo.TableExportResultBo;
+import io.github.malonetalk.model.po.DatasourcePo;
 
 public interface TableExportService {
 
-    TableExportResponse create(String sessionId, Datasource datasource, String title, String sql);
+    TableExportResultBo create(
+            String sessionId, DatasourcePo datasource, String title, String sql, Integer userId);
 
     PageResponse<TableExportResponse> getExportPage(TableExportPageQuery query, Integer userId);
 

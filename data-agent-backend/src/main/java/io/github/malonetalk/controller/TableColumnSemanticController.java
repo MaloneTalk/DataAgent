@@ -24,6 +24,7 @@ import io.github.malonetalk.dto.semantic.BatchResetColumnSemanticRequest;
 import io.github.malonetalk.dto.semantic.ColumnSemanticPageQuery;
 import io.github.malonetalk.dto.semantic.ColumnSemanticResponse;
 import io.github.malonetalk.dto.semantic.ColumnSemanticUpdateRequest;
+import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.service.semantic.column.ColumnSemanticService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -40,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequirePermission
 @RestController
 @Validated
 @RequestMapping("/api/semantic/tables/columns/{tableName}")
@@ -50,6 +50,7 @@ public class TableColumnSemanticController {
     private final ColumnSemanticService columnSemanticService;
 
     @GetMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_COLUMN_READ)
     public Result<PageResponse<ColumnSemanticResponse>> findAllColumns(
             @PathVariable @NotBlank String tableName, @Valid ColumnSemanticPageQuery query) {
         return Result.success(
@@ -61,6 +62,7 @@ public class TableColumnSemanticController {
     }
 
     @PutMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_COLUMN_UPDATE)
     public Result<Boolean> updateColumnSemantic(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody ColumnSemanticUpdateRequest request) {
@@ -69,6 +71,7 @@ public class TableColumnSemanticController {
     }
 
     @DeleteMapping
+    @RequirePermission(PermissionEnum.SEMANTIC_COLUMN_UPDATE)
     public Result<Boolean> resetColumnSemantic(
             @PathVariable @NotBlank String tableName,
             @RequestParam @NotNull @Min(1) Integer datasourceId,
@@ -78,6 +81,7 @@ public class TableColumnSemanticController {
     }
 
     @DeleteMapping("/batch")
+    @RequirePermission(PermissionEnum.SEMANTIC_COLUMN_UPDATE)
     public Result<Integer> resetColumnSemantics(
             @PathVariable @NotBlank String tableName,
             @Valid @RequestBody BatchResetColumnSemanticRequest request) {
