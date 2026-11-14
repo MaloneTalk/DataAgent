@@ -20,8 +20,6 @@
   import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
   import { useUserStore } from '@/stores/user';
-  import { fetchSessionList } from '@/api/agent';
-  import ChatDatasourceSelect from '@/views/chat/components/ChatDatasourceSelect.vue';
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
   import SessionList from '@/views/chat/components/SessionList.vue';
@@ -39,7 +37,6 @@
     messages,
     isStreaming,
     sessionId,
-    datasourceId,
     pendingQuestion,
     lastReportContent,
     sendMessage,
@@ -62,22 +59,9 @@
     messages.value.filter(m => m.role === 'user').map(m => m.content),
   );
 
-  // 重进会话时从会话列表回显绑定源；无绑定（旧会话/新会话未落库）也要重置为 null，
-  // 避免残留上一个会话的绑定。
-  async function resolveBoundDatasource(sid: string) {
-    try {
-      const list = await fetchSessionList();
-      const found = list.find(s => s.sessionId === sid);
-      datasourceId.value = found?.datasourceId ?? null;
-    } catch {
-      // 会话列表加载失败不阻断会话展示。
-    }
-  }
-
   async function loadSession(sid: string) {
     if (canReadSessions.value) {
       await loadHistory(sid);
-      await resolveBoundDatasource(sid);
     } else {
       newSession();
       sessionId.value = sid;
@@ -177,11 +161,6 @@
           </button>
         </div>
         <div class="chat-view__header-right">
-          <ChatDatasourceSelect
-            v-if="canChat"
-            v-model="datasourceId"
-            :message-count="messages.length"
-          />
           <el-button v-permission="'asset:report:read'" text @click="reportDialogVisible = true">
             会话报告
           </el-button>

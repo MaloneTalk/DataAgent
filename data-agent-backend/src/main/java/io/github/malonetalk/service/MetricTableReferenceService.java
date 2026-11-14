@@ -55,6 +55,12 @@ public class MetricTableReferenceService {
                 source -> {
                     String name =
                             Optional.ofNullable(source)
+                                    .filter(table -> table.getSchemaName() == null)
+                                    .filter(
+                                            table ->
+                                                    table.getDatabase() == null
+                                                            || table.getDatabase().getDatabaseName()
+                                                                    == null)
                                     .map(Table::getName)
                                     .map(SemanticUtils::normalizeIdentifier)
                                     .filter(knownTables::contains)

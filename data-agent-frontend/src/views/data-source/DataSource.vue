@@ -17,6 +17,7 @@
 
 <script setup lang="ts">
   import { ref, reactive, onMounted, computed } from 'vue';
+  import { useRouter } from 'vue-router';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { useDatasource } from '@/composables/useDatasource';
@@ -32,6 +33,7 @@
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import CsvImportPanel from './components/CsvImportPanel.vue';
 
+  const router = useRouter();
   const { list: dataSourceList, loading, error, fetchList } = useDatasource(getDatasourceList);
 
   const dialogVisible = ref(false);
@@ -250,6 +252,14 @@
       </el-table-column>
       <el-table-column label="操作" width="300">
         <template #default="{ row }">
+          <el-button
+            v-permission="'semantic:table:read'"
+            link
+            type="primary"
+            @click="router.push({ path: '/semantic/table', query: { datasourceId: row.id } })"
+          >
+            表语义
+          </el-button>
           <el-button
             v-permission="'data:datasource:update'"
             v-if="row.sourceType !== 'CSV'"

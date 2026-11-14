@@ -159,9 +159,9 @@
     }
   }
 
-  function semantic() {
+  function semantic(datasourceId?: number) {
     visible.value = false;
-    router.push('/semantic/table');
+    router.push({ path: '/semantic/table', query: { datasourceId } });
   }
 </script>
 
@@ -177,7 +177,7 @@
         导入 CSV
       </el-button>
       <el-button :loading="loading" @click="load">刷新</el-button>
-      <el-button v-permission="'semantic:table:read'" @click="semantic">管理表语义</el-button>
+      <el-button v-permission="'semantic:table:read'" @click="semantic()">管理表语义</el-button>
     </div>
     <el-table v-loading="loading" :data="rows">
       <el-table-column prop="displayName" label="表名称" min-width="150" show-overflow-tooltip />
@@ -206,6 +206,15 @@
       <el-table-column prop="errorMessage" label="错误说明" min-width="200" show-overflow-tooltip />
       <el-table-column label="操作" width="190">
         <template #default="{ row }">
+          <el-button
+            v-if="row.status === 'READY'"
+            v-permission="'semantic:table:read'"
+            link
+            type="primary"
+            @click="semantic(row.datasourceId)"
+          >
+            表语义
+          </el-button>
           <el-button
             v-if="['PREVIEWED', 'IMPORT_FAILED'].includes(row.status)"
             v-permission="'data:csv:import'"

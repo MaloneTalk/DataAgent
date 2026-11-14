@@ -111,3 +111,6 @@ yarn-integrity
 
 application-dev.properties
 agents
+
+# Local CSV uploaded source files
+/data-agent-backend/.local/

@@ -81,6 +81,7 @@ export function useRelationForm(options: RelationFormOptions) {
   const relationTargetColumns = computed(() => findRelationColumns(relationForm.targetTableName));
 
   function resetRelationForm() {
+    relationDialogVisible.value = false;
     clearRelationFieldErrors();
     Object.assign(relationForm, {
       sourceTableName: '',
@@ -194,11 +195,12 @@ export function useRelationForm(options: RelationFormOptions) {
   }
 
   async function handleDeleteRelation(relation: LogicalTableRelationResponse) {
+    const datasourceId = selectedDatasourceId.value;
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键仅展示，不支持删除');
       return;
     }
-    if (typeof relation.id !== 'number' || typeof selectedDatasourceId.value !== 'number') {
+    if (typeof relation.id !== 'number' || typeof datasourceId !== 'number') {
       ElMessage.error('当前逻辑外键缺少有效标识，无法删除');
       return;
     }
@@ -208,12 +210,9 @@ export function useRelationForm(options: RelationFormOptions) {
         '提示',
         { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' },
       );
-      await deleteLogicalRelation(
-        selectedDatasourceId.value,
-        relation.sourceTableName,
-        relation.id,
-      );
+      await deleteLogicalRelation(datasourceId, relation.sourceTableName, relation.id);
       ElMessage.success('逻辑外键已删除');
+      if (datasourceId !== selectedDatasourceId.value) return;
       await loadRelationData();
     } catch {
       // ignore cancel
@@ -224,20 +223,22 @@ export function useRelationForm(options: RelationFormOptions) {
     relation: LogicalTableRelationResponse,
     value: boolean,
   ) {
+    const datasourceId = selectedDatasourceId.value;
     if (relation.source === 'physical') {
       ElMessage.warning('物理外键始终由数据库结构决定，不能在这里启停');
       return;
     }
-    if (typeof relation.id !== 'number' || typeof selectedDatasourceId.value !== 'number') {
+    if (typeof relation.id !== 'number' || typeof datasourceId !== 'number') {
       ElMessage.error('当前逻辑外键缺少有效标识，无法更新状态');
       return;
     }
     await updateLogicalRelationEnabled(relation.sourceTableName, {
-      datasourceId: selectedDatasourceId.value,
+      datasourceId,
       relationId: relation.id,
       enabled: value,
     });
     ElMessage.success(value ? '逻辑外键已启用' : '逻辑外键已禁用');
+    if (datasourceId !== selectedDatasourceId.value) return;
     await loadRelationData();
   }
 

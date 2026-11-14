@@ -73,7 +73,7 @@
   const { loading, error, rows, page, loadPage, handlePageChange, handleSizeChange } =
     useSemanticPage<ColumnSemanticInfo>(async pagination => {
       if (!selectedTableName.value) return { items: [], total: 0 };
-      if (props.datasourceId === null) throw new Error('请先激活一个数据源');
+      if (props.datasourceId === null) throw new Error('请先选择一个数据源');
       return getColumnSemanticPage(selectedTableName.value, {
         datasourceId: props.datasourceId,
         ...pagination,

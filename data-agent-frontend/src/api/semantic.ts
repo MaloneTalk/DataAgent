@@ -16,7 +16,6 @@
  */
 
 import request, { type ApiResponse } from './request';
-import { getDatasourceOptions } from './datasource';
 import type { PageResponse } from './types';
 
 export interface PhysicalTableCandidateResponse {
@@ -174,11 +173,6 @@ export interface UpdateLogicalTableRelationEnabledRequest {
   datasourceId: number;
   relationId: number;
   enabled: boolean;
-}
-
-export async function getActiveDatasourceId() {
-  const datasources = await getDatasourceOptions();
-  return datasources.find(datasource => datasource.status === 'ACTIVE')?.id ?? null;
 }
 
 export function getTableSemanticPage(query: TableSemanticPageQuery) {
