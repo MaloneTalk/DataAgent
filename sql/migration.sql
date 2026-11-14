@@ -733,3 +733,143 @@ PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
 UPDATE csv_import SET submitted_by = creator_id WHERE submitted_by IS NULL;
+
+-- 会话数据源范围使用逻辑删除和 MP 审计字段；id 作为单列主键，业务列只保留普通索引。
+CREATE TABLE IF NOT EXISTS `session_datasource` (
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `session_id`    VARCHAR(255) NOT NULL COMMENT '会话ID',
+    `datasource_id` INT          NOT NULL COMMENT '本会话允许/选择的数据源ID',
+    `creator_id`    BIGINT       DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME     DEFAULT NULL COMMENT '创建时间',
+    `updater_id`    BIGINT       DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME     DEFAULT NULL COMMENT '更新时间',
+    `is_deleted`    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    KEY `idx_session_datasource` (`session_id`, `datasource_id`),
+    KEY `idx_datasource_id` (`datasource_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话允许使用的数据源列表';
+
+-- 为 MyBatis-Plus 提供单列 @TableId；兼容旧 session_id 主键和 (session_id, datasource_id) 复合主键。
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `id` BIGINT NOT NULL AUTO_INCREMENT FIRST, ADD UNIQUE KEY `uk_session_datasource_id` (`id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'PRIMARY' AND COLUMN_NAME = 'session_id'
+    ),
+    'ALTER TABLE `session_datasource` DROP PRIMARY KEY',
+    'SELECT 1'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'PRIMARY'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD PRIMARY KEY (`id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'uk_session_datasource_id'
+    ),
+    'ALTER TABLE `session_datasource` DROP INDEX `uk_session_datasource_id`',
+    'SELECT 1'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND INDEX_NAME = 'idx_session_datasource'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD KEY `idx_session_datasource` (`session_id`, `datasource_id`)'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'creator_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `creator_id` BIGINT DEFAULT NULL COMMENT ''创建人ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'updater_id'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `updater_id` BIGINT DEFAULT NULL COMMENT ''修改人ID'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'session_datasource'
+          AND COLUMN_NAME = 'is_deleted'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `session_datasource` ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''逻辑删除标记:0-未删除,1-已删除'''
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
+-- 用户个人访问令牌（PAT）：只保存哈希，明文仅在创建时返回一次。
+CREATE TABLE IF NOT EXISTS `user_pat` (
+    `id`            BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_id`       INT NOT NULL COMMENT '用户ID，关联 sys_user.id',
+    `name`          VARCHAR(64) NOT NULL COMMENT '令牌名称',
+    `token_prefix`  VARCHAR(16) NOT NULL COMMENT '令牌前缀，用于列表展示',
+    `token_hash`    CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT 'SHA-256 十六进制哈希',
+    `expires_at`    DATETIME NOT NULL COMMENT '过期时间',
+    `last_used_at`  DATETIME NULL COMMENT '最后使用时间',
+    `revoked_at`    DATETIME NULL COMMENT '吊销时间；NULL 表示未吊销',
+    `creator_id`    BIGINT DEFAULT NULL COMMENT '创建人ID',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater_id`    BIGINT DEFAULT NULL COMMENT '修改人ID',
+    `update_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted`    TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除标记:0-未删除,1-已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_pat_token_hash` (`token_hash`),
+    KEY `idx_user_pat_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户个人访问令牌';

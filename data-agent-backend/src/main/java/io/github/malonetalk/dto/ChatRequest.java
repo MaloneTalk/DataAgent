@@ -27,7 +27,7 @@ public record ChatRequest(
         @NotBlank(message = "sessionId 不能为空") @Size(max = 255) String sessionId,
         String message,
         @Size(max = 20) List<@Valid ToolResultInput> toolResults,
-        Integer datasourceId) {
+        @Size(max = 20) List<@NotNull Integer> datasourceIds) {
 
     public record ToolResultInput(
             @NotBlank String toolCallId, @NotBlank String toolName, @NotNull String output) {}

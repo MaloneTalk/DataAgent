@@ -1,0 +1,46 @@
+/*
+ * Copyright (C) 2026 github.com/MaloneTalk
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * limitations under the License.
+ */
+package io.github.malonetalk.agent.tools.impls;
+
+import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
+import io.agentscope.core.tool.ToolSuspendException;
+import io.github.malonetalk.agent.tools.DataAgentTool;
+import io.github.malonetalk.agent.tools.ToolCallConstants;
+import io.github.malonetalk.agent.tools.ToolResultBoConverter;
+import io.github.malonetalk.model.bo.ToolResultBo;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Component
+public class AskUserTool implements DataAgentTool {
+
+    @Tool(
+            name = ToolCallConstants.ASK_USER,
+            converter = ToolResultBoConverter.class,
+            description =
+                    "Ask the user a question when an operation is unclear or requires"
+                            + " confirmation. Execution resumes after the user responds.")
+    public ToolResultBo askUser(
+            @ToolParam(name = "question", description = "The question to ask the user.")
+                    String question) {
+        log.info("Agent asks user: {}", question);
+        throw new ToolSuspendException(question);
+    }
+}

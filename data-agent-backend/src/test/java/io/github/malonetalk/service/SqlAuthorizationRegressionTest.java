@@ -30,7 +30,6 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.ColumnSemanticInfoMapper;
 import io.github.malonetalk.mapper.CsvImportMapper;
-import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
@@ -43,6 +42,7 @@ import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.service.csv.CsvAccessService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,8 +57,8 @@ class SqlAuthorizationRegressionTest {
     @BeforeEach
     void setup() {
         var users = mock(SysUserMapper.class);
-        var datasources = mock(DatasourceMapper.class);
-        when(datasources.selectById(1)).thenReturn(datasource);
+        var datasources = mock(DatasourceService.class);
+        when(datasources.findById(1)).thenReturn(Optional.of(datasource));
         var capabilities = mock(RoleCapabilityMapper.class);
         var tables = mock(RoleTablePermissionMapper.class);
         var columns = mock(RoleHiddenColumnMapper.class);

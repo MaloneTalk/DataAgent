@@ -17,6 +17,7 @@
 - **Python 数据分析**：对查询结果自动执行统计分析（相关性、回归、分布检验），补齐 SQL 在复杂统计计算上的短板。
 - **多模型可切换**：内置 OpenAI 兼容接口 / Ollama / 通义 DashScope / Anthropic 等提供商，换底座模型不影响已沉淀的业务知识。
 - **多数据源（JDBC 抽象）**：连接与元数据读取基于 JDBC 标准 API，内置类型覆盖 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite；实际查询还受目标库方言和 SQL 授权支持范围约束。
+- **同一会话多数据源**：会话可选择多个数据源；不选择时使用当前用户所有可访问的启用数据源，工具按 `datasource_id` 执行。
 
   > **默认仅内置 MySQL 驱动**。使用其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应 JDBC 驱动依赖并重新构建后端，否则新增数据源时会提示「未找到数据库驱动」。类型列表与 Maven 坐标见 [docs/configuration.md](docs/configuration.md#4-查询数据源)。
 - **语义层（无向量召回）**：以"域（Domain）"组织表，由 LLM 在工具调用时**推理出业务问题所属域、主动选表**，而非向量相似度召回——更精准、更稳定，也无需维护任何 embedding 索引。维度包括领域描述、逻辑表 / 逻辑列 / 表关系 / 指标口径的业务映射。
@@ -25,6 +26,7 @@
 - **资产与数据证据**：内置报表、CSV 导出与数据证据视图，记录回答涉及的 SQL、指标、Python 执行及表列来源。
 - **Skill 系统**：从文件系统 / Git / Nacos 多源加载可复用的查询流程（"已验证查询模式"）。
 - **MCP 配置管理（开发中）**：提供外部 MCP Server 的配置增删改查与启停状态管理；当前尚未将外部 MCP 工具接入 Agent 工具箱。
+- **外部 Agent 接入**：可直接通过 npm 安装 `data-agent-cli`，并提供可直接复制到 Claude Code、Codex、Cursor、OpenCode 等 Skill 目录的 `data-agent-skill/`。
 - **可观测性（OpenTelemetry）**：HTTP、Agent、LLM、工具与 JDBC 调用统一走 OTel trace；标准 OTLP 导出，可接入任意 OTel 后端（Jaeger / Tempo / SigNoz / Langfuse 等），仓库自带 Grafana LGTM 本地示例。
 
 ## 💡 核心设计亮点
@@ -76,6 +78,30 @@ Data Agent 反其道而行——**不引入任何向量检索**。语义层把�
 
 详见 [docs/observability.md](docs/observability.md)。
 
+## 🤖 外部 Agent 接入
+
+Data Agent 支持面向外部 Agent 的只读接入：
+
+- 用户在「API 访问令牌」页面（`/settings/tokens`）创建 PAT
+- 通过 `/agent/health`、`/agent/tools`、`/agent/tools/{name}` 调用只读工具
+- 使用 `data-agent-cli` 完成登录、工具发现和工具调用
+- 将 `data-agent-skill/` 复制到外部 Agent 的 Skill 存储目录，即可安装问数 Skill
+
+```bash
+npm install -g @malone-talk/data-agent-cli
+data-agent-cli auth login --token pat_xxx
+data-agent-cli tools list
+data-agent-cli skill
+```
+
+外部 Agent 可按自身约定复制 Skill：
+
+```bash
+cp -R data-agent-skill <your-agent-skill-directory>/
+```
+
+当前对外暴露 `get_datasources`、`get_domains`、`get_tables`、`get_table_schema`、`get_metric_caliber` 和 `execute_sql`，`execute_sql` 只允许 SELECT。完整说明见 [docs/external-agent.md](docs/external-agent.md)。
+
 ## 🚀 快速开始
 
 > Docker 与手动搭建步骤见 [docs/getting-started.md](docs/getting-started.md)。以下命令使用 Bash；Windows PowerShell 的环境变量写法见该文档。
@@ -108,7 +134,7 @@ npm run dev
 
 SQL 只保留两份：`sql/data_source.sql` 用于新库初始化，`sql/migration.sql` 用于已有数据库升级。
 
-已有数据库升级时，先备份数据库并在启动新版后端前执行最新迁移脚本。已完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源表、角色功能权限、会话归属唯一约束，以及数据源审计与逻辑删除字段。迁移前的会话归属冲突检查见[权限升级说明](docs/permissions.md#升级现有数据库)：
+已有数据库升级时，先备份数据库并在启动新版后端前执行最新迁移脚本。已完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源表、角色功能权限、会话归属唯一约束、会话数据源范围，以及数据源审计与逻辑删除字段。迁移前的会话归属冲突检查见[权限升级说明](docs/permissions.md#升级现有数据库)：
 
 ```bash
 mysql -u root -p data_agent < sql/migration.sql
@@ -118,7 +144,7 @@ mysql -u root -p data_agent < sql/migration.sql
 
 浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，先在「数据源管理」接入业务库，在「语义管理」同步表结构并维护表/列/指标口径，再到聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"* 用户与角色入口在「系统管理」。
 
-新会话由后端 `POST /api/agent/session` 创建，再用返回的会话 ID 发起 SSE 请求；在聊天页首条消息前选择数据源，绑定后不能切换。普通用户需先获得功能权限和目标表授权，配置步骤见[权限说明](docs/permissions.md)。
+新会话由后端 `POST /api/agent/session` 创建，再用返回的会话 ID 发起 SSE 请求；在聊天页选择本次会话可用的数据源；不选表示全部可访问数据源，后续消息可调整选择。普通用户需先获得功能权限和目标表授权，配置步骤见[权限说明](docs/permissions.md)。
 
 ## 📚 文档
 

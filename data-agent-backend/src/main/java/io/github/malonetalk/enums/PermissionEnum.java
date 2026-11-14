@@ -77,7 +77,8 @@ public enum PermissionEnum {
     SYS_ROLE_GRANT("sys:role:grant", "角色：授权", "角色", true),
     SYS_MCP_READ("sys:mcp:read", "MCP 配置：查看", "MCP 配置"),
     SYS_MCP_UPDATE("sys:mcp:update", "MCP 配置：修改", "MCP 配置"),
-    SYS_MCP_SET_STATUS("sys:mcp:set-status", "MCP 配置：启停", "MCP 配置");
+    SYS_MCP_SET_STATUS("sys:mcp:set-status", "MCP 配置：启停", "MCP 配置"),
+    ACCESS_PAT_MANAGE("access:pat:manage", "访问令牌：管理", "访问令牌");
 
     private final String code;
     private final String name;

@@ -20,16 +20,15 @@ package io.github.malonetalk.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
-import io.github.malonetalk.entity.SessionDatasource;
 import io.github.malonetalk.enums.DatasourceSourceType;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.DatasourceMapper;
-import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import io.github.malonetalk.model.converter.DatasourceConverter;
 import io.github.malonetalk.model.dto.DatasourceDto;
 import io.github.malonetalk.model.po.DatasourcePo;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +41,6 @@ import org.springframework.stereotype.Service;
 public class DatasourceServiceImpl implements DatasourceService {
 
     private final DatasourceMapper dataSourceMapper;
-    private final SessionDatasourceMapper sessionDatasourceMapper;
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final DatasourceConverter converter;
 
@@ -101,37 +99,14 @@ public class DatasourceServiceImpl implements DatasourceService {
     }
 
     @Override
-    public Optional<DatasourcePo> getActiveDatasource() {
-        List<DatasourcePo> active = findByStatus(Status.ACTIVE.getCode());
-        if (active.size() > 1) {
-            log.warn("Found {} active data sources, using the first one.", active.size());
+    public List<DatasourcePo> findActiveByIds(Collection<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
         }
-        return active.stream().findFirst();
-    }
-
-    @Override
-    public DatasourcePo getDatasourceForSession(String sessionId) {
-        Optional<SessionDatasource> binding =
-                Optional.ofNullable(sessionDatasourceMapper.selectBySessionId(sessionId));
-        if (binding.isPresent()) {
-            return findById(binding.get().getDatasourceId())
-                    .orElseThrow(
-                            () -> BusinessException.of(ErrorCode.BOUND_DATASOURCE_UNAVAILABLE));
-        }
-        return getActiveDatasource()
-                .orElseThrow(() -> BusinessException.of(ErrorCode.NO_ACTIVE_DATASOURCE));
-    }
-
-    @Override
-    public void bindSessionDatasource(String sessionId, Integer datasourceId) {
-        if (findById(datasourceId).isEmpty()) {
-            throw BusinessException.of(
-                    ErrorCode.BAD_REQUEST, "Datasource does not exist: " + datasourceId);
-        }
-        SessionDatasource binding = new SessionDatasource();
-        binding.setSessionId(sessionId);
-        binding.setDatasourceId(datasourceId);
-        sessionDatasourceMapper.insertIfAbsent(binding);
+        return dataSourceMapper.selectList(
+                Wrappers.<DatasourcePo>lambdaQuery()
+                        .in(DatasourcePo::getId, ids)
+                        .eq(DatasourcePo::getStatus, Status.ACTIVE.getCode()));
     }
 
     @Override

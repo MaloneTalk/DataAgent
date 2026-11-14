@@ -1,0 +1,69 @@
+{
+  "name": "@malone-talk/data-agent-cli",
+  "version": "1.0.0",
+  "description": "CLI for calling DataAgent agent tools over REST with a personal access token.",
+  "type": "module",
+  "bin": {
+    "data-agent-cli": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint . --fix",
+    "lint:check": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.17.30",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.1",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^3.0.8"
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": {
+    "name": "MaloneTalk",
+    "url": "https://github.com/MaloneTalk"
+  },
+  "contributors": [
+    {
+      "name": "lzq",
+      "url": "https://github.com/lzq986"
+    },
+    {
+      "name": "VLSMB",
+      "url": "https://github.com/VLSMB"
+    },
+    {
+      "name": "mengnankkkk",
+      "url": "https://github.com/mengnankkkk"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MaloneTalk/DataAgent.git",
+    "directory": "data-agent-cli"
+  },
+  "homepage": "https://github.com/MaloneTalk/DataAgent",
+  "bugs": {
+    "url": "https://github.com/MaloneTalk/DataAgent/issues"
+  }
+}

@@ -49,7 +49,6 @@ import io.github.malonetalk.exception.GlobalExceptionHandler;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
-import io.github.malonetalk.mapper.SessionDatasourceMapper;
 import io.github.malonetalk.mapper.SysRoleMapper;
 import io.github.malonetalk.mapper.SysUserMapper;
 import io.github.malonetalk.mapper.UserSessionMapper;
@@ -62,6 +61,7 @@ import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.RolePermissionService;
+import io.github.malonetalk.service.SessionDatasourceService;
 import io.github.malonetalk.service.SysRoleService;
 import io.github.malonetalk.utils.JwtUtil;
 import java.lang.reflect.Method;
@@ -108,7 +108,7 @@ class PermissionIntegrationTest {
         var sessions =
                 new SessionService(
                         database,
-                        mock(SessionDatasourceMapper.class),
+                        mock(SessionDatasourceService.class),
                         ownership,
                         provenance,
                         new SessionHistoryConverter());
@@ -232,6 +232,8 @@ class PermissionIntegrationTest {
                                         Mappers.getMapper(UserConverter.class)));
                         factory.registerSingleton("jwtUtil", jwt);
                         factory.registerSingleton("userContextHolder", holder);
+                        factory.registerSingleton(
+                                "agentAuthInterceptor", mock(AgentAuthInterceptor.class));
                     });
             context.refresh();
             var mvc =

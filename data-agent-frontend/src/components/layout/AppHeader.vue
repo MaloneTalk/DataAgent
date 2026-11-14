@@ -33,6 +33,10 @@
     userStore.logout();
     router.push('/login');
   }
+
+  function onOpenTokens() {
+    router.push('/settings/tokens');
+  }
 </script>
 
 <template>
@@ -52,6 +56,14 @@
       >
         <BulbOutlined v-if="themeStore.mode === 'light'" />
         <BulbFilled v-else />
+      </button>
+      <button
+        v-permission="'access:pat:manage'"
+        class="logout-btn"
+        title="API 访问令牌"
+        @click="onOpenTokens"
+      >
+        访问令牌
       </button>
       <span v-if="userStore.userInfo" class="user-name">
         {{ userStore.userInfo.displayName }}
