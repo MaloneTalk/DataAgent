@@ -75,6 +75,7 @@ export interface AnswerProvenance {
   }[];
   tables: {
     name: string;
+    objectType?: 'TABLE' | 'VIEW' | null;
     domain: string | null;
     description: string | null;
     columns: { name: string; description: string | null }[];

@@ -46,6 +46,7 @@ public class SemanticConverter {
         return TableSemanticResponse.builder()
                 .id(tableInfo.getId())
                 .tableName(tableInfo.getTableName())
+                .objectType(tableInfo.getObjectType())
                 .domain(SemanticUtils.normalizeDomain(tableInfo.getDomain()))
                 .physicalTableDescription(
                         SemanticUtils.trimToNull(tableInfo.getPhysicalTableDescription()))
@@ -105,6 +106,7 @@ public class SemanticConverter {
             TableInfo tableInfo, List<ColumnInfo> columns) {
         return RelationWorkspaceTableResponse.builder()
                 .tableName(tableInfo.getTableName())
+                .objectType(tableInfo.getObjectType())
                 .domain(SemanticUtils.normalizeDomain(tableInfo.getDomain()))
                 .description(
                         SemanticUtils.firstNonBlank(

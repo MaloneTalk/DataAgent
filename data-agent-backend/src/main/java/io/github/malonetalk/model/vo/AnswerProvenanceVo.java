@@ -48,7 +48,11 @@ public record AnswerProvenanceVo(
     public record PythonUse(String callId, String code, String status) {}
 
     public record TableUse(
-            String name, String domain, String description, List<ColumnUse> columns) {}
+            String name,
+            String objectType,
+            String domain,
+            String description,
+            List<ColumnUse> columns) {}
 
     public record ColumnUse(String name, String description) {}
 }

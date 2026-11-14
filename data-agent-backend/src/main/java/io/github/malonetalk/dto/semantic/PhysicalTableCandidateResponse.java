@@ -18,4 +18,4 @@
 package io.github.malonetalk.dto.semantic;
 
 public record PhysicalTableCandidateResponse(
-        String tableName, String physicalTableDescription, Boolean synced) {}
+        String tableName, String physicalTableDescription, String objectType, Boolean synced) {}

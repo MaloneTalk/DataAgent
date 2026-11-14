@@ -5,6 +5,7 @@
     <resultMap id="BaseResultMap" type="io.github.malonetalk.entity.TableInfo">
         <id column="id" property="id"/>
         <result column="table_name" property="tableName"/>
+        <result column="object_type" property="objectType"/>
         <result column="physical_table_description" property="physicalTableDescription"/>
         <result column="table_description" property="tableDescription"/>
         <result column="data_granularity" property="dataGranularity"/>
@@ -68,12 +69,12 @@
 
     <insert id="insert" parameterType="io.github.malonetalk.entity.TableInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO table_info (
-            table_name, physical_table_description, table_description, data_granularity, domain,
+            table_name, object_type, physical_table_description, table_description, data_granularity, domain,
             datasource_id,
             is_visible, physical_status,
             create_time, update_time
         ) VALUES (
-            #{tableName}, #{physicalTableDescription}, #{tableDescription}, #{dataGranularity},
+            #{tableName}, #{objectType}, #{physicalTableDescription}, #{tableDescription}, #{dataGranularity},
             #{domain}, #{datasourceId}, COALESCE(#{isVisible}, 1),
             COALESCE(#{physicalStatus}, 1),
             COALESCE(#{createTime}, NOW()), COALESCE(#{updateTime}, NOW())
@@ -82,18 +83,19 @@
 
     <insert id="batchUpsertPhysicalCache">
         INSERT INTO table_info (
-            table_name, physical_table_description, table_description, domain, datasource_id,
+            table_name, object_type, physical_table_description, table_description, domain, datasource_id,
             is_visible, physical_status, create_time, update_time
         ) VALUES
         <foreach collection="tables" item="table" separator=",">
             (
-                #{table.tableName}, #{table.physicalTableDescription}, #{table.tableDescription},
+                #{table.tableName}, #{table.objectType}, #{table.physicalTableDescription}, #{table.tableDescription},
                 #{table.domain}, #{table.datasourceId}, COALESCE(#{table.isVisible}, 1),
                 COALESCE(#{table.physicalStatus}, 1),
                 COALESCE(#{table.createTime}, NOW()), COALESCE(#{table.updateTime}, NOW())
             )
         </foreach>
         ON DUPLICATE KEY UPDATE
+            object_type = VALUES(object_type),
             physical_table_description = VALUES(physical_table_description),
             table_description = COALESCE(NULLIF(table_description, ''), VALUES(table_description)),
             physical_status = VALUES(physical_status),
@@ -116,6 +118,7 @@
         UPDATE table_info
         <set>
             <if test="tableName != null">table_name = #{tableName},</if>
+            <if test="objectType != null">object_type = #{objectType},</if>
             physical_table_description = #{physicalTableDescription},
             <if test="physicalStatus != null">physical_status = #{physicalStatus},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>

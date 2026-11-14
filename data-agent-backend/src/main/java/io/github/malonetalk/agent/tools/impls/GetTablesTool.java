@@ -57,7 +57,7 @@ public class GetTablesTool implements DataAgentTool {
             converter = ToolResultBoConverter.class,
             description =
                     """
-                    Get synced semantic-layer table information, including table name, domain, \
+                    Get synced semantic-layer tables and ordinary views, including name, object type, domain, \
                     description, data granularity (what one row represents) and enabled relations.\
                     """)
     public ToolResultBo getTables(
@@ -114,12 +114,6 @@ public class GetTablesTool implements DataAgentTool {
                                                         rel.targetTableName(),
                                                         rel.targetColumnNames()))
                         .toList();
-        return TablePromptResponse.builder()
-                .name(table.name())
-                .domain(table.domain())
-                .description(table.description())
-                .dataGranularity(table.dataGranularity())
-                .relations(relations)
-                .build();
+        return table.toBuilder().relations(relations).build();
     }
 }

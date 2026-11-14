@@ -19,6 +19,9 @@ package io.github.malonetalk.model.bo;
 
 import java.util.List;
 
-/** Physical table snapshot shared by schema conversion, CSV publication and semantic sync. */
+/** Table or ordinary view snapshot shared by schema conversion, CSV publication and semantic sync. */
 public record TableSyncSourceBo(
-        String tableName, String description, List<ColumnSyncSourceBo> columns) {}
+        String tableName,
+        String description,
+        String objectType,
+        List<ColumnSyncSourceBo> columns) {}

@@ -57,6 +57,17 @@ export function getDatasourceTables(id: number) {
   return request.get<ApiResponse<string[]>>(`/datasource/${id}/tables`).then(res => res.data.data);
 }
 
+export interface DatasourceObject {
+  tableName: string;
+  objectType: 'TABLE' | 'VIEW';
+}
+
+export function getDatasourceObjects(id: number) {
+  return request
+    .get<ApiResponse<DatasourceObject[]>>(`/datasource/${id}/objects`)
+    .then(res => res.data.data);
+}
+
 export function createDatasource(data: DatasourceRequest) {
   return request.post<ApiResponse<BooleanVo>>('/datasource', data).then(res => res.data.data.value);
 }

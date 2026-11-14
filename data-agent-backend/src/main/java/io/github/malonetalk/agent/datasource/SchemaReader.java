@@ -67,24 +67,26 @@ public class SchemaReader {
         }
     }
 
-    public List<PhysicalColumnInfo> getTableSchema(DatasourcePo datasource, String tableName) {
-        csvAccess.requireReady(datasource, tableName);
-        return readTableSchema(datasource, tableName);
+    public List<PhysicalColumnInfo> getTableSchema(
+            DatasourcePo datasource, PhysicalTableInfo table) {
+        csvAccess.requireReady(datasource, table.tableName());
+        return readTableSchema(datasource, table.tableName(), "VIEW".equals(table.objectType()));
     }
 
     public List<PhysicalColumnInfo> getImportTableSchema(
             DatasourcePo datasource, CsvImportPo task) {
         csvAccess.requireImportTable(datasource, task);
-        return readTableSchema(datasource, task.getPhysicalTableName());
+        return readTableSchema(datasource, task.getPhysicalTableName(), false);
     }
 
-    private List<PhysicalColumnInfo> readTableSchema(DatasourcePo datasource, String tableName) {
+    private List<PhysicalColumnInfo> readTableSchema(
+            DatasourcePo datasource, String tableName, boolean view) {
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
-            List<String> primaryKeys = getPrimaryKeys(conn, tableName);
+            List<String> primaryKeys = view ? List.of() : getPrimaryKeys(conn, tableName);
             Map<String, List<String>> indexesByColumn =
-                    getIndexesByColumn(conn, tableName, primaryKeys);
+                    view ? Map.of() : getIndexesByColumn(conn, tableName, primaryKeys);
             return getColumns(conn, tableName, primaryKeys, indexesByColumn);
         } catch (SQLException e) {
             log.error("Failed to read schema for table {}: {}", tableName, e.getMessage(), e);
@@ -140,10 +142,13 @@ public class SchemaReader {
                         conn.getCatalog(),
                         schemaPattern(conn).orElse(null),
                         "%",
-                        new String[] {"TABLE"})) {
+                        new String[] {"TABLE", "VIEW"})) {
             while (rs.next()) {
                 tables.add(
-                        new PhysicalTableInfo(rs.getString("TABLE_NAME"), rs.getString("REMARKS")));
+                        new PhysicalTableInfo(
+                                rs.getString("TABLE_NAME"),
+                                rs.getString("REMARKS"),
+                                rs.getString("TABLE_TYPE")));
             }
         }
 

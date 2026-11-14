@@ -29,6 +29,7 @@ import io.github.malonetalk.model.dto.DatasourceDto;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.vo.BooleanVo;
 import io.github.malonetalk.model.vo.DatasourceColumnsVo;
+import io.github.malonetalk.model.vo.DatasourceObjectVo;
 import io.github.malonetalk.model.vo.DatasourceOptionVo;
 import io.github.malonetalk.model.vo.DatasourceVo;
 import io.github.malonetalk.model.vo.ListVo;
@@ -84,7 +85,7 @@ public class DatasourceController {
         return datasourceConverter.toVo(dataSourceService.requireById(id));
     }
 
-    /** 返回某数据源下的所有物理表名，供权限配置页使用。 */
+    /** 保留表和视图名称列表的兼容格式。 */
     @GetMapping("/{id}/tables")
     @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
     public ListVo<String> listTableNames(@PathVariable Integer id) {
@@ -94,6 +95,19 @@ public class DatasourceController {
                         .map(TableInfo::getTableName)
                         .toList();
         return new ListVo<>(tables);
+    }
+
+    @GetMapping("/{id}/objects")
+    @RequirePermission(PermissionEnum.SYS_ROLE_GRANT)
+    public ListVo<DatasourceObjectVo> listObjects(@PathVariable Integer id) {
+        dataSourceService.requireById(id);
+        return new ListVo<>(
+                tableInfoMapper.selectByDatasourceId(id).stream()
+                        .map(
+                                table ->
+                                        new DatasourceObjectVo(
+                                                table.getTableName(), table.getObjectType()))
+                        .toList());
     }
 
     /** 返回某数据源下所有表的列名，一次查询，供列级权限配置使用。 */

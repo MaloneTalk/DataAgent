@@ -41,10 +41,13 @@
       </section>
 
       <section>
-        <h4>2. 领域、表、字段</h4>
-        <p v-if="!provenance.tables.length">无已确认的来源表</p>
+        <h4>2. 领域、表或视图、字段</h4>
+        <p v-if="!provenance.tables.length">无已确认的来源对象</p>
         <div v-for="table in provenance.tables" :key="table.name" class="provenance-panel__item">
           <strong>{{ table.domain || '未分配领域' }} / {{ table.name }}</strong>
+          <el-tag v-if="table.objectType" size="small">
+            {{ table.objectType === 'VIEW' ? '普通视图' : '表' }}
+          </el-tag>
           <span v-if="table.description">· {{ table.description }}</span>
           <div class="provenance-panel__muted">
             字段：{{

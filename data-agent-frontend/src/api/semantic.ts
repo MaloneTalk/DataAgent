@@ -20,12 +20,14 @@ import type { PageResponse } from './types';
 
 export interface PhysicalTableCandidateResponse {
   tableName: string;
+  objectType: 'TABLE' | 'VIEW';
   synced: boolean;
 }
 
 export interface TableSemanticResponse {
   id: number | null;
   tableName: string;
+  objectType: 'TABLE' | 'VIEW';
   domain: string | null;
   tableDescription: string | null;
   dataGranularity: string | null;
@@ -117,6 +119,7 @@ export interface RelationWorkspaceColumnResponse {
 
 export interface RelationWorkspaceTableResponse {
   tableName: string;
+  objectType: 'TABLE' | 'VIEW';
   domain: string | null;
   description: string | null;
   operable: boolean;

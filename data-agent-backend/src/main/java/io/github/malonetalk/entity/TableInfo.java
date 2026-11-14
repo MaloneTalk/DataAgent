@@ -25,6 +25,7 @@ public class TableInfo {
 
     private Integer id;
     private String tableName;
+    private String objectType = "TABLE";
     private String physicalTableDescription;
     private String tableDescription;
     private String dataGranularity;

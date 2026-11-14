@@ -52,6 +52,7 @@ public final class PromptConverter {
         }
         return TablePromptResponse.builder()
                 .name(table.getTableName())
+                .objectType(table.getObjectType())
                 .domain(SemanticUtils.normalizeDomain(table.getDomain()))
                 .description(SemanticUtils.trimToNull(table.getTableDescription()))
                 .dataGranularity(SemanticUtils.trimToNull(table.getDataGranularity()))

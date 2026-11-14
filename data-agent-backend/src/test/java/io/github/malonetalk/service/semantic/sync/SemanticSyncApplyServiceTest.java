@@ -64,6 +64,7 @@ class SemanticSyncApplyServiceTest {
                         new TableSyncSourceBo(
                                 "orders",
                                 "orders table",
+                                "TABLE",
                                 List.of(
                                         new ColumnSyncSourceBo(
                                                 "id", "order id", "BIGINT", true, "PRIMARY")))),

@@ -22,7 +22,8 @@
   import * as sysRoleApi from '@/api/sysRole';
   import {
     getDatasourceList,
-    getDatasourceTables,
+    getDatasourceObjects,
+    type DatasourceObject,
     type DatasourceResponse,
   } from '@/api/datasource';
   // ── Permission dialog ──
@@ -31,7 +32,7 @@
   const permLoading = ref(false);
   const datasources = ref<DatasourceResponse[]>([]);
   const selectedDs = ref<number | null>(null);
-  const allTables = ref<string[]>([]);
+  const allTables = ref<DatasourceObject[]>([]);
   const checkedTables = ref<string[]>([]);
   const savingPerm = ref(false);
   const loadedScope = ref<{ roleId: number; datasourceId: number } | null>(null);
@@ -94,7 +95,7 @@
       permLoading.value = true;
       try {
         const [tables, perms, colPerms, columns] = await Promise.all([
-          getDatasourceTables(dsId),
+          getDatasourceObjects(dsId),
           sysRoleApi.getPermissions(roleId),
           sysRoleApi.getColumnPermissions(roleId, dsId),
           sysRoleApi.getAllTableColumns(dsId),
@@ -146,7 +147,7 @@
   <!-- Permission dialog -->
   <el-dialog
     v-model="permVisible"
-    :title="`表权限 & 列权限 — ${props.roleName}`"
+    :title="`表/视图权限 & 列权限 — ${props.roleName}`"
     width="640px"
     :close-on-click-modal="false"
   >
@@ -172,10 +173,10 @@
         v-if="!permLoading && allTables.length === 0"
         style="color: var(--app-text-muted); padding: 16px 0"
       >
-        该数据源下暂无物理表
+        该数据源下暂无已同步的表或视图
       </div>
       <div
-        v-for="tableName in allTables"
+        v-for="{ tableName, objectType } in allTables"
         :key="tableName"
         style="
           margin-bottom: 8px;
@@ -190,6 +191,9 @@
           style="font-weight: 600"
         >
           {{ tableName }}
+          <el-tag size="small" :type="objectType === 'VIEW' ? 'warning' : 'info'">
+            {{ objectType === 'VIEW' ? '普通视图' : '表' }}
+          </el-tag>
         </el-checkbox>
         <div
           v-if="

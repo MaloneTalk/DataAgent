@@ -38,6 +38,7 @@ public abstract class SemanticSyncConverter {
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "datasourceId", source = "datasourceId")
     @Mapping(target = "tableName", source = "table.tableName")
+    @Mapping(target = "objectType", source = "table.objectType")
     @Mapping(target = "physicalTableDescription", source = "table.description")
     @Mapping(target = "tableDescription", source = "table.description")
     public abstract TableInfo toTableInfo(Integer datasourceId, TableSyncSourceBo table);
@@ -55,10 +56,11 @@ public abstract class SemanticSyncConverter {
             Integer datasourceId, Integer tableId, ColumnSyncSourceBo column);
 
     public TableSyncSourceBo toTable(
-            String name, String description, List<PhysicalColumnInfo> columns) {
+            String name, String description, String objectType, List<PhysicalColumnInfo> columns) {
         return new TableSyncSourceBo(
                 name,
                 SemanticUtils.trimToNull(description),
+                objectType,
                 columns.stream().map(this::toColumn).toList());
     }
 
@@ -71,6 +73,7 @@ public abstract class SemanticSyncConverter {
         return toTable(
                 task.getPhysicalTableName(),
                 description.substring(0, Math.min(500, description.length())),
+                "TABLE",
                 columns);
     }
 
