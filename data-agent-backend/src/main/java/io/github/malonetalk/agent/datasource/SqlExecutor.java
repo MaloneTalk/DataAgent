@@ -89,6 +89,15 @@ public class SqlExecutor {
         return sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
     }
 
+    public AuthorizedSqlBo authorizeSelect(
+            DatasourcePo datasource,
+            String sql,
+            Integer userId,
+            Map<String, Set<String>> previousColumns) {
+        return sqlPermissions.authorize(
+                userId, datasource, parseAllowedSelect(sql), previousColumns);
+    }
+
     public String validateSelectSql(String sql) {
         parseAllowedSelect(sql);
         return trimTrailingSemicolon(sql);

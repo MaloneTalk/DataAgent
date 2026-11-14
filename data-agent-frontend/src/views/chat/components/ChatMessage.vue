@@ -20,6 +20,8 @@
   import { marked } from 'marked';
   import { Check, CopyDocument } from '@element-plus/icons-vue';
   import type { ChatMessage as ChatMessageType } from '@/composables/useAgentChat';
+  import type { ChartPayload } from '@/api/agent';
+  import ChatChart from './ChatChart.vue';
   import ChatFileDownload from './ChatFileDownload.vue';
   import TracePanel from './TracePanel.vue';
 
@@ -32,6 +34,15 @@
   }>();
 
   const SUMMARY_MARKER = '\n\nSummary：\n';
+
+  const charts = computed(() => {
+    const results = new Map<string, ChartPayload>();
+    for (const step of props.message.traceSteps) {
+      const result = step.toolResult;
+      if (result?.name === 'generate_chart' && result.chart) results.set(result.id, result.chart);
+    }
+    return [...results].map(([id, chart]) => ({ id, chart }));
+  });
 
   const contentParts = computed(() => {
     const idx = props.message.content.indexOf(SUMMARY_MARKER);
@@ -104,6 +115,7 @@
         @preview-report="c => emit('previewReport', c)"
       />
       <div v-if="textContent.text" class="chat-message__content" v-html="renderedText"></div>
+      <ChatChart v-for="item in charts" :key="item.id" :chart="item.chart" />
       <div v-if="textContent.fileIds.length > 0" class="chat-message__downloads">
         <ChatFileDownload v-for="id in textContent.fileIds" :key="id" :id="id" />
       </div>

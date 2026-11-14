@@ -21,6 +21,7 @@ import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.EventType;
 import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.memory.InMemoryMemory;
+import io.agentscope.core.memory.Memory;
 import io.agentscope.core.message.ContentBlock;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
@@ -278,8 +279,12 @@ public class AgentService {
     }
 
     private ReActAgent createAgent(ToolCallContext toolCallContext) {
+        var memory = new InMemoryMemory();
         ToolExecutionContext context =
-                ToolExecutionContext.builder().register(toolCallContext).build();
+                ToolExecutionContext.builder()
+                        .register(toolCallContext)
+                        .register(Memory.class, memory)
+                        .build();
         return ReActAgent.builder()
                 .name("DataAgent")
                 .sysPrompt(systemPrompt())
@@ -287,7 +292,7 @@ public class AgentService {
                 .toolkit(toolkit)
                 .toolExecutionContext(context)
                 .skillBox(skillBox)
-                .memory(new InMemoryMemory())
+                .memory(memory)
                 .maxIters(10)
                 .enablePendingToolRecovery(true)
                 .build();
@@ -305,6 +310,8 @@ public class AgentService {
         先调用 get_datasources；调用 get_tables、get_table_schema、get_metric_caliber、
         execute_sql 或 export_table 时，如果存在多个可选数据源，必须传 datasource_id。
         不同数据源的同名表不能混用。
+        用户需要图表时，先执行 SQL 获取 Result ID，再调用 generate_chart，图表数值必须来自该查询结果。
+        SQL 负责聚合与排序；绘图只指定字段映射。修改图表类型时可复用本会话已有的 Result ID。
         """
                 .formatted(today, today.minusDays(1), today.plusDays(1));
     }

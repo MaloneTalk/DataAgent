@@ -21,6 +21,7 @@ import {
   fetchSessionHistory,
   createSession,
   type ChatStreamEventType,
+  type ToolResultInfo,
 } from '@/api/agent';
 import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
@@ -34,7 +35,7 @@ export interface TraceStep {
   type: ChatStreamEventType;
   content: string | null;
   toolCall: { id: string; name: string; input: Record<string, unknown> } | null;
-  toolResult: { id: string; name: string; output: string } | null;
+  toolResult: ToolResultInfo | null;
   errorCode: string | null;
 }
 

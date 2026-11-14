@@ -22,6 +22,7 @@ import static io.github.malonetalk.utils.SemanticUtils.normalizeIdentifier;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -42,13 +43,23 @@ final class SqlQueryScope {
     private final Optional<SqlQueryScope> parent;
     // Each source maps its column names to whether the column is accessible.
     private final Map<String, Map<String, Boolean>> sources = new HashMap<>();
+    // Saved wildcard results must reject columns revoked from that source since execution.
+    private final Set<String> narrowedSources = new HashSet<>();
     final Set<String> outputColumns = new LinkedHashSet<>();
 
     void addSource(String alias, Set<String> visible, Set<String> hidden) {
+        addSource(alias, visible, hidden, Set.of());
+    }
+
+    void addSource(String alias, Set<String> visible, Set<String> hidden, Set<String> previous) {
         Map<String, Boolean> columns = new HashMap<>();
         visible.forEach(column -> columns.put(normalizeIdentifier(column), true));
         hidden.forEach(column -> columns.put(normalizeIdentifier(column), false));
         if (sources.putIfAbsent(normalizeIdentifier(alias), columns) != null) throw denied();
+        if (previous.stream()
+                .anyMatch(column -> !columns.getOrDefault(normalizeIdentifier(column), false))) {
+            narrowedSources.add(normalizeIdentifier(alias));
+        }
     }
 
     void requireColumn(Column column) {
@@ -114,11 +125,13 @@ final class SqlQueryScope {
             }
             outputColumns.add(normalizeIdentifier(alias));
         } else if (expression instanceof AllTableColumns all) {
+            if (narrowedSources.contains(tableName(all.getTable()))) throw denied();
             var columns =
                     Optional.ofNullable(sources.get(tableName(all.getTable())))
                             .orElseThrow(this::denied);
             addVisibleOutputs(columns);
         } else if (expression instanceof AllColumns) {
+            if (!narrowedSources.isEmpty()) throw denied();
             sources.values().forEach(this::addVisibleOutputs);
         } else if (expression instanceof Column column) {
             outputColumns.add(normalizeIdentifier(column.getColumnName()));

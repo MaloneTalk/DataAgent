@@ -17,8 +17,6 @@
  */
 package io.github.malonetalk.agent.tools.impls;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
@@ -30,8 +28,10 @@ import io.github.malonetalk.agent.tools.RestTool;
 import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.agent.tools.ToolResultBoConverter;
+import io.github.malonetalk.model.bo.QuerySnapshotBo;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
+import io.github.malonetalk.model.converter.ChartConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -44,7 +44,7 @@ public class ExecuteSqlTool implements DataAgentTool {
     private final ToolDatasourceResolver datasourceResolver;
     private final SqlExecutor sqlExecutor;
     private final ToolExceptionMapper toolExceptionMapper;
-    private final ObjectMapper objectMapper;
+    private final ChartConverter chartConverter;
 
     @RestTool
     @Tool(
@@ -80,9 +80,17 @@ public class ExecuteSqlTool implements DataAgentTool {
                                     .returnedRows(execution.result().rows().size())
                                     .truncated(execution.result().truncated())
                                     .build();
-                    Map<String, Object> resultMetadata =
-                            objectMapper.convertValue(metadata, new TypeReference<>() {});
-                    return new ToolResultBo(formatResult(execution.result()), resultMetadata);
+                    Map<String, Object> resultMetadata = chartConverter.toMetadata(metadata);
+                    var snapshot = chartConverter.snapshot(sql, execution.result());
+                    snapshot.ifPresent(
+                            value -> resultMetadata.put(QuerySnapshotBo.METADATA_KEY, value));
+                    String reference =
+                            snapshot.map(value -> "Result ID: " + value.get("resultId") + "\n")
+                                    .orElse(
+                                            "Chart snapshot exceeds size limit. Select fewer"
+                                                    + " columns or aggregate the SQL.\n");
+                    return new ToolResultBo(
+                            reference + formatResult(execution.result()), resultMetadata);
                 });
     }
 
