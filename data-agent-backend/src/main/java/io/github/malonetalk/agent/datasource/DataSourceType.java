@@ -18,7 +18,9 @@
 package io.github.malonetalk.agent.datasource;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
+import java.util.StringJoiner;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -66,6 +68,37 @@ public enum DataSourceType {
         return Arrays.stream(values())
                 .filter(t -> t.code.equalsIgnoreCase(code.trim()))
                 .findFirst();
+    }
+
+    /** Driver-specific units: PostgreSQL/login timeouts use seconds, others milliseconds. */
+    Map<String, String> inspectionTimeouts() {
+        return switch (this) {
+            case MYSQL, DAMENG, OCEANBASE ->
+                    Map.of("connectTimeout", "5000", "socketTimeout", "5000");
+            case POSTGRESQL ->
+                    Map.of("connectTimeout", "5", "socketTimeout", "5", "loginTimeout", "10");
+            case ORACLE ->
+                    Map.of("oracle.net.CONNECT_TIMEOUT", "5000", "oracle.jdbc.ReadTimeout", "5000");
+            case SQLSERVER -> Map.of("loginTimeout", "5", "socketTimeout", "5000");
+            case CLICKHOUSE -> Map.of("connection_timeout", "5000", "socket_timeout", "5000");
+            case SQLITE -> Map.of("busy_timeout", "5000");
+        };
+    }
+
+    String inspectionJdbcUrl(String jdbcUrl) {
+        if (this != POSTGRESQL) return jdbcUrl;
+        // PostgreSQL 的 URL 参数优先于 Properties；只改临时测试 URL，保留其他参数原文。
+        String[] parts = jdbcUrl.split("\\?", 2);
+        Map<String, String> timeouts = inspectionTimeouts();
+        StringJoiner query = new StringJoiner("&");
+        if (parts.length == 2) {
+            for (String parameter : parts[1].split("&")) {
+                String key = parameter.split("=", 2)[0];
+                if (!parameter.isEmpty() && !timeouts.containsKey(key)) query.add(parameter);
+            }
+        }
+        timeouts.forEach((key, value) -> query.add(key + "=" + value));
+        return parts[0] + "?" + query;
     }
 
     public String buildJdbcUrl(String host, int port, String databaseName) {

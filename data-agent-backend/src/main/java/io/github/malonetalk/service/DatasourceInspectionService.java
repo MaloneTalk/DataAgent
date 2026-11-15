@@ -20,6 +20,8 @@ package io.github.malonetalk.service;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SchemaReader;
 import io.github.malonetalk.exception.BusinessException;
+import io.github.malonetalk.model.converter.DatasourceConverter;
+import io.github.malonetalk.model.dto.DatasourceDto;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.vo.DatasourceTableVo;
 import io.github.malonetalk.model.vo.DatasourceTestVo;
@@ -38,10 +40,17 @@ public class DatasourceInspectionService {
     private final DatasourceService datasourceService;
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SchemaReader schemaReader;
+    private final DatasourceConverter converter;
 
     public DatasourceTestVo testConnection(Integer id) {
-        DatasourcePo datasource = datasourceService.requireById(id);
+        return testConnection(datasourceService.requireById(id));
+    }
 
+    public DatasourceTestVo testConfiguration(DatasourceDto request) {
+        return testConnection(converter.toPo(request));
+    }
+
+    private DatasourceTestVo testConnection(DatasourcePo datasource) {
         try {
             boolean success = dynamicDataSourceManager.testConnection(datasource);
 
@@ -49,7 +58,7 @@ public class DatasourceInspectionService {
         } catch (BusinessException e) {
             throw e;
         } catch (SQLException | RuntimeException e) {
-            log.warn("Datasource connection test failed, datasourceId={}", id, e);
+            log.warn("Datasource connection test failed, datasourceId={}", datasource.getId(), e);
 
             return new DatasourceTestVo(false, "连接失败，请检查地址、端口、数据库名、账号密码及网络");
         }

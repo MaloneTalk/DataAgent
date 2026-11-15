@@ -50,18 +50,18 @@ public class DynamicDataSourceManager {
     public DataSource getOrCreateDataSource(DatasourcePo datasource) {
         HikariDataSource pool =
                 dataSourcePool.computeIfAbsent(
-                        datasource.getId(), id -> createDataSource(datasource));
+                        datasource.getId(), id -> createDataSource(datasource, false));
         return jdbcTelemetry.wrap(pool);
     }
 
     public boolean testConnection(DatasourcePo datasource) throws SQLException {
-        try (HikariDataSource pool = createDataSource(datasource);
+        try (HikariDataSource pool = createDataSource(datasource, true);
                 Connection connection = pool.getConnection()) {
             return connection.isValid(5);
         }
     }
 
-    private HikariDataSource createDataSource(DatasourcePo datasource) {
+    private HikariDataSource createDataSource(DatasourcePo datasource, boolean inspection) {
         DataSourceType type =
                 DataSourceType.fromCode(datasource.getType())
                         .orElseThrow(
@@ -77,6 +77,12 @@ public class DynamicDataSourceManager {
         // 因此 config 构建与池创建必须同在一个 try 内，才能被转译为可操作的缺驱动提示。
         try {
             HikariConfig config = getHikariConfig(datasource, jdbcUrl, type);
+            if (inspection) {
+                // Pool acquisition/isValid timeouts do not bound the driver's initial handshake.
+                config.setJdbcUrl(type.inspectionJdbcUrl(jdbcUrl));
+                type.inspectionTimeouts().forEach(config::addDataSourceProperty);
+                config.setMaximumPoolSize(1);
+            }
 
             log.info(
                     "Creating datasource pool for [{}] type={} url={}",

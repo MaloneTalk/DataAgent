@@ -107,6 +107,12 @@ export interface DatasourceTestResponse {
   message: string;
 }
 
+export function testDatasourceConfiguration(data: DatasourceRequest) {
+  return request
+    .post<ApiResponse<DatasourceTestResponse>>('/datasource/test', data)
+    .then(res => res.data.data);
+}
+
 export function testDatasource(id: number) {
   return request
     .post<ApiResponse<DatasourceTestResponse>>(`/datasource/${id}/test`)

@@ -29,6 +29,7 @@
     deactivateDatasource,
     getDatasourceList,
     testDatasource,
+    testDatasourceConfiguration,
     type DatasourceResponse,
   } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
@@ -200,7 +201,7 @@
   };
 
   const handleSubmit = async () => {
-    if (!formRef.value) return;
+    if (submitLoading.value || !formRef.value) return;
     clearFieldErrors();
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
@@ -212,9 +213,15 @@
         await fetchList();
         ElMessage.success('编辑成功');
       } else {
-        await createDatasource(form);
+        const draft = { ...form };
+        const result = await testDatasourceConfiguration(draft);
+        if (!result.success) {
+          ElMessage.error(result.message);
+          return;
+        }
+        await createDatasource(draft);
         await fetchList();
-        ElMessage.success('新增成功');
+        ElMessage.success('连接测试通过，数据源已保存');
       }
       dialogVisible.value = false;
     } catch (error) {
@@ -369,8 +376,16 @@
     :title="isEdit ? '编辑数据源' : '新增数据源'"
     width="600px"
     :close-on-click-modal="false"
+    :close-on-press-escape="!submitLoading"
+    :show-close="!submitLoading"
   >
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      :disabled="submitLoading"
+      label-width="100px"
+    >
       <el-form-item label="数据源名称" prop="name" :error="fieldErrors.name">
         <el-input v-model="form.name" placeholder="请输入数据源名称" />
       </el-form-item>
@@ -425,9 +440,9 @@
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="handleCancel">取消</el-button>
+      <el-button :disabled="submitLoading" @click="handleCancel">取消</el-button>
       <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-        {{ isEdit ? '保存' : '确定' }}
+        {{ isEdit ? '保存' : '测试并保存' }}
       </el-button>
     </template>
   </el-dialog>

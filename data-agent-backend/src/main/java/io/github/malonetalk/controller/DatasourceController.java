@@ -206,6 +206,12 @@ public class DatasourceController {
                         .toList());
     }
 
+    @PostMapping("/test")
+    @RequirePermission(PermissionEnum.DATA_DATASOURCE_CREATE)
+    public DatasourceTestVo testConfiguration(@Valid @RequestBody DatasourceDto request) {
+        return datasourceInspectionService.testConfiguration(request);
+    }
+
     @PostMapping("/{id}/test")
     @RequirePermission(PermissionEnum.DATA_DATASOURCE_UPDATE)
     public DatasourceTestVo testConnection(@PathVariable Integer id) {
