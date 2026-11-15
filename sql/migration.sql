@@ -868,6 +868,20 @@ PREPARE migration_statement FROM @migration_sql;
 EXECUTE migration_statement;
 DEALLOCATE PREPARE migration_statement;
 
+-- 业务唯一键独立于物理主键，物理同步保留管理员配置。
+SET @migration_sql = IF(
+    EXISTS(
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'table_info'
+          AND COLUMN_NAME = 'business_key_columns_json'
+    ),
+    'SELECT 1',
+    'ALTER TABLE `table_info` ADD COLUMN `business_key_columns_json` TEXT COMMENT ''管理员声明的业务唯一键字段（JSON数组，不创建物理约束）'' AFTER `data_granularity`'
+);
+PREPARE migration_statement FROM @migration_sql;
+EXECUTE migration_statement;
+DEALLOCATE PREPARE migration_statement;
+
 -- 用户个人访问令牌（PAT）：只保存哈希，明文仅在创建时返回一次。
 CREATE TABLE IF NOT EXISTS `user_pat` (
     `id`            BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',

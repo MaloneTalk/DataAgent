@@ -16,19 +16,25 @@
  -->
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref } from 'vue';
+  import { computed, onMounted, reactive, ref } from 'vue';
   import type { FormInstance, FormRules } from 'element-plus';
   import { ElMessage } from 'element-plus';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import { useUserStore } from '@/stores/user';
   import { getDomainNames } from '@/api/domain';
-  import { updateTableSemantic, type TableSemanticInfo } from '@/api/semantic';
+  import {
+    getColumnSemanticPage,
+    updateTableSemantic,
+    type ColumnSemanticInfo,
+    type TableSemanticInfo,
+  } from '@/api/semantic';
 
   interface TableEditForm {
     tableName: string;
     domain: string;
     tableDescription: string;
     dataGranularity: string;
+    businessKeyColumns: string[];
     isVisible: boolean;
   }
 
@@ -36,6 +42,16 @@
   const emit = defineEmits<{ close: []; saved: [] }>();
   const domainOptions = ref<string[]>([]);
   const userStore = useUserStore();
+  const columnOptions = ref<ColumnSemanticInfo[]>([]);
+  const columnsLoading = ref(true);
+  const columnsError = ref('');
+  const canEditBusinessKey = computed(
+    () =>
+      props.table.businessKeyColumns !== null &&
+      userStore.hasPermission('semantic:column:read') &&
+      !columnsLoading.value &&
+      !columnsError.value,
+  );
 
   const dialogVisible = ref(true);
   const submitLoading = ref(false);
@@ -45,6 +61,7 @@
     domain: props.table.domain ?? '',
     tableDescription: props.table.tableDescription ?? '',
     dataGranularity: props.table.dataGranularity ?? '',
+    businessKeyColumns: [...(props.table.businessKeyColumns ?? [])],
     isVisible: props.table.isVisible,
   });
   const { fieldErrors, clearFieldErrors, applyFieldErrors } = useFieldErrors(form);
@@ -65,6 +82,7 @@
         domain: form.domain.trim() || undefined,
         tableDescription: form.tableDescription.trim() || undefined,
         dataGranularity: form.dataGranularity.trim() || undefined,
+        businessKeyColumns: canEditBusinessKey.value ? form.businessKeyColumns : undefined,
         isVisible: form.isVisible,
       });
       ElMessage.success('更新成功');
@@ -77,14 +95,36 @@
     }
   };
 
-  onMounted(async () => {
+  const loadColumns = async () => {
+    try {
+      if (!userStore.hasPermission('semantic:column:read')) return;
+      let page = 1;
+      while (true) {
+        const result = await getColumnSemanticPage(props.table.tableName, {
+          datasourceId: props.datasourceId,
+          page: page++,
+          pageSize: 100,
+        });
+        columnOptions.value.push(...result.items.filter(column => column.hasPhysicalColumn));
+        if (!result.hasNext) break;
+      }
+    } catch {
+      columnsError.value = '字段加载失败，请关闭后重新打开编辑窗口';
+    } finally {
+      columnsLoading.value = false;
+    }
+  };
+
+  const loadDomains = async () => {
     if (!userStore.hasPermission('semantic:domain:read')) return;
     try {
       domainOptions.value = await getDomainNames();
     } catch {
       domainOptions.value = [];
     }
-  });
+  };
+
+  onMounted(() => Promise.all([loadDomains(), loadColumns()]));
 </script>
 
 <template>
@@ -134,6 +174,38 @@
           placeholder="说明一行代表什么，例如：每行代表一份订单"
         />
       </el-form-item>
+      <el-form-item
+        label="业务唯一键"
+        prop="businessKeyColumns"
+        :error="fieldErrors.businessKeyColumns"
+      >
+        <el-select
+          v-model="form.businessKeyColumns"
+          multiple
+          filterable
+          clearable
+          placeholder="可选；选择一列或一组共同唯一的字段"
+          :loading="columnsLoading"
+          :disabled="!canEditBusinessKey"
+        >
+          <el-option
+            v-for="column in columnOptions"
+            :key="column.columnName"
+            :label="column.columnName"
+            :value="column.columnName"
+          />
+        </el-select>
+        <div class="key-help">
+          管理员声明这些字段共同唯一标识一行；不创建数据库约束，也不自动校验数据唯一性。
+        </div>
+        <el-text v-if="table.businessKeyInvalidReason" type="warning">
+          {{ table.businessKeyInvalidReason }}
+        </el-text>
+        <el-text v-if="columnsError" type="danger">{{ columnsError }}</el-text>
+        <el-text v-else-if="!columnsLoading && !canEditBusinessKey" type="info">
+          需要列语义读取权限及全部键字段的数据权限才能编辑。
+        </el-text>
+      </el-form-item>
       <el-form-item label="可见性" prop="isVisible" :error="fieldErrors.isVisible">
         <el-switch v-model="form.isVisible" active-text="可见" inactive-text="隐藏" />
       </el-form-item>
@@ -144,3 +216,12 @@
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+  .key-help {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 6px;
+  }
+</style>

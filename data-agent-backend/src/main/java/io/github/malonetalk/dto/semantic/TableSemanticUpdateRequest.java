@@ -19,11 +19,15 @@ package io.github.malonetalk.dto.semantic;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
+import lombok.Builder;
 
+@Builder
 public record TableSemanticUpdateRequest(
         @NotNull(message = "datasourceId 不能为空") Integer datasourceId,
         @NotBlank(message = "tableName 不能为空") String tableName,
         String domain,
         String tableDescription,
         String dataGranularity,
+        List<@NotBlank(message = "业务唯一键字段不能为空") String> businessKeyColumns,
         @NotNull(message = "isVisible 不能为空") Boolean isVisible) {}

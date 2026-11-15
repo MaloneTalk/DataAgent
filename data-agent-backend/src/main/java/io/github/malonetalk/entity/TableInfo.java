@@ -18,6 +18,8 @@
 package io.github.malonetalk.entity;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import lombok.Data;
 
 @Data
@@ -29,10 +31,15 @@ public class TableInfo {
     private String physicalTableDescription;
     private String tableDescription;
     private String dataGranularity;
+    private List<String> businessKeyColumns;
     private String domain;
     private Integer datasourceId;
     private Boolean isVisible;
     private Boolean physicalStatus;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    public List<String> getBusinessKeyColumns() {
+        return Optional.ofNullable(businessKeyColumns).orElseGet(List::of);
+    }
 }

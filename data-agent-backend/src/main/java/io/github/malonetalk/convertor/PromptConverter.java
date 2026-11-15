@@ -46,7 +46,9 @@ public final class PromptConverter {
     }
 
     public static TablePromptResponse mapTablePrompt(
-            TableInfo table, List<TableRelationPromptResponse> resolvedRelations) {
+            TableInfo table,
+            List<TableRelationPromptResponse> resolvedRelations,
+            List<String> businessKeyColumns) {
         if (!SemanticAvailabilityHelper.isTableAvailable(table)) {
             return null;
         }
@@ -56,6 +58,7 @@ public final class PromptConverter {
                 .domain(SemanticUtils.normalizeDomain(table.getDomain()))
                 .description(SemanticUtils.trimToNull(table.getTableDescription()))
                 .dataGranularity(SemanticUtils.trimToNull(table.getDataGranularity()))
+                .businessKeyColumns(businessKeyColumns)
                 .relations(resolvedRelations)
                 .build();
     }

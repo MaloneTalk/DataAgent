@@ -31,6 +31,7 @@ import io.github.malonetalk.service.semantic.SemanticAvailabilityHelper;
 import io.github.malonetalk.service.semantic.relation.LogicalTableRelationHelper;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -40,7 +41,8 @@ public class SemanticConverter {
 
     private final LogicalTableRelationHelper logicalTableRelationHelper;
 
-    public TableSemanticResponse toResponse(TableInfo tableInfo) {
+    public TableSemanticResponse toResponse(
+            TableInfo tableInfo, Set<String> physicalColumnNames, boolean canReadKey) {
         Boolean isVisible = tableInfo.getIsVisible();
         boolean hasPhysicalTable = SemanticAvailabilityHelper.hasPhysicalTable(tableInfo);
         return TableSemanticResponse.builder()
@@ -52,6 +54,13 @@ public class SemanticConverter {
                         SemanticUtils.trimToNull(tableInfo.getPhysicalTableDescription()))
                 .tableDescription(SemanticUtils.trimToNull(tableInfo.getTableDescription()))
                 .dataGranularity(SemanticUtils.trimToNull(tableInfo.getDataGranularity()))
+                .businessKeyColumns(canReadKey ? tableInfo.getBusinessKeyColumns() : null)
+                .businessKeyInvalidReason(
+                        canReadKey
+                                ? SemanticAvailabilityHelper.businessKeyInvalidReason(
+                                                tableInfo, physicalColumnNames)
+                                        .orElse(null)
+                                : null)
                 .isVisible(isVisible)
                 .hasPhysicalTable(hasPhysicalTable)
                 .invalidReason(SemanticAvailabilityHelper.tableInvalidReason(tableInfo))

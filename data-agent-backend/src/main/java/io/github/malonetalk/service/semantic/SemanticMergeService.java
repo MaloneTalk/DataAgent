@@ -100,7 +100,13 @@ public class SemanticMergeService {
                                                 relationsBySourceId.getOrDefault(
                                                         table.getId(), List.of()),
                                                 tablesById,
-                                                availableColumnsByTableId)))
+                                                availableColumnsByTableId),
+                                        hasUnavailableColumn(
+                                                        availableColumnsByTableId,
+                                                        table.getId(),
+                                                        table.getBusinessKeyColumns())
+                                                ? List.of()
+                                                : table.getBusinessKeyColumns()))
                 .filter(Objects::nonNull)
                 .toList();
     }

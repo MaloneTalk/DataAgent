@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS `table_info` (
     `physical_table_description` VARCHAR(500) DEFAULT NULL COMMENT '物理表原始描述',
     `table_description` VARCHAR(500) DEFAULT NULL COMMENT '表描述',
     `data_granularity` VARCHAR(500) DEFAULT NULL COMMENT '数据粒度（一行代表的业务实体或事件）',
+    `business_key_columns_json` TEXT COMMENT '管理员声明的业务唯一键字段（JSON数组，不创建物理约束）',
     `domain` VARCHAR(255) DEFAULT NULL COMMENT '领域',
     `datasource_id` INT NOT NULL COMMENT '关联数据源ID',
     `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见',
