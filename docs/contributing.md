@@ -24,11 +24,17 @@
 | --- | --- |
 | `npm run dev` | 启动开发服务器（默认 3000） |
 | `npm run build` | 类型检查 + 构建 |
-| `npm test` | 角色数据范围回归测试 |
+| `npm test` | 角色数据范围与图表配置回归测试 |
 | `npm run lint:check` / `npm run format:check` | ESLint / Prettier 只检查，不修改文件 |
 | `npm run lint` / `npm run format` | ESLint 自动修复 / Prettier 格式化 |
 
 - 前端规范见 `data-agent-frontend/CODE_STYLE.md` 与 `eslint.config.js` / `.prettierrc`。
+
+### CLI
+
+- `data-agent-cli/` 是独立 npm 包，运行要求 Node.js 20+；本地开发可统一使用前端的 Node 22 环境。
+- 使用 `npm ci` 安装，`npm run build` 编译，`npm link` 链接本地命令；发布包名为 `@malone-talk/data-agent-cli`。
+- `npm run typecheck` 只检查类型，`npm test` 使用 Vitest；认证与调用步骤见 [external-agent.md](external-agent.md)。
 
 ## 2. 代码规范（要点）
 
@@ -37,6 +43,8 @@
 - **保持简单**：文件超过约 400 行、函数超过约 80 行时考虑拆分，保持职责清晰。
 - **YAGNI**：当前不需要的接口/参数/抽象先不做。
 - **优先复用**：JDK → Spring 原生 → 已引入依赖 → 才自写。
+- **保持分层职责**：Mapper 保持原子持久化操作，业务校验、跨 Mapper 协调与事务放在 Service；Service 按业务职责拆分，避免仅为拆文件增加空转发层。
+- **转换放在转换层**：机械字段映射优先 MapStruct，多步组装使用已有专用转换器；Service 专注业务行为，简单赋值不必额外抽象。
 - **不写样板**：用 Lombok（`@Data`/`@Builder`）、MapStruct 生成机械代码；多字段用 `@Builder` 而非长构造器。
 - **为下一个读者写**：命名揭示意图，复杂逻辑拆小步。
 - **新模型使用 `model.*`**：PO / DTO / VO / BO 放入对应子包；PO 继承 `BasePo`，VO 实现 `BaseVo`。存量 `entity` / `dto` 包仍在迁移，不再新增类型。
@@ -85,10 +93,11 @@
 
 ## 5. 持续集成（CI）
 
-仓库 `.github/workflows/` 下已有两条流水线，PR 会触发：
+仓库 `.github/workflows/` 下有三条模块 CI，面向 `main` 的 PR 和推送会触发：
 
 - `backend.yml`：JDK 17，执行 `mvn verify --file data-agent-backend/pom.xml`，包含测试、Checkstyle 与 Spotless。
 - `frontend.yml`：Node 22，执行 `npm ci`，分别检查 `npm run lint:check`、`npm run format:check` 与 `npm run build`。
+- `cli.yml`：Node 20，执行 `npm ci`、`npm run lint:check`、`npm run format:check`、`npm run build` 和 `npm test`。
 
 从仓库根目录检查后端：
 
@@ -96,7 +105,7 @@
 mvn verify --file data-agent-backend/pom.xml
 ```
 
-从前端目录检查前端；`npm test` 是现有数据范围回归命令，当前 CI 未自动执行，相关改动应本地补跑：
+从前端目录检查前端；`npm test` 包含角色数据范围及图表配置回归，当前前端 CI 未自动执行，相关改动应本地补跑：
 
 ```bash
 cd data-agent-frontend
@@ -106,6 +115,20 @@ npm run lint:check
 npm run format:check
 npm run build
 ```
+
+从仓库根目录进入 CLI 后执行其检查：
+
+```bash
+cd data-agent-cli
+npm ci
+npm run lint:check
+npm run format:check
+npm run typecheck
+npm run build
+npm test
+```
+
+Docker 构建不等于上述完整校验：后端 Dockerfile 使用 `-DskipTests`，前端使用 `pnpm vite build` 跳过 `vue-tsc` 类型检查。提交前仍应运行对应模块命令。仅修改文档时，检查相对链接、示例字段与实际源码的一致性；修改前端或 CLI 目录内的 Markdown 还需通过对应 Prettier 检查。
 
 ## 6. 行为准则
 

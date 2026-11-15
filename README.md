@@ -17,10 +17,13 @@
 - **Python 数据分析**：对查询结果自动执行统计分析（相关性、回归、分布检验），补齐 SQL 在复杂统计计算上的短板。
 - **多模型可切换**：内置 OpenAI 兼容接口 / Ollama / 通义 DashScope / Anthropic 等提供商，换底座模型不影响已沉淀的业务知识。
 - **多数据源（JDBC 抽象）**：连接与元数据读取基于 JDBC 标准 API，内置类型覆盖 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite；实际查询还受目标库方言和 SQL 授权支持范围约束。
-- **同一会话多数据源**：会话可选择多个数据源；不选择时使用当前用户所有可访问的启用数据源，工具按 `datasource_id` 执行。
+- **同一会话多数据源**：后端聊天接口支持通过 `datasourceIds` 限定多个数据源，工具按 `datasource_id` 执行；当前聊天页未提供选择控件，默认使用当前用户所有可访问的启用数据源。
 
   > **默认仅内置 MySQL 驱动**。使用其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应 JDBC 驱动依赖并重新构建后端，否则新增数据源时会提示「未找到数据库驱动」。类型列表与 Maven 坐标见 [docs/configuration.md](docs/configuration.md#4-查询数据源)。
 - **语义层（无向量召回）**：以"域（Domain）"组织表，由 LLM 在工具调用时**推理出业务问题所属域、主动选表**，而非向量相似度召回——更精准、更稳定，也无需维护任何 embedding 索引。维度包括领域描述、逻辑表 / 逻辑列 / 表关系 / 指标口径的业务映射。
+- **普通视图分析**：表与普通视图统一同步和维护语义，展示 `TABLE` / `VIEW` 类型，并按对象及输出列分别授权。
+- **CSV 导入分析**：将 CSV 导入独立 MySQL 托管库，自动同步语义，提供任务进度、失败恢复与删除；需先配置专用读写连接，见 [CSV 导入](docs/csv-import.md)。
+- **交互图表**：根据本会话 SQL 结果生成柱状图、折线图、饼图和散点图，支持历史回放；图表数据来自查询快照，见 [图表使用指南](docs/charts.md)。
 - **会话式分析**：SSE 流式回答，会话历史可追溯、可调试。
 - **角色与数据权限**：按功能权限点授权，表白名单与隐藏列黑名单同时作用于语义工具、SQL 查询和导出；会话与资产按归属隔离。
 - **资产与数据证据**：内置报表、CSV 导出与数据证据视图，记录回答涉及的 SQL、指标、Python 执行及表列来源。
@@ -142,9 +145,9 @@ mysql -u root -p data_agent < sql/migration.sql
 
 五个指标属性的默认值、校验与配置示例见[指标业务属性](docs/semantic-layer.md#5-指标业务属性)。
 
-浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，先在「数据源管理」接入业务库，在「语义管理」同步表结构并维护表/列/指标口径，再到聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？"* 用户与角色入口在「系统管理」。
+浏览器打开 http://localhost:3000 ，使用 `admin` / `ADMIN_INIT_PASSWORD` 登录后，先在「数据源管理」接入并激活业务库（新建数据源默认禁用），在「语义管理」同步表或普通视图并维护表/列/指标口径，再到聊天框用自然语言提问，例如：*"上个月各区域销售额是多少？请用柱状图展示。"* 用户与角色入口在「系统管理」。
 
-新会话由后端 `POST /api/agent/session` 创建，再用返回的会话 ID 发起 SSE 请求；在聊天页选择本次会话可用的数据源；不选表示全部可访问数据源，后续消息可调整选择。普通用户需先获得功能权限和目标表授权，配置步骤见[权限说明](docs/permissions.md)。
+新会话由后端 `POST /api/agent/session` 创建，再用返回的会话 ID 发起 SSE 请求。当前聊天页不传 `datasourceIds`，每次消息默认使用全部可访问的启用数据源；自定义客户端可按消息指定范围，见[会话协议](docs/architecture.md#会话与数据源协议)。普通用户需先获得功能权限和目标表或视图授权，配置步骤见[权限说明](docs/permissions.md)。
 
 ## 📚 文档
 
@@ -156,7 +159,10 @@ mysql -u root -p data_agent < sql/migration.sql
 | [docs/configuration.md](docs/configuration.md) | LLM、数据源、Skill、MCP 配置 |
 | [docs/semantic-layer.md](docs/semantic-layer.md) | 语义层概念与管理 |
 | [docs/permissions.md](docs/permissions.md) | 功能权限、表列数据范围与升级 |
+| [docs/csv-import.md](docs/csv-import.md) | CSV 托管库配置、导入、恢复与删除 |
+| [docs/charts.md](docs/charts.md) | SQL 结果绘图、字段映射与限制 |
 | [docs/skills.md](docs/skills.md) | Skill 编写、加载路径与生效方式 |
+| [docs/external-agent.md](docs/external-agent.md) | PAT、REST 工具、CLI 与外部 Skill |
 | [docs/observability.md](docs/observability.md) | OpenTelemetry 链路、指标与日志 |
 | [docs/contributing.md](docs/contributing.md) | 开发环境与贡献流程 |
 
