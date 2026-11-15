@@ -14,10 +14,11 @@ description: 一句话描述这个 Skill 做什么。
 
 你是一个 XXX 助手。当用户提出 XXX 相关问题时，按以下步骤操作：
 
-1. 使用 `get_domains` 获取可用数据域
-2. 使用 `get_table_schema` 获取表结构
-3. ...
-4. 汇总结果返回给用户
+1. 使用 `get_datasources` 确认目标数据源
+2. 使用 `get_domains`、`get_tables` 选择数据域和表或普通视图
+3. 使用 `get_table_schema` 获取字段，必要时用 `get_metric_caliber` 核对指标
+4. 多数据源时在上述语义工具及 `execute_sql` 中显式传入 `datasource_id`
+5. 执行 SELECT 并汇总；需要图表时，用返回的 Result ID 调用 `generate_chart`
 
 ## 注意事项
 
@@ -53,3 +54,12 @@ Docker 镜像将仓库 `skills/` 复制到 `/app/skills`，默认路径可直接
 | Skill | 说明 |
 | --- | --- |
 | `data-query` | 根据表结构生成 SQL 并执行查询，汇总结果 |
+
+## 后端 Skill 与外部 Agent Skill
+
+| 目录 | 加载方 | 用途 |
+| --- | --- | --- |
+| `skills/` | 后端 AgentScope `SkillBox` | 指导内置聊天 Agent 使用服务端工具；由 `skill.properties` 配置来源，更新后重启后端 |
+| `data-agent-skill/` | 外部 Agent | 指导调用 `data-agent-cli`；复制到调用方的 Skill 目录，不通过后端加载 |
+
+两者不共用安装位置。外部 Agent 只能调用 REST 暴露的只读工具，不能因复制 Skill 获得 Python、图表或导出能力；安装与权限见 [external-agent.md](external-agent.md)。内置聊天的绘图流程及字段限制见 [charts.md](charts.md)。

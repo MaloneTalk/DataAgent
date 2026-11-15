@@ -49,6 +49,11 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 | 查阅会话 | `analysis:session:read` |
 | 查看数据证据 | `asset:evidence:read`；读取他人会话范围还需 `analysis:session:read-all` |
 | 查询指标口径 | `semantic:metric:read` |
+| 生成聊天图表 | 沿用智能问数权限；绘图时重新检查 `analysis:sql:execute` 与当前数据范围，没有独立图表权限点 |
+| Python 分析 | `analysis:python:execute` |
+| 上传并导入 CSV | `data:datasource:read`、`data:csv:import`、`semantic:table:sync`；分析导入结果仍需目标表授权 |
+| 删除 CSV 导入 | `data:csv:delete`；同时检查任务访问范围及指标、关系引用 |
+| 管理本人 PAT | `access:pat:manage`；令牌不额外授予任何工具或数据权限 |
 | 保存报告 | `asset:report:generate` |
 | 查看报告列表 | `asset:report:read` |
 | 创建导出 | `asset:export:create`、`analysis:sql:execute` |
@@ -56,7 +61,7 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 
 查看全部会话需要额外的 `analysis:session:read-all`，它不会授予删除他人会话的权限。清空全部会话需要 `analysis:session:delete-all`。报告、导出默认只允许访问本人会话下的资源；超级管理员保留全量访问。
 
-`analysis:session:read` 可独立打开聊天页面查阅历史，无需聊天使用权限。输入框、新建会话和数据源选择只对拥有 `analysis:chat:use` 的用户显示；会话删除、报告和数据证据各自检查对应权限。前端收到撤权响应后刷新权限，并强制重新经过当前页面的路由守卫。
+`analysis:session:read` 可独立打开聊天页面查阅历史，无需聊天使用权限。输入框和新建会话只对拥有 `analysis:chat:use` 的用户显示；当前聊天页没有数据源选择控件，默认范围见 [会话协议](architecture.md#会话与数据源协议)。会话删除、报告和数据证据各自检查对应权限。前端收到撤权响应后刷新权限，并强制重新经过当前页面的路由守卫。
 
 仅角色授权管理（`sys:role:grant`，包括功能权限与表列数据范围配置）限超级管理员，其余权限点均可授予普通角色。角色分配由 `sys:user:assign-role` 控制，创建用户时指定非零角色也需要该权限；表结构同步与物理状态刷新由 `semantic:table:sync` 控制，Python 执行由 `analysis:python:execute` 控制。未授权仍默认拒绝。普通角色不能修改超级管理员账号。
 
@@ -70,7 +75,7 @@ ALTER TABLE report DROP INDEX uk_session_id, ADD KEY idx_session_id (session_id)
 
 视图不要求物理主键或索引，字段来自视图的输出列。同步保留人工维护的描述、领域、粒度和可见性；对象或字段缺失时保留语义记录并标记缺失，重建后需完整同步恢复。元数据读取失败会中止操作；数据库账号权限变化也可能使对象从元数据中消失，因此缺失不一定表示已经删除。
 
-普通角色必须单独获得视图授权，底表授权和隐藏列规则不会自动传递到视图输出列。查询、导出和 Agent 结构工具继续执行同一套表列授权；访问视图不会自动获得底表访问权限。连接账号也必须具有数据库要求的视图查询及元数据读取权限，按视图的执行权限配置验证。本期只支持当前数据源范围内的普通视图，优先查询对象和业务唯一键配置另行实现。
+普通角色必须单独获得视图授权，底表授权和隐藏列规则不会自动传递到视图输出列。查询、导出和 Agent 结构工具继续执行同一套表列授权；访问视图不会自动获得底表访问权限。连接账号也必须具有数据库要求的视图查询及元数据读取权限，按视图的执行权限配置验证。本期只支持当前数据源范围内的普通视图；当前没有优先查询对象或业务唯一键配置入口。
 
 权限是后端中的逻辑模块，代码沿用项目已有分层目录：
 
@@ -154,6 +159,8 @@ SQL 授权同时返回改写后的查询与本次可见列快照。查询和导�
 配置页面只有完整加载当前角色、当前数据源的表列及已有授权后才允许保存。加载失败、切换角色或数据源、关闭对话框都会使已加载状态失效；加载失败不能被当作空授权保存。
 
 权限撤销会阻止后续查询和工具调用，但不会删除历史会话、报告、证据和已经生成的导出。历史资产读取仍按能力权限及归属检查，不根据当前表列权限追溯撤销。需要追溯撤权时，应另行增加资产数据来源与读取时的重新校验。
+
+已保存的聊天图表随历史消息回放，沿用会话读取规则；重新调用 `generate_chart` 则会重新检查 SQL 与当前表列权限。CSV 的 READY 状态检查同样适用于超级管理员。PAT 调用仍受所属用户的当前权限约束，工具发现成功不代表具备实际执行权限。详见 [图表](charts.md)、[CSV 导入](csv-import.md) 与 [外部接入](external-agent.md)。
 
 ## 验证
 

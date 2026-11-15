@@ -1,6 +1,6 @@
 # 配置
 
-本文汇总 Data Agent 的各项配置：元数据库、LLM 提供商、应用参数、查询数据源、Skill 加载源、MCP Server 注册。所有配置键均可在 `application.properties` 中写死，也可用**环境变量**覆盖（推荐用于密钥与部署差异）。
+本文汇总 Data Agent 的各项配置：元数据库、LLM 提供商、应用参数、查询数据源、CSV 导入、Skill、MCP 与认证。配置来源以 `data-agent-backend/src/main/resources/application.properties`、`skill.properties` 和 `docker/docker-compose.yml` 为准；密钥与部署差异通过环境变量覆盖。
 
 ## 1. 元数据库
 
@@ -17,6 +17,8 @@
 执行统一迁移文件 `sql/migration.sql`，其中包含旧库兼容、主键关联升级、指标业务属性扩展、回答溯源表、角色功能权限、会话归属唯一约束及会话数据源范围。迁移前按[权限升级说明](permissions.md#升级现有数据库)检查会话归属冲突。
 已经完成主键关联升级的旧库也需执行，以补齐计算方式、结果类型、单位、倍率、币种及回答溯源表；新增字段逐列检查是否存在，回答溯源表按需创建，可重复执行。
 数据源升级还会补齐 `updater_id` 和 `is_deleted`。删除数据源改为逻辑删除，保留原记录及关联元数据；列表和会话数据源解析会排除已删除的数据源。`session_datasource` 升级为多数据源范围并补齐审计字段，工具调用会重新校验数据源权限。
+
+最新迁移还包含 CSV 托管数据源与 `csv_import`、个人访问令牌表 `user_pat`，以及 `table_info.object_type`（`TABLE` / `VIEW`）。停止旧后端写入后执行；迁移不会自动创建 CSV 物理库、账号或授予角色新权限。历史对象类型需再次完整同步，见 [表与普通视图](semantic-layer.md#表与普通视图)。
 
 指标属性的配置规则与接口示例见 [语义层](semantic-layer.md#5-指标业务属性)。
 
@@ -100,11 +102,14 @@ CSV 按 JDBC 类型转换：布尔、数值、字符和日期时间类型使用�
 
 ### 数据源接口与会话范围
 
-- 创建的数据源默认 `INACTIVE`。聊天页可选择多个数据源；不选择时使用当前用户所有可访问的启用数据源。数据源范围会按消息更新，工具通过 `datasource_id` 指定实际查询目标。
+- 创建的数据源默认 `INACTIVE`，需通过页面或 `PUT /api/datasource/{id}/activate` 激活后用于分析。后端聊天接口支持 `datasourceIds` 限定范围；当前聊天页没有选择控件，每条消息使用全部可访问的启用数据源，工具通过 `datasource_id` 指定实际查询目标。
 - 更新时 `name`、`type` 必填；可选字段未传或为 `null` 时保留原值，可选字符串可用 `""` 清空，密码传空字符串仍保留原密码。更新、删除会清理该源的连接池缓存。
 - 删除为逻辑删除，保留语义及会话数据源范围。已选择的数据源被删除或撤权后，后续工具调用会拒绝；可在下一条消息中调整数据源选择。
 - 数据源创建、更新、删除与启停接口返回 `data: { "value": true }`；列表与摘要选项的 `data` 仍是数组，字段查询仍是表名到列名数组的映射。读取接口不返回密码。
 - `GET /api/datasource/options` 供聊天、表语义、逻辑外键与指标页面共享，按表授权过滤，只含 `id`、`name`、`type`、`status`。
+- `GET /api/datasource/{id}/objects` 返回已同步对象的 `tableName` 与 `objectType`，用于表/视图授权；`/{id}/tables` 保留名称数组的兼容格式。这两个接口和 `/{id}/columns` 都要求 `sys:role:grant`，不面向普通分析用户。
+
+普通视图和表共用语义同步及表列授权，但底表授权不自动继承到视图。CSV 托管数据源不能通过普通数据源接口修改连接或删除，启用方式见下文。
 
 普通查询最多返回 200 行、超时 30 秒；导出最多 10000 行、超时 120 秒。JDBC 驱动解决连接问题，实际 SQL 还需符合目标库方言及当前授权解析器支持范围，详见 [架构说明](architecture.md#7-agent-内置工具) 和 [权限规则](permissions.md#后端执行规则)。
 
@@ -160,7 +165,7 @@ Docker 后端工作目录为 `/app`，镜像已复制 `/app/skills`，默认 `./
 | --- | --- | --- | --- |
 | `jwt.secret` | `JWT_SECRET` | 空 | JWT 签名密钥。**生产环境必须设置且长度 ≥ 32 字节**；留空则使用内存随机密钥（仅开发环境可用，每次重启 token 全部失效）。 |
 | `jwt.expiration-hours` | `JWT_EXPIRATION_HOURS` | `24` | Token 过期时间（小时）。 |
-| `admin.init-password` | `ADMIN_INIT_PASSWORD` | 空 | 管理员初始密码。**不设则启动失败（fail-closed）**。仅在 `sys_user` 表为空时首次自动创建 `admin` 用户，表已有数据后不再生效。 |
+| `admin.init-password` | `ADMIN_INIT_PASSWORD` | 空 | 管理员初始密码。`sys_user` 为空时必须设置，否则首次启动失败；已有用户后不再生效，也不会重置原密码。 |
 
 对应环境变量写法：
 
@@ -178,6 +183,7 @@ export ADMIN_INIT_PASSWORD="你的管理员密码"
 - 登录接口 `POST /api/auth/login` 接受 `{ username, password }`，返回 `{ token, user }`。前端将 token 存入 `localStorage`，后续请求通过 `Authorization: Bearer <token>` 携带。
 - `AuthInterceptor` 拦截除 `/api/auth/login` 外的所有接口（含 SSE 流式端点），校验 token 签名与时效。
 - 本人资料、修改本人密码等基础接口使用 `@LoginRequired`；业务接口使用 `@RequirePermission`，按当前角色的权限点检查，未声明策略的接口默认拒绝。超级管理员由 `is_super_admin=1` 标记，角色 ID 不代表管理员身份。
+- 外部 Agent 使用 PAT 访问 `/agent/**`，由 `AgentAuthInterceptor` 校验令牌及用户状态；Web JWT 与 PAT 的访问范围隔离。PAT 管理接口 `/api/auth/pats` 仍使用 JWT 和 `access:pat:manage` 权限。有效期、CLI 与 REST 调用见 [external-agent.md](external-agent.md)。
 - 「系统管理」中可配置角色功能权限、表白名单与隐藏列黑名单，再为用户分配一个角色。Agent 语义工具、SQL 查询、导出与相关管理操作均执行后端权限校验；权限变更在后续请求和敏感工具调用时重新读取，不写入 JWT。`GET /api/auth/me` 返回当前用户、角色、超级管理员标记与有效权限编码，前端据此控制路由和按钮。完整授权规则见 [permissions.md](permissions.md)。
 
 ### 密码哈希与旧数据迁移
@@ -212,3 +218,21 @@ SELF_CHECK=true mvn -f data-agent-backend/pom.xml clean test -Dtest=SysUserPassw
 | `management.opentelemetry.logging.export.otlp.endpoint` | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | `http://localhost:4318/v1/logs` | OTLP logs 地址 |
 
 > 仅查看终端日志时无需配置任何项。接入 Collector 时，把对应 `*_ENABLED` 设为 `true` 并指向 OTLP 地址即可；三种信号可独立开启。
+
+## 10. CSV 导入（可选）
+
+分析连接登记在 `datasource` 中并使用只读账号；写连接由后端 `csv-import.*` 配置，两者必须指向同一个独立 MySQL 托管库。完整建库与授权 SQL 见 [csv-import.md](csv-import.md)。
+
+| 配置键 | 环境变量 | 配置要求 |
+| --- | --- | --- |
+| `csv-import.datasource-id` | `CSV_DATASOURCE_ID` | 已登记且启用的 CSV 数据源 ID；不使用时显式设为 `0`，Compose 默认 `0` |
+| `csv-import.directory` | `CSV_IMPORT_DIRECTORY` | 可写的持久上传目录；建议手动部署显式设置绝对路径。Compose 固定为 `/app/csv-imports` 并挂载 volume |
+| `csv-import.writer-url` | `CSV_WRITER_URL` | 指向独立导入库的 JDBC URL，与只读数据源的实际数据库一致 |
+| `csv-import.writer-username` | `CSV_WRITER_USERNAME` | 具有导入库 CREATE、INSERT、DROP 权限的专用账号 |
+| `csv-import.writer-password` | `CSV_WRITER_PASSWORD` | 写入账号密码 |
+
+`spring.servlet.multipart.max-file-size=50MB`、`max-request-size=51MB` 为当前上传限制；解析及导入还有 10 万行、100 列等业务限制，单改 multipart 配置不会扩大这些限制。后台每个实例最多两个任务并发，多实例必须共享上传目录和元数据库。
+
+## 11. 图表
+
+图表复用 SQL 查询结果，不需要独立服务、绘图库进程或额外数据库配置。当前支持的类型、查询快照大小和系列数量上限由实现固定，见 [charts.md](charts.md)；没有可用于调整这些上限的配置键。Python 分析仍需另行准备运行环境。
