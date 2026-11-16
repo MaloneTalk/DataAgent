@@ -85,7 +85,7 @@ public final class SemanticAvailabilityHelper {
         }
         boolean missingColumn =
                 table.getBusinessKeyColumns().stream()
-                        .map(SemanticUtils::normalizeIdentifier)
+                        .map(name -> SemanticUtils.normalizeObjectName(name, "业务唯一键字段不能为空"))
                         .anyMatch(name -> !physicalColumnNames.contains(name));
         return missingColumn ? Optional.of("业务唯一键字段缺失，请重新选择") : Optional.empty();
     }

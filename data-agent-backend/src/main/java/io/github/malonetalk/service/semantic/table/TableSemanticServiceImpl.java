@@ -115,8 +115,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                                         ColumnInfo::getTableId,
                                         Collectors.mapping(
                                                 column ->
-                                                        SemanticUtils.normalizeIdentifier(
-                                                                column.getColumnName()),
+                                                        SemanticUtils.normalizeObjectName(
+                                                                column.getColumnName(),
+                                                                "Missing columnName."),
                                                 Collectors.toSet())));
         List<TableSemanticResponse> responses =
                 page.getRecords().stream()
@@ -227,10 +228,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         }
         List<String> normalized =
                 requestedColumns.stream()
-                        .map(
-                                name ->
-                                        SemanticUtils.normalizeIdentifier(
-                                                SemanticUtils.requireTrimmed(name, "业务唯一键字段不能为空")))
+                        .map(name -> SemanticUtils.normalizeObjectName(name, "业务唯一键字段不能为空"))
                         .toList();
         if (new LinkedHashSet<>(normalized).size() != normalized.size()) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "业务唯一键字段不能重复");
@@ -241,7 +239,7 @@ public class TableSemanticServiceImpl implements TableSemanticService {
         // 未修改时保留已失效的配置，允许独立修改描述、粒度等语义信息。
         if (normalized.equals(
                 table.getBusinessKeyColumns().stream()
-                        .map(SemanticUtils::normalizeIdentifier)
+                        .map(name -> SemanticUtils.normalizeObjectName(name, "业务唯一键字段不能为空"))
                         .toList())) {
             return;
         }
@@ -261,8 +259,9 @@ public class TableSemanticServiceImpl implements TableSemanticService {
                         .collect(
                                 Collectors.toMap(
                                         column ->
-                                                SemanticUtils.normalizeIdentifier(
-                                                        column.getColumnName()),
+                                                SemanticUtils.normalizeObjectName(
+                                                        column.getColumnName(),
+                                                        "Missing columnName."),
                                         ColumnInfo::getColumnName));
         if (!physicalColumns.keySet().containsAll(normalized)) {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "业务唯一键只能使用当前已同步且存在的字段");
