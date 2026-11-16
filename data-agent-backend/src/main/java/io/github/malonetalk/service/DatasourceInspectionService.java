@@ -19,12 +19,13 @@ package io.github.malonetalk.service;
 
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SchemaReader;
+import io.github.malonetalk.enums.DatasourceTestStatus;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.model.converter.DatasourceConverter;
 import io.github.malonetalk.model.dto.DatasourceDto;
 import io.github.malonetalk.model.po.DatasourcePo;
-import io.github.malonetalk.model.vo.DatasourceTableVo;
 import io.github.malonetalk.model.vo.DatasourceTestVo;
+import io.github.malonetalk.model.vo.PhysicalTableInfoVo;
 import java.sql.SQLException;
 import java.util.Comparator;
 import java.util.List;
@@ -43,7 +44,17 @@ public class DatasourceInspectionService {
     private final DatasourceConverter converter;
 
     public DatasourceTestVo testConnection(Integer id) {
-        return testConnection(datasourceService.requireById(id));
+        DatasourcePo datasource = datasourceService.requireById(id);
+        DatasourceTestVo result;
+        try {
+            result = testConnection(datasource);
+        } catch (BusinessException e) {
+            datasourceService.updateTestStatus(id, DatasourceTestStatus.FAILED);
+            throw e;
+        }
+        datasourceService.updateTestStatus(
+                id, result.success() ? DatasourceTestStatus.SUCCESS : DatasourceTestStatus.FAILED);
+        return result;
     }
 
     public DatasourceTestVo testConfiguration(DatasourceDto request) {
@@ -64,17 +75,17 @@ public class DatasourceInspectionService {
         }
     }
 
-    public List<DatasourceTableVo> listPhysicalTables(Integer id) {
+    public List<PhysicalTableInfoVo> listPhysicalTables(Integer id) {
         DatasourcePo datasource = datasourceService.requireById(id);
 
         return schemaReader.getTables(datasource).stream()
                 .map(
                         table ->
-                                new DatasourceTableVo(
+                                new PhysicalTableInfoVo(
                                         table.tableName(), table.objectType(), table.remarks()))
                 .sorted(
                         Comparator.comparing(
-                                DatasourceTableVo::tableName, String.CASE_INSENSITIVE_ORDER))
+                                PhysicalTableInfoVo::tableName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 }

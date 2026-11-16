@@ -31,10 +31,10 @@ import io.github.malonetalk.model.vo.BooleanVo;
 import io.github.malonetalk.model.vo.DatasourceColumnsVo;
 import io.github.malonetalk.model.vo.DatasourceObjectVo;
 import io.github.malonetalk.model.vo.DatasourceOptionVo;
-import io.github.malonetalk.model.vo.DatasourceTableVo;
 import io.github.malonetalk.model.vo.DatasourceTestVo;
 import io.github.malonetalk.model.vo.DatasourceVo;
 import io.github.malonetalk.model.vo.ListVo;
+import io.github.malonetalk.model.vo.PhysicalTableInfoVo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceInspectionService;
 import io.github.malonetalk.service.DatasourceService;
@@ -220,7 +220,7 @@ public class DatasourceController {
 
     @GetMapping("/{id}/physical-tables")
     @RequirePermission(PermissionEnum.DATA_DATASOURCE_UPDATE)
-    public ListVo<DatasourceTableVo> listPhysicalTables(@PathVariable Integer id) {
+    public ListVo<PhysicalTableInfoVo> listPhysicalTables(@PathVariable Integer id) {
         return new ListVo<>(datasourceInspectionService.listPhysicalTables(id));
     }
 }

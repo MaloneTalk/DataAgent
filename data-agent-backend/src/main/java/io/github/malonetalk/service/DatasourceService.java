@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.service;
 
+import io.github.malonetalk.enums.DatasourceTestStatus;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -52,6 +53,8 @@ public interface DatasourceService {
     List<DatasourcePo> findActiveByIds(Collection<Integer> ids);
 
     List<DatasourcePo> findByType(String type);
+
+    void updateTestStatus(Integer id, DatasourceTestStatus status);
 
     void updateStatus(Integer id, Status status);
 }

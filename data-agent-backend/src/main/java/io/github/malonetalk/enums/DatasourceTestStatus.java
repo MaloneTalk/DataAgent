@@ -15,7 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * limitations under the License.
  */
-package io.github.malonetalk.model.vo;
+package io.github.malonetalk.enums;
 
-public record DatasourceTableVo(String tableName, String objectType, String remarks)
-        implements BaseVo {}
+public enum DatasourceTestStatus {
+    SUCCESS,
+    FAILED
+}

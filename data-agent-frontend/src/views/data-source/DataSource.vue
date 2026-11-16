@@ -29,7 +29,6 @@
     deactivateDatasource,
     getDatasourceList,
     testDatasource,
-    testDatasourceConfiguration,
     type DatasourceResponse,
   } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
@@ -177,6 +176,7 @@
       // 请求异常由现有 request 拦截器统一提示。
     } finally {
       testingIds.delete(row.id);
+      await fetchList();
     }
   };
 
@@ -213,13 +213,7 @@
         await fetchList();
         ElMessage.success('编辑成功');
       } else {
-        const draft = { ...form };
-        const result = await testDatasourceConfiguration(draft);
-        if (!result.success) {
-          ElMessage.error(result.message);
-          return;
-        }
-        await createDatasource(draft);
+        await createDatasource({ ...form });
         await fetchList();
         ElMessage.success('连接测试通过，数据源已保存');
       }
@@ -286,6 +280,13 @@
           <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'">
             {{ row.status === 'ACTIVE' ? '已激活' : '已禁用' }}
           </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="最近测试结果" width="130">
+        <template #default="{ row }">
+          <el-tag v-if="row.testStatus === 'SUCCESS'" type="success">成功</el-tag>
+          <el-tag v-else-if="row.testStatus === 'FAILED'" type="danger">失败</el-tag>
+          <span v-else>未测试</span>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="500">

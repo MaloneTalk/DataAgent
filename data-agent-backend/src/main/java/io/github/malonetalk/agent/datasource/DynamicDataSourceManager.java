@@ -76,13 +76,7 @@ public class DynamicDataSourceManager {
         // 注意：HikariConfig.setDriverClassName() 会同步加载驱动类，缺驱动时在此即抛异常，
         // 因此 config 构建与池创建必须同在一个 try 内，才能被转译为可操作的缺驱动提示。
         try {
-            HikariConfig config = getHikariConfig(datasource, jdbcUrl, type);
-            if (inspection) {
-                // Pool acquisition/isValid timeouts do not bound the driver's initial handshake.
-                config.setJdbcUrl(type.inspectionJdbcUrl(jdbcUrl));
-                type.inspectionTimeouts().forEach(config::addDataSourceProperty);
-                config.setMaximumPoolSize(1);
-            }
+            HikariConfig config = getHikariConfig(datasource, jdbcUrl, type, inspection);
 
             log.info(
                     "Creating datasource pool for [{}] type={} url={}",
@@ -127,7 +121,7 @@ public class DynamicDataSourceManager {
     }
 
     private static HikariConfig getHikariConfig(
-            DatasourcePo datasource, String jdbcUrl, DataSourceType type) {
+            DatasourcePo datasource, String jdbcUrl, DataSourceType type, boolean inspection) {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(jdbcUrl);
         config.setUsername(datasource.getUsername());
@@ -139,6 +133,13 @@ public class DynamicDataSourceManager {
         config.setIdleTimeout(IDLE_TIMEOUT);
         config.setConnectionTimeout(CONNECTION_TIMEOUT);
         config.setMaxLifetime(MAX_LIFETIME);
+
+        if (inspection) {
+            // Pool acquisition/isValid timeouts do not bound the driver's initial handshake.
+            config.setJdbcUrl(type.inspectionJdbcUrl(jdbcUrl));
+            type.getInspectionTimeouts().forEach(config::addDataSourceProperty);
+            config.setMaximumPoolSize(1);
+        }
 
         config.setPoolName("ds-" + datasource.getId() + "-" + type.getCode());
         return config;
