@@ -28,16 +28,25 @@
     activateDatasource,
     deactivateDatasource,
     getDatasourceList,
+    testDatasource,
     type DatasourceResponse,
   } from '@/api/datasource';
   import { useFieldErrors } from '@/composables/useFieldErrors';
   import CsvImportPanel from './components/CsvImportPanel.vue';
+  import DatasourceTablesDrawer from './components/DatasourceTablesDrawer.vue';
 
   const router = useRouter();
   const { list: dataSourceList, loading, error, fetchList } = useDatasource(getDatasourceList);
 
   const dialogVisible = ref(false);
   const csvVisible = ref(false);
+  const tablesVisible = ref(false);
+  const selectedDatasource = ref<DatasourceResponse>();
+
+  const handleViewTables = (row: DatasourceResponse) => {
+    selectedDatasource.value = row;
+    tablesVisible.value = true;
+  };
   const submitLoading = ref(false);
   const isEdit = ref(false);
   const formRef = ref<FormInstance>();
@@ -148,6 +157,29 @@
     }
   };
 
+  const testingIds = reactive(new Set<number>());
+
+  const handleTestConnection = async (row: DatasourceResponse) => {
+    if (testingIds.has(row.id)) return;
+
+    testingIds.add(row.id);
+
+    try {
+      const result = await testDatasource(row.id);
+
+      if (result.success) {
+        ElMessage.success(result.message);
+      } else {
+        ElMessage.error(result.message);
+      }
+    } catch {
+      // 请求异常由现有 request 拦截器统一提示。
+    } finally {
+      testingIds.delete(row.id);
+      await fetchList();
+    }
+  };
+
   const handleActivate = async (row: DatasourceResponse) => {
     try {
       await activateDatasource(row.id);
@@ -169,7 +201,7 @@
   };
 
   const handleSubmit = async () => {
-    if (!formRef.value) return;
+    if (submitLoading.value || !formRef.value) return;
     clearFieldErrors();
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
@@ -181,9 +213,9 @@
         await fetchList();
         ElMessage.success('编辑成功');
       } else {
-        await createDatasource(form);
+        await createDatasource({ ...form });
         await fetchList();
-        ElMessage.success('新增成功');
+        ElMessage.success('连接测试通过，数据源已保存');
       }
       dialogVisible.value = false;
     } catch (error) {
@@ -250,8 +282,33 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="300">
+      <el-table-column label="最近测试结果" width="130">
         <template #default="{ row }">
+          <el-tag v-if="row.testStatus === 'SUCCESS'" type="success">成功</el-tag>
+          <el-tag v-else-if="row.testStatus === 'FAILED'" type="danger">失败</el-tag>
+          <span v-else>未测试</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="500">
+        <template #default="{ row }">
+          <el-button
+            v-permission="'data:datasource:update'"
+            link
+            type="primary"
+            :loading="testingIds.has(row.id)"
+            :disabled="testingIds.has(row.id)"
+            @click="handleTestConnection(row)"
+          >
+            测试连接
+          </el-button>
+          <el-button
+            v-permission="'data:datasource:update'"
+            link
+            type="primary"
+            @click="handleViewTables(row)"
+          >
+            查看表
+          </el-button>
           <el-button
             v-permission="'semantic:table:read'"
             link
@@ -307,13 +364,29 @@
 
   <CsvImportPanel v-model="csvVisible" />
 
+  <DatasourceTablesDrawer
+    v-if="tablesVisible && selectedDatasource"
+    :key="selectedDatasource.id"
+    v-model="tablesVisible"
+    :datasource-id="selectedDatasource.id"
+    :datasource-name="selectedDatasource.name"
+  />
+
   <el-dialog
     v-model="dialogVisible"
     :title="isEdit ? '编辑数据源' : '新增数据源'"
     width="600px"
     :close-on-click-modal="false"
+    :close-on-press-escape="!submitLoading"
+    :show-close="!submitLoading"
   >
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      :disabled="submitLoading"
+      label-width="100px"
+    >
       <el-form-item label="数据源名称" prop="name" :error="fieldErrors.name">
         <el-input v-model="form.name" placeholder="请输入数据源名称" />
       </el-form-item>
@@ -368,9 +441,9 @@
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="handleCancel">取消</el-button>
+      <el-button :disabled="submitLoading" @click="handleCancel">取消</el-button>
       <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-        {{ isEdit ? '保存' : '确定' }}
+        {{ isEdit ? '保存' : '测试并保存' }}
       </el-button>
     </template>
   </el-dialog>

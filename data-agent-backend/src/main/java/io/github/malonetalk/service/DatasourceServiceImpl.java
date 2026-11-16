@@ -21,6 +21,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.enums.DatasourceSourceType;
+import io.github.malonetalk.enums.DatasourceTestStatus;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -28,6 +29,7 @@ import io.github.malonetalk.mapper.DatasourceMapper;
 import io.github.malonetalk.model.converter.DatasourceConverter;
 import io.github.malonetalk.model.dto.DatasourceDto;
 import io.github.malonetalk.model.po.DatasourcePo;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +64,16 @@ public class DatasourceServiceImpl implements DatasourceService {
         datasource.setType(type.getCode());
         datasource.setSourceType(DatasourceSourceType.DATABASE.name());
         datasource.setStatus(Status.INACTIVE.getCode());
+        try {
+            if (!dynamicDataSourceManager.testConnection(datasource)) {
+                throw BusinessException.of(ErrorCode.BAD_REQUEST, "连接验证失败，请检查数据库是否可用");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (SQLException | RuntimeException e) {
+            throw BusinessException.of(ErrorCode.BAD_REQUEST, "连接失败，请检查地址、端口、数据库名、账号密码及网络", e);
+        }
+        datasource.setTestStatus(DatasourceTestStatus.SUCCESS.name());
         requireOperationSuccess(
                 dataSourceMapper.insert(datasource), "Failed to save the datasource.");
     }
@@ -77,8 +89,14 @@ public class DatasourceServiceImpl implements DatasourceService {
         Optional.ofNullable(request.password())
                 .filter(password -> !password.isEmpty())
                 .ifPresent(datasource::setPassword);
+        datasource.setTestStatus(null);
         requireOperationSuccess(
-                dataSourceMapper.updateById(datasource), "Failed to update the datasource.");
+                dataSourceMapper.update(
+                        datasource,
+                        Wrappers.<DatasourcePo>lambdaUpdate()
+                                .eq(DatasourcePo::getId, id)
+                                .set(DatasourcePo::getTestStatus, null)),
+                "Failed to update the datasource.");
         dynamicDataSourceManager.removeDataSource(id);
     }
 
@@ -115,6 +133,15 @@ public class DatasourceServiceImpl implements DatasourceService {
                 Wrappers.<DatasourcePo>lambdaQuery()
                         .eq(DatasourcePo::getType, type)
                         .orderByDesc(DatasourcePo::getCreateTime));
+    }
+
+    @Override
+    public void updateTestStatus(Integer id, DatasourceTestStatus status) {
+        DatasourcePo update = new DatasourcePo();
+        update.setId(id);
+        update.setTestStatus(status.name());
+        requireOperationSuccess(
+                dataSourceMapper.updateById(update), "Failed to update datasource test status.");
     }
 
     @Override
