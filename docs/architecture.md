@@ -6,11 +6,13 @@
 
 | 组件 | 技术 | 职责 |
 | --- | --- | --- |
-| 前端 | Vue 3 + TypeScript + Vite + Element Plus | 聊天界面、数据源管理、语义管理、资产与数据证据、系统管理 |
-| 后端 | Spring Boot 4.0.3（Java 17+）、AgentScope 1.0.11、MyBatis-Plus | Agent 推理、工具执行、语义层、数据源、会话、权限、MCP 配置管理 |
+| 前端 | Vue 3 + TypeScript + Vite + Element Plus + ECharts | 流式聊天与图表、数据源与 CSV 导入、语义管理、资产与数据证据、系统管理、PAT 设置 |
+| 后端 | Spring Boot 4.0.3（Java 17+）、AgentScope 1.0.11、MyBatis-Plus | Agent 推理、工具执行、语义层、CSV 任务、会话、权限、PAT 与外部 REST 工具、MCP 配置管理 |
 | Skill 系统 | 多源加载（文件系统 / Git / Nacos / classpath） | 加载"已验证查询模式"作为可复用流程 |
-| 元数据库 | MySQL | 存语义层、数据源、会话、MCP 配置、报表、用户、角色与权限等 |
+| 元数据库 | MySQL | 存语义层、数据源、会话、CSV 任务、PAT 哈希、MCP 配置、报表、用户、角色与权限等 |
 | 查询数据源 | JDBC 关系型数据库 | 用户真正要查的业务库，由 Agent 动态连接；默认内置 MySQL 驱动，其他类型需添加驱动并验证 SQL 方言 |
+| CSV 托管库（可选） | 独立 MySQL 数据库 | 保存 CSV 导入表，分析使用只读连接，导入使用专用写连接；不复用元数据库 |
+| 外部 CLI / Skill | `data-agent-cli` / `data-agent-skill` | 外部 Agent 用 PAT 调用只读 REST 工具，自行推理和编排 |
 
 > 后端根包名为 `io.github.malonetalk`，应用名 `data-agent-management`，默认端口 `8080`。
 
@@ -63,11 +65,17 @@
 
 `datasourceIds` 为本会话允许使用的数据源列表；省略或传空数组表示当前用户所有可访问的启用数据源。服务端会按用户当前表授权过滤，并把解析后的列表保存到 `session_datasource`（逻辑删除旧范围，一行一个数据源）。每次请求都可以更新该列表。
 
-工具调用采用显式数据源：存在多个可选数据源时，`get_tables`、`get_table_schema`、`get_metric_caliber`、`execute_sql` 和 `export_table` 必须传 `datasource_id`；只有一个数据源时可以省略。`get_datasources` 用于列出本会话可用的数据源。不同数据源的同名表不能混用。数据源权限在每次工具调用时重新检查，撤权或删除后会拒绝后续操作。
+当前 Web 聊天页没有数据源选择控件，`useAgentChat` 也不传 `datasourceIds`，因此每条消息都使用上述默认范围；管理页切换数据源不会改变聊天范围。自定义客户端可以传入该字段限定范围，后续消息及反问续接也应携带所需范围，省略时不会沿用上一次显式选择。
+
+工具调用采用显式数据源：存在多个可选数据源时，`get_domains`、`get_tables`、`get_table_schema`、`get_metric_caliber`、`execute_sql` 和 `export_table` 必须传 `datasource_id`；只有一个数据源时可以省略。`get_datasources` 用于列出本会话可用的数据源。不同数据源的同名表不能混用。数据源权限在每次工具调用时重新检查，撤权或删除后会拒绝后续操作。多数据源表示按工具调用分别查询，不会自动建立跨数据库 JOIN。
 
 会话列表仅展示 `AGENTSCOPE_` 命名空间且已有会话内容的记录。无此前缀的旧会话不会出现在列表中；创建接口登记归属后，空会话也不会立即出现在历史列表。历史、调试与删除接口使用数据库中的归属记录检查访问，不通过解析 ID 推断权限。
 
 `ask_user` 的回复通过同一 SSE 接口的 `toolResults` 提交，每项包含 `toolCallId`、`toolName`、`output`；仅接受属于该会话的 `ask_user` 调用。流事件包括 `thinking`、`text`、`tool_call`、`tool_result`、`question`、`report`、`summary` 和 `error`，错误事件包含 `errorCode`。
+
+### 图表生成
+
+`execute_sql` 在工具结果 metadata 中保存查询快照并返回 `Result ID`。`generate_chart` 只接收结果引用、图表类型和字段映射，从本会话记忆读取真实数据，重新授权后生成图表。图表通过 `tool_result.toolResult.chart` 传输，由前端 ECharts 展示，并随会话支持历史回放；没有独立图表 SSE 事件。类型、参数和限制见 [charts.md](charts.md)。
 
 ### 数据证据
 
@@ -81,12 +89,13 @@
 | --- | --- |
 | `agent` | Agent 主循环、会话、数据源连接管理、模型工厂与提供商 |
 | `agent.models` | LLM 提供商抽象：OpenAI / Ollama / DashScope / Anthropic |
-| `agent.tools` | 工具集：SQL、Python、schema、域/表、指标口径、反问、报表、CSV 导出、日期 |
+| `agent.tools` | 工具集：SQL、Python、图表、schema、域/表/视图、指标口径、反问、报表、CSV 导出、日期；`@RestTool` 声明只读 REST 工具 |
 | `agent.skill` | Skill 多源加载（文件/Git/Nacos/classpath） |
 | `agent.provenance` | 回答证据构建与合并（`AnswerProvenanceBuilder`）、存储与查询、SQL 表列来源解析 |
 | `controller` | HTTP 接口：Agent、数据源、域、语义层、报表、MCP Server、用户管理、角色权限 |
 | `service` | 数据源、用户角色、功能与数据权限、SQL 授权、资产服务；`SqlQueryScope` 与 `SqlExpressionInspector` 检查 SQL 作用域和表达式 |
 | `service.semantic` | 语义层 CRUD、同步、关系、合并；`SemanticSyncDiffService` 计算差异，`SemanticSyncApplyService` 事务写入，`RelationWorkspaceService` 组装关系画布 |
+| `service.csv` | CSV 预览、异步导入、语义发布、恢复、删除与补偿清理；持久队列在元数据库，物理数据在独立托管库 |
 | `interceptor` / `model.holder` | JWT 与权限拦截、审计填充、当前用户上下文 |
 | `model.po` / `model.dto` / `model.vo` / `model.bo` | 新持久化、请求、响应与内部业务模型；新 PO 继承 `BasePo`，对外 VO 实现 `BaseVo` |
 | `model.converter` / `convertor` | MapStruct 与专用转换：数据源、指标提示、JDBC 元数据和 CSV、会话历史、证据等 |
@@ -111,6 +120,7 @@
 | --- | --- | --- |
 | POST | `/api/auth/login` | 登录，返回 JWT token |
 | GET | `/api/auth/me` | 本人资料、角色与有效权限 |
+| GET/POST/DELETE | `/api/auth/pats[/...]` | 本人 PAT 列表、创建与吊销，需要访问令牌管理权限 |
 | POST | `/api/agent/session` | 创建本人会话，返回服务端分配的 ID |
 | POST | `/api/agent/chat/stream` | 发起一次流式对话（SSE） |
 | GET | `/api/agent/sessions` | 列出会话 |
@@ -123,6 +133,9 @@
 | GET/POST/PUT/DELETE | `/api/sys/user[/...]` | 用户增删改查、重置密码 |
 | GET/POST/PUT/DELETE | `/api/sys/role[/...]` | 角色增删改查、表级白名单、列级黑名单 |
 | GET/POST/PUT/DELETE | `/api/mcp-server[/...]` | MCP Server 配置增删改查与状态启停 |
+| REST | `/api/csv-imports[/...]` | CSV 预览、确认、状态、同步重试与删除，见 [csv-import.md](csv-import.md) |
+| GET | `/agent/health`、`/agent/tools` | PAT 鉴权检查与只读工具目录；不使用 Web JWT |
+| POST | `/agent/tools/{name}` | PAT 调用指定只读工具，见 [external-agent.md](external-agent.md) |
 | REST | `/api/datasource`、`/api/domains`、`/api/semantic/*`、`/api/metric`、`/api/reports`、`/api/table-exports` | 数据源、域、语义层、指标口径、报表与表格导出 |
 
 > 前端导航当前收敛为「AI 智能分析」「数据源管理」「语义管理」「资产管理」「系统管理」。「语义管理」包含数据领域、表语义、指标口径与逻辑外键；「资产管理」包含报告管理、表格导出与数据证据（`/asset/evidence`）；「系统管理」包含用户管理与角色管理。入口和按钮按权限显示。旧路由 `/metric`、`/report`、`/table-export`、`/sys-user`、`/sys-role` 会重定向到对应新入口。
@@ -160,6 +173,7 @@ HTTP server span
 | `get_domains` / `get_tables` / `get_table_schema` | 读取指定数据源的领域、表与字段语义，按当前用户的数据范围过滤；多数据源时必须传 `datasource_id` |
 | `get_metric_caliber` | 检索指定数据源的指标口径与业务属性；多数据源时必须传 `datasource_id` |
 | `execute_sql` | 仅执行通过校验与授权的 SELECT；最多返回 200 行，超时 30 秒；无 LIMIT/FETCH 时包装查询探测第 201 行，判断截断；多数据源时必须传 `datasource_id` |
+| `generate_chart` | 用本会话 SQL 结果生成柱状图、折线图、饼图或散点图；重新检查 SQL 与数据权限，结果非空且未截断，最多 20 条系列；见 [charts.md](charts.md) |
 | `execute_python` | 调用后端环境的 `python3 -I`，代码内联数据并打印结果；30 秒超时，单实例最多 5 个并发执行 |
 | `export_table` | 授权后导出 CSV；最多 10000 行，超限报错，查询超时 120 秒；多数据源时必须传 `datasource_id` |
 | `generate_report` | 保存 Markdown 报告，供报告资产页查看 |

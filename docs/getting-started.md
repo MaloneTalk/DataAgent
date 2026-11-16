@@ -98,7 +98,7 @@ Grafana：http://localhost:3001（`admin` / `admin`），在 Explore 中分别�
 | Maven | 3.9+ | 构建与运行后端 |
 | Node.js | 22（≥ 22.13） | 与前端 CI 对齐；现有 ESLint 10 不支持 Node 18 |
 | npm | 随 Node.js 安装 | 按 `package-lock.json` 安装；可选 pnpm 11.24.0，与 Docker 构建一致 |
-| MySQL | 8+ | 元数据库（存语义层/数据源/会话等） |
+| MySQL | 5.7 或 8.x | 元数据库；SQL 脚本兼容 5.7，Docker 示例使用 8.0 |
 | Python | 3，命令为 `python3` | 仅 Python 分析工具需要，另安装 pandas、numpy、scipy |
 
 手动启动示例使用 Bash 的 `export`。Windows PowerShell 请使用 `$env:变量名 = "值"`，例如 `$env:ADMIN_INIT_PASSWORD = "你的管理员密码"`；SQL 导入可在 MySQL 客户端执行 `source sql/data_source.sql`（从仓库根目录打开客户端）。
@@ -117,13 +117,13 @@ mysql -u root -p data_agent < sql/data_source.sql
 
 > SQL 只保留两份：主文件 `sql/data_source.sql` 包含全部元数据库初始化表结构，新库导入这一份即可；迁移文件 `sql/migration.sql` 用于已有数据库升级。
 
-已有数据库升级时，不要重复初始化；请先备份数据库，再执行最新迁移脚本。已经完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源、权限及数据源审计字段：
+已有数据库升级时，不要重复初始化；请先备份数据库并停止旧版后端写入，再执行最新迁移脚本。已经完成主键关联升级的旧库也需执行，以补齐指标业务属性、回答溯源、权限、数据源审计、CSV 任务、PAT 及表/视图类型字段：
 
 ```bash
 mysql -u root -p data_agent < sql/migration.sql
 ```
 
-迁移必须在启动新版后端前完成。该脚本会补齐旧库缺少的字段、索引和回答溯源表，并将列和逻辑关系中的表名引用转换为
+迁移必须在启动新版后端前完成。该脚本会补齐旧库缺少的字段、索引、回答溯源表、`csv_import` 和 `user_pat`，并增加 `table_info.object_type`；历史对象默认 `TABLE`，重新完整同步后更新实际类型。脚本还将列和逻辑关系中的表名引用转换为
 `table_info.id` 主键引用；脚本会在改表前检查无法匹配的引用、同一数据源内重复的表名，
 以及同一表内重复的列名。脚本还会补齐指标的计算方式、结果类型、单位、倍率及币种，保留旧表达式；新增字段逐列检查是否存在，并创建角色功能权限表和会话归属唯一约束，补齐 `datasource.updater_id` 与 `datasource.is_deleted`。执行前按[权限升级说明](permissions.md#升级现有数据库)检查会话归属冲突。若检查失败，修复数据后重新执行整份脚本即可。
 
@@ -171,9 +171,9 @@ export JWT_EXPIRATION_HOURS="24"
 export ADMIN_INIT_PASSWORD="你的管理员密码"
 ```
 
-> ⚠️ **`ADMIN_INIT_PASSWORD` 不设会启动失败**（fail-closed）。它仅在看 `sys_user` 表为空时首次生效，已有用户后不再使用。`JWT_SECRET` 留空的后果是每次重启所有已登录用户被迫重新登录——开发环境可接受，生产环境必须设。
+> **空用户库首次启动时必须设置 `ADMIN_INIT_PASSWORD`**（fail-closed），已有用户后不会再用它创建账号或重置密码。`JWT_SECRET` 留空会导致重启后所有 JWT 失效，生产环境必须设置稳定密钥。
 
-> 各配置键的完整说明见 [configuration.md](configuration.md#7-认证配置jwt--管理员)。Docker Compose 默认注入 `ADMIN_INIT_PASSWORD=admin`，手动启动没有该默认值。
+> 各配置键的完整说明见 [configuration.md](configuration.md#7-认证配置jwt--管理员)。Docker Compose 默认注入 `ADMIN_INIT_PASSWORD=admin`，手动启动没有该默认值。CSV 导入为可选功能；手动运行且不使用时可显式设置 `CSV_DATASOURCE_ID=0`，启用时按 [CSV 指南](csv-import.md) 配置独立托管库、读写账号和持久目录。
 
 > 密码以 BCrypt 存储；若从旧版 PBKDF2 升级，存量用户的旧哈希无法登录，按 [configuration.md 的「密码哈希与旧数据迁移」](configuration.md#密码哈希与旧数据迁移) 重置。
 
@@ -205,14 +205,16 @@ npm run dev
 > **先分清两类数据库**：「数据源管理」里配置的是 **Agent 要连接、执行 SQL 数据分析的目标数据库**（你的业务库），不是第 2 步准备的元数据库 `data_agent`（后端存放语义层/数据源配置/会话的库）。元数据库在后端启动时通过环境变量 `DB_URL` 指定，不在页面上配置。
 
 1. 打开 http://localhost:3000 。
-2. 先在「数据源管理」中新增一个你要查的业务库（支持 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，类型以下拉列表为准）。若该库不是 MySQL，请先确认后端已内置其驱动（见 [常见问题](#常见问题) 第一条）。
-3. 在「语义管理」中同步物理表，再把相关表/列映射成业务语言；指标口径也在这里维护。可按业务配置计算方式、结果类型、单位、倍率和币种，例如分转元的倍率为 `0.01`，百分比的倍率为 `1`，只在展示时乘以100。完整规则见 [指标业务属性](semantic-layer.md#5-指标业务属性)。
-4. 进入聊天界面，选择本次会话可用的数据源（可多选；不选表示全部可访问数据源），输入类似：*"上个月各区域销售额是多少？"*，观察流式回答与生成的 SQL。新会话由服务端分配 ID，后续消息可以调整数据源选择。
+2. 在「数据源管理」中新增业务库并激活；新建数据源默认禁用。支持 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite，非 MySQL 类型须先添加驱动（见 [常见问题](#常见问题) 第一条）。要分析本地文件，先按 [CSV 导入](csv-import.md) 配置并导入，等待任务 READY。
+3. 在「语义管理 → 表语义 → 同步表或视图」选择物理表或普通视图，再把相关表/列映射成业务语言；指标口径也在这里维护。可按业务配置计算方式、结果类型、单位、倍率和币种，例如分转元的倍率为 `0.01`，百分比的倍率为 `1`，只在展示时乘以100。完整规则见 [指标业务属性](semantic-layer.md#5-指标业务属性)。CSV 就绪表已自动同步，可直接完善语义。
+4. 进入聊天界面，输入类似：*"上个月各区域销售额是多少？请用柱状图展示。"*，观察流式回答、SQL 与图表。当前聊天页没有数据源选择控件，默认使用全部可访问的启用数据源；多源时在提问中说明目标名称。自定义客户端可用 `datasourceIds` 限定范围，见 [会话协议](architecture.md#会话与数据源协议)。新会话 ID 由服务端分配。
 5. 在「资产管理 → 数据证据」查看回答涉及的 SQL 执行、指标、Python 和表列来源；报告与 CSV 导出也可在资产管理中查看。
 
 > 初始的 `admin` 用户是超级管理员。如需多人使用，在「系统管理」中配置角色的功能权限、表白名单与隐藏列黑名单，再为用户分配角色。Agent 的语义读取、SQL 查询和导出均检查权限；未授权默认拒绝。常用权限组合见 [权限说明](permissions.md#配置角色)。
 
 > 如果回答不准，多半是语义层/指标口径没配好，或数据源尚未接入。参见 [semantic-layer.md](semantic-layer.md) 与 [configuration.md](configuration.md)。
+
+图表的类型、数据限制与常见错误见 [charts.md](charts.md)。需要从外部 Agent 使用数据时，在「API 访问令牌」创建 PAT，再按 [外部接入指南](external-agent.md) 配置 CLI 或直接调用 REST 工具。
 
 ## 常见问题
 

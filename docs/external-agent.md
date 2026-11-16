@@ -69,6 +69,8 @@ access:pat:manage 访问令牌：管理
 
 超级管理员默认拥有该权限，但仍需要给普通角色显式授权。
 
+`access:pat:manage` 只允许管理令牌。读取数据源和语义还需 `data:schema:read`，查询需 `analysis:sql:execute`，指标口径需 `semantic:metric:read`，并配置对应数据源下的表或视图及可见列。仅调用外部只读工具不要求 `analysis:chat:use`。权限在执行时重新检查；`/agent/health` 和工具目录可访问不代表数据查询一定可执行。
+
 ## 4. 创建 PAT
 
 登录 Web 后进入「API 访问令牌」页面（`/settings/tokens`）：
@@ -78,6 +80,8 @@ access:pat:manage 访问令牌：管理
 3. 创建成功后立即复制 Token。Token 只显示一次。
 
 每个用户最多保留 10 个未吊销且未过期的 PAT。
+
+有效期允许在创建后的 1–365 天之间，省略时为 90 天。令牌到期、被吊销或用户停用后不能继续使用。
 
 ## 5. 安装和使用 CLI
 
@@ -148,6 +152,27 @@ data-agent-cli tools call execute_sql \
 
 Agent 场景建议使用 `--json`，或确保 stdout 不是 TTY。stdout 输出数据或错误 JSON，stderr 输出日志。
 
+### 直接调用 REST
+
+不使用 CLI 时，可直接发送 Bearer PAT；Base URL 使用服务根地址，不要追加 `/api`：
+
+```bash
+export DATAAGENT_TOKEN="pat_替换为实际令牌"
+
+curl -H "Authorization: Bearer ${DATAAGENT_TOKEN}" \
+  http://localhost:8080/agent/tools
+
+curl -X POST http://localhost:8080/agent/tools/get_tables \
+  -H "Authorization: Bearer ${DATAAGENT_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -H "X-Session-Id: run-123" \
+  -d '{"datasource_id":1,"domains":["sales"]}'
+```
+
+接口返回统一 JSON 外层，工具调用的 `data` 包含 `text`、`metadata` 和 `traceId`。工具内部失败可能仍以 HTTP 200 返回，此时 `data.metadata.errorCode` 和 `message` 表示失败，不能只检查 HTTP 状态或外层 `code`。CLI 会识别该类结果并以退出码 `5` 结束。
+
+当前没有 `GET /agent/tools/{name}` 详情接口；CLI 的 `tools describe` 从 `GET /agent/tools` 的目录中筛选工具和参数定义。
+
 ## 6. 安装 Skill
 
 `data-agent-skill/` 是可直接复制到外部 Agent Skill 存储目录的文件夹，其中 `SKILL.md` 包含：
@@ -181,6 +206,8 @@ data-agent-cli tools call get_tables \
 
 也可以设置 `DATAAGENT_SESSION_ID`。未提供时后端使用 `__default__` 默认会话。
 
+CLI 将该值放入 `X-Session-Id`，后端生成 `CLIENT_<userId>_<外部ID>` 命名空间用于工具调用上下文。该标识用于外部调用分组，不创建 Web 聊天历史、不运行内置 ReAct 循环，也不与 `AGENTSCOPE_` 会话互通。调用方自行保存上下文和编排工具；多数据源时显式传 `datasource_id`。
+
 ## 8. 配置
 
 配置路径：
@@ -202,6 +229,8 @@ Windows:     %APPDATA%\data-agent-cli\config.json
 
 Token 优先级：`--token` > 配置文件 > `DATAAGENT_TOKEN`。
 
+Base URL 的解析顺序为 `--base-url` > 配置文件 > `DATAAGENT_BASE_URL` > 默认地址；当前配置加载器会填入默认地址，因此部署到其他地址时建议通过 `auth login --base-url ...` 显式保存。`auth login` 的 Token 来源为 `--token`、`DATAAGENT_TOKEN` 或交互输入，不复用已存 Token。默认请求超时 60 秒，可用 `--timeout` 覆盖。
+
 更多命令和退出码说明见 [data-agent-cli/README.md](../data-agent-cli/README.md)。
 
 ## 9. 安全与边界
@@ -209,6 +238,6 @@ Token 优先级：`--token` > 配置文件 > `DATAAGENT_TOKEN`。
 - PAT 只能访问 `/agent/**`，不能访问 `/api/**` 用户接口。
 - 工具内部仍会重新检查功能权限、数据源权限、表白名单和隐藏列。
 - CLI 不保存明文 Token 到日志或错误信息。
-- 配置文件权限为 0600。
-- 当前不提供 MCP、Python 执行、表格导出和报告生成。
+- 配置文件以 0600 权限创建；Windows 的权限语义不同，应通过用户目录的访问控制保护本地配置。
+- 当前不提供 MCP、Python 执行、图表生成、表格导出和报告生成；内置聊天工具不等于 REST 暴露工具。
 - `execute_sql` 只允许 SELECT，不替代数据库自身的只读账号约束。

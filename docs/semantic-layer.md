@@ -19,7 +19,7 @@
 | 概念 | 说明 | Controller |
 | --- | --- | --- |
 | **域（Domain）** | 业务主题分组，如"交易""用户"；Agent 会读取域名与描述，用它先判断该去哪些域找表 | `DomainController` |
-| **逻辑表** | 给物理表补充业务语义，含领域、表描述、数据粒度（一行代表什么）、可见性、物理表是否存在 | `TableSemanticController` |
+| **逻辑表 / 普通视图** | 给物理表或普通视图补充业务语义，含对象类型（`TABLE` / `VIEW`）、领域、描述、数据粒度（一行代表什么）、可见性、物理对象是否存在 | `TableSemanticController` |
 | **逻辑列** | 给物理列补充业务含义和语义类型（标识、维度、度量、时间、地点）；同步缓存会保存物理类型、主键与索引提示，供 Agent 生成 SQL 前参考 | `TableColumnSemanticController` |
 | **表关系** | 表间 join 路径（一对一/一对多）、启禁状态，供 Agent 多表查询时自动拼 SQL | `TableRelationSemanticController` |
 | **关系工作区** | 按所选数据源分页查看表与关系画布，支持关键词与排序；仅返回两端都位于当前页且可见的关系 | `TableRelationWorkspaceController` |
@@ -28,7 +28,7 @@
 
 ## 3. 同步机制
 
-- `SchemaReader` 通过 JDBC `DatabaseMetaData` 读取表、列、主键和索引信息，不依赖特定数据库方言。
+- `SchemaReader` 通过 JDBC `DatabaseMetaData` 读取 `TABLE` 和 `VIEW` 对象及其输出列；物理表同时读取主键与索引，普通视图跳过主键和索引读取。
 - `service/semantic/sync/*` 将物理表结构同步到 `table_info` / `column_info`，用于形成 Agent 可读取的语义快照；字段同步会写入 `type_name`、`primary_key`、`index_info`、物理描述与物理存在状态。
 - 同步不会覆盖已有人工口径：已有 `column_description` 会优先保留，物理描述只作为缺省补充。
 - `SemanticAvailabilityHelper` + `ColumnInvalidReasonEnum` / `TableInvalidReasonEnum` 标注不完整或物理缺失的语义信息，提示管理员补齐。
@@ -38,12 +38,22 @@
 
 | 接口 | 用途 |
 | --- | --- |
-| `GET /api/semantic/tables/sync/candidates` | 按 `datasourceId` 获取物理表候选，可分页、关键词过滤与排序 |
-| `POST /api/semantic/tables/sync` | 同步选定表的物理结构与语义缓存 |
+| `GET /api/semantic/tables/sync/candidates` | 按 `datasourceId` 获取表与普通视图候选，响应含 `objectType`，可分页、关键词过滤与排序 |
+| `POST /api/semantic/tables/sync` | 同步选定表或普通视图的物理结构与语义缓存 |
 | `POST /api/semantic/tables/sync/physical-status` | 刷新物理缺失状态 |
 | `GET /api/semantic/tables/relations/workspace` | 按 `datasourceId`、`page`、`pageSize`、`keyword`、`sortOrder` 获取关系画布 |
 
 关系画布由 `RelationWorkspaceService` 组装当前页表节点和列，按同一数据权限范围过滤列与关系；跨页关系不在当前画布展示。普通关系列表与画布的查询参数不同，画布不提供 `enabled` 筛选参数。
+
+### 表与普通视图
+
+在「语义管理 → 表语义 → 同步表或视图」选择对象；列表、同步候选、关系画布、角色授权和新生成的数据证据会区分对象类型。接口继续沿用 `tables` 路径和 `tableName` 字段，普通视图与表共用领域、描述、粒度、可见性及关系管理。
+
+视图字段来自视图的输出列，不推断底表主键、索引或业务唯一键，也不展开视图定义追溯底表血缘。新证据以实际查询的视图对象记录来源。底表权限和隐藏列不会自动继承到视图，需单独授权视图及其输出列，见 [普通视图权限](permissions.md#普通视图)。
+
+升级时先执行 `sql/migration.sql`，为 `table_info` 增加 `object_type`；历史对象默认 `TABLE`，再次完整同步后更新实际类型。刷新物理状态不能替代完整同步，也不会恢复已标记缺失的对象。历史证据不补写对象类型。
+
+当前仅支持连接所选 catalog/schema 范围内的普通视图，不额外支持物化视图或跨库对象发现。连接账号需要具备对应元数据与查询权限；CSV 数据源只允许已就绪的导入表，不开放手工视图。
 
 ## 4. Agent 使用方式
 
@@ -51,11 +61,11 @@ Agent 查询前按需调用语义工具：
 
 1. `get_datasources`：列出当前会话可用的数据源；存在多个数据源时先调用它。
 2. `get_domains(datasource_id=...)`：返回可用领域的 `name` 与 `description`，让模型先选业务域。
-3. `get_tables(datasource_id=..., domains=[...])`：返回同步后的表语义，包括表名、领域、描述、数据粒度与已启用表关系。数据粒度说明一行代表的业务实体或事件，例如“每行代表一份订单”。
+3. `get_tables(datasource_id=..., domains=[...])`：返回同步后的表与普通视图语义，包括名称、对象类型、领域、描述、数据粒度与已启用关系。数据粒度说明一行代表的业务实体或事件，例如“每行代表一份订单”。
 4. `get_table_schema(datasource_id=..., table_name=...)`：返回同步后的字段信息，包括字段名、物理类型、语义类型、主键、索引提示和字段描述。
 5. `get_metric_caliber(datasource_id=..., hint=...)`：返回匹配指标的表达式、过滤、时间字段，以及计算方式、结果类型、标准单位、倍率和币种，供 Agent 确认计算与展示规则。
 
-上述工具使用当前会话允许的数据源与可信用户上下文；存在多个数据源时必须传 `datasource_id`。领域、表、列和关系结果会按授权范围过滤；SQL 执行仍需再次授权，不能通过跳过 schema 工具绕过表列限制。
+上述工具使用当前会话允许的数据源与可信用户上下文；除列出数据源的 `get_datasources` 外，存在多个数据源时都必须传 `datasource_id`。领域、表、列和关系结果会按授权范围过滤；SQL 执行仍需再次授权，不能通过跳过 schema 工具绕过表列限制。
 
 指标工具根据 `datasource_id` 指定的数据源检索，可以直接传入用户整句问题。当前按名称和拆分后的别名做不区分大小写的包含匹配，忽略不足2个字符的词，不匹配 `metricKey`。按命中词长度排序，最多保留3个候选；只返回第一名的完整口径，其余作为名称与 key 提示。未命中时最多列出5个已有指标，供进一步确认。
 
@@ -111,6 +121,8 @@ Agent 查询前按需调用语义工具：
 ```
 
 更新通过 MapStruct 忽略未传或为 `null` 的字段，保留原值，再按最终结果类型执行校验和归一化。可选文本可以通过空串清空，但已配置普通数值或金额的单位不能清空；结果类型不能用空串重置。金额切为普通数值或百分比时，即使未传 `currencyCode`，也会清除原币种。`unit` 与 `currencyCode` 的持久化配置允许写入 `NULL`，确保清空能实际落库。
+
+CSV 托管数据源的指标必须用已就绪的物理表名限定字段，例如 `SUM(csv_t_<实际后缀>.c001)`；不能直接沿用上例的未限定字段，也不要增加数据库名前缀。具体使用与删除引用规则见 [CSV 导入](csv-import.md)。
 
 ## 6. 最佳实践
 

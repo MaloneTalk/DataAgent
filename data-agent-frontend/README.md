@@ -31,15 +31,16 @@ src/
 ├── styles/           # main.css、theme.css
 ├── utils/            # 下载、日期、报告模板与交互工具
 ├── views/
-│   ├── chat/         # 流式对话、会话历史、数据源选择
-│   ├── data-source/  # 数据源管理
-│   ├── semantic/     # 领域、表列语义、逻辑关系与画布
+│   ├── chat/         # 流式对话、会话历史、交互图表
+│   ├── data-source/  # 数据源管理、CSV 上传与任务面板
+│   ├── semantic/     # 领域、表/视图与列语义、逻辑关系与画布
 │   ├── metric/       # 指标口径
 │   ├── report/       # 报告资产
 │   ├── table-export/ # CSV 导出资产
 │   ├── evidence/     # 数据证据
 │   ├── sys-user/     # 用户及资料、密码、角色对话框
 │   ├── sys-role/     # 角色、功能权限与数据范围
+│   ├── settings/     # 本人 PAT 管理
 │   └── login/        # 登录
 ├── App.vue           # 根组件
 ├── main.ts           # 入口文件
@@ -81,17 +82,22 @@ npm run build
 
 ## 页面与会话行为
 
-| 入口        | 路由                                                                            |
-| ----------- | ------------------------------------------------------------------------------- |
-| AI 智能分析 | `/chat`、`/chat/:sessionId`                                                     |
-| 数据源管理  | `/data-source`                                                                  |
-| 语义管理    | `/semantic/domain`、`/semantic/table`、`/semantic/metric`、`/semantic/relation` |
-| 资产管理    | `/asset/report`、`/asset/table-export`、`/asset/evidence`                       |
-| 系统管理    | `/system/user`、`/system/role`                                                  |
+| 入口         | 路由                                                                            |
+| ------------ | ------------------------------------------------------------------------------- |
+| AI 智能分析  | `/chat`、`/chat/:sessionId`                                                     |
+| 数据源管理   | `/data-source`                                                                  |
+| 语义管理     | `/semantic/domain`、`/semantic/table`、`/semantic/metric`、`/semantic/relation` |
+| 资产管理     | `/asset/report`、`/asset/table-export`、`/asset/evidence`                       |
+| 系统管理     | `/system/user`、`/system/role`                                                  |
+| API 访问令牌 | `/settings/tokens`                                                              |
 
 `stores/user.ts` 从 `/api/auth/me` 获取当前权限，路由 `meta.permission` 与 `v-permission` 控制入口和按钮。路由权限数组满足任一项即可；例如只有 `analysis:session:read` 也能查看聊天历史，输入与新建仍要求 `analysis:chat:use`。后端负责最终授权。
 
-`useAgentChat` 先通过 `POST /api/agent/session` 获取服务端 ID，再用原生 `fetch` 消费 SSE；不在浏览器生成会话 ID。`ChatDatasourceSelect.vue` 在发出消息后锁定数据源选择。流式事件或历史回放中的 `ask_user` 由前端收集回复，再通过 `toolResults` 继续请求。
+`useAgentChat` 先通过 `POST /api/agent/session` 获取服务端 ID，再用原生 `fetch` 消费 SSE；不在浏览器生成会话 ID。当前聊天页没有数据源选择控件，发送消息和反问续接均不传 `datasourceIds`，每条请求使用当前用户全部可访问的启用数据源。后端和 `ChatRequest` 类型已支持显式范围，自定义调用见[会话协议](../docs/architecture.md#会话与数据源协议)。流式事件或历史回放中的 `ask_user` 由前端收集回复，再通过 `toolResults` 继续请求。
+
+`ChatMessage.vue` 从 `generate_chart` 的工具结果读取 `chart`，通过 `ChatChart.vue` 和 `utils/chartOption.ts` 渲染 ECharts，支持流式结果和历史回放；当前没有独立图表事件或资产页面。类型、参数和数据限制见[图表指南](../docs/charts.md)。
+
+`CsvUploadDialog.vue` 与 `CsvImportPanel.vue` 提供预览、字段配置、异步任务状态及恢复入口；后端托管库配置见[CSV 导入](../docs/csv-import.md)。语义列表、同步候选、关系画布及角色授权展示 `TABLE` / `VIEW` 对象类型；视图授权独立于底表。`settings/PatView.vue` 管理本人令牌，受 `access:pat:manage` 控制。
 
 ## 开发规范
 
@@ -194,4 +200,4 @@ npm run format:check
 npm run build
 ```
 
-`npm test` 当前执行 `tests/roleDataScope.test.mjs`。自动修复命令为 `npm run lint`，格式化命令为 `npm run format`；不要把自动修复命令当作 CI 的只读检查。更多约定见 [CODE_STYLE.md](CODE_STYLE.md) 和[贡献指南](../docs/contributing.md)。
+`npm test` 通过 Node 内置测试运行器执行 `tests/roleDataScope.test.mjs` 和 `tests/chartOption.test.mjs`，覆盖角色数据范围与图表配置；当前前端 CI 未自动运行这些测试，相关改动需本地补跑。自动修复命令为 `npm run lint`，格式化命令为 `npm run format`；不要把自动修复命令当作 CI 的只读检查。更多约定见 [CODE_STYLE.md](CODE_STYLE.md) 和[贡献指南](../docs/contributing.md)。
