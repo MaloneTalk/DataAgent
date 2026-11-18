@@ -26,7 +26,11 @@ import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
+import java.net.ServerSocket;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /** 池初始化失败的转译逻辑：缺驱动必须给出可操作的 pom.xml 指引，而不是裸 INTERNAL_ERROR。 */
 class DynamicDataSourceManagerTest {
@@ -50,5 +54,35 @@ class DynamicDataSourceManagerTest {
         assertEquals(ErrorCode.JDBC_DRIVER_NOT_FOUND, ex.getErrorCode());
         assertTrue(ex.getMessage().contains("org.postgresql:postgresql"));
         assertTrue(ex.getMessage().contains("pom.xml"));
+    }
+
+    @Test
+    @Timeout(20)
+    void stalledMysqlHandshakeTimesOutAndClosesSocket() throws Exception {
+        try (var server = new ServerSocket(0)) {
+            server.setSoTimeout(15000);
+            var disconnected =
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                try (var socket = server.accept()) {
+                                    socket.setSoTimeout(15000);
+                                    // Accept TCP but never send a MySQL greeting.
+                                    return socket.getInputStream().read();
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            });
+            var ds = new DatasourcePo();
+            ds.setType("mysql");
+            ds.setName("stalled-handshake");
+            ds.setConnectionUrl(
+                    "jdbc:mysql://127.0.0.1:"
+                            + server.getLocalPort()
+                            + "/test?connectTimeout=0&socketTimeout=0");
+            long start = System.nanoTime();
+            assertThrows(RuntimeException.class, () -> manager.testConnection(ds));
+            assertTrue(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) < 12);
+            assertEquals(-1, disconnected.get(2, TimeUnit.SECONDS));
+        }
     }
 }

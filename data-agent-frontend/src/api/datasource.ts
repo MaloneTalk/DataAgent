@@ -101,3 +101,32 @@ export function getDatasourceOptions() {
     .get<ApiResponse<DatasourceOption[]>>('/datasource/options')
     .then(res => res.data.data);
 }
+
+export interface DatasourceTestResponse {
+  success: boolean;
+  message: string;
+}
+
+export function testDatasourceConfiguration(data: DatasourceRequest) {
+  return request
+    .post<ApiResponse<DatasourceTestResponse>>('/datasource/test', data)
+    .then(res => res.data.data);
+}
+
+export function testDatasource(id: number) {
+  return request
+    .post<ApiResponse<DatasourceTestResponse>>(`/datasource/${id}/test`)
+    .then(res => res.data.data);
+}
+
+export interface DatasourceTable {
+  tableName: string;
+  objectType: string;
+  remarks: string | null;
+}
+
+export function getDatasourcePhysicalTables(id: number) {
+  return request
+    .get<ApiResponse<DatasourceTable[]>>(`/datasource/${id}/physical-tables`)
+    .then(res => res.data.data);
+}
