@@ -38,6 +38,7 @@
     isStreaming,
     sessionId,
     pendingQuestion,
+    selectedDatasourceIds,
     lastReportContent,
     sendMessage,
     stopStreaming,
@@ -211,6 +212,7 @@
       <ChatInput
         v-if="canChat"
         :key="sessionId ?? 'new'"
+        v-model:datasource-ids="selectedDatasourceIds"
         :is-streaming="isStreaming"
         :pending-question="pendingQuestion"
         :user-messages="userMessages"

@@ -29,6 +29,7 @@ export interface PendingQuestion {
   toolCallId: string;
   toolName: string;
   question: string;
+  datasourceIds: number[];
 }
 
 export interface TraceStep {
@@ -60,6 +61,7 @@ export function useAgentChat(initialSessionId?: string) {
   let sessionCreation: Promise<string> | null = null;
   const abortController = shallowRef<AbortController | null>(null);
   const pendingQuestion = ref<PendingQuestion | null>(null);
+  const selectedDatasourceIds = ref<number[]>([]);
   const lastReportContent = ref<string | null>(null);
 
   function addUserMessage(text: string): ChatMessage {
@@ -98,8 +100,7 @@ export function useAgentChat(initialSessionId?: string) {
   }
 
   async function loadHistory(sid: string) {
-    stopStreaming();
-    messages.value = [];
+    newSession();
     sessionId.value = sid;
 
     const turns = await fetchSessionHistory(sid);
@@ -131,6 +132,8 @@ export function useAgentChat(initialSessionId?: string) {
   async function sendMessage(text: string) {
     if (isStreaming.value || !text.trim()) return;
 
+    const pq = pendingQuestion.value;
+    const datasourceIds = [...(pq?.datasourceIds ?? selectedDatasourceIds.value)];
     const currentSessionId = await ensureSession();
     addUserMessage(text);
     const agentMsg = addAgentMessage();
@@ -140,22 +143,24 @@ export function useAgentChat(initialSessionId?: string) {
     abortController.value = controller;
     let summaryStarted = false;
 
-    const pq = pendingQuestion.value;
     pendingQuestion.value = null;
 
     const request =
       pq != null
         ? {
             sessionId: currentSessionId,
+            datasourceIds,
             toolResults: [{ toolCallId: pq.toolCallId, toolName: pq.toolName, output: text }],
           }
         : {
             sessionId: currentSessionId,
+            datasourceIds,
             message: text,
           };
 
     try {
       for await (const event of streamChat(request, controller.signal)) {
+        if (controller.signal.aborted) break;
         updateAgentMessage(agentMsg.id, msg => {
           if (event.type === 'text' && event.content) {
             msg.content += event.content;
@@ -197,6 +202,7 @@ export function useAgentChat(initialSessionId?: string) {
                 toolCallId: event.toolCall!.id,
                 toolName: event.toolCall!.name,
                 question: (event.toolCall!.input[def.questionField] as string) ?? '',
+                datasourceIds: [...datasourceIds],
               };
             }
 
@@ -246,6 +252,8 @@ export function useAgentChat(initialSessionId?: string) {
     stopStreaming();
     messages.value = [];
     sessionId.value = null;
+    pendingQuestion.value = null;
+    selectedDatasourceIds.value = [];
   }
 
   return {
@@ -253,6 +261,7 @@ export function useAgentChat(initialSessionId?: string) {
     isStreaming,
     sessionId,
     pendingQuestion,
+    selectedDatasourceIds,
     lastReportContent,
     loadHistory,
     ensureSession,

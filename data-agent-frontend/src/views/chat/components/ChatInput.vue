@@ -16,7 +16,8 @@
  -->
 
 <script setup lang="ts">
-  import { ref, computed, nextTick, watch } from 'vue';
+  import { ref, computed, nextTick, watch, onMounted } from 'vue';
+  import { useDatasource } from '@/composables/useDatasource';
 
   import type { PendingQuestion } from '@/composables/useAgentChat';
 
@@ -32,6 +33,10 @@
     send: [text: string];
     stop: [];
   }>();
+
+  const datasourceIds = defineModel<number[]>('datasourceIds', { required: true });
+  const { list: datasources, loading, error, fetchList } = useDatasource();
+  onMounted(fetchList);
 
   const inputText = ref('');
   const textareaRef = ref<{
@@ -146,6 +151,37 @@
 
 <template>
   <div class="chat-input">
+    <div class="chat-input__datasources">
+      <el-select
+        v-model="datasourceIds"
+        class="chat-input__datasource-select"
+        aria-label="选择聊天数据源"
+        placeholder="全部可访问数据源"
+        no-data-text="暂无可访问的数据源"
+        multiple
+        filterable
+        clearable
+        collapse-tags
+        collapse-tags-tooltip
+        :multiple-limit="20"
+        :loading="loading"
+        :disabled="isStreaming || !!pendingQuestion || loading || !!error"
+      >
+        <el-option
+          v-for="ds in datasources"
+          :key="ds.id"
+          :value="ds.id"
+          :label="ds.status === 'ACTIVE' ? ds.name : `${ds.name}（已停用）`"
+          :disabled="ds.status !== 'ACTIVE'"
+        />
+      </el-select>
+      <el-button v-if="error" text type="primary" :loading="loading" @click="fetchList">
+        数据源加载失败，重试
+      </el-button>
+      <span v-else class="chat-input__datasource-hint">
+        {{ pendingQuestion ? '反问续接沿用本次数据源范围' : '可单选或多选，留空使用全部' }}
+      </span>
+    </div>
     <div v-if="props.pendingQuestion && !isStreaming" class="chat-input__question-banner">
       <span class="chat-input__question-label">Agent 提问：</span>
       <span class="chat-input__question-text">{{ props.pendingQuestion.question }}</span>
@@ -204,6 +240,24 @@
     border-radius: 8px;
     font-size: 13px;
     color: var(--app-text-secondary);
+  }
+
+  .chat-input__datasources {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .chat-input__datasource-select {
+    width: 280px;
+    max-width: 100%;
+  }
+
+  .chat-input__datasource-hint {
+    font-size: 12px;
+    color: var(--app-text-muted);
   }
 
   .chat-input__question-label {
