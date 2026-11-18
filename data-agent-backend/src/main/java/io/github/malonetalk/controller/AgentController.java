@@ -32,6 +32,8 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.dto.DataEvidencePageQuery;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
+import io.github.malonetalk.model.vo.BooleanVo;
+import io.github.malonetalk.service.ChatExecutionService;
 import io.github.malonetalk.service.PermissionService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -59,6 +61,16 @@ public class AgentController {
     private final SessionService sessionService;
     private final UserContextHolder userContextHolder;
     private final AnswerProvenanceService answerProvenanceService;
+    private final ChatExecutionService chatExecutions;
+
+    @PostMapping("/session/{sessionId}/cancel")
+    @RequirePermission(PermissionEnum.ANALYSIS_CHAT_USE)
+    public BooleanVo cancel(@PathVariable String sessionId) {
+        int userId = userContextHolder.checkAndGet().userId();
+        sessionService.requireOwnership(userId, sessionId);
+        chatExecutions.cancel(sessionId);
+        return BooleanVo.TRUE;
+    }
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @RequirePermission(PermissionEnum.ANALYSIS_CHAT_USE)

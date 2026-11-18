@@ -17,11 +17,17 @@
  */
 package io.github.malonetalk.agent.datasource;
 
+import static io.github.malonetalk.exception.ExceptionResponseMapper.sqlErrorCode;
+
+import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.AuthorizedSqlBo;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.ChatExecutionService;
+import io.github.malonetalk.service.ChatExecutionService.Execution;
 import io.github.malonetalk.service.SqlPermissionService;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -32,6 +38,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,21 +64,24 @@ public class SqlExecutor {
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlPermissionService sqlPermissions;
 
-    public SqlExecution executeDetailed(DatasourcePo datasource, String sql, Integer userId) {
-        var authorized = authorizeSelect(datasource, sql, userId);
+    public SqlExecution executeDetailed(DatasourcePo datasource, String sql, ToolCallContext ctx) {
+        var authorized = authorizeSelect(datasource, sql, ctx.userId());
         String validatedSql = applyRowLimit(authorized.select());
 
         javax.sql.DataSource ds = dynamicDataSourceManager.getOrCreateDataSource(datasource);
 
         try (Connection conn = ds.getConnection()) {
             return new SqlExecution(
-                    validatedSql, doExecute(conn, validatedSql), authorized.authorizedColumns());
+                    validatedSql,
+                    doExecute(conn, validatedSql, datasource, ctx.execution()),
+                    authorized.authorizedColumns());
         } catch (SQLException e) {
             log.error("SQL execution failed: {}", e.getMessage(), e);
             throw BusinessException.of(
-                    ErrorCode.SQL_EXECUTION_FAILED,
-                    "SQL execution failed: " + truncate(e.getMessage()),
-                    e);
+                    sqlErrorCode(e), "SQL execution failed: " + truncate(e.getMessage()), e);
+        } catch (IOException e) {
+            throw BusinessException.of(
+                    ErrorCode.SQL_EXECUTION_FAILED, "Failed to read query result.", e);
         }
     }
 
@@ -127,7 +137,7 @@ public class SqlExecutor {
             stmt = CCJSqlParserUtil.parse(sql);
         } catch (JSQLParserException e) {
             throw BusinessException.of(
-                    ErrorCode.SQL_NOT_ALLOWED, "Invalid SQL syntax: " + e.getMessage(), e);
+                    ErrorCode.SQL_SYNTAX_UNSUPPORTED, "SQL syntax is invalid or unsupported.", e);
         }
 
         if (!(stmt instanceof Select select)) {
@@ -172,7 +182,7 @@ public class SqlExecutor {
                 pending.push(parenthesedSelect.getSelect());
             } else {
                 throw BusinessException.of(
-                        ErrorCode.SQL_NOT_ALLOWED,
+                        ErrorCode.SQL_SYNTAX_UNSUPPORTED,
                         "Unsupported SELECT type: " + current.getClass().getSimpleName());
             }
         }
@@ -190,7 +200,9 @@ public class SqlExecutor {
         return select.getLimit() != null || select.getFetch() != null;
     }
 
-    private QueryResult doExecute(Connection conn, String sql) throws SQLException {
+    private QueryResult doExecute(
+            Connection conn, String sql, DatasourcePo datasource, Optional<Execution> execution)
+            throws SQLException, IOException {
         try (PreparedStatement stmt =
                 conn.prepareStatement(
                         sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -199,10 +211,70 @@ public class SqlExecutor {
             stmt.setMaxRows(MAX_PROBE_ROWS);
             stmt.setFetchSize(MAX_PROBE_ROWS);
 
-            try (ResultSet rs = stmt.executeQuery()) {
-                return mapResultSet(rs);
+            return executeStatement(
+                    datasource,
+                    stmt,
+                    execution,
+                    () -> {
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            return mapResultSet(rs);
+                        }
+                    });
+        }
+    }
+
+    public <T> T executeStatement(
+            DatasourcePo datasource,
+            PreparedStatement statement,
+            Optional<Execution> execution,
+            SqlAction<T> action)
+            throws SQLException, IOException {
+        Connection connection = statement.getConnection();
+        try (var task = ChatExecutionService.track(execution, statement)) {
+            boolean verify = false;
+            try {
+                task.checkCancelled();
+                T result = action.run();
+                task.checkCancelled();
+                return result;
+            } catch (SQLException e) {
+                var code = sqlErrorCode(e);
+                verify = code == ErrorCode.QUERY_TIMEOUT || code == ErrorCode.REQUEST_CANCELLED;
+                if (task.cancelled()) throw BusinessException.of(ErrorCode.REQUEST_CANCELLED);
+                throw e;
+            } finally {
+                boolean interrupted = Thread.interrupted();
+                try {
+                    statement.close();
+                    if (verify || task.cancelled() || interrupted) {
+                        // A round trip on this same connection confirms the prior query has exited.
+                        try (var probe = connection.createStatement()) {
+                            probe.setQueryTimeout(5);
+                            probe.execute(
+                                    "oracle".equalsIgnoreCase(datasource.getType())
+                                            ? "SELECT 1 FROM DUAL"
+                                            : "SELECT 1");
+                            log.info(
+                                    "Database query termination confirmed: datasourceId={}",
+                                    datasource.getId());
+                        }
+                    }
+                } catch (SQLException e) {
+                    task.unconfirmed();
+                    throw BusinessException.of(
+                            ErrorCode.SQL_TERMINATION_UNCONFIRMED,
+                            ErrorCode.SQL_TERMINATION_UNCONFIRMED.getDefaultMessage(),
+                            e);
+                } finally {
+                    if (interrupted) Thread.currentThread().interrupt();
+                }
             }
         }
+    }
+
+    @FunctionalInterface
+    public interface SqlAction<T> {
+        T run() throws SQLException, IOException;
     }
 
     private QueryResult mapResultSet(ResultSet rs) throws SQLException {

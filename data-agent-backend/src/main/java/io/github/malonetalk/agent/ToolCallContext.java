@@ -17,13 +17,20 @@
  */
 package io.github.malonetalk.agent;
 
+import io.github.malonetalk.service.ChatExecutionService.Execution;
 import java.util.List;
+import java.util.Optional;
 import lombok.Builder;
 
 @Builder
-public record ToolCallContext(String sessionId, Integer userId, List<Integer> datasourceIds) {
+public record ToolCallContext(
+        String sessionId,
+        Integer userId,
+        List<Integer> datasourceIds,
+        Optional<Execution> execution) {
 
     public ToolCallContext {
         datasourceIds = datasourceIds == null ? List.of() : List.copyOf(datasourceIds);
+        execution = execution == null ? Optional.empty() : execution;
     }
 }

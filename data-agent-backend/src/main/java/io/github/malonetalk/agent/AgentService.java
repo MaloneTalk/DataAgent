@@ -49,6 +49,8 @@ import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.ChatExecutionService;
+import io.github.malonetalk.service.ChatExecutionService.Execution;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
@@ -61,12 +63,14 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Schedulers;
 
@@ -87,6 +91,7 @@ public class AgentService {
     private final AnswerProvenanceService answerProvenanceService;
     private final PermissionService permissions;
     private final DataPermissionService dataPermissions;
+    private final ChatExecutionService chatExecutions;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -104,13 +109,31 @@ public class AgentService {
             List<ChatRequest.ToolResultInput> toolResults,
             List<Integer> datasourceIds) {
         Context otelContext = Context.current();
-        return Flux.defer(
-                        () -> streamAgent(userId, sessionId, userInput, toolResults, datasourceIds))
+        return Flux.usingWhen(
+                        Mono.fromSupplier(() -> chatExecutions.start(sessionId)),
+                        execution ->
+                                Flux.defer(
+                                                () ->
+                                                        streamAgent(
+                                                                userId,
+                                                                sessionId,
+                                                                userInput,
+                                                                toolResults,
+                                                                datasourceIds,
+                                                                execution))
+                                        .takeUntilOther(execution.cancellation())
+                                        .doOnCancel(execution::cancel),
+                        Execution::finish)
                 .contextWrite(
                         ctx ->
                                 ContextPropagationOperator.storeOpenTelemetryContext(
                                         ctx, otelContext))
-                .onErrorResume(this::toErrorEvent);
+                .onErrorResume(this::toErrorEvent)
+                .concatWithValues(
+                        ChatStreamEvent.builder()
+                                .type(ChatStreamEventType.DONE)
+                                .isLast(true)
+                                .build());
     }
 
     private Flux<ChatStreamEvent> streamAgent(
@@ -118,7 +141,8 @@ public class AgentService {
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
-            List<Integer> datasourceIds) {
+            List<Integer> datasourceIds,
+            Execution execution) {
         var user = permissions.require(userId, PermissionEnum.ANALYSIS_CHAT_USE);
         // Verify unique ownership before loading memory or binding a datasource.
         sessionService.requireOwnership(userId, sessionId);
@@ -130,6 +154,7 @@ public class AgentService {
                                 .sessionId(sessionId)
                                 .userId(userId)
                                 .datasourceIds(allowedDatasourceIds)
+                                .execution(Optional.of(execution))
                                 .build());
 
         Session session = sessionService.getSession();

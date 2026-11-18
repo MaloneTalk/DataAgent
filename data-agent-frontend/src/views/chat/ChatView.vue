@@ -36,6 +36,7 @@
   const {
     messages,
     isStreaming,
+    isStopping,
     sessionId,
     pendingQuestion,
     selectedDatasourceIds,
@@ -214,6 +215,7 @@
         :key="sessionId ?? 'new'"
         v-model:datasource-ids="selectedDatasourceIds"
         :is-streaming="isStreaming"
+        :is-stopping="isStopping"
         :pending-question="pendingQuestion"
         :user-messages="userMessages"
         @send="handleSend"

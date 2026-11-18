@@ -20,9 +20,11 @@ import {
   streamChat,
   fetchSessionHistory,
   createSession,
+  cancelChat,
   type ChatStreamEventType,
   type ToolResultInfo,
 } from '@/api/agent';
+import { ApiError } from '@/api/request';
 import { INTERACTIVE_TOOLS, isInteractiveTool } from '@/utils/interactiveTools';
 
 export interface PendingQuestion {
@@ -57,6 +59,7 @@ function nextId(): string {
 export function useAgentChat(initialSessionId?: string) {
   const messages = shallowRef<ChatMessage[]>([]);
   const isStreaming = ref(false);
+  const isStopping = ref(false);
   const sessionId = ref<string | null>(initialSessionId || null);
   let sessionCreation: Promise<string> | null = null;
   const abortController = shallowRef<AbortController | null>(null);
@@ -161,6 +164,7 @@ export function useAgentChat(initialSessionId?: string) {
     try {
       for await (const event of streamChat(request, controller.signal)) {
         if (controller.signal.aborted) break;
+        if (isStopping.value) continue;
         updateAgentMessage(agentMsg.id, msg => {
           if (event.type === 'text' && event.content) {
             msg.content += event.content;
@@ -176,7 +180,7 @@ export function useAgentChat(initialSessionId?: string) {
           }
 
           if (event.type === 'error') {
-            msg.content = msg.content || `请求失败: ${event.content ?? '请稍后重试'}`;
+            msg.content += `\n\n请求失败: ${event.content ?? '请稍后重试'}`;
             msg.traceSteps = [...msg.traceSteps, toTraceStep(event)];
           }
 
@@ -215,15 +219,29 @@ export function useAgentChat(initialSessionId?: string) {
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
         updateAgentMessage(agentMsg.id, msg => {
-          msg.content = msg.content || `请求失败: ${(e as Error).message}`;
+          const errorCode =
+            e instanceof ApiError ? (e.errorCode ?? 'REQUEST_FAILED') : 'REQUEST_FAILED';
+          const content = (e as Error).message;
+          msg.content += `\n\n请求失败: ${content}`;
+          msg.traceSteps.push({
+            type: 'error',
+            content,
+            errorCode,
+            toolCall: null,
+            toolResult: null,
+          });
         });
       }
     } finally {
-      updateAgentMessage(agentMsg.id, msg => {
-        msg.isStreaming = false;
-      });
-      isStreaming.value = false;
-      abortController.value = null;
+      if (!isStopping.value) {
+        updateAgentMessage(agentMsg.id, msg => {
+          msg.isStreaming = false;
+        });
+        if (abortController.value === controller) {
+          isStreaming.value = false;
+          abortController.value = null;
+        }
+      }
     }
   }
 
@@ -244,12 +262,50 @@ export function useAgentChat(initialSessionId?: string) {
     };
   }
 
-  function stopStreaming() {
-    abortController.value?.abort();
+  async function stopStreaming() {
+    const controller = abortController.value;
+    const sid = sessionId.value;
+    const messageId = messages.value[messages.value.length - 1]?.id;
+    if (!controller || !sid || !messageId || isStopping.value) return;
+    isStopping.value = true;
+    let errorCode = 'REQUEST_CANCELLED';
+    let content = '已取消，数据库任务已结束。';
+    try {
+      await cancelChat(sid);
+    } catch (e) {
+      errorCode =
+        e instanceof ApiError
+          ? (e.errorCode ?? 'SQL_TERMINATION_UNCONFIRMED')
+          : 'SQL_TERMINATION_UNCONFIRMED';
+      content = `取消未确认：${(e as Error).message}`;
+    } finally {
+      controller.abort();
+      updateAgentMessage(messageId, msg => {
+        msg.content += `\n\n${content}`;
+        msg.traceSteps.push({
+          type: 'error',
+          content,
+          errorCode,
+          toolCall: null,
+          toolResult: null,
+        });
+        msg.isStreaming = false;
+      });
+      if (abortController.value === controller) {
+        isStreaming.value = false;
+        isStopping.value = false;
+        abortController.value = null;
+        pendingQuestion.value = null;
+      }
+    }
   }
 
   function newSession() {
-    stopStreaming();
+    void stopStreaming();
+    abortController.value?.abort();
+    abortController.value = null;
+    isStreaming.value = false;
+    isStopping.value = false;
     messages.value = [];
     sessionId.value = null;
     pendingQuestion.value = null;
@@ -259,6 +315,7 @@ export function useAgentChat(initialSessionId?: string) {
   return {
     messages,
     isStreaming,
+    isStopping,
     sessionId,
     pendingQuestion,
     selectedDatasourceIds,

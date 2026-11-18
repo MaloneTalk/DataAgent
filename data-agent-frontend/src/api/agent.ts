@@ -15,7 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import request, { handleApiError, type ApiResponse } from './request';
+import request, { ApiError, handleApiError, type ApiResponse } from './request';
+import type { BooleanVo } from './types';
 
 export type ChatStreamEventType =
   | 'summary'
@@ -25,6 +26,7 @@ export type ChatStreamEventType =
   | 'text'
   | 'question'
   | 'report'
+  | 'done'
   | 'error';
 
 export interface ToolCallInfo {
@@ -150,6 +152,12 @@ export async function clearSession(sessionId: string): Promise<void> {
   await request.delete<ApiResponse<boolean>>(`/agent/session/${encodeURIComponent(sessionId)}`);
 }
 
+export async function cancelChat(sessionId: string): Promise<void> {
+  await request.post<ApiResponse<BooleanVo>>(
+    `/agent/session/${encodeURIComponent(sessionId)}/cancel`,
+  );
+}
+
 export async function* streamChat(
   request: ChatRequest,
   abortSignal?: AbortSignal,
@@ -177,6 +185,7 @@ export async function* streamChat(
 
   const decoder = new TextDecoder();
   let buffer = '';
+  let terminated = false;
 
   function parseLine(line: string): ChatStreamEvent | null {
     // Spring ServerSentEventHttpMessageWriter uses "data:" without a space
@@ -189,7 +198,9 @@ export async function* streamChat(
       return null;
     }
     try {
-      return JSON.parse(json) as ChatStreamEvent;
+      const event = JSON.parse(json) as ChatStreamEvent;
+      if (event.type === 'done') terminated = true;
+      return event;
     } catch {
       return null;
     }
@@ -215,6 +226,11 @@ export async function* streamChat(
     if (buffer) {
       const event = parseLine(buffer);
       if (event) yield event;
+    }
+    if (!terminated && !abortSignal?.aborted) {
+      throw new ApiError('响应意外中断，任务结果未确认，请稍后重试。', {
+        errorCode: 'STREAM_INTERRUPTED',
+      });
     }
   } finally {
     reader.releaseLock();

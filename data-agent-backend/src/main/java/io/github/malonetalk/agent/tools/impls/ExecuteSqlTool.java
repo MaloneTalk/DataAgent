@@ -68,8 +68,7 @@ public class ExecuteSqlTool implements DataAgentTool {
         return toolExceptionMapper.runResult(
                 () -> {
                     DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
-                    SqlExecution execution =
-                            sqlExecutor.executeDetailed(datasource, sql, ctx.userId());
+                    SqlExecution execution = sqlExecutor.executeDetailed(datasource, sql, ctx);
                     var metadata =
                             SqlToolMetadataBo.builder()
                                     .datasourceId(datasource.getId())

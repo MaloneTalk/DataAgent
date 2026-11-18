@@ -235,6 +235,7 @@ public final class SqlExpressionInspector {
     }
 
     private BusinessException denied() {
-        return BusinessException.of(ErrorCode.FORBIDDEN, "Unsupported SQL expression.");
+        return BusinessException.of(
+                ErrorCode.SQL_SYNTAX_UNSUPPORTED, "Unsupported SQL expression.");
     }
 }

@@ -76,15 +76,9 @@ public class SqlPermissionService {
             return new AuthorizedSqlBo(select, columnSnapshot(columns));
         }
         if (scope.tables().isEmpty()) throw denied();
-        try {
-            Inspector inspector = new Inspector(scope, datasource, previousColumns);
-            inspector.inspect(select, Optional.empty());
-            return new AuthorizedSqlBo(select, columnSnapshot(inspector.visibleColumns));
-        } catch (BusinessException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "SQL cannot be authorized safely.", ex);
-        }
+        Inspector inspector = new Inspector(scope, datasource, previousColumns);
+        inspector.inspect(select, Optional.empty());
+        return new AuthorizedSqlBo(select, columnSnapshot(inspector.visibleColumns));
     }
 
     private Map<String, Set<String>> columnSnapshot(Map<String, List<ColumnInfo>> columns) {
@@ -99,8 +93,11 @@ public class SqlPermissionService {
     }
 
     private BusinessException denied() {
-        return BusinessException.of(
-                ErrorCode.FORBIDDEN, "SQL references inaccessible data or unsupported syntax.");
+        return BusinessException.of(ErrorCode.FORBIDDEN, "SQL references inaccessible data.");
+    }
+
+    private BusinessException unsupported() {
+        return BusinessException.of(ErrorCode.SQL_SYNTAX_UNSUPPORTED);
     }
 
     private class Inspector {
@@ -132,7 +129,7 @@ public class SqlPermissionService {
 
         private SqlQueryScope inspect(Select select, Optional<SqlQueryScope> parent) {
             if (select.getWithItemsList() != null && !select.getWithItemsList().isEmpty())
-                throw denied(); // MySQL 5.7 does not support CTEs.
+                throw unsupported(); // MySQL 5.7 does not support CTEs.
             SqlQueryScope query;
             if (select.getClass() == PlainSelect.class) {
                 query = inspectPlainSelect((PlainSelect) select, parent);
@@ -146,7 +143,7 @@ public class SqlPermissionService {
                     if (i == 0) query.outputColumns.addAll(branch.outputColumns);
                 }
             } else {
-                throw denied();
+                throw unsupported();
             }
             var expressions = expressions(query, query::requireColumn);
             inspectLimit(select.getLimit(), expressions);
@@ -179,12 +176,12 @@ public class SqlPermissionService {
                     || select.getSkip() != null
                     || select.getFirst() != null
                     || select.getOracleHierarchical() != null
-                    || select.getPreferringClause() != null) throw denied();
+                    || select.getPreferringClause() != null) throw unsupported();
             if (select.getDistinct() != null && select.getDistinct().getOnSelectItems() != null)
-                throw denied();
+                throw unsupported();
             if (select.getWindowDefinitions() != null && !select.getWindowDefinitions().isEmpty())
-                throw denied();
-            if (select.getQualify() != null) throw denied();
+                throw unsupported();
+            if (select.getQualify() != null) throw unsupported();
             var query = new SqlQueryScope(parent);
             var expressions = expressions(query, query::requireColumn);
             if (select.getFromItem() != null)
@@ -227,8 +224,8 @@ public class SqlPermissionService {
                 query.addSource(alias.getName(), derived.outputColumns, Set.of());
                 return source;
             }
-            if (!(source instanceof Table table)
-                    || table.getSchemaName() != null
+            if (!(source instanceof Table table)) throw unsupported();
+            if (table.getSchemaName() != null
                     || table.getDatabase() != null && table.getDatabase().getDatabaseName() != null)
                 throw denied();
             String name = scope.requireTable(table.getName());

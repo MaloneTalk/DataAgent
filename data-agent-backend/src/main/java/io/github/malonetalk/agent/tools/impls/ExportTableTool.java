@@ -76,7 +76,12 @@ public class ExportTableTool implements DataAgentTool {
                     DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
                     var result =
                             tableExportService.create(
-                                    ctx.sessionId(), datasource, title, sql, ctx.userId());
+                                    ctx.sessionId(),
+                                    datasource,
+                                    title,
+                                    sql,
+                                    ctx.userId(),
+                                    ctx.execution());
                     var export = result.export();
                     var metadata =
                             SqlToolMetadataBo.builder()

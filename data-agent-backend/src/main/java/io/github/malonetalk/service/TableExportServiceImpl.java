@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service;
 
+import static io.github.malonetalk.exception.ExceptionResponseMapper.sqlErrorCode;
+
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.agent.SessionService;
@@ -34,6 +36,7 @@ import io.github.malonetalk.mapper.TableExportMapper;
 import io.github.malonetalk.model.bo.TableExportResultBo;
 import io.github.malonetalk.model.converter.JdbcCsvValueConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.ChatExecutionService.Execution;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
@@ -48,6 +51,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -69,7 +73,12 @@ public class TableExportServiceImpl implements TableExportService {
 
     @Override
     public TableExportResultBo create(
-            String sessionId, DatasourcePo datasource, String title, String sql, Integer userId) {
+            String sessionId,
+            DatasourcePo datasource,
+            String title,
+            String sql,
+            Integer userId,
+            Optional<Execution> execution) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -82,7 +91,7 @@ public class TableExportServiceImpl implements TableExportService {
         String safeSql = authorized.select().toString();
 
         String exportId = UUID.randomUUID().toString();
-        CsvResult csv = writeCsv(datasource, safeSql);
+        CsvResult csv = writeCsv(datasource, safeSql, execution);
         TableExport tableExport = new TableExport();
         tableExport.setId(exportId);
         tableExport.setSessionId(exportSessionId);
@@ -129,7 +138,7 @@ public class TableExportServiceImpl implements TableExportService {
         }
     }
 
-    private CsvResult writeCsv(DatasourcePo datasource, String sql) {
+    private CsvResult writeCsv(DatasourcePo datasource, String sql, Optional<Execution> execution) {
         javax.sql.DataSource dataSource =
                 dynamicDataSourceManager.getOrCreateDataSource(datasource);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -145,15 +154,21 @@ public class TableExportServiceImpl implements TableExportService {
                     DataSourceType.MYSQL.getCode().equalsIgnoreCase(datasource.getType())
                             ? Integer.MIN_VALUE
                             : FETCH_SIZE);
-            writer.write('\ufeff');
-            int rowCount;
-            try (ResultSet rs = stmt.executeQuery()) {
-                rowCount = writeRows(writer, rs);
-            }
-            writer.flush();
-            return new CsvResult(output.toByteArray(), rowCount);
+            return sqlExecutor.executeStatement(
+                    datasource,
+                    stmt,
+                    execution,
+                    () -> {
+                        writer.write('\ufeff');
+                        int rowCount;
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            rowCount = writeRows(writer, rs);
+                        }
+                        writer.flush();
+                        return new CsvResult(output.toByteArray(), rowCount);
+                    });
         } catch (SQLException e) {
-            throw BusinessException.of(ErrorCode.SQL_EXECUTION_FAILED, "SQL export failed.", e);
+            throw BusinessException.of(sqlErrorCode(e), sqlErrorCode(e).getDefaultMessage(), e);
         } catch (IOException e) {
             throw BusinessException.of(
                     ErrorCode.OPERATION_FAILED, "Failed to write export content.", e);

@@ -31,6 +31,7 @@ public enum ChatStreamEventType {
     TEXT("text"),
     QUESTION("question"),
     REPORT("report"),
+    DONE("done"),
     ERROR("error");
 
     private final String code;
