@@ -86,7 +86,7 @@
     if (selectedDatasourceId === null) return;
     try {
       await ElMessageBox.confirm(
-        `确认重置表 ${row.tableName} 的语义信息吗？若该表当前已标记为物理缺失，还会删除该表及其列的语义记录和所有关联到该表的逻辑关系；重新同步不会恢复这些关系。`,
+        `确认重置表 ${row.tableName} 的语义信息（含业务唯一键）吗？若该表当前已标记为物理缺失，还会删除该表及其列的语义记录和所有关联到该表的逻辑关系；重新同步不会恢复这些关系。`,
         '确认重置',
         {
           type: 'warning',
@@ -170,6 +170,7 @@
           <strong>表语义</strong>
           说明表或普通视图在业务上代表什么、属于哪个领域、是否对 AI
           可见，以及它和其他对象的逻辑关系。数据粒度用于说明一行代表什么。
+          业务唯一键用于声明哪些字段共同唯一标识一行。
         </HelpTip>
       </h2>
     </div>
@@ -240,6 +241,14 @@
       <el-table-column label="数据粒度" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.dataGranularity || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="业务唯一键" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-tooltip v-if="row.businessKeyInvalidReason" :content="row.businessKeyInvalidReason">
+            <el-text type="warning">{{ row.businessKeyColumns?.join(' + ') }}（失效）</el-text>
+          </el-tooltip>
+          <span v-else>{{ row.businessKeyColumns?.join(' + ') || '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="isVisible" label="可见性" width="100" align="center">

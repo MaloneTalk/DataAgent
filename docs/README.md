@@ -9,7 +9,7 @@
 | 1 | [getting-started.md](getting-started.md) | 想跑起来的人 | 环境准备、建库、启动前后端、第一次提问 |
 | 2 | [architecture.md](architecture.md) | 想理解系统的人 | 系统组成、会话协议、请求流转、数据证据、模块划分与 API |
 | 3 | [configuration.md](configuration.md) | 要部署/接入的人 | LLM 提供商、元数据库、查询数据源、Skill、MCP 配置、安全提示 |
-| 4 | [semantic-layer.md](semantic-layer.md) | 要维护业务知识的人 | 表与普通视图、同步机制、指标业务属性与 API 示例 |
+| 4 | [semantic-layer.md](semantic-layer.md) | 要维护业务知识的人 | 表与普通视图、业务唯一键、同步机制、指标业务属性与 API 示例 |
 | 5 | [skills.md](skills.md) | 要扩展 Agent 能力的人 | Skill 编写、工作目录、加载与生效方式 |
 | 6 | [external-agent.md](external-agent.md) | 要接入外部 Agent 的人 | PAT、`/agent/**` REST、CLI、Skill 安装与使用 |
 | 7 | [observability.md](observability.md) | 要观测/排障的人 | OpenTelemetry trace/metrics/logs、配置开关、任意 OTLP 后端（Grafana LGTM 示例） |

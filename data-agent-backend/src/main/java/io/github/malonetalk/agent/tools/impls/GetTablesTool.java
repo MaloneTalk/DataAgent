@@ -58,7 +58,8 @@ public class GetTablesTool implements DataAgentTool {
             description =
                     """
                     Get synced semantic-layer tables and ordinary views, including name, object type, domain, \
-                    description, data granularity (what one row represents) and enabled relations.\
+                    description, data granularity (what one row represents), business key columns and enabled relations. \
+                    Business keys are administrator declarations, not database-enforced or data-validated uniqueness guarantees.\
                     """)
     public ToolResultBo getTables(
             @ToolParam(
@@ -114,6 +115,12 @@ public class GetTablesTool implements DataAgentTool {
                                                         rel.targetTableName(),
                                                         rel.targetColumnNames()))
                         .toList();
-        return table.toBuilder().relations(relations).build();
+        return table.toBuilder()
+                .relations(relations)
+                .businessKeyColumns(
+                        scope.canColumns(table.name(), table.businessKeyColumns())
+                                ? table.businessKeyColumns()
+                                : List.of())
+                .build();
     }
 }

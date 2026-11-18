@@ -21,7 +21,10 @@ import io.github.malonetalk.entity.ColumnInfo;
 import io.github.malonetalk.entity.TableInfo;
 import io.github.malonetalk.service.semantic.enums.ColumnInvalidReasonEnum;
 import io.github.malonetalk.service.semantic.enums.TableInvalidReasonEnum;
+import io.github.malonetalk.utils.SemanticUtils;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 public final class SemanticAvailabilityHelper {
 
@@ -70,5 +73,20 @@ public final class SemanticAvailabilityHelper {
     public static String unavailableMessage(String fieldName, String objectName, String reason) {
         String fallbackReason = reason == null || reason.isBlank() ? "unavailable" : reason;
         return fieldName + " " + objectName + " is unavailable: " + fallbackReason;
+    }
+
+    public static Optional<String> businessKeyInvalidReason(
+            TableInfo table, Set<String> physicalColumnNames) {
+        if (table.getBusinessKeyColumns().isEmpty()) {
+            return Optional.empty();
+        }
+        if (!hasPhysicalTable(table)) {
+            return Optional.of("数据库对象缺失，业务唯一键已失效");
+        }
+        boolean missingColumn =
+                table.getBusinessKeyColumns().stream()
+                        .map(name -> SemanticUtils.normalizeObjectName(name, "业务唯一键字段不能为空"))
+                        .anyMatch(name -> !physicalColumnNames.contains(name));
+        return missingColumn ? Optional.of("业务唯一键字段缺失，请重新选择") : Optional.empty();
     }
 }

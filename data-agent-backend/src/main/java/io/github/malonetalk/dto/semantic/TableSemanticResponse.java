@@ -18,6 +18,7 @@
 package io.github.malonetalk.dto.semantic;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Builder;
 
 @Builder
@@ -29,6 +30,8 @@ public record TableSemanticResponse(
         String physicalTableDescription,
         String tableDescription,
         String dataGranularity,
+        List<String> businessKeyColumns,
+        String businessKeyInvalidReason,
         Boolean isVisible,
         Boolean hasPhysicalTable,
         String invalidReason,

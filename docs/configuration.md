@@ -18,7 +18,7 @@
 已经完成主键关联升级的旧库也需执行，以补齐计算方式、结果类型、单位、倍率、币种及回答溯源表；新增字段逐列检查是否存在，回答溯源表按需创建，可重复执行。
 数据源升级还会补齐 `updater_id` 和 `is_deleted`。删除数据源改为逻辑删除，保留原记录及关联元数据；列表和会话数据源解析会排除已删除的数据源。`session_datasource` 升级为多数据源范围并补齐审计字段，工具调用会重新校验数据源权限。
 
-最新迁移还包含 CSV 托管数据源与 `csv_import`、个人访问令牌表 `user_pat`，以及 `table_info.object_type`（`TABLE` / `VIEW`）。停止旧后端写入后执行；迁移不会自动创建 CSV 物理库、账号或授予角色新权限。历史对象类型需再次完整同步，见 [表与普通视图](semantic-layer.md#表与普通视图)。
+最新迁移还包含 CSV 托管数据源与 `csv_import`、个人访问令牌表 `user_pat`，以及 `table_info.object_type`（`TABLE` / `VIEW`）和 `table_info.business_key_columns_json`（业务唯一键字段列表）。停止旧后端写入后执行；迁移不会自动创建 CSV 物理库、账号或授予角色新权限。历史对象类型需再次完整同步，见 [表与普通视图](semantic-layer.md#表与普通视图)。业务唯一键默认为未配置，配置及同步保留规则见 [业务唯一键](semantic-layer.md#业务唯一键)。
 
 指标属性的配置规则与接口示例见 [语义层](semantic-layer.md#5-指标业务属性)。
 

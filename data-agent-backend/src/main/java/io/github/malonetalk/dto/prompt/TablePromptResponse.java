@@ -28,4 +28,5 @@ public record TablePromptResponse(
         String domain,
         String description,
         String dataGranularity,
+        List<String> businessKeyColumns,
         List<TableRelationPromptResponse> relations) {}
