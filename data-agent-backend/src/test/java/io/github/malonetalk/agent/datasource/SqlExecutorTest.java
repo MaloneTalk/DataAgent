@@ -39,6 +39,7 @@ import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -143,12 +144,20 @@ class SqlExecutorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"DELETE FROM ticket", "SELECT FROM", "VALUES (1), (2)"})
-    void rejectsInvalidOrUnsupportedStatementsWithBusinessError(String sql) {
+    @CsvSource(
+            delimiter = '|',
+            textBlock =
+                    """
+                    DELETE FROM ticket | SQL_NOT_ALLOWED
+                    SELECT FROM | SQL_SYNTAX_UNSUPPORTED
+                    VALUES (1), (2) | SQL_SYNTAX_UNSUPPORTED
+                    """)
+    void rejectsInvalidOrUnsupportedStatementsWithBusinessError(
+            String sql, ErrorCode expectedCode) {
         BusinessException error =
                 assertThrows(BusinessException.class, () -> executor.validateSelectSql(sql));
 
-        assertEquals(ErrorCode.SQL_NOT_ALLOWED, error.getErrorCode());
+        assertEquals(expectedCode, error.getErrorCode());
     }
 
     @Test
