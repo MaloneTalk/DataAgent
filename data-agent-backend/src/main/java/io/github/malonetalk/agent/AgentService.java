@@ -106,10 +106,11 @@ public class AgentService {
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
-            List<Integer> datasourceIds) {
+            List<Integer> datasourceIds,
+            Optional<String> executionId) {
         Context otelContext = Context.current();
         return Flux.usingWhen(
-                        Mono.fromSupplier(() -> chatExecutions.start(sessionId)),
+                        Mono.fromSupplier(() -> chatExecutions.start(sessionId, executionId)),
                         execution ->
                                 Flux.defer(
                                                 () ->
@@ -145,8 +146,15 @@ public class AgentService {
         var user = permissions.require(userId, PermissionEnum.ANALYSIS_CHAT_USE);
         // Verify unique ownership before loading memory or binding a datasource.
         sessionService.requireOwnership(userId, sessionId);
-        List<Integer> allowedDatasourceIds = resolveDatasourceIds(user, datasourceIds);
-        sessionDatasourceService.replaceSessionDatasources(sessionId, allowedDatasourceIds, user);
+        boolean resuming = toolResults != null && !toolResults.isEmpty();
+        List<Integer> requestedDatasourceIds =
+                resuming ? sessionDatasourceService.findDatasourceIds(sessionId) : datasourceIds;
+        if (resuming && requestedDatasourceIds.isEmpty())
+            throw BusinessException.of(ErrorCode.BOUND_DATASOURCE_UNAVAILABLE);
+        List<Integer> allowedDatasourceIds = resolveDatasourceIds(user, requestedDatasourceIds);
+        if (!resuming)
+            sessionDatasourceService.replaceSessionDatasources(
+                    sessionId, allowedDatasourceIds, user);
         var eventStream = new AgentEventStream();
         ReActAgent agent =
                 createAgent(

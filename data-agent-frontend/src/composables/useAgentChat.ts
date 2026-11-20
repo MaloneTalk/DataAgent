@@ -63,6 +63,7 @@ export function useAgentChat(initialSessionId?: string) {
   const sessionId = ref<string | null>(initialSessionId || null);
   let sessionCreation: Promise<string> | null = null;
   const abortController = shallowRef<AbortController | null>(null);
+  let activeExecutionId: string | null = null;
   const pendingQuestion = ref<PendingQuestion | null>(null);
   const selectedDatasourceIds = ref<number[]>([]);
   const lastReportContent = ref<string | null>(null);
@@ -143,7 +144,9 @@ export function useAgentChat(initialSessionId?: string) {
     isStreaming.value = true;
 
     const controller = new AbortController();
+    const executionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
     abortController.value = controller;
+    activeExecutionId = executionId;
     let summaryStarted = false;
 
     pendingQuestion.value = null;
@@ -152,11 +155,13 @@ export function useAgentChat(initialSessionId?: string) {
       pq != null
         ? {
             sessionId: currentSessionId,
+            executionId,
             datasourceIds,
             toolResults: [{ toolCallId: pq.toolCallId, toolName: pq.toolName, output: text }],
           }
         : {
             sessionId: currentSessionId,
+            executionId,
             datasourceIds,
             message: text,
           };
@@ -240,6 +245,7 @@ export function useAgentChat(initialSessionId?: string) {
         if (abortController.value === controller) {
           isStreaming.value = false;
           abortController.value = null;
+          activeExecutionId = null;
         }
       }
     }
@@ -264,14 +270,15 @@ export function useAgentChat(initialSessionId?: string) {
 
   async function stopStreaming() {
     const controller = abortController.value;
+    const executionId = activeExecutionId;
     const sid = sessionId.value;
     const messageId = messages.value[messages.value.length - 1]?.id;
-    if (!controller || !sid || !messageId || isStopping.value) return;
+    if (!controller || !executionId || !sid || !messageId || isStopping.value) return;
     isStopping.value = true;
     let errorCode = 'REQUEST_CANCELLED';
     let content = '已取消，数据库任务已结束。';
     try {
-      await cancelChat(sid);
+      await cancelChat(sid, executionId);
     } catch (e) {
       errorCode =
         e instanceof ApiError
@@ -295,6 +302,7 @@ export function useAgentChat(initialSessionId?: string) {
         isStreaming.value = false;
         isStopping.value = false;
         abortController.value = null;
+        activeExecutionId = null;
         pendingQuestion.value = null;
       }
     }
@@ -304,6 +312,7 @@ export function useAgentChat(initialSessionId?: string) {
     void stopStreaming();
     abortController.value?.abort();
     abortController.value = null;
+    activeExecutionId = null;
     isStreaming.value = false;
     isStopping.value = false;
     messages.value = [];

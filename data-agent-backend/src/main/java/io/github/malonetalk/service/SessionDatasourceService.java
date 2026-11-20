@@ -41,6 +41,16 @@ public class SessionDatasourceService
     private final UserContextHolder userContextHolder;
     private final DatasourceService datasourceService;
 
+    public List<Integer> findDatasourceIds(String sessionId) {
+        return list(
+                        Wrappers.<SessionDatasourcePo>lambdaQuery()
+                                .select(SessionDatasourcePo::getDatasourceId)
+                                .eq(SessionDatasourcePo::getSessionId, sessionId))
+                .stream()
+                .map(SessionDatasourcePo::getDatasourceId)
+                .toList();
+    }
+
     @Transactional
     public void replaceSessionDatasources(
             String sessionId, List<Integer> datasourceIds, UserContextBo user) {

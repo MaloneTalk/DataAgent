@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,22 +45,33 @@ import reactor.core.scheduler.Schedulers;
 public class ChatExecutionService {
     private final ConcurrentHashMap<String, Execution> running = new ConcurrentHashMap<>();
 
-    public Execution start(String sessionId) {
-        var execution = new Execution(sessionId);
+    public Execution start(String sessionId, Optional<String> executionId) {
+        var execution =
+                new Execution(
+                        sessionId,
+                        executionId
+                                .filter(id -> !id.isBlank())
+                                .orElseGet(() -> UUID.randomUUID().toString()));
         if (running.putIfAbsent(sessionId, execution) != null) {
             throw BusinessException.of(ErrorCode.DATA_CONFLICT, "The session is still executing.");
         }
         return execution;
     }
 
-    public void cancel(String sessionId) {
+    public void cancel(String sessionId, String executionId) {
         var execution =
                 Optional.ofNullable(running.get(sessionId))
+                        .filter(value -> value.executionId.equals(executionId))
                         .orElseThrow(
                                 () -> BusinessException.of(ErrorCode.SQL_TERMINATION_UNCONFIRMED));
-        execution.cancel();
         try {
-            execution.finished.get(10, TimeUnit.SECONDS);
+            // Include upstream cancellation and synchronous resource cleanup in the API deadline.
+            // A timed-out wait leaves cleanup running and the execution registered.
+            Mono.fromRunnable(execution::cancel)
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .then(Mono.fromFuture(execution.finished, true))
+                    .toFuture()
+                    .get(10, TimeUnit.SECONDS);
             log.info("Chat cancellation confirmed; database tasks exited: sessionId={}", sessionId);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -83,6 +95,7 @@ public class ChatExecutionService {
 
     public final class Execution implements AutoCloseable {
         private final String sessionId;
+        private final String executionId;
         private final Set<QueryTask> tasks = new HashSet<>();
         private final Sinks.Empty<Void> cancellation = Sinks.empty();
         private final CompletableFuture<Void> finished = new CompletableFuture<>();
@@ -90,8 +103,9 @@ public class ChatExecutionService {
         private boolean closed;
         private boolean unconfirmed;
 
-        private Execution(String sessionId) {
+        private Execution(String sessionId, String executionId) {
             this.sessionId = sessionId;
+            this.executionId = executionId;
         }
 
         public Mono<Void> cancellation() {

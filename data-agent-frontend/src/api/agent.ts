@@ -111,6 +111,7 @@ export interface SessionInfo {
 
 export interface ChatRequest {
   sessionId: string;
+  executionId?: string;
   message?: string;
   toolResults?: ToolResultInput[];
   datasourceIds?: number[];
@@ -152,9 +153,11 @@ export async function clearSession(sessionId: string): Promise<void> {
   await request.delete<ApiResponse<boolean>>(`/agent/session/${encodeURIComponent(sessionId)}`);
 }
 
-export async function cancelChat(sessionId: string): Promise<void> {
+export async function cancelChat(sessionId: string, executionId: string): Promise<void> {
   await request.post<ApiResponse<BooleanVo>>(
     `/agent/session/${encodeURIComponent(sessionId)}/cancel`,
+    undefined,
+    { params: { executionId } },
   );
 }
 
