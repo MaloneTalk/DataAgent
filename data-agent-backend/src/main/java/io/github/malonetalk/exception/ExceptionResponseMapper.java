@@ -149,8 +149,8 @@ public class ExceptionResponseMapper {
             if (!(current instanceof SQLException sqlException)) continue;
             String state = sqlException.getSQLState() == null ? "" : sqlException.getSQLState();
             int code = sqlException.getErrorCode();
-            if (state.startsWith("HYT")
-                    || Set.of(1205, 3024).contains(code)) return ErrorCode.QUERY_TIMEOUT;
+            if (state.startsWith("HYT") || Set.of(1205, 3024).contains(code))
+                return ErrorCode.QUERY_TIMEOUT;
             if (state.startsWith("28")
                     || state.equals("42501")
                     || Set.of(1044, 1045, 1142, 1143, 1227).contains(code))

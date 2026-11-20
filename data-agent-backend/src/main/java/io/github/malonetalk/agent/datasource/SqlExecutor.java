@@ -246,7 +246,8 @@ public class SqlExecutor {
             } finally {
                 boolean interrupted = Thread.interrupted();
                 try {
-                    task.awaitCancellation(connection);
+                    task.awaitCancellation();
+                    interrupted |= Thread.interrupted();
                     statement.close();
                     if (verify || task.cancelled() || interrupted) {
                         // A round trip on this same connection confirms the prior query has exited.

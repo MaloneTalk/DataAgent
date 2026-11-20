@@ -59,6 +59,7 @@ import io.github.malonetalk.model.dto.SaveColumnPermissionRequest;
 import io.github.malonetalk.model.dto.SaveTablePermissionRequest;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
+import io.github.malonetalk.service.ChatExecutionService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.RolePermissionService;
 import io.github.malonetalk.service.SessionDatasourceService;
@@ -116,7 +117,12 @@ class PermissionIntegrationTest {
         var mvc =
                 MockMvcBuilders.standaloneSetup(
                                 new AgentController(
-                                        agent, permissions, sessions, holder, provenance))
+                                        agent,
+                                        permissions,
+                                        sessions,
+                                        holder,
+                                        provenance,
+                                        mock(ChatExecutionService.class)))
                         .addInterceptors(new AuthInterceptor(permissions, jwt, holder))
                         .setControllerAdvice(
                                 new GlobalExceptionHandler(new ExceptionResponseMapper()))

@@ -18,8 +18,7 @@
 package io.github.malonetalk.agent;
 
 import io.agentscope.core.ReActAgent;
-import io.agentscope.core.agent.EventType;
-import io.agentscope.core.agent.StreamOptions;
+import io.agentscope.core.hook.Hook;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.memory.Memory;
 import io.agentscope.core.message.ContentBlock;
@@ -148,6 +147,7 @@ public class AgentService {
         sessionService.requireOwnership(userId, sessionId);
         List<Integer> allowedDatasourceIds = resolveDatasourceIds(user, datasourceIds);
         sessionDatasourceService.replaceSessionDatasources(sessionId, allowedDatasourceIds, user);
+        var eventStream = new AgentEventStream();
         ReActAgent agent =
                 createAgent(
                         ToolCallContext.builder()
@@ -155,7 +155,8 @@ public class AgentService {
                                 .userId(userId)
                                 .datasourceIds(allowedDatasourceIds)
                                 .execution(Optional.of(execution))
-                                .build());
+                                .build(),
+                        eventStream);
 
         Session session = sessionService.getSession();
         agent.loadIfExists(session, sessionId);
@@ -167,15 +168,8 @@ public class AgentService {
                         : sessionService.getLatestUserMessageId(sessionId).orElse(userMsg.getId());
         List<ChatStreamEvent> provenanceEvents = new ArrayList<>();
 
-        StreamOptions streamOptions =
-                StreamOptions.builder()
-                        .eventTypes(EventType.REASONING, EventType.TOOL_RESULT, EventType.SUMMARY)
-                        .incremental(true)
-                        .includeReasoningResult(true)
-                        .build();
-
         // trace context 已在 chatStream 种入 Reactor context，agentscope 会自动沿用同一 traceId。
-        return agent.stream(userMsg, streamOptions)
+        return eventStream.stream(agent, userMsg)
                 .doFinally(
                         signalType ->
                                 log.info(
@@ -303,7 +297,7 @@ public class AgentService {
                         .build());
     }
 
-    private ReActAgent createAgent(ToolCallContext toolCallContext) {
+    private ReActAgent createAgent(ToolCallContext toolCallContext, Hook eventStream) {
         var memory = new InMemoryMemory();
         ToolExecutionContext context =
                 ToolExecutionContext.builder()
@@ -316,6 +310,7 @@ public class AgentService {
                 .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
                 .toolExecutionContext(context)
+                .hook(eventStream)
                 .skillBox(skillBox)
                 .memory(memory)
                 .maxIters(10)

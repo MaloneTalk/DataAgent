@@ -19,7 +19,6 @@ package io.github.malonetalk.service;
 
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -27,6 +26,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -177,54 +177,49 @@ public class ChatExecutionService {
         private synchronized void cancel() {
             if (cancellationStarted || finished.getCount() == 0) return;
             cancellationStarted = true;
-            cancellation = Mono.<Void>fromRunnable(
-                            () -> {
-                                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-                                try {
-                                    // Repeat to cover cancellation racing with executeQuery()
-                                    // starting.
-                                    do {
+            cancellation =
+                    Mono.<Void>fromRunnable(
+                                    () -> {
+                                        long deadline =
+                                                System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
                                         try {
-                                            statement.cancel();
-                                        } catch (SQLException e) {
-                                            log.debug("JDBC cancellation failed", e);
+                                            // Repeat to cover cancellation racing with
+                                            // executeQuery()
+                                            // starting.
+                                            do {
+                                                try {
+                                                    statement.cancel();
+                                                } catch (SQLException e) {
+                                                    log.debug("JDBC cancellation failed", e);
+                                                }
+                                            } while (!finished.await(100, TimeUnit.MILLISECONDS)
+                                                    && System.nanoTime() < deadline);
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                            throw new IllegalStateException(
+                                                    "JDBC cancellation interrupted", e);
                                         }
-                                    } while (!finished.await(100, TimeUnit.MILLISECONDS)
-                                            && System.nanoTime() < deadline);
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
-                                    throw new IllegalStateException("JDBC cancellation interrupted", e);
-                                }
-                            })
-                    .subscribeOn(Schedulers.boundedElastic())
-                    .toFuture();
+                                    })
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .toFuture();
         }
 
-        public void awaitCancellation(Connection connection) throws SQLException {
+        public void awaitCancellation() {
             CompletableFuture<Void> pending;
             synchronized (this) {
                 finished.countDown();
                 pending = cancellation;
             }
             try {
-                pending.get(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                abortConnection(connection, e);
-            } catch (ExecutionException | TimeoutException e) {
-                abortConnection(connection, e);
+                // The API wait is bounded; keep this connection until cancellation really exits.
+                pending.join();
+            } catch (CompletionException e) {
+                unconfirmed = true;
+                throw BusinessException.of(
+                        ErrorCode.SQL_TERMINATION_UNCONFIRMED,
+                        ErrorCode.SQL_TERMINATION_UNCONFIRMED.getDefaultMessage(),
+                        e);
             }
-        }
-
-        private void abortConnection(Connection connection, Exception error) throws SQLException {
-            unconfirmed = true;
-            try {
-                // Never pool a connection while a cancellation request may still be in flight.
-                connection.abort(Runnable::run);
-            } catch (SQLException | RuntimeException abortFailure) {
-                error.addSuppressed(abortFailure);
-            }
-            throw new SQLException("JDBC cancellation did not finish; connection discarded.", error);
         }
 
         public void unconfirmed() {
