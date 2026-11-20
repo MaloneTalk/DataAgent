@@ -22,7 +22,6 @@ import static io.github.malonetalk.exception.ExceptionResponseMapper.sqlErrorCod
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.agent.SessionService;
-import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.dto.TableExportPageQuery;
@@ -37,6 +36,7 @@ import io.github.malonetalk.model.bo.TableExportResultBo;
 import io.github.malonetalk.model.converter.JdbcCsvValueConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.ChatExecutionService.Execution;
+import io.github.malonetalk.service.ChatExecutionService.QueryTask;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
@@ -60,7 +60,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TableExportServiceImpl implements TableExportService {
 
-    private static final int FETCH_SIZE = 1000;
     private static final int QUERY_TIMEOUT_SECONDS = 120;
     private static final int MAX_TITLE_LENGTH = 255;
     private static final int MAX_EXPORT_ROWS = 10_000;
@@ -150,19 +149,17 @@ public class TableExportServiceImpl implements TableExportService {
                         new BufferedWriter(
                                 new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
-            stmt.setFetchSize(
-                    DataSourceType.MYSQL.getCode().equalsIgnoreCase(datasource.getType())
-                            ? Integer.MIN_VALUE
-                            : FETCH_SIZE);
+            // Bound buffering; MySQL streaming results cannot be stopped by Statement.cancel().
+            stmt.setMaxRows(MAX_EXPORT_ROWS + 1);
             return sqlExecutor.executeStatement(
                     datasource,
                     stmt,
                     execution,
-                    () -> {
+                    task -> {
                         writer.write('\ufeff');
                         int rowCount;
                         try (ResultSet rs = stmt.executeQuery()) {
-                            rowCount = writeRows(writer, rs);
+                            rowCount = writeRows(writer, rs, task);
                         }
                         writer.flush();
                         return new CsvResult(output.toByteArray(), rowCount);
@@ -175,7 +172,8 @@ public class TableExportServiceImpl implements TableExportService {
         }
     }
 
-    private int writeRows(BufferedWriter writer, ResultSet rs) throws SQLException, IOException {
+    private int writeRows(BufferedWriter writer, ResultSet rs, QueryTask task)
+            throws SQLException, IOException {
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
@@ -188,6 +186,7 @@ public class TableExportServiceImpl implements TableExportService {
 
         int rowCount = 0;
         while (rs.next()) {
+            task.checkCancelled();
             if (rowCount >= MAX_EXPORT_ROWS) {
                 throw BusinessException.of(
                         ErrorCode.BAD_REQUEST,

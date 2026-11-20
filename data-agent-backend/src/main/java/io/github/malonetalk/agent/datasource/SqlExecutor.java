@@ -26,6 +26,7 @@ import io.github.malonetalk.model.bo.AuthorizedSqlBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.ChatExecutionService;
 import io.github.malonetalk.service.ChatExecutionService.Execution;
+import io.github.malonetalk.service.ChatExecutionService.QueryTask;
 import io.github.malonetalk.service.SqlPermissionService;
 import java.io.IOException;
 import java.sql.Connection;
@@ -215,9 +216,9 @@ public class SqlExecutor {
                     datasource,
                     stmt,
                     execution,
-                    () -> {
+                    task -> {
                         try (ResultSet rs = stmt.executeQuery()) {
-                            return mapResultSet(rs);
+                            return mapResultSet(rs, task);
                         }
                     });
         }
@@ -234,7 +235,7 @@ public class SqlExecutor {
             boolean verify = false;
             try {
                 task.checkCancelled();
-                T result = action.run();
+                T result = action.run(task);
                 task.checkCancelled();
                 return result;
             } catch (SQLException e) {
@@ -245,6 +246,7 @@ public class SqlExecutor {
             } finally {
                 boolean interrupted = Thread.interrupted();
                 try {
+                    task.awaitCancellation(connection);
                     statement.close();
                     if (verify || task.cancelled() || interrupted) {
                         // A round trip on this same connection confirms the prior query has exited.
@@ -274,10 +276,10 @@ public class SqlExecutor {
 
     @FunctionalInterface
     public interface SqlAction<T> {
-        T run() throws SQLException, IOException;
+        T run(QueryTask task) throws SQLException, IOException;
     }
 
-    private QueryResult mapResultSet(ResultSet rs) throws SQLException {
+    private QueryResult mapResultSet(ResultSet rs, QueryTask task) throws SQLException {
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
 
@@ -290,6 +292,7 @@ public class SqlExecutor {
         boolean truncated = false;
 
         while (rs.next()) {
+            task.checkCancelled();
             if (rowCount == MAX_ROWS) {
                 truncated = true;
                 break;

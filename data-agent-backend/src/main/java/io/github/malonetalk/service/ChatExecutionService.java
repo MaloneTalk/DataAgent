@@ -19,6 +19,7 @@ package io.github.malonetalk.service;
 
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -31,7 +32,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -156,7 +156,8 @@ public class ChatExecutionService {
         private final PreparedStatement statement;
         private final Optional<Execution> execution;
         private final CountDownLatch finished = new CountDownLatch(1);
-        private final AtomicBoolean cancellationStarted = new AtomicBoolean();
+        private CompletableFuture<Void> cancellation = CompletableFuture.completedFuture(null);
+        private boolean cancellationStarted;
         private boolean unconfirmed;
 
         private QueryTask(PreparedStatement statement, Optional<Execution> execution) {
@@ -173,10 +174,10 @@ public class ChatExecutionService {
             if (cancelled()) throw BusinessException.of(ErrorCode.REQUEST_CANCELLED);
         }
 
-        private void cancel() {
-            if (!cancellationStarted.compareAndSet(false, true)) return;
-            Schedulers.boundedElastic()
-                    .schedule(
+        private synchronized void cancel() {
+            if (cancellationStarted || finished.getCount() == 0) return;
+            cancellationStarted = true;
+            cancellation = Mono.<Void>fromRunnable(
                             () -> {
                                 long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
                                 try {
@@ -192,8 +193,38 @@ public class ChatExecutionService {
                                             && System.nanoTime() < deadline);
                                 } catch (InterruptedException e) {
                                     Thread.currentThread().interrupt();
+                                    throw new IllegalStateException("JDBC cancellation interrupted", e);
                                 }
-                            });
+                            })
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .toFuture();
+        }
+
+        public void awaitCancellation(Connection connection) throws SQLException {
+            CompletableFuture<Void> pending;
+            synchronized (this) {
+                finished.countDown();
+                pending = cancellation;
+            }
+            try {
+                pending.get(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                abortConnection(connection, e);
+            } catch (ExecutionException | TimeoutException e) {
+                abortConnection(connection, e);
+            }
+        }
+
+        private void abortConnection(Connection connection, Exception error) throws SQLException {
+            unconfirmed = true;
+            try {
+                // Never pool a connection while a cancellation request may still be in flight.
+                connection.abort(Runnable::run);
+            } catch (SQLException | RuntimeException abortFailure) {
+                error.addSuppressed(abortFailure);
+            }
+            throw new SQLException("JDBC cancellation did not finish; connection discarded.", error);
         }
 
         public void unconfirmed() {

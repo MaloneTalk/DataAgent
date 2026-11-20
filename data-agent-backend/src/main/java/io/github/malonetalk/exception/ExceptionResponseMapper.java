@@ -140,13 +140,16 @@ public class ExceptionResponseMapper {
     }
 
     public static ErrorCode sqlErrorCode(SQLException exception) {
-        for (SQLException current = exception;
-                current != null;
-                current = current.getNextException()) {
-            String state = current.getSQLState() == null ? "" : current.getSQLState();
-            int code = current.getErrorCode();
+        // SQLException's iterator includes both causes and chained SQL exceptions.
+        for (Throwable current : exception) {
             if (current instanceof SQLTimeoutException
-                    || state.startsWith("HYT")
+                    || current instanceof SocketTimeoutException
+                    || current instanceof HttpTimeoutException
+                    || current instanceof TimeoutException) return ErrorCode.QUERY_TIMEOUT;
+            if (!(current instanceof SQLException sqlException)) continue;
+            String state = sqlException.getSQLState() == null ? "" : sqlException.getSQLState();
+            int code = sqlException.getErrorCode();
+            if (state.startsWith("HYT")
                     || Set.of(1205, 3024).contains(code)) return ErrorCode.QUERY_TIMEOUT;
             if (state.startsWith("28")
                     || state.equals("42501")
