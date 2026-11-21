@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.ToolCallContext;
-import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
@@ -31,6 +31,7 @@ import io.github.malonetalk.model.converter.MetricPromptConverter;
 import io.github.malonetalk.model.po.MetricClarificationPo;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -46,7 +47,17 @@ public class MetricClarificationService {
     private final MetricChoiceConverter converter;
     private final MetricPromptConverter prompts;
     private final PermissionService permissions;
-    private final ToolDatasourceResolver datasources;
+    private final DataPermissionService dataPermissions;
+
+    @Transactional
+    public void clearSession(String sessionId) {
+        mapper.update(
+                Wrappers.<MetricClarificationPo>lambdaUpdate()
+                        .eq(MetricClarificationPo::getSessionId, sessionId)
+                        .set(MetricClarificationPo::getCandidatesJson, "[]")
+                        .set(MetricClarificationPo::getConfirmedMetricKey, "")
+                        .set(MetricClarificationPo::getQuestionToolCallId, ""));
+    }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public MetricLookupBo lookup(
@@ -176,25 +187,31 @@ public class MetricClarificationService {
     }
 
     private void requireAccess(ToolCallContext context, MetricClarificationPo state) {
-        permissions.require(context.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
-        datasources.resolve(context, state.getDatasourceId());
+        var user = permissions.require(context.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
+        dataPermissions.requireActiveDatasource(
+                user, state.getDatasourceId(), context.datasourceIds());
     }
 
     private List<MetricInfoBo> refreshPending(MetricClarificationPo state) {
         List<MetricChoiceBo> stored = converter.read(state.getCandidatesJson());
+        var currentById =
+                metrics
+                        .findByKeys(
+                                state.getDatasourceId(),
+                                stored.stream().map(MetricChoiceBo::metricKey).toList())
+                        .stream()
+                        .collect(Collectors.toMap(MetricInfoBo::getId, metric -> metric));
         List<MetricInfoBo> refreshed =
                 stored.stream()
                         .map(
                                 candidate ->
-                                        metrics.lookupCaliber(
-                                                        state.getDatasourceId(),
-                                                        Optional.of(candidate.metricKey()),
-                                                        Optional.empty())
-                                                .resolvedMetric()
+                                        Optional.ofNullable(currentById.get(candidate.id()))
                                                 .filter(
                                                         metric ->
-                                                                metric.getId()
-                                                                        .equals(candidate.id())))
+                                                                metric.getMetricKey()
+                                                                        .equalsIgnoreCase(
+                                                                                candidate
+                                                                                        .metricKey())))
                         .flatMap(Optional::stream)
                         .toList();
         var choices = converter.choices(refreshed);

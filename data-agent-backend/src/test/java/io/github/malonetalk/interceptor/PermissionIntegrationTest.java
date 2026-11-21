@@ -46,7 +46,6 @@ import io.github.malonetalk.controller.SysRoleController;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.exception.GlobalExceptionHandler;
-import io.github.malonetalk.mapper.MetricClarificationMapper;
 import io.github.malonetalk.mapper.RoleCapabilityMapper;
 import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
 import io.github.malonetalk.mapper.RoleTablePermissionMapper;
@@ -61,6 +60,7 @@ import io.github.malonetalk.model.dto.SaveTablePermissionRequest;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.service.ChatExecutionService;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.RolePermissionService;
 import io.github.malonetalk.service.SessionDatasourceService;
@@ -112,7 +112,7 @@ class PermissionIntegrationTest {
                         database,
                         mock(SessionDatasourceService.class),
                         ownership,
-                        mock(MetricClarificationMapper.class),
+                        mock(MetricClarificationService.class),
                         provenance,
                         new SessionHistoryConverter());
         var agent = mock(AgentService.class);

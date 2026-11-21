@@ -40,6 +40,13 @@ public interface MetricInfoMapper extends AuditableMapper<MetricInfoPo> {
                         .apply("LOWER(metric_key) = LOWER({0})", metricKey));
     }
 
+    default List<MetricInfoPo> selectAllByKeys(Integer datasourceId, List<String> normalizedKeys) {
+        return selectList(
+                Wrappers.<MetricInfoPo>query()
+                        .eq("datasource_id", datasourceId)
+                        .in("LOWER(metric_key)", normalizedKeys));
+    }
+
     default List<MetricInfoPo> selectByDatasource(Integer datasourceId) {
         return selectList(
                 Wrappers.<MetricInfoPo>lambdaQuery()

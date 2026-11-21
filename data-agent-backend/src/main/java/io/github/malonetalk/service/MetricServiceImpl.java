@@ -42,6 +42,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -100,6 +101,26 @@ public class MetricServiceImpl implements MetricService {
                 metricPromptConverter.convert(metric),
                 List.of(metric),
                 false);
+    }
+
+    @Override
+    public List<MetricInfoBo> findByKeys(Integer datasourceId, List<String> metricKeys) {
+        if (metricKeys.isEmpty()) return List.of();
+        var normalizedKeys =
+                metricKeys.stream()
+                        .map(key -> key.strip().toLowerCase(Locale.ROOT))
+                        .distinct()
+                        .toList();
+        List<MetricInfoBo> found =
+                toBoList(metricInfoMapper.selectAllByKeys(datasourceId, normalizedKeys));
+        var uniqueKeys = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        for (MetricInfoBo metric : found) {
+            if (!uniqueKeys.add(metric.getMetricKey())) {
+                throw BusinessException.of(
+                        ErrorCode.DATA_CONFLICT, "同一数据源存在重复的有效指标 key: " + metric.getMetricKey());
+            }
+        }
+        return found;
     }
 
     private MetricLookupBo notFound(Integer datasourceId, String query) {

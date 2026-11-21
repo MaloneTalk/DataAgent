@@ -25,10 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.model.bo.MetricChoiceBo;
 import io.github.malonetalk.model.bo.MetricInfoBo;
 import io.github.malonetalk.utils.MetricAliasUtils;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import io.github.malonetalk.utils.Sha256Utils;
 import java.util.Arrays;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
@@ -60,11 +58,9 @@ public class MetricChoiceConverter {
                                     metric.getResultMultiplier(),
                                     metric.getCurrencyCode(),
                                     metric.getDescription()));
-            String hash =
-                    HexFormat.of()
-                            .formatHex(MessageDigest.getInstance("SHA-256").digest(definition));
-            return new MetricChoiceBo(metric.getId(), metric.getMetricKey(), hash);
-        } catch (JsonProcessingException | NoSuchAlgorithmException exception) {
+            return new MetricChoiceBo(
+                    metric.getId(), metric.getMetricKey(), Sha256Utils.sha256Hex(definition));
+        } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Cannot version metric definition", exception);
         }
     }

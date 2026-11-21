@@ -29,6 +29,7 @@ import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.RoleTablePermission;
 import io.github.malonetalk.service.csv.CsvAccessService;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -110,6 +111,21 @@ public class DataPermissionService {
     public void requireDatasource(UserContextBo user, Integer datasourceId) {
         if (!canDatasource(user, datasourceId))
             throw BusinessException.of(ErrorCode.FORBIDDEN, "Datasource access denied.");
+    }
+
+    /** Checks both the conversation scope and current grants before returning an active datasource. */
+    public DatasourcePo requireActiveDatasource(
+            UserContextBo user, Integer datasourceId, Collection<Integer> allowedDatasourceIds) {
+        if (!allowedDatasourceIds.contains(datasourceId)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "Datasource access denied.");
+        }
+        requireDatasource(user, datasourceId);
+        DatasourcePo datasource = datasources.requireById(datasourceId);
+        if (!Status.ACTIVE.getCode().equals(datasource.getStatus())) {
+            throw BusinessException.of(
+                    ErrorCode.BAD_REQUEST, "Datasource is not active: " + datasourceId);
+        }
+        return datasource;
     }
 
     private Map<String, Set<String>> hiddenByTable(UserContextBo user, Integer datasourceId) {

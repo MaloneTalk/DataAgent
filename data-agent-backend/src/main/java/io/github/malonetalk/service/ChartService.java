@@ -25,7 +25,6 @@ import io.agentscope.core.message.ToolResultBlock;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
-import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.ChartPayloadBo;
@@ -47,7 +46,8 @@ import org.springframework.util.StringUtils;
 public class ChartService {
     private static final Set<String> CHART_TYPES = Set.of("bar", "line", "pie", "scatter");
     private static final int MAX_SERIES = 20;
-    private final ToolDatasourceResolver datasourceResolver;
+    private final PermissionService permissions;
+    private final DataPermissionService dataPermissions;
     private final SqlExecutor sqlExecutor;
     private final ObjectMapper objectMapper;
 
@@ -60,7 +60,11 @@ public class ChartService {
                         source.getMetadata().get(QuerySnapshotBo.METADATA_KEY),
                         QuerySnapshotBo.class);
         var metadata = objectMapper.convertValue(source.getMetadata(), SqlToolMetadataBo.class);
-        var datasource = datasourceResolver.resolve(context, metadata.datasourceId());
+        var datasource =
+                dataPermissions.requireActiveDatasource(
+                        permissions.user(context.userId()),
+                        metadata.datasourceId(),
+                        context.datasourceIds());
         sqlExecutor.authorizeSelect(
                 datasource,
                 snapshot.originalSql(),
