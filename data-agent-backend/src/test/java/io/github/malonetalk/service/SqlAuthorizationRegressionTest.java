@@ -47,6 +47,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mapstruct.factory.Mappers;
 
@@ -96,30 +97,29 @@ class SqlAuthorizationRegressionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(
-            strings = {
-                "SELECT id FROM orders LIMIT (SELECT secret FROM forbidden)",
-                "SELECT id FROM orders OFFSET (SELECT secret FROM forbidden)",
-                "SELECT id FROM orders LIMIT 1 OFFSET (SELECT secret FROM forbidden)",
-                "SELECT id FROM orders FETCH FIRST (SELECT secret FROM forbidden) ROWS ONLY",
-                "SELECT id FROM orders UNION SELECT id FROM orders LIMIT (SELECT secret FROM"
-                        + " forbidden)",
-                "(SELECT id FROM orders) LIMIT (SELECT secret FROM forbidden)",
-                "SELECT * FROM (SELECT id FROM orders LIMIT (SELECT secret FROM forbidden)) nested",
-                "SELECT id FROM orders LIMIT (SELECT secret FROM orders)",
-                "SELECT SUM(id) OVER w FROM orders WINDOW w AS (ORDER BY (SELECT secret FROM"
-                        + " forbidden))",
-                "SELECT SUM(id) OVER (ORDER BY (SELECT secret FROM forbidden)) FROM orders",
-                "SELECT SUM(id) FILTER (WHERE (SELECT secret FROM forbidden) > 0) OVER () FROM"
-                        + " orders",
-                "SELECT id FROM orders WINDOW w AS (ORDER BY (SELECT secret FROM forbidden))"
-            })
-    void rejectsUninspectedSubqueriesAndWindowExpressions(String sql) {
+    @CsvSource(
+            delimiter = '|',
+            textBlock =
+                    """
+                    SELECT id FROM orders LIMIT (SELECT secret FROM forbidden) | FORBIDDEN
+                    SELECT id FROM orders OFFSET (SELECT secret FROM forbidden) | FORBIDDEN
+                    SELECT id FROM orders LIMIT 1 OFFSET (SELECT secret FROM forbidden) | FORBIDDEN
+                    SELECT id FROM orders FETCH FIRST (SELECT secret FROM forbidden) ROWS ONLY | FORBIDDEN
+                    SELECT id FROM orders UNION SELECT id FROM orders LIMIT (SELECT secret FROM forbidden) | FORBIDDEN
+                    (SELECT id FROM orders) LIMIT (SELECT secret FROM forbidden) | FORBIDDEN
+                    SELECT * FROM (SELECT id FROM orders LIMIT (SELECT secret FROM forbidden)) nested | FORBIDDEN
+                    SELECT id FROM orders LIMIT (SELECT secret FROM orders) | FORBIDDEN
+                    SELECT SUM(id) OVER w FROM orders WINDOW w AS (ORDER BY (SELECT secret FROM forbidden)) | SQL_SYNTAX_UNSUPPORTED
+                    SELECT SUM(id) OVER (ORDER BY (SELECT secret FROM forbidden)) FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT SUM(id) FILTER (WHERE (SELECT secret FROM forbidden) > 0) OVER () FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT id FROM orders WINDOW w AS (ORDER BY (SELECT secret FROM forbidden)) | SQL_SYNTAX_UNSUPPORTED
+                    """)
+    void rejectsUninspectedSubqueriesAndWindowExpressions(String sql, ErrorCode expectedCode) {
         var exception =
                 assertThrows(
                         BusinessException.class,
                         () -> executor.authorizeSelect(datasource, sql, 7));
-        assertEquals(ErrorCode.FORBIDDEN, exception.getErrorCode());
+        assertEquals(expectedCode, exception.getErrorCode());
     }
 
     @ParameterizedTest
@@ -152,29 +152,32 @@ class SqlAuthorizationRegressionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(
-            strings = {
-                "SELECT id FROM orders WHERE id = ANY (SELECT secret FROM forbidden)",
-                "SELECT id FROM orders WHERE id = ALL (SELECT secret FROM orders)",
-                "SELECT id FROM orders WHERE id = SOME (SELECT secret FROM forbidden)",
-                "SELECT TRIM('x' FROM (SELECT secret FROM forbidden LIMIT 1)) FROM orders",
-                "SELECT TRIM(BOTH 'x' FROM (SELECT secret FROM orders LIMIT 1)) FROM orders",
-                "SELECT TRIM(LEADING 'x' FROM LOAD_FILE('/etc/passwd')) FROM orders",
-                "SELECT TRIM(TRAILING 'x' FROM @shared) FROM orders",
-                "SELECT NEXT VALUE FOR secret_sequence FROM orders",
-                "SELECT ARRAY[1] FROM orders",
-                "SELECT ? FROM orders",
-                "SELECT DATE_ADD(id, INTERVAL (SELECT secret FROM forbidden) DAY) FROM orders",
-                "SELECT CAST((SELECT secret FROM forbidden) AS CHAR) FROM orders",
-                "SELECT EXTRACT(YEAR FROM (SELECT secret FROM forbidden)) FROM orders",
-                "SELECT id FROM orders WHERE id = ANY (SELECT LOAD_FILE('/etc/passwd'))"
-            })
-    void rejectsOmittedChildrenAndUnsupportedExpressionTypes(String sql) {
+    @CsvSource(
+            delimiter = '|',
+            quoteCharacter = '"',
+            textBlock =
+                    """
+                    SELECT id FROM orders WHERE id = ANY (SELECT secret FROM forbidden) | FORBIDDEN
+                    SELECT id FROM orders WHERE id = ALL (SELECT secret FROM orders) | FORBIDDEN
+                    SELECT id FROM orders WHERE id = SOME (SELECT secret FROM forbidden) | FORBIDDEN
+                    SELECT TRIM('x' FROM (SELECT secret FROM forbidden LIMIT 1)) FROM orders | FORBIDDEN
+                    SELECT TRIM(BOTH 'x' FROM (SELECT secret FROM orders LIMIT 1)) FROM orders | FORBIDDEN
+                    SELECT TRIM(LEADING 'x' FROM LOAD_FILE('/etc/passwd')) FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT TRIM(TRAILING 'x' FROM @shared) FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT NEXT VALUE FOR secret_sequence FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT ARRAY[1] FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT ? FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT DATE_ADD(id, INTERVAL (SELECT secret FROM forbidden) DAY) FROM orders | SQL_SYNTAX_UNSUPPORTED
+                    SELECT CAST((SELECT secret FROM forbidden) AS CHAR) FROM orders | FORBIDDEN
+                    SELECT EXTRACT(YEAR FROM (SELECT secret FROM forbidden)) FROM orders | FORBIDDEN
+                    SELECT id FROM orders WHERE id = ANY (SELECT LOAD_FILE('/etc/passwd')) | SQL_SYNTAX_UNSUPPORTED
+                    """)
+    void rejectsOmittedChildrenAndUnsupportedExpressionTypes(String sql, ErrorCode expectedCode) {
         var exception =
                 assertThrows(
                         BusinessException.class,
                         () -> executor.authorizeSelect(datasource, sql, 7));
-        assertEquals(ErrorCode.FORBIDDEN, exception.getErrorCode());
+        assertEquals(expectedCode, exception.getErrorCode());
     }
 
     @ParameterizedTest

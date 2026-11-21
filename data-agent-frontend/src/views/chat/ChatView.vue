@@ -19,6 +19,7 @@
   import { ref, nextTick, watch, onMounted, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { useAgentChat } from '@/composables/useAgentChat';
+  import { useDatasource } from '@/composables/useDatasource';
   import { useUserStore } from '@/stores/user';
   import ChatMessage from '@/views/chat/components/ChatMessage.vue';
   import ChatInput from '@/views/chat/components/ChatInput.vue';
@@ -36,8 +37,10 @@
   const {
     messages,
     isStreaming,
+    isStopping,
     sessionId,
     pendingQuestion,
+    selectedDatasourceIds,
     lastReportContent,
     sendMessage,
     stopStreaming,
@@ -45,6 +48,13 @@
     loadHistory,
     ensureSession,
   } = useAgentChat();
+
+  const {
+    list: datasources,
+    loading: datasourcesLoading,
+    error: datasourcesError,
+    fetchList: fetchDatasources,
+  } = useDatasource();
 
   const messagesContainer = ref<{ scrollTop: number; scrollHeight: number }>();
   const sessionListRef = ref<InstanceType<typeof SessionList>>();
@@ -98,6 +108,7 @@
   watch(messages, () => scrollToBottom(), { deep: true });
 
   onMounted(async () => {
+    if (canChat.value) void fetchDatasources();
     const sid = route.params.sessionId as string | undefined;
     if (sid) {
       await loadSession(sid);
@@ -161,6 +172,42 @@
           </button>
         </div>
         <div class="chat-view__header-right">
+          <template v-if="canChat">
+            <el-select
+              v-model="selectedDatasourceIds"
+              class="chat-view__datasource-select"
+              aria-label="选择聊天数据源"
+              placeholder="全部可访问数据源"
+              no-data-text="暂无可访问的数据源"
+              multiple
+              filterable
+              clearable
+              collapse-tags
+              collapse-tags-tooltip
+              :multiple-limit="20"
+              :loading="datasourcesLoading"
+              :disabled="
+                isStreaming || !!pendingQuestion || datasourcesLoading || !!datasourcesError
+              "
+            >
+              <el-option
+                v-for="ds in datasources"
+                :key="ds.id"
+                :value="ds.id"
+                :label="ds.status === 'ACTIVE' ? ds.name : `${ds.name}（已停用）`"
+                :disabled="ds.status !== 'ACTIVE'"
+              />
+            </el-select>
+            <el-button
+              v-if="datasourcesError"
+              text
+              type="primary"
+              :loading="datasourcesLoading"
+              @click="fetchDatasources"
+            >
+              数据源加载失败，重试
+            </el-button>
+          </template>
           <el-button v-permission="'asset:report:read'" text @click="reportDialogVisible = true">
             会话报告
           </el-button>
@@ -212,6 +259,7 @@
         v-if="canChat"
         :key="sessionId ?? 'new'"
         :is-streaming="isStreaming"
+        :is-stopping="isStopping"
         :pending-question="pendingQuestion"
         :user-messages="userMessages"
         @send="handleSend"
@@ -288,6 +336,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     padding: 12px 20px;
     border-bottom: 1px solid var(--app-border);
     flex-shrink: 0;
@@ -300,9 +349,18 @@
   }
 
   .chat-view__header-right {
+    flex: 1;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
+    min-width: 0;
     gap: 4px;
+  }
+
+  .chat-view__datasource-select {
+    width: 240px;
+    max-width: 100%;
   }
 
   .chat-view__toggle-btn {

@@ -51,6 +51,20 @@ public enum ErrorCode {
     /** 当前请求没有权限访问目标资源或执行目标操作。 */
     FORBIDDEN("FORBIDDEN", HttpStatus.FORBIDDEN, "Access is forbidden."),
 
+    REQUEST_CANCELLED("REQUEST_CANCELLED", HttpStatus.CONFLICT, "The request was cancelled."),
+    REQUEST_TIMEOUT("REQUEST_TIMEOUT", HttpStatus.GATEWAY_TIMEOUT, "The request timed out."),
+    QUERY_TIMEOUT("QUERY_TIMEOUT", HttpStatus.GATEWAY_TIMEOUT, "The database query timed out."),
+    SQL_SYNTAX_UNSUPPORTED(
+            "SQL_SYNTAX_UNSUPPORTED",
+            HttpStatus.BAD_REQUEST,
+            "SQL syntax is invalid or unsupported."),
+    SQL_TERMINATION_UNCONFIRMED(
+            "SQL_TERMINATION_UNCONFIRMED",
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Cancellation was requested, but database task termination could not be confirmed."),
+    MODEL_EXECUTION_FAILED(
+            "MODEL_EXECUTION_FAILED", HttpStatus.BAD_GATEWAY, "The model request failed."),
+
     /** 表已被语义层隐藏，不能用于当前查询或生成流程。 */
     TABLE_HIDDEN(
             "TABLE_HIDDEN", HttpStatus.FORBIDDEN, "The table is hidden and cannot be queried."),

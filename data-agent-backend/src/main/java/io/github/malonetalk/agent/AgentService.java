@@ -18,8 +18,7 @@
 package io.github.malonetalk.agent;
 
 import io.agentscope.core.ReActAgent;
-import io.agentscope.core.agent.EventType;
-import io.agentscope.core.agent.StreamOptions;
+import io.agentscope.core.hook.Hook;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.memory.Memory;
 import io.agentscope.core.message.ContentBlock;
@@ -49,6 +48,8 @@ import io.github.malonetalk.exception.ErrorResponse;
 import io.github.malonetalk.exception.ExceptionResponseMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.ChatExecutionService;
+import io.github.malonetalk.service.ChatExecutionService.Execution;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
@@ -61,12 +62,14 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Schedulers;
 
@@ -87,6 +90,7 @@ public class AgentService {
     private final AnswerProvenanceService answerProvenanceService;
     private final PermissionService permissions;
     private final DataPermissionService dataPermissions;
+    private final ChatExecutionService chatExecutions;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -102,15 +106,34 @@ public class AgentService {
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
-            List<Integer> datasourceIds) {
+            List<Integer> datasourceIds,
+            Optional<String> executionId) {
         Context otelContext = Context.current();
-        return Flux.defer(
-                        () -> streamAgent(userId, sessionId, userInput, toolResults, datasourceIds))
+        return Flux.usingWhen(
+                        Mono.fromSupplier(() -> chatExecutions.start(sessionId, executionId)),
+                        execution ->
+                                Flux.defer(
+                                                () ->
+                                                        streamAgent(
+                                                                userId,
+                                                                sessionId,
+                                                                userInput,
+                                                                toolResults,
+                                                                datasourceIds,
+                                                                execution))
+                                        .takeUntilOther(execution.cancellation())
+                                        .doOnCancel(execution::cancel),
+                        Execution::finish)
                 .contextWrite(
                         ctx ->
                                 ContextPropagationOperator.storeOpenTelemetryContext(
                                         ctx, otelContext))
-                .onErrorResume(this::toErrorEvent);
+                .onErrorResume(this::toErrorEvent)
+                .concatWithValues(
+                        ChatStreamEvent.builder()
+                                .type(ChatStreamEventType.DONE)
+                                .isLast(true)
+                                .build());
     }
 
     private Flux<ChatStreamEvent> streamAgent(
@@ -118,19 +141,30 @@ public class AgentService {
             String sessionId,
             String userInput,
             List<ChatRequest.ToolResultInput> toolResults,
-            List<Integer> datasourceIds) {
+            List<Integer> datasourceIds,
+            Execution execution) {
         var user = permissions.require(userId, PermissionEnum.ANALYSIS_CHAT_USE);
         // Verify unique ownership before loading memory or binding a datasource.
         sessionService.requireOwnership(userId, sessionId);
-        List<Integer> allowedDatasourceIds = resolveDatasourceIds(user, datasourceIds);
-        sessionDatasourceService.replaceSessionDatasources(sessionId, allowedDatasourceIds, user);
+        boolean resuming = toolResults != null && !toolResults.isEmpty();
+        List<Integer> requestedDatasourceIds =
+                resuming ? sessionDatasourceService.findDatasourceIds(sessionId) : datasourceIds;
+        if (resuming && requestedDatasourceIds.isEmpty())
+            throw BusinessException.of(ErrorCode.BOUND_DATASOURCE_UNAVAILABLE);
+        List<Integer> allowedDatasourceIds = resolveDatasourceIds(user, requestedDatasourceIds);
+        if (!resuming)
+            sessionDatasourceService.replaceSessionDatasources(
+                    sessionId, allowedDatasourceIds, user);
+        var eventStream = new AgentEventStream();
         ReActAgent agent =
                 createAgent(
                         ToolCallContext.builder()
                                 .sessionId(sessionId)
                                 .userId(userId)
                                 .datasourceIds(allowedDatasourceIds)
-                                .build());
+                                .execution(Optional.of(execution))
+                                .build(),
+                        eventStream);
 
         Session session = sessionService.getSession();
         agent.loadIfExists(session, sessionId);
@@ -142,15 +176,8 @@ public class AgentService {
                         : sessionService.getLatestUserMessageId(sessionId).orElse(userMsg.getId());
         List<ChatStreamEvent> provenanceEvents = new ArrayList<>();
 
-        StreamOptions streamOptions =
-                StreamOptions.builder()
-                        .eventTypes(EventType.REASONING, EventType.TOOL_RESULT, EventType.SUMMARY)
-                        .incremental(true)
-                        .includeReasoningResult(true)
-                        .build();
-
         // trace context 已在 chatStream 种入 Reactor context，agentscope 会自动沿用同一 traceId。
-        return agent.stream(userMsg, streamOptions)
+        return eventStream.stream(agent, userMsg)
                 .doFinally(
                         signalType ->
                                 log.info(
@@ -278,7 +305,7 @@ public class AgentService {
                         .build());
     }
 
-    private ReActAgent createAgent(ToolCallContext toolCallContext) {
+    private ReActAgent createAgent(ToolCallContext toolCallContext, Hook eventStream) {
         var memory = new InMemoryMemory();
         ToolExecutionContext context =
                 ToolExecutionContext.builder()
@@ -291,6 +318,7 @@ public class AgentService {
                 .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
                 .toolExecutionContext(context)
+                .hook(eventStream)
                 .skillBox(skillBox)
                 .memory(memory)
                 .maxIters(10)

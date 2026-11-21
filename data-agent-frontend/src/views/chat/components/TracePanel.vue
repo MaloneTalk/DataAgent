@@ -29,6 +29,25 @@
   }>();
 
   const isExpanded = ref(false);
+  const completionLabel = computed(() => {
+    if (props.message.isStreaming) return '执行中';
+    const error = props.message.traceSteps[props.message.traceSteps.length - 1];
+    if (error?.type !== 'error') return '已完成';
+    const labels: Record<string, string> = {
+      REQUEST_CANCELLED: '已取消',
+      QUERY_TIMEOUT: '查询超时',
+      REQUEST_TIMEOUT: '请求超时',
+      FORBIDDEN: '权限不足',
+      TABLE_HIDDEN: '权限不足',
+      SQL_SYNTAX_UNSUPPORTED: '语法不支持',
+      MODEL_EXECUTION_FAILED: '模型失败',
+      MODEL_AUTHENTICATION_FAILED: '模型鉴权失败',
+      MODEL_PROVIDER_UNAVAILABLE: '模型不可用',
+      SQL_TERMINATION_UNCONFIRMED: '数据库任务终止未确认',
+      STREAM_INTERRUPTED: '响应中断',
+    };
+    return labels[error.errorCode ?? ''] ?? '执行失败';
+  });
 
   function toggleExpand() {
     isExpanded.value = !isExpanded.value;
@@ -121,7 +140,7 @@
       <span class="trace-panel__arrow">></span>
       <span class="trace-panel__dot"></span>
       <span v-if="message.isStreaming" class="trace-panel__spinner"></span>
-      <span class="trace-panel__title">{{ message.isStreaming ? '思考中' : '思考完成' }}</span>
+      <span class="trace-panel__title">{{ completionLabel }}</span>
       <span class="trace-panel__summary">{{ summaryLabel }}</span>
     </div>
     <div v-show="isExpanded" class="trace-panel__body">

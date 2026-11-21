@@ -22,6 +22,7 @@
 
   const props = defineProps<{
     isStreaming: boolean;
+    isStopping: boolean;
     pendingQuestion: PendingQuestion | null;
     // Previous user messages from the chat, used as input history for Up/Down navigation.
     // Ordered oldest → newest.
@@ -176,8 +177,14 @@
     >
       发送
     </el-button>
-    <el-button v-else type="danger" class="chat-input__send-btn" @click="emit('stop')">
-      停止
+    <el-button
+      v-else
+      type="danger"
+      class="chat-input__send-btn"
+      :loading="isStopping"
+      @click="emit('stop')"
+    >
+      {{ isStopping ? '正在取消' : '停止' }}
     </el-button>
   </div>
 </template>

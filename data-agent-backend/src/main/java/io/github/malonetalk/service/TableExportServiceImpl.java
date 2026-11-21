@@ -17,10 +17,11 @@
  */
 package io.github.malonetalk.service;
 
+import static io.github.malonetalk.exception.ExceptionResponseMapper.sqlErrorCode;
+
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.github.malonetalk.agent.SessionService;
-import io.github.malonetalk.agent.datasource.DataSourceType;
 import io.github.malonetalk.agent.datasource.DynamicDataSourceManager;
 import io.github.malonetalk.agent.datasource.SqlExecutor;
 import io.github.malonetalk.dto.TableExportPageQuery;
@@ -34,6 +35,8 @@ import io.github.malonetalk.mapper.TableExportMapper;
 import io.github.malonetalk.model.bo.TableExportResultBo;
 import io.github.malonetalk.model.converter.JdbcCsvValueConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.ChatExecutionService.Execution;
+import io.github.malonetalk.service.ChatExecutionService.QueryTask;
 import io.github.malonetalk.utils.RequestAssert;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.io.BufferedWriter;
@@ -48,6 +51,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -56,7 +60,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TableExportServiceImpl implements TableExportService {
 
-    private static final int FETCH_SIZE = 1000;
     private static final int QUERY_TIMEOUT_SECONDS = 120;
     private static final int MAX_TITLE_LENGTH = 255;
     private static final int MAX_EXPORT_ROWS = 10_000;
@@ -69,7 +72,12 @@ public class TableExportServiceImpl implements TableExportService {
 
     @Override
     public TableExportResultBo create(
-            String sessionId, DatasourcePo datasource, String title, String sql, Integer userId) {
+            String sessionId,
+            DatasourcePo datasource,
+            String title,
+            String sql,
+            Integer userId,
+            Optional<Execution> execution) {
         String exportSessionId =
                 RequestAssert.requireNotBlank(sessionId, "sessionId cannot be blank.");
         RequestAssert.requireNonNull(datasource, "datasource cannot be null.");
@@ -82,7 +90,7 @@ public class TableExportServiceImpl implements TableExportService {
         String safeSql = authorized.select().toString();
 
         String exportId = UUID.randomUUID().toString();
-        CsvResult csv = writeCsv(datasource, safeSql);
+        CsvResult csv = writeCsv(datasource, safeSql, execution);
         TableExport tableExport = new TableExport();
         tableExport.setId(exportId);
         tableExport.setSessionId(exportSessionId);
@@ -129,7 +137,7 @@ public class TableExportServiceImpl implements TableExportService {
         }
     }
 
-    private CsvResult writeCsv(DatasourcePo datasource, String sql) {
+    private CsvResult writeCsv(DatasourcePo datasource, String sql, Optional<Execution> execution) {
         javax.sql.DataSource dataSource =
                 dynamicDataSourceManager.getOrCreateDataSource(datasource);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -141,26 +149,31 @@ public class TableExportServiceImpl implements TableExportService {
                         new BufferedWriter(
                                 new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
-            stmt.setFetchSize(
-                    DataSourceType.MYSQL.getCode().equalsIgnoreCase(datasource.getType())
-                            ? Integer.MIN_VALUE
-                            : FETCH_SIZE);
-            writer.write('\ufeff');
-            int rowCount;
-            try (ResultSet rs = stmt.executeQuery()) {
-                rowCount = writeRows(writer, rs);
-            }
-            writer.flush();
-            return new CsvResult(output.toByteArray(), rowCount);
+            // Bound buffering; MySQL streaming results cannot be stopped by Statement.cancel().
+            stmt.setMaxRows(MAX_EXPORT_ROWS + 1);
+            return sqlExecutor.executeStatement(
+                    datasource,
+                    stmt,
+                    execution,
+                    task -> {
+                        writer.write('\ufeff');
+                        int rowCount;
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            rowCount = writeRows(writer, rs, task);
+                        }
+                        writer.flush();
+                        return new CsvResult(output.toByteArray(), rowCount);
+                    });
         } catch (SQLException e) {
-            throw BusinessException.of(ErrorCode.SQL_EXECUTION_FAILED, "SQL export failed.", e);
+            throw BusinessException.of(sqlErrorCode(e), sqlErrorCode(e).getDefaultMessage(), e);
         } catch (IOException e) {
             throw BusinessException.of(
                     ErrorCode.OPERATION_FAILED, "Failed to write export content.", e);
         }
     }
 
-    private int writeRows(BufferedWriter writer, ResultSet rs) throws SQLException, IOException {
+    private int writeRows(BufferedWriter writer, ResultSet rs, QueryTask task)
+            throws SQLException, IOException {
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
@@ -173,6 +186,7 @@ public class TableExportServiceImpl implements TableExportService {
 
         int rowCount = 0;
         while (rs.next()) {
+            task.checkCancelled();
             if (rowCount >= MAX_EXPORT_ROWS) {
                 throw BusinessException.of(
                         ErrorCode.BAD_REQUEST,

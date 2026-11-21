@@ -32,9 +32,14 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.dto.DataEvidencePageQuery;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.vo.AnswerProvenanceVo.DataEvidenceVo;
+import io.github.malonetalk.model.vo.BooleanVo;
+import io.github.malonetalk.service.ChatExecutionService;
 import io.github.malonetalk.service.PermissionService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -45,6 +50,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
@@ -59,6 +65,18 @@ public class AgentController {
     private final SessionService sessionService;
     private final UserContextHolder userContextHolder;
     private final AnswerProvenanceService answerProvenanceService;
+    private final ChatExecutionService chatExecutions;
+
+    @PostMapping("/session/{sessionId}/cancel")
+    @RequirePermission(PermissionEnum.ANALYSIS_CHAT_USE)
+    public BooleanVo cancel(
+            @PathVariable String sessionId,
+            @RequestParam @NotBlank @Size(max = 64) String executionId) {
+        int userId = userContextHolder.checkAndGet().userId();
+        sessionService.requireOwnership(userId, sessionId);
+        chatExecutions.cancel(sessionId, executionId);
+        return BooleanVo.TRUE;
+    }
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @RequirePermission(PermissionEnum.ANALYSIS_CHAT_USE)
@@ -74,7 +92,8 @@ public class AgentController {
                         request.sessionId(),
                         request.message(),
                         request.toolResults(),
-                        request.datasourceIds())
+                        request.datasourceIds(),
+                        Optional.ofNullable(request.executionId()))
                 .map(
                         event ->
                                 ServerSentEvent.<ChatStreamEvent>builder()

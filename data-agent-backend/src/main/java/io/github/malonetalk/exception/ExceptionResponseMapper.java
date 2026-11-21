@@ -17,11 +17,26 @@
  */
 package io.github.malonetalk.exception;
 
+import io.agentscope.core.model.DashScopeHttpClient.DashScopeHttpException;
+import io.agentscope.core.model.ModelException;
+import io.agentscope.core.model.OllamaHttpClient.OllamaHttpException;
 import io.agentscope.core.model.exception.AuthenticationException;
+import io.agentscope.core.model.exception.OpenAIException;
+import io.agentscope.core.model.transport.HttpTransportException;
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.sql.SQLSyntaxErrorException;
+import java.sql.SQLTimeoutException;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
@@ -37,13 +52,25 @@ public class ExceptionResponseMapper {
 
     /** 统一异常映射入口；沿 cause 链逐层识别，被框架包装过的异常仍能保留原 ErrorCode。 */
     public ErrorResponse resolve(Throwable exception) {
+        ErrorResponse fallback = null;
         for (Throwable current = exception; current != null; current = current.getCause()) {
             ErrorResponse mapped = map(current);
             if (mapped != null) {
+                if (Set.of(
+                                        ErrorCode.MODEL_EXECUTION_FAILED,
+                                        ErrorCode.DATA_ACCESS_FAILED,
+                                        ErrorCode.DATA_SERVICE_UNAVAILABLE,
+                                        ErrorCode.SQL_EXECUTION_FAILED,
+                                        ErrorCode.BAD_REQUEST)
+                                .contains(mapped.errorCode())
+                        && !(current instanceof BusinessException)) {
+                    if (fallback == null) fallback = mapped;
+                    continue;
+                }
                 return mapped;
             }
         }
-        return of(ErrorCode.INTERNAL_ERROR);
+        return fallback == null ? of(ErrorCode.INTERNAL_ERROR) : fallback;
     }
 
     /** 识别单层异常；认不出返回 null，由 resolve 继续沿 cause 链查找。 */
@@ -53,6 +80,30 @@ public class ExceptionResponseMapper {
         }
         if (current instanceof AuthenticationException) {
             return of(ErrorCode.MODEL_AUTHENTICATION_FAILED);
+        }
+        if (current instanceof CancellationException || current instanceof InterruptedException) {
+            return of(ErrorCode.REQUEST_CANCELLED);
+        }
+        if (current instanceof SQLException sqlException) {
+            return of(sqlErrorCode(sqlException));
+        }
+        if (current instanceof QueryTimeoutException) return of(ErrorCode.QUERY_TIMEOUT);
+        if (current instanceof TimeoutException
+                || current instanceof SocketTimeoutException
+                || current instanceof HttpTimeoutException) return of(ErrorCode.REQUEST_TIMEOUT);
+        if (current instanceof ModelException
+                || current instanceof OpenAIException
+                || current instanceof DashScopeHttpException
+                || current instanceof OllamaHttpException
+                || current instanceof HttpTransportException) {
+            Integer status = null;
+            if (current instanceof OpenAIException e) status = e.getStatusCode();
+            else if (current instanceof DashScopeHttpException e) status = e.getStatusCode();
+            else if (current instanceof OllamaHttpException e) status = e.getStatusCode();
+            else if (current instanceof HttpTransportException e) status = e.getStatusCode();
+            if (Integer.valueOf(408).equals(status) || Integer.valueOf(504).equals(status))
+                return of(ErrorCode.REQUEST_TIMEOUT);
+            return of(ErrorCode.MODEL_EXECUTION_FAILED);
         }
         // Multipart limits are enforced before controller validation runs.
         if (current instanceof MaxUploadSizeExceededException) {
@@ -86,6 +137,32 @@ public class ExceptionResponseMapper {
             return of(ErrorCode.NOT_ACCEPTABLE);
         }
         return null;
+    }
+
+    public static ErrorCode sqlErrorCode(SQLException exception) {
+        // SQLException's iterator includes both causes and chained SQL exceptions.
+        for (Throwable current : exception) {
+            if (current instanceof SQLTimeoutException
+                    || current instanceof SocketTimeoutException
+                    || current instanceof HttpTimeoutException
+                    || current instanceof TimeoutException) return ErrorCode.QUERY_TIMEOUT;
+            if (!(current instanceof SQLException sqlException)) continue;
+            String state = sqlException.getSQLState() == null ? "" : sqlException.getSQLState();
+            int code = sqlException.getErrorCode();
+            if (state.startsWith("HYT") || Set.of(1205, 3024).contains(code))
+                return ErrorCode.QUERY_TIMEOUT;
+            if (state.startsWith("28")
+                    || state.equals("42501")
+                    || Set.of(1044, 1045, 1142, 1143, 1227).contains(code))
+                return ErrorCode.FORBIDDEN;
+            if (current instanceof SQLFeatureNotSupportedException
+                    || state.startsWith("0A")
+                    || current instanceof SQLSyntaxErrorException
+                    || state.startsWith("42")) return ErrorCode.SQL_SYNTAX_UNSUPPORTED;
+            if (state.equals("57014") || state.equals("70100") || code == 1317)
+                return ErrorCode.REQUEST_CANCELLED;
+        }
+        return ErrorCode.SQL_EXECUTION_FAILED;
     }
 
     /** 使用错误码默认文案构造响应错误信息。 */
