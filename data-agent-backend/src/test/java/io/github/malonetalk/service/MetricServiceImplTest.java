@@ -30,42 +30,43 @@ class MetricServiceImplTest {
     void matchesMetricWhenHintIsTheFullQuestion() {
         List<MetricInfoBo> metrics = List.of(metric("销售额", "流水,GMV,营收"));
 
-        assertEquals(List.of("销售额"), names(MetricServiceImpl.match(metrics, "上个月的GMV是多少")));
+        assertEquals(
+                List.of("销售额"), names(MetricMatcher.match(metrics, "上个月的GMV是多少").candidates()));
     }
 
     @Test
     void matchesCaseInsensitive() {
         List<MetricInfoBo> metrics = List.of(metric("销售额", "GMV"));
 
-        assertEquals(List.of("销售额"), names(MetricServiceImpl.match(metrics, "上个月的gmv多少")));
+        assertEquals(List.of("销售额"), names(MetricMatcher.match(metrics, "上个月的gmv多少").candidates()));
     }
 
     @Test
     void ignoresSingleCharacterAliases() {
         List<MetricInfoBo> metrics = List.of(metric("销售额", "额"));
 
-        assertTrue(MetricServiceImpl.match(metrics, "账户余额还剩多少").isEmpty());
+        assertTrue(MetricMatcher.match(metrics, "账户余额还剩多少").candidates().isEmpty());
     }
 
     @Test
     void ranksLongerMatchFirst() {
         List<MetricInfoBo> metrics = List.of(metric("销售", null), metric("销售额", null));
 
-        assertEquals(List.of("销售额", "销售"), names(MetricServiceImpl.match(metrics, "查一下销售额")));
+        assertEquals(List.of("销售额"), names(MetricMatcher.match(metrics, "查一下销售额").candidates()));
     }
 
     @Test
     void returnsEmptyWhenNoTermAppears() {
         List<MetricInfoBo> metrics = List.of(metric("销售额", "GMV"));
 
-        assertTrue(MetricServiceImpl.match(metrics, "华东区有多少家门店").isEmpty());
+        assertTrue(MetricMatcher.match(metrics, "华东区有多少家门店").candidates().isEmpty());
     }
 
     @Test
     void toleratesNullNameAndAliases() {
         List<MetricInfoBo> metrics = List.of(new MetricInfoBo());
 
-        assertTrue(MetricServiceImpl.match(metrics, "销售额").isEmpty());
+        assertTrue(MetricMatcher.match(metrics, "销售额").candidates().isEmpty());
     }
 
     private static MetricInfoBo metric(String name, String aliases) {

@@ -96,6 +96,12 @@ public enum ErrorCode {
             HttpStatus.CONFLICT,
             "The operation conflicts with the current data state."),
 
+    /** A metric ambiguity must be acknowledged by the user before data operations. */
+    METRIC_CLARIFICATION_REQUIRED(
+            "METRIC_CLARIFICATION_REQUIRED",
+            HttpStatus.CONFLICT,
+            "Please clarify the metric first."),
+
     /** 会话绑定的数据源已被删除，会话无法继续使用。 */
     BOUND_DATASOURCE_UNAVAILABLE(
             "BOUND_DATASOURCE_UNAVAILABLE",

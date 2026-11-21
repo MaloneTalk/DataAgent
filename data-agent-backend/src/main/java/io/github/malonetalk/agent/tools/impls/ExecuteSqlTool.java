@@ -33,6 +33,7 @@ import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.converter.ChartConverter;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.MetricClarificationService;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -40,6 +41,8 @@ import org.springframework.stereotype.Component;
 @Component
 @AllArgsConstructor
 public class ExecuteSqlTool implements DataAgentTool {
+
+    private final MetricClarificationService clarification;
 
     private final ToolDatasourceResolver datasourceResolver;
     private final SqlExecutor sqlExecutor;
@@ -67,6 +70,7 @@ public class ExecuteSqlTool implements DataAgentTool {
             ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
+                    clarification.requireResolved(ctx);
                     DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
                     SqlExecution execution = sqlExecutor.executeDetailed(datasource, sql, ctx);
                     var metadata =

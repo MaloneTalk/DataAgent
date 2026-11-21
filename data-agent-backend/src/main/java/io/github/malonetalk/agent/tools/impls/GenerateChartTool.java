@@ -29,6 +29,7 @@ import io.github.malonetalk.model.bo.ChartSpecBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.converter.ChartConverter;
 import io.github.malonetalk.service.ChartService;
+import io.github.malonetalk.service.MetricClarificationService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +39,8 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class GenerateChartTool implements DataAgentTool {
+
+    private final MetricClarificationService clarification;
     private final ChartService chartService;
     private final ChartConverter converter;
     private final ToolExceptionMapper toolExceptionMapper;
@@ -75,6 +78,7 @@ public class GenerateChartTool implements DataAgentTool {
             ToolCallContext context) {
         return toolExceptionMapper.runResult(
                 () -> {
+                    clarification.requireResolved(context);
                     var spec =
                             ChartSpecBo.builder()
                                     .chartType(chartType)

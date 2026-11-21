@@ -60,6 +60,7 @@ import io.github.malonetalk.model.dto.SaveTablePermissionRequest;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.po.SysUserPo;
 import io.github.malonetalk.service.ChatExecutionService;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.RolePermissionService;
 import io.github.malonetalk.service.SessionDatasourceService;
@@ -111,6 +112,7 @@ class PermissionIntegrationTest {
                         database,
                         mock(SessionDatasourceService.class),
                         ownership,
+                        mock(MetricClarificationService.class),
                         provenance,
                         new SessionHistoryConverter());
         var agent = mock(AgentService.class);

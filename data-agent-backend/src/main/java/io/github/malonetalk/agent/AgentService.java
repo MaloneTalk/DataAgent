@@ -52,6 +52,7 @@ import io.github.malonetalk.service.ChatExecutionService;
 import io.github.malonetalk.service.ChatExecutionService.Execution;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.SessionDatasourceService;
 import io.github.malonetalk.utils.DateTimeUtils;
@@ -90,6 +91,7 @@ public class AgentService {
     private final AnswerProvenanceService answerProvenanceService;
     private final PermissionService permissions;
     private final DataPermissionService dataPermissions;
+    private final MetricClarificationService metricClarification;
     private final ChatExecutionService chatExecutions;
     private Toolkit toolkit;
     private SkillBox skillBox;
@@ -156,19 +158,36 @@ public class AgentService {
             sessionDatasourceService.replaceSessionDatasources(
                     sessionId, allowedDatasourceIds, user);
         var eventStream = new AgentEventStream();
-        ReActAgent agent =
-                createAgent(
-                        ToolCallContext.builder()
-                                .sessionId(sessionId)
-                                .userId(userId)
-                                .datasourceIds(allowedDatasourceIds)
-                                .execution(Optional.of(execution))
-                                .build(),
-                        eventStream);
-
+        ToolCallContext toolContext =
+                ToolCallContext.builder()
+                        .sessionId(sessionId)
+                        .userId(userId)
+                        .datasourceIds(allowedDatasourceIds)
+                        .execution(Optional.of(execution))
+                        .build();
+        validateClientToolResults(userId, sessionId, toolResults);
+        if (resuming) {
+            toolResults =
+                    toolResults.stream()
+                            .map(
+                                    result ->
+                                            metricClarification
+                                                    .acceptUserReply(
+                                                            toolContext,
+                                                            result.toolCallId(),
+                                                            result.output())
+                                                    .map(
+                                                            output ->
+                                                                    new ChatRequest.ToolResultInput(
+                                                                            result.toolCallId(),
+                                                                            result.toolName(),
+                                                                            output))
+                                                    .orElse(result))
+                            .toList();
+        }
+        ReActAgent agent = createAgent(toolContext, eventStream);
         Session session = sessionService.getSession();
         agent.loadIfExists(session, sessionId);
-        validateClientToolResults(userId, sessionId, toolResults);
         Msg userMsg = buildUserMessage(userInput, toolResults);
         String answerId =
                 toolResults == null || toolResults.isEmpty()
@@ -318,6 +337,7 @@ public class AgentService {
                 .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
                 .toolExecutionContext(context)
+                .hook(new MetricClarificationHook(toolCallContext, metricClarification))
                 .hook(eventStream)
                 .skillBox(skillBox)
                 .memory(memory)
@@ -338,6 +358,10 @@ public class AgentService {
         先调用 get_datasources；调用 get_tables、get_table_schema、get_metric_caliber、
         execute_sql 或 export_table 时，如果存在多个可选数据源，必须传 datasource_id。
         不同数据源的同名表不能混用。
+        指标查询优先使用已知 metric_key。get_metric_caliber 返回 AMBIGUOUS 且 requiresClarification=true 时，
+        必须调用 ask_user 展示编号、key 和口径差异，等待用户选择，不能自动采用第一名。
+        用户确认后必须用所选 metric_key 再查完整口径，获得 RESOLVED 后才能执行 SQL、Python、图表、报告或导出。
+        requiresClarification=false 的多个独立指标应按名称分别查询，不要让用户二选一。
         用户需要图表时，先执行 SQL 获取 Result ID，再调用 generate_chart，图表数值必须来自该查询结果。
         SQL 负责聚合与排序；绘图只指定字段映射。修改图表类型时可复用本会话已有的 Result ID。
         """

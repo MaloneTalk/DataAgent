@@ -33,6 +33,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.UserSessionMapper;
 import io.github.malonetalk.model.converter.SessionHistoryConverter;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.SessionDatasourceService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -62,6 +63,7 @@ public class SessionService {
     private final javax.sql.DataSource dataSource;
     private final SessionDatasourceService sessionDatasourceService;
     private final UserSessionMapper userSessionMapper;
+    private final MetricClarificationService metricClarification;
     private final AnswerProvenanceService answerProvenanceService;
     private final SessionHistoryConverter sessionHistoryConverter;
 
@@ -138,6 +140,7 @@ public class SessionService {
     }
 
     private void doClearSession(String sessionId) {
+        metricClarification.clearSession(sessionId);
         getSession().delete(SimpleSessionKey.of(sessionId));
         answerProvenanceService.deleteSession(sessionId);
         sessionDatasourceService.deleteBySessionId(sessionId);

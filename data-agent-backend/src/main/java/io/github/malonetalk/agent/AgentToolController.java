@@ -24,14 +24,18 @@ import io.github.malonetalk.interceptor.AgentAuthInterceptor;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.bo.UserPatBo;
 import io.github.malonetalk.model.converter.UserPatConverter;
+import io.github.malonetalk.model.dto.MetricChoiceDto;
 import io.github.malonetalk.model.holder.UserContextHolder;
 import io.github.malonetalk.model.vo.AgentToolVo;
+import io.github.malonetalk.model.vo.BooleanVo;
 import io.github.malonetalk.model.vo.ListVo;
 import io.github.malonetalk.model.vo.ToolResultVo;
 import io.github.malonetalk.model.vo.UserPatVo;
 import io.github.malonetalk.service.DataPermissionService;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.micrometer.tracing.Tracer;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
@@ -54,6 +58,7 @@ public class AgentToolController {
     private static final String DEFAULT_SESSION = "__default__";
 
     private final AgentToolInvoker invoker;
+    private final MetricClarificationService metricClarification;
     private final DataPermissionService dataPermissions;
     private final UserContextHolder userContextHolder;
     private final UserPatConverter userPatConverter;
@@ -88,21 +93,7 @@ public class AgentToolController {
             HttpServletRequest request) {
         var user = userContextHolder.checkAndGet();
         Map<String, Object> params = input == null ? Map.of() : input;
-        String externalSessionId =
-                Optional.ofNullable(request.getHeader(SESSION_ID_HEADER))
-                        .map(String::trim)
-                        .orElse(DEFAULT_SESSION);
-        String sessionId =
-                SessionIdFactory.build(CLIENT_AGENT_CODE, user.userId(), externalSessionId);
-        ToolCallContext context =
-                ToolCallContext.builder()
-                        .sessionId(sessionId)
-                        .userId(user.userId())
-                        .datasourceIds(
-                                dataPermissions.accessibleDatasourceIds(user).stream()
-                                        .sorted()
-                                        .toList())
-                        .build();
+        ToolCallContext context = context(request);
 
         long startedAt = System.nanoTime();
         ToolResultBo result = invoker.invoke(name, params, context);
@@ -112,10 +103,33 @@ public class AgentToolController {
                 "Agent tool call: tool={}, userId={}, sessionId={}, durationMs={}, traceId={}",
                 name,
                 user.userId(),
-                sessionId,
+                context.sessionId(),
                 durationMs,
                 traceId);
         return new ToolResultVo(result.text(), result.metadata(), traceId);
+    }
+
+    @PostMapping("/metric-choice")
+    public BooleanVo confirmMetricChoice(
+            @Valid @RequestBody MetricChoiceDto choice, HttpServletRequest request) {
+        return new BooleanVo(
+                metricClarification.confirmChoice(context(request), choice.metricKey()));
+    }
+
+    private ToolCallContext context(HttpServletRequest request) {
+        var user = userContextHolder.checkAndGet();
+        String externalSessionId =
+                Optional.ofNullable(request.getHeader(SESSION_ID_HEADER))
+                        .map(String::trim)
+                        .orElse(DEFAULT_SESSION);
+        String sessionId =
+                SessionIdFactory.build(CLIENT_AGENT_CODE, user.userId(), externalSessionId);
+        return ToolCallContext.builder()
+                .sessionId(sessionId)
+                .userId(user.userId())
+                .datasourceIds(
+                        dataPermissions.accessibleDatasourceIds(user).stream().sorted().toList())
+                .build();
     }
 
     private String currentTraceId() {
