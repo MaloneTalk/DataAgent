@@ -61,6 +61,26 @@ export function registerToolsCommands(program: Command): void {
     }
   });
 
+  const confirm = addCommonOptions(
+    tools
+      .command('confirm-metric <metric-key>')
+      .description('Confirm the metric explicitly chosen by the user'),
+  );
+  confirm.action(async (metricKey: string) => {
+    const options = confirm.opts<CommonOptions>();
+    const runtime = await createRuntime(options);
+    const result = await runtime.client.confirmMetricChoice(metricKey);
+    if (isJsonMode(options.json)) {
+      printJson(result);
+    } else {
+      console.log(
+        result.value
+          ? 'Metric choice confirmed. Query get_metric_caliber with metric_key to continue.'
+          : 'Metric candidates changed. Query get_metric_caliber and ask the user to choose again.',
+      );
+    }
+  });
+
   const call = addCommonOptions(
     tools.command('call <name>').description('Call a tool with JSON input'),
   );

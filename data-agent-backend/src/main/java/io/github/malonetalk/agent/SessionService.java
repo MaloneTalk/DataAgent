@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.agent;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.message.TextBlock;
@@ -31,8 +32,10 @@ import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.mapper.MetricClarificationMapper;
 import io.github.malonetalk.mapper.UserSessionMapper;
 import io.github.malonetalk.model.converter.SessionHistoryConverter;
+import io.github.malonetalk.model.po.MetricClarificationPo;
 import io.github.malonetalk.service.SessionDatasourceService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -62,6 +65,7 @@ public class SessionService {
     private final javax.sql.DataSource dataSource;
     private final SessionDatasourceService sessionDatasourceService;
     private final UserSessionMapper userSessionMapper;
+    private final MetricClarificationMapper metricClarificationMapper;
     private final AnswerProvenanceService answerProvenanceService;
     private final SessionHistoryConverter sessionHistoryConverter;
 
@@ -138,6 +142,12 @@ public class SessionService {
     }
 
     private void doClearSession(String sessionId) {
+        metricClarificationMapper.update(
+                Wrappers.<MetricClarificationPo>lambdaUpdate()
+                        .eq(MetricClarificationPo::getSessionId, sessionId)
+                        .set(MetricClarificationPo::getCandidatesJson, "[]")
+                        .set(MetricClarificationPo::getConfirmedMetricKey, "")
+                        .set(MetricClarificationPo::getQuestionToolCallId, ""));
         getSession().delete(SimpleSessionKey.of(sessionId));
         answerProvenanceService.deleteSession(sessionId);
         sessionDatasourceService.deleteBySessionId(sessionId);

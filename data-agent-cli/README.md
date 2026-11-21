@@ -150,3 +150,16 @@ npm run format:check
 npm run build
 npm test
 ```
+
+## 指标精确查询与澄清
+
+已知稳定 key 时调用 `get_metric_caliber`，输入例如 `{"datasource_id":1,"metric_key":"paid_sales"}`；未知时用 `hint` 搜索名称或别名。检查返回元数据 `lookupStatus`，只有 `RESOLVED` 才能使用完整口径。
+
+`AMBIGUOUS` 且 `requiresClarification=true` 时先展示候选的 key 与口径差异，请用户选择，不能默认采用第一名。确认前服务端阻止该会话继续执行数据操作。外部应用获得用户明确选择后，使用同一会话调用：
+
+```bash
+data-agent-cli tools confirm-metric paid_sales --session-id analysis-1
+data-agent-cli tools call get_metric_caliber --session-id analysis-1 --input '{"datasource_id":1,"metric_key":"paid_sales"}'
+```
+
+REST 确认入口为 `POST /agent/metric-choice`，请求体 `{"metricKey":"paid_sales"}`，必须沿用同一 `X-Session-Id`。返回 `{"value":false}` 表示候选已变化或删除，需重新查询并请用户再次选择；返回 `{"value":true}` 后再按所选 key 读取完整口径。确认不是模型工具；不能把模型自行选择视为用户确认。`requiresClarification=false` 表示多个独立指标，应拆分查找，不要求用户二选一。`NOT_FOUND` 时请用户补充名称或 key，不能自动采用建议项。

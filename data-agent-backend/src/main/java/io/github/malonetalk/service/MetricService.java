@@ -19,18 +19,18 @@ package io.github.malonetalk.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.github.malonetalk.model.bo.MetricInfoBo;
+import io.github.malonetalk.model.bo.MetricLookupBo;
 import io.github.malonetalk.model.dto.MetricCreateDto;
 import io.github.malonetalk.model.dto.MetricQueryDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
-import java.util.List;
+import java.util.Optional;
 
 /** 指标口径业务：以 {@link MetricInfoBo} 作为领域对象。 */
 public interface MetricService {
 
     /** 供 agent 工具调用:按自然语言提示返回指标口径及候选项。 */
-    MetricLookup lookupCaliber(Integer datasourceId, String hint);
-
-    record MetricLookup(String text, List<MetricInfoBo> candidates) {}
+    MetricLookupBo lookupCaliber(
+            Integer datasourceId, Optional<String> metricKey, Optional<String> hint);
 
     MetricInfoBo create(MetricCreateDto dto);
 

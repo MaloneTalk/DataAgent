@@ -100,6 +100,10 @@ export class DataAgentClient {
     return { ...result, metadata: result.metadata ?? {} };
   }
 
+  confirmMetricChoice(metricKey: string): Promise<{ value: boolean }> {
+    return this.request('POST', '/agent/metric-choice', { metricKey });
+  }
+
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const sessionKey = this.sessionId ?? DEFAULT_SESSION_KEY;
     const trace = await this.traceProvider(sessionKey);

@@ -26,6 +26,7 @@ import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.bo.ToolResultBo;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.ReportService;
 import lombok.AllArgsConstructor;
@@ -37,6 +38,8 @@ import org.springframework.util.StringUtils;
 @Component
 @AllArgsConstructor
 public class GenerateReportTool implements DataAgentTool {
+
+    private final MetricClarificationService clarification;
 
     private final PermissionService permissions;
 
@@ -97,6 +100,7 @@ public class GenerateReportTool implements DataAgentTool {
         String reportSessionId = sessionId;
         return toolExceptionMapper.runResult(
                 () -> {
+                    clarification.requireResolved(ctx);
                     permissions.require(ctx.userId(), PermissionEnum.ASSET_REPORT_GENERATE);
                     return ToolResultBo.of(
                             ToolCallConstants.SUCCESS_PREFIX

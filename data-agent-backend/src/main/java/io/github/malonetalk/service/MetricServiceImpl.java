@@ -26,6 +26,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.mapper.MetricInfoMapper;
 import io.github.malonetalk.model.bo.MetricInfoBo;
+import io.github.malonetalk.model.bo.MetricLookupBo;
 import io.github.malonetalk.model.converter.MetricConverter;
 import io.github.malonetalk.model.converter.MetricPromptConverter;
 import io.github.malonetalk.model.dto.MetricCreateDto;
@@ -34,17 +35,14 @@ import io.github.malonetalk.model.dto.MetricUpdateDto;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.MetricInfoPo;
 import io.github.malonetalk.service.csv.CsvAccessService;
+import io.github.malonetalk.utils.MetricAliasUtils;
 import io.github.malonetalk.utils.SemanticUtils;
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -57,10 +55,6 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class MetricServiceImpl implements MetricService {
 
-    private static final int MIN_TERM_LENGTH = 2;
-    private static final int MAX_CANDIDATES = 3;
-    private static final String ALIAS_SEPARATORS = "[,，、;；/|]";
-
     private final MetricInfoMapper metricInfoMapper;
     private final MetricConverter metricConverter;
     private final MetricPromptConverter metricPromptConverter;
@@ -69,70 +63,52 @@ public class MetricServiceImpl implements MetricService {
     private final MetricTableReferenceService metricReferences;
 
     @Override
-    public MetricLookup lookupCaliber(Integer datasourceId, String hint) {
-        String query = SemanticUtils.trimToNull(hint);
-        if (query == null) {
-            return new MetricLookup("缺少指标描述,无法查询口径。", List.of());
+    public MetricLookupBo lookupCaliber(
+            Integer datasourceId, Optional<String> metricKey, Optional<String> hint) {
+        var key = metricKey.map(String::strip).filter(value -> !value.isEmpty());
+        if (key.isPresent()) {
+            List<MetricInfoBo> exact =
+                    toBoList(metricInfoMapper.selectAllByKey(datasourceId, key.get()));
+            if (exact.size() > 1) {
+                throw BusinessException.of(
+                        ErrorCode.DATA_CONFLICT, "同一数据源存在重复的有效指标 key: " + key.get());
+            }
+            return exact.isEmpty() ? notFound(datasourceId, key.get()) : resolved(exact.get(0));
         }
-        List<MetricInfoBo> candidates =
-                match(toBoList(metricInfoMapper.selectByDatasource(datasourceId)), query);
-        if (candidates.isEmpty()) {
-            List<MetricInfoBo> suggestions = toBoList(metricInfoMapper.suggest(datasourceId));
-            log.warn("指标口径未命中: hint={}", query);
-            return new MetricLookup(
-                    metricPromptConverter.formatNotFound(query, suggestions), List.of());
-        }
-        MetricInfoBo best = candidates.get(0);
-        if (candidates.size() == 1) {
-            return new MetricLookup(metricPromptConverter.convert(best), candidates);
-        }
-        return new MetricLookup(
-                metricPromptConverter.formatCaliberWithAlternatives(
-                        best, candidates.subList(1, candidates.size())),
-                candidates);
+        String query =
+                hint.map(String::strip)
+                        .filter(value -> !value.isEmpty())
+                        .orElseThrow(
+                                () ->
+                                        BusinessException.of(
+                                                ErrorCode.BAD_REQUEST, "metric_key 和 hint 至少填写一项"));
+        var matched =
+                MetricMatcher.match(
+                        toBoList(metricInfoMapper.selectByDatasource(datasourceId)), query);
+        if (matched.candidates().isEmpty()) return notFound(datasourceId, query);
+        if (matched.candidates().size() == 1) return resolved(matched.candidates().get(0));
+        return new MetricLookupBo(
+                MetricLookupBo.Status.AMBIGUOUS,
+                metricPromptConverter.formatCandidates(matched.candidates(), matched.conflicting()),
+                matched.candidates(),
+                matched.conflicting());
     }
 
-    /**
-     * 反向包含匹配:拿指标的每个名字去用户的话里找,而不是拿整句话去别名串里找。
-     * 后者要求模型先把问题提炼成干净的指标名,而它通常直接把用户原话整句传进来,必然落空。
-     * 多个指标命中时按「命中的词有多长」降序——命中"销售额"比命中"额"可信。
-     */
-    static List<MetricInfoBo> match(List<MetricInfoBo> metrics, String query) {
-        return metrics.stream()
-                .map(m -> new Hit(m, longestMatchedTerm(m, query)))
-                .filter(Hit::matched)
-                .sorted(Comparator.comparingInt(Hit::length).reversed())
-                .limit(MAX_CANDIDATES)
-                .map(Hit::metric)
-                .toList();
+    private MetricLookupBo resolved(MetricInfoBo metric) {
+        return new MetricLookupBo(
+                MetricLookupBo.Status.RESOLVED,
+                metricPromptConverter.convert(metric),
+                List.of(metric),
+                false);
     }
 
-    private static int longestMatchedTerm(MetricInfoBo metric, String query) {
-        return termsOf(metric).stream()
-                .filter(term -> SemanticUtils.containsIgnoreCase(query, term))
-                .mapToInt(String::length)
-                .max()
-                .orElse(0);
-    }
-
-    /** name + aliases 拆成候选词。过短的别名(如"额")会误伤大量无关问句,直接丢弃。 */
-    private static List<String> termsOf(MetricInfoBo metric) {
-        Stream<String> aliases =
-                metric.getAliases() == null
-                        ? Stream.empty()
-                        : Arrays.stream(metric.getAliases().split(ALIAS_SEPARATORS));
-        return Stream.concat(Stream.of(metric.getName()), aliases)
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(term -> term.length() >= MIN_TERM_LENGTH)
-                .distinct()
-                .toList();
-    }
-
-    private record Hit(MetricInfoBo metric, int length) {
-        boolean matched() {
-            return length > 0;
-        }
+    private MetricLookupBo notFound(Integer datasourceId, String query) {
+        return new MetricLookupBo(
+                MetricLookupBo.Status.NOT_FOUND,
+                metricPromptConverter.formatNotFound(
+                        query, toBoList(metricInfoMapper.suggest(datasourceId))),
+                List.of(),
+                false);
     }
 
     @Override
@@ -147,6 +123,7 @@ public class MetricServiceImpl implements MetricService {
         MetricInfoPo po = metricConverter.toPoForInsert(dto);
         po.setDatasourceId(dsId);
         po.setMetricKey(key);
+        po.setAliases(MetricAliasUtils.canonicalize(po.getAliases()));
         normalizeBusinessProperties(po);
         requireReadyCsvReferences(po, datasource);
         metricInfoMapper.insert(po);
@@ -169,6 +146,7 @@ public class MetricServiceImpl implements MetricService {
                                                 .last("FOR UPDATE")))
                         .orElseThrow(() -> new IllegalArgumentException("指标不存在: id=" + id));
         metricConverter.toPoForUpdate(dto, po);
+        po.setAliases(MetricAliasUtils.canonicalize(po.getAliases()));
         normalizeBusinessProperties(po);
         if (!StringUtils.hasText(dto.name())) {
             po.setName(null);

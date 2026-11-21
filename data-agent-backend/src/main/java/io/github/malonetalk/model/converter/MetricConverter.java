@@ -17,6 +17,7 @@
  */
 package io.github.malonetalk.model.converter;
 
+import io.github.malonetalk.model.bo.MetricCandidateBo;
 import io.github.malonetalk.model.bo.MetricInfoBo;
 import io.github.malonetalk.model.dto.MetricCreateDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
@@ -35,6 +36,8 @@ public interface MetricConverter {
     MetricInfoBo toBo(MetricInfoPo po);
 
     MetricInfoVo toVo(MetricInfoBo bo);
+
+    MetricCandidateBo toCandidate(MetricInfoBo bo);
 
     /** insert 用：只映射客户端可编辑字段，datasourceId/metricKey 由 Service 归一化后设置。 */
     @Mapping(target = "datasourceId", ignore = true)
