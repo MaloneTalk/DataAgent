@@ -17,19 +17,14 @@
  */
 package io.github.malonetalk.model.converter;
 
-import static io.github.malonetalk.common.SemanticConstants.METRIC_CANDIDATE_DISPLAY_LIMIT;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.malonetalk.model.bo.MetricChoiceBo;
 import io.github.malonetalk.model.bo.MetricInfoBo;
-import io.github.malonetalk.utils.MetricAliasUtils;
 import io.github.malonetalk.utils.Sha256Utils;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -79,23 +74,5 @@ public class MetricChoiceConverter {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Cannot read metric candidates", exception);
         }
-    }
-
-    public Optional<MetricChoiceBo> select(List<MetricChoiceBo> candidates, String reply) {
-        String normalized = MetricAliasUtils.normalize(reply);
-        // Exact keys take precedence over numeric choices.
-        var byKey =
-                candidates.stream()
-                        .filter(candidate -> candidate.metricKey().equalsIgnoreCase(reply.strip()))
-                        .toList();
-        if (byKey.size() == 1) return Optional.of(byKey.get(0));
-        String choice = normalized.replaceFirst("^(请选择|选择|选)\\s*", "");
-        return IntStream.range(0, Math.min(candidates.size(), METRIC_CANDIDATE_DISPLAY_LIMIT))
-                .filter(
-                        i ->
-                                choice.equals(Integer.toString(i + 1))
-                                        || choice.equals(Character.toString('a' + i)))
-                .mapToObj(candidates::get)
-                .findFirst();
     }
 }

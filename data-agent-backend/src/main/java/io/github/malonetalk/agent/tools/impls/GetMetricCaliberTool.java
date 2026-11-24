@@ -17,8 +17,6 @@
  */
 package io.github.malonetalk.agent.tools.impls;
 
-import static io.github.malonetalk.common.SemanticConstants.METRIC_CANDIDATE_DISPLAY_LIMIT;
-
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
@@ -30,10 +28,8 @@ import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.converter.MetricConverter;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
 import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
-import java.util.Map;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -103,34 +99,7 @@ public class GetMetricCaliberTool implements DataAgentTool {
                                     datasource.getId(),
                                     Optional.ofNullable(metricKey),
                                     Optional.ofNullable(hint));
-                    return new ToolResultBo(
-                            lookup.text(),
-                            Map.of(
-                                    "metrics",
-                                    lookup.resolvedMetric().stream()
-                                            .map(
-                                                    metric ->
-                                                            new MetricUse(
-                                                                    metric.getMetricKey(),
-                                                                    metric.getName(),
-                                                                    metric.getMeasureExpr(),
-                                                                    metric.getFilters()))
-                                            .toList(),
-                                    "lookupStatus",
-                                    lookup.status().name(),
-                                    "requiresClarification",
-                                    lookup.requiresClarification(),
-                                    "candidates",
-                                    lookup.candidates().stream()
-                                            .limit(METRIC_CANDIDATE_DISPLAY_LIMIT)
-                                            .map(metricConverter::toCandidate)
-                                            .toList(),
-                                    "candidateCount",
-                                    lookup.candidates().size(),
-                                    "datasourceId",
-                                    datasource.getId(),
-                                    "datasourceName",
-                                    datasource.getName()));
+                    return metricConverter.toToolResult(lookup, datasource);
                 });
     }
 }

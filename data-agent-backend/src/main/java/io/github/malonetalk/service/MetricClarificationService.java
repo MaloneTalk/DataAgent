@@ -17,6 +17,8 @@
  */
 package io.github.malonetalk.service;
 
+import static io.github.malonetalk.common.SemanticConstants.METRIC_CANDIDATE_DISPLAY_LIMIT;
+
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.enums.PermissionEnum;
@@ -29,9 +31,11 @@ import io.github.malonetalk.model.bo.MetricLookupBo;
 import io.github.malonetalk.model.converter.MetricChoiceConverter;
 import io.github.malonetalk.model.converter.MetricPromptConverter;
 import io.github.malonetalk.model.po.MetricClarificationPo;
+import io.github.malonetalk.utils.MetricAliasUtils;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -135,8 +139,7 @@ public class MetricClarificationService {
                 .map(
                         state -> {
                             var selected =
-                                    converter.select(
-                                            converter.read(state.getCandidatesJson()), reply);
+                                    selectChoice(converter.read(state.getCandidatesJson()), reply);
                             state.setQuestionToolCallId("");
                             save(state);
                             if (selected.isEmpty()) {
@@ -171,6 +174,24 @@ public class MetricClarificationService {
                         state -> {
                             throw required();
                         });
+    }
+
+    private Optional<MetricChoiceBo> selectChoice(List<MetricChoiceBo> candidates, String reply) {
+        String normalized = MetricAliasUtils.normalize(reply);
+        // Exact keys take precedence over numeric choices.
+        var byKey =
+                candidates.stream()
+                        .filter(candidate -> candidate.metricKey().equalsIgnoreCase(reply.strip()))
+                        .toList();
+        if (byKey.size() == 1) return Optional.of(byKey.get(0));
+        String choice = normalized.replaceFirst("^(请选择|选择|选)\\s*", "");
+        return IntStream.range(0, Math.min(candidates.size(), METRIC_CANDIDATE_DISPLAY_LIMIT))
+                .filter(
+                        i ->
+                                choice.equals(Integer.toString(i + 1))
+                                        || choice.equals(Character.toString('a' + i)))
+                .mapToObj(candidates::get)
+                .findFirst();
     }
 
     private boolean confirm(
