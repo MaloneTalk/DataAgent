@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -276,19 +275,11 @@ public class MetricClarificationService {
         }
         var existing = mapper.find(context.userId(), context.sessionId(), true);
         if (existing.isPresent()) return existing.get();
-        MetricClarificationPo state = new MetricClarificationPo();
-        state.setUserId(context.userId());
-        state.setSessionId(context.sessionId());
-        state.setDatasourceId(0);
-        clear(state);
-        state.setIsDeleted(0);
-        try {
-            mapper.insert(state);
-            return state;
-        } catch (DuplicateKeyException exception) {
-            return mapper.find(context.userId(), context.sessionId(), true)
-                    .orElseThrow(() -> exception);
-        }
+        // A duplicate INSERT retains shared locks; an upsert avoids lock-upgrade deadlocks.
+        mapper.insertIfAbsent(context.userId(), context.sessionId());
+        return mapper.find(context.userId(), context.sessionId(), true)
+                .orElseThrow(
+                        () -> BusinessException.of(ErrorCode.DATA_CONFLICT, "指标选择状态初始化失败，请重试"));
     }
 
     private void save(MetricClarificationPo state) {
