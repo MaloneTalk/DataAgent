@@ -37,6 +37,7 @@ import java.sql.SQLException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -133,14 +134,19 @@ public class SqlExecutor {
             throw BusinessException.of(ErrorCode.BAD_REQUEST, "SQL must not be empty.");
         }
 
-        Statement stmt;
+        List<Statement> statements;
         try {
-            stmt = CCJSqlParserUtil.parse(sql);
+            statements = CCJSqlParserUtil.parseStatements(sql);
         } catch (JSQLParserException e) {
             throw BusinessException.of(
                     ErrorCode.SQL_SYNTAX_UNSUPPORTED, "SQL syntax is invalid or unsupported.", e);
         }
 
+        if (statements.size() != 1) {
+            throw BusinessException.of(
+                    ErrorCode.SQL_NOT_ALLOWED, "Only one SELECT statement is allowed.");
+        }
+        Statement stmt = statements.get(0);
         if (!(stmt instanceof Select select)) {
             throw BusinessException.of(
                     ErrorCode.SQL_NOT_ALLOWED,

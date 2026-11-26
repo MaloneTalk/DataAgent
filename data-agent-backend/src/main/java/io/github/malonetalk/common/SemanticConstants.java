@@ -22,6 +22,7 @@ import io.github.malonetalk.enums.LogicalTableRelationType;
 public final class SemanticConstants {
 
     public static final String DEFAULT_DOMAIN = "default";
+    public static final int METRIC_CANDIDATE_DISPLAY_LIMIT = 3;
     public static final String RELATION_TYPE_FOREIGN_KEY =
             LogicalTableRelationType.FOREIGN_KEY.getCode();
     public static final String RELATION_SOURCE_LOGICAL = "logical";

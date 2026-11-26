@@ -18,7 +18,6 @@
 package io.github.malonetalk.agent.tools;
 
 import io.github.malonetalk.agent.ToolCallContext;
-import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.po.DatasourcePo;
@@ -51,18 +50,8 @@ public class ToolDatasourceResolver {
                     "Multiple datasources are available. Specify datasource_id,"
                             + " or call get_datasources first.");
         }
-        if (!ctx.datasourceIds().contains(datasourceId)) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "Datasource access denied.");
-        }
-
         var user = permissions.user(ctx.userId());
-        dataPermissions.requireDatasource(user, datasourceId);
-        DatasourcePo datasource = datasources.requireById(datasourceId);
-        if (!Status.ACTIVE.getCode().equals(datasource.getStatus())) {
-            throw BusinessException.of(
-                    ErrorCode.BAD_REQUEST, "Datasource is not active: " + datasourceId);
-        }
-        return datasource;
+        return dataPermissions.requireActiveDatasource(user, datasourceId, ctx.datasourceIds());
     }
 
     public List<DatasourcePo> accessible(ToolCallContext ctx) {

@@ -32,6 +32,7 @@ import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.bo.SqlToolMetadataBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.TableExportService;
 import java.util.Map;
@@ -41,6 +42,8 @@ import org.springframework.stereotype.Component;
 @Component
 @AllArgsConstructor
 public class ExportTableTool implements DataAgentTool {
+
+    private final MetricClarificationService clarification;
 
     private final PermissionService permissions;
 
@@ -72,6 +75,7 @@ public class ExportTableTool implements DataAgentTool {
             ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
+                    clarification.requireResolved(ctx);
                     permissions.require(ctx.userId(), PermissionEnum.ASSET_EXPORT_CREATE);
                     DatasourcePo datasource = datasourceResolver.resolve(ctx, datasourceId);
                     var result =

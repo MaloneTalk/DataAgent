@@ -17,11 +17,19 @@
  */
 package io.github.malonetalk.model.converter;
 
+import static io.github.malonetalk.common.SemanticConstants.METRIC_CANDIDATE_DISPLAY_LIMIT;
+
+import io.github.malonetalk.model.bo.MetricCandidateBo;
 import io.github.malonetalk.model.bo.MetricInfoBo;
+import io.github.malonetalk.model.bo.MetricLookupBo;
+import io.github.malonetalk.model.bo.ToolResultBo;
 import io.github.malonetalk.model.dto.MetricCreateDto;
 import io.github.malonetalk.model.dto.MetricUpdateDto;
+import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.model.po.MetricInfoPo;
+import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
 import io.github.malonetalk.model.vo.MetricInfoVo;
+import java.util.Map;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -35,6 +43,34 @@ public interface MetricConverter {
     MetricInfoBo toBo(MetricInfoPo po);
 
     MetricInfoVo toVo(MetricInfoBo bo);
+
+    MetricCandidateBo toCandidate(MetricInfoBo bo);
+
+    @Mapping(target = "key", source = "metricKey")
+    MetricUse toMetricUse(MetricInfoBo bo);
+
+    default ToolResultBo toToolResult(MetricLookupBo lookup, DatasourcePo datasource) {
+        return new ToolResultBo(
+                lookup.text(),
+                Map.of(
+                        "metrics",
+                        lookup.resolvedMetric().stream().map(this::toMetricUse).toList(),
+                        "lookupStatus",
+                        lookup.status().name(),
+                        "requiresClarification",
+                        lookup.requiresClarification(),
+                        "candidates",
+                        lookup.candidates().stream()
+                                .limit(METRIC_CANDIDATE_DISPLAY_LIMIT)
+                                .map(this::toCandidate)
+                                .toList(),
+                        "candidateCount",
+                        lookup.candidates().size(),
+                        "datasourceId",
+                        datasource.getId(),
+                        "datasourceName",
+                        datasource.getName()));
+    }
 
     /** insert 用：只映射客户端可编辑字段，datasourceId/metricKey 由 Service 归一化后设置。 */
     @Mapping(target = "datasourceId", ignore = true)

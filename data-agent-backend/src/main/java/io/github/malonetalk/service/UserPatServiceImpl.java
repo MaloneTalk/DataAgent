@@ -26,13 +26,12 @@ import io.github.malonetalk.model.bo.UserPatCreateResultBo;
 import io.github.malonetalk.model.converter.UserPatConverter;
 import io.github.malonetalk.model.dto.UserPatCreateDto;
 import io.github.malonetalk.model.po.UserPatPo;
+import io.github.malonetalk.utils.Sha256Utils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -75,7 +74,7 @@ public class UserPatServiceImpl implements UserPatService {
         pat.setUserId(userId);
         pat.setName(requireName(request.name()));
         pat.setTokenPrefix(tokenPrefix(token));
-        pat.setTokenHash(hash(token));
+        pat.setTokenHash(Sha256Utils.sha256Hex(token.getBytes(StandardCharsets.UTF_8)));
         pat.setExpiresAt(expiresAt);
         if (userPatMapper.insert(pat) == 0) {
             throw BusinessException.of(ErrorCode.OPERATION_FAILED, "Failed to create the token.");
@@ -148,7 +147,7 @@ public class UserPatServiceImpl implements UserPatService {
             return Optional.empty();
         }
 
-        String presentedHash = hash(token);
+        String presentedHash = Sha256Utils.sha256Hex(token.getBytes(StandardCharsets.UTF_8));
         UserPatPo pat = userPatMapper.selectByTokenHash(presentedHash);
         if (pat == null || !constantTimeEquals(presentedHash, pat.getTokenHash())) {
             return Optional.empty();
@@ -222,14 +221,5 @@ public class UserPatServiceImpl implements UserPatService {
 
     private static String tokenPrefix(String token) {
         return token.substring(0, Math.min(TOKEN_PREFIX_LENGTH, token.length()));
-    }
-
-    private static String hash(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is not available.", e);
-        }
     }
 }

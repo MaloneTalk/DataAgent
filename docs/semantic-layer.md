@@ -101,7 +101,17 @@ Agent 查询前按需调用语义工具：
 
 `get_tables` 只在整组键字段均已同步、物理存在、对 AI 可见且当前用户有权读取时返回该组业务唯一键；未配置或任一条件不满足时返回 `businessKeyColumns: []`，不会把组合键截成部分字段。工具将其作为管理员声明提供给 Agent，不作为数据库已保证唯一性的证明。
 
-指标工具根据 `datasource_id` 指定的数据源检索，可以直接传入用户整句问题。当前按名称和拆分后的别名做不区分大小写的包含匹配，忽略不足2个字符的词，不匹配 `metricKey`。按命中词长度排序，最多保留3个候选；只返回第一名的完整口径，其余作为名称与 key 提示。未命中时最多列出5个已有指标，供进一步确认。
+指标工具按 `datasource_id` 检索，支持 `metric_key` 精确查询和 `hint` 名称/别名查询，至少提供一项，key 优先。key 未找到时不会回退到相似指标；同一数据源出现重复有效 key 时返回配置冲突。原有 `hint` 调用兼容，单指标可以传整句问题，多指标应分别查找。
+
+名称和别名统一做 NFKC 全半角归一化、大小写折叠、首尾及连续空白处理。别名支持逗号、顿号、分号、斜杠、竖线和换行，保存时去重；英文短语中的空格不拆分。英文缩写检查字母、数字和下划线边界，中文句子可直接包含英文缩写。单字词仅允许完整相等，不参与整句包含匹配。同一位置优先更具体的长词，同一个词命中不同指标仍需澄清。
+
+工具元数据提供 `lookupStatus`（`RESOLVED`、`AMBIGUOUS`、`NOT_FOUND`）、`requiresClarification`、`candidates` 和 `candidateCount`。只有 `RESOLVED` 返回完整口径，并在 `metrics` 中记录已确定指标；候选不记为已确定引用。最多展示3个候选，歧义判断基于全部候选。多个独立指标返回 `AMBIGUOUS` 且 `requiresClarification=false`，调用方应按名称拆开查询；同名或共享别名冲突返回 `requiresClarification=true`，不能自动采用第一名。
+
+严格澄清状态持久化到 `metric_clarification`，按用户与会话隔离。出现冲突后，SQL、Python、图表、报告和导出工具统一拒绝执行，返回 `METRIC_CLARIFICATION_REQUIRED`。模型自行改传候选 key 或查询另一个指标不能解除阻塞。聊天通过现有 `ask_user` 展示服务端生成、顺序固定的候选，只有回复该次提问的编号或完整 key 才能确认；普通聊天输入及其他提问的回复不能确认指标。确认后还必须用所选 `metric_key` 重新取得 `RESOLVED`。状态仅保存候选 ID、key、口径版本和提问 ID。确认及重读都会检查当前指标和权限；口径变化会保存新候选并要求重新确认；删除的候选会移除，全部删除时清空阻塞状态。删除聊天也会清空待选内容。
+
+外部 REST 客户端在取得用户明确选择后，使用相同 `X-Session-Id` 调用 `POST /agent/metric-choice`，请求体为 `{ "metricKey": "paid_sales" }`，再以 `metric_key` 查询。候选在确认前发生变化时接口返回 `{ "value": false }`，此时应重新查询并请用户再次选择；成功返回 `{ "value": true }`。确认接口不作为模型工具暴露。CLI 对应 `data-agent-cli tools confirm-metric paid_sales --session-id <session>`。外部应用负责向实际用户展示选择，不能把模型推测当成用户确认。
+
+部署前执行 `sql/migration.sql` 创建澄清状态表；新环境使用 `sql/data_source.sql`。未命中时最多列出5个已有指标作为建议，不能自动套用建议口径。
 
 这条链路依赖语义层同步后的缓存。新增或变更业务库表结构后，请先在「语义管理 / 表语义」里同步物理表，再让 Agent 查询。
 

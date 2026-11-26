@@ -27,10 +27,10 @@ import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.bo.ToolResultBo;
-import io.github.malonetalk.model.vo.AnswerProvenanceVo.MetricUse;
-import io.github.malonetalk.service.MetricService;
+import io.github.malonetalk.model.converter.MetricConverter;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
-import java.util.Map;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -40,7 +40,8 @@ public class GetMetricCaliberTool implements DataAgentTool {
 
     private final PermissionService permissions;
 
-    private final MetricService metricService;
+    private final MetricClarificationService clarification;
+    private final MetricConverter metricConverter;
     private final ToolDatasourceResolver datasourceResolver;
     private final ToolExceptionMapper toolExceptionMapper;
 
@@ -59,7 +60,11 @@ public class GetMetricCaliberTool implements DataAgentTool {
                     for display. Call this whenever \
                     the exact caliber of a mentioned metric is unclear before generating SQL. \
                     You may pass the user's question verbatim: the matcher scans the question for \
-                    known metric names and aliases, so there is no need to distill it to a keyword.\
+                    known metric names and aliases. Prefer metric_key for an explicit identifier. \
+                    AMBIGUOUS results never choose a definition: if requiresClarification is true, \
+                    call ask_user with the candidate choices and wait for the user. Then query \
+                    again using the confirmed metric_key. For multiple independent metrics, \
+                    query each name separately. Never select the first candidate automatically.\
                     """)
     public ToolResultBo getMetricCaliber(
             @ToolParam(
@@ -73,32 +78,28 @@ public class GetMetricCaliberTool implements DataAgentTool {
                             name = "hint",
                             description =
                                     "A metric name, or the user's question verbatim, e.g. 流水 /"
-                                            + " 销售额 / 上个月的GMV是多少")
+                                            + " 销售额 / 上个月的GMV是多少",
+                            required = false)
                     String hint,
+            @ToolParam(
+                            name = "metric_key",
+                            description =
+                                    "Exact stable metric key within the datasource; takes"
+                                            + " precedence over hint.",
+                            required = false)
+                    String metricKey,
             ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
                     permissions.require(ctx.userId(), PermissionEnum.SEMANTIC_METRIC_READ);
                     var datasource = datasourceResolver.resolve(ctx, datasourceId);
-                    MetricService.MetricLookup lookup =
-                            metricService.lookupCaliber(datasource.getId(), hint);
-                    return new ToolResultBo(
-                            lookup.text(),
-                            Map.of(
-                                    "metrics",
-                                    lookup.candidates().stream()
-                                            .map(
-                                                    metric ->
-                                                            new MetricUse(
-                                                                    metric.getMetricKey(),
-                                                                    metric.getName(),
-                                                                    metric.getMeasureExpr(),
-                                                                    metric.getFilters()))
-                                            .toList(),
-                                    "datasourceId",
+                    var lookup =
+                            clarification.lookup(
+                                    ctx,
                                     datasource.getId(),
-                                    "datasourceName",
-                                    datasource.getName()));
+                                    Optional.ofNullable(metricKey),
+                                    Optional.ofNullable(hint));
+                    return metricConverter.toToolResult(lookup, datasource);
                 });
     }
 }

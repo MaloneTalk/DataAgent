@@ -92,6 +92,10 @@ data-agent-cli tools describe <tool-name>
 - execute_sql 只允许 SELECT，不支持 INSERT/UPDATE/DELETE 等写操作。
 - execute_sql 最多返回 200 行；需要更多数据时使用 LIMIT/OFFSET 分页。
 - 不同数据源的同名表不能混用。
+- 指标优先使用 metric_key 精确查询。检查 lookupStatus，只有 RESOLVED 才能继续使用口径。
+- AMBIGUOUS 且 requiresClarification=true 时必须先向用户展示候选并取得明确选择，不能默认取第一名。
+- 获得用户选择后执行 tools confirm-metric <metric-key>，沿用同一 --session-id，返回 value=false 时重新查询并请用户再次选择，value=true 后再用 metric_key 读取完整口径。
+- requiresClarification=false 的多指标请求按名称分别查找，不让用户二选一。NOT_FOUND 不得自动套用建议指标。
 
 ## session 规则
 

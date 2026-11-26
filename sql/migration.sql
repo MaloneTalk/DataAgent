@@ -901,3 +901,21 @@ CREATE TABLE IF NOT EXISTS `user_pat` (
     UNIQUE KEY `uk_user_pat_token_hash` (`token_hash`),
     KEY `idx_user_pat_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户个人访问令牌';
+
+-- Metric ambiguity is server-owned state shared by chat and external sessions.
+CREATE TABLE IF NOT EXISTS `metric_clarification` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `user_id` INT NOT NULL,
+    `session_id` VARCHAR(255) NOT NULL,
+    `datasource_id` INT NOT NULL DEFAULT 0,
+    `candidates_json` JSON NOT NULL,
+    `confirmed_metric_key` VARCHAR(255) NOT NULL DEFAULT '',
+    `question_tool_call_id` VARCHAR(255) NOT NULL DEFAULT '',
+    `creator_id` BIGINT DEFAULT NULL,
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updater_id` BIGINT DEFAULT NULL,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `is_deleted` TINYINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_metric_choice_user_session` (`user_id`, `session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Pending metric choices';

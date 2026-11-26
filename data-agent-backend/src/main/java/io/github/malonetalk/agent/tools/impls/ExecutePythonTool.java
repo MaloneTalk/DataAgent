@@ -25,6 +25,7 @@ import io.github.malonetalk.agent.tools.ToolExceptionMapper;
 import io.github.malonetalk.agent.tools.ToolResultBoConverter;
 import io.github.malonetalk.enums.PermissionEnum;
 import io.github.malonetalk.model.bo.ToolResultBo;
+import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +43,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class ExecutePythonTool implements DataAgentTool {
+
+    private final MetricClarificationService clarification;
 
     private final PermissionService permissions;
     private final ToolExceptionMapper toolExceptionMapper;
@@ -75,6 +78,7 @@ public class ExecutePythonTool implements DataAgentTool {
             ToolCallContext ctx) {
         return toolExceptionMapper.runResult(
                 () -> {
+                    clarification.requireResolved(ctx);
                     permissions.require(ctx.userId(), PermissionEnum.ANALYSIS_PYTHON_EXECUTE);
 
                     if (!semaphore.tryAcquire()) {

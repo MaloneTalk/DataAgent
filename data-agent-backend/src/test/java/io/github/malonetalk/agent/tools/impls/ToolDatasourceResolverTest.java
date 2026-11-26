@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,11 +31,14 @@ import io.github.malonetalk.agent.tools.ToolDatasourceResolver;
 import io.github.malonetalk.enums.Status;
 import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
+import io.github.malonetalk.mapper.RoleHiddenColumnMapper;
+import io.github.malonetalk.mapper.RoleTablePermissionMapper;
 import io.github.malonetalk.model.bo.UserContextBo;
 import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.DataPermissionService;
 import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.PermissionService;
+import io.github.malonetalk.service.csv.CsvAccessService;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -42,13 +46,19 @@ import org.junit.jupiter.api.Test;
 class ToolDatasourceResolverTest {
 
     private final PermissionService permissions = mock(PermissionService.class);
-    private final DataPermissionService dataPermissions = mock(DataPermissionService.class);
     private final DatasourceService datasources = mock(DatasourceService.class);
+    private final DataPermissionService dataPermissions =
+            spy(
+                    new DataPermissionService(
+                            mock(RoleTablePermissionMapper.class),
+                            mock(RoleHiddenColumnMapper.class),
+                            datasources,
+                            mock(CsvAccessService.class)));
     private final ToolDatasourceResolver resolver =
             new ToolDatasourceResolver(permissions, dataPermissions, datasources);
 
     private final UserContextBo user =
-            UserContextBo.builder().userId(1).roleId(2).superAdmin(false).build();
+            UserContextBo.builder().userId(1).roleId(2).superAdmin(true).build();
 
     @Test
     void usesSoleDatasourceWhenIdOmitted() {
