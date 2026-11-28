@@ -91,7 +91,11 @@ class SqlAuthorizationRegressionTest {
                                 datasources,
                                 new CsvAccessService(mock(CsvImportMapper.class))),
                         metadata);
-        executor = new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
+        executor =
+                new SqlExecutor(
+                        mock(DynamicDataSourceManager.class),
+                        permissions,
+                        mock(SqlJoinValidationService.class));
         datasource.setId(1);
         datasource.setType("sqlite");
     }

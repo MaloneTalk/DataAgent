@@ -27,6 +27,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.AgentToolDefinitionBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
+import io.github.malonetalk.service.ToolRiskService;
 import jakarta.annotation.PostConstruct;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -49,6 +50,7 @@ public class AgentToolInvoker {
 
     private final List<DataAgentTool> tools;
     private final ObjectMapper objectMapper;
+    private final ToolRiskService toolRiskService;
     private final Map<String, ExposedTool> exposed = new LinkedHashMap<>();
     private volatile List<AgentToolDefinitionBo> definitions = List.of();
 
@@ -94,6 +96,7 @@ public class AgentToolInvoker {
             arguments[parameter.index()] = objectMapper.convertValue(value, javaType);
         }
 
+        toolRiskService.requireAllowed(context, name, input == null ? Map.of() : input);
         try {
             Object result = tool.method().invoke(tool.bean(), arguments);
             if (result instanceof ToolResultBo toolResult) {

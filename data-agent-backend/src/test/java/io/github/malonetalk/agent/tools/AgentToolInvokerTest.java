@@ -29,6 +29,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.AgentToolDefinitionBo;
 import io.github.malonetalk.model.bo.ToolResultBo;
+import io.github.malonetalk.service.ToolRiskService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,9 @@ class AgentToolInvokerTest {
 
     private final AgentToolInvoker invoker =
             new AgentToolInvoker(
-                    List.of(new ExposedTool(), new AgentOnlyTool()), new ObjectMapper());
+                    List.of(new ExposedTool(), new AgentOnlyTool()),
+                    new ObjectMapper(),
+                    new ToolRiskService());
 
     AgentToolInvokerTest() {
         invoker.init();

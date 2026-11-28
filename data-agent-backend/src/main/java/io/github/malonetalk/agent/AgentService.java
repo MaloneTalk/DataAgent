@@ -55,6 +55,7 @@ import io.github.malonetalk.service.DatasourceService;
 import io.github.malonetalk.service.MetricClarificationService;
 import io.github.malonetalk.service.PermissionService;
 import io.github.malonetalk.service.SessionDatasourceService;
+import io.github.malonetalk.service.ToolRiskService;
 import io.github.malonetalk.utils.DateTimeUtils;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.instrumentation.reactor.v3_1.ContextPropagationOperator;
@@ -93,6 +94,7 @@ public class AgentService {
     private final DataPermissionService dataPermissions;
     private final MetricClarificationService metricClarification;
     private final ChatExecutionService chatExecutions;
+    private final ToolRiskService toolRiskService;
     private Toolkit toolkit;
     private SkillBox skillBox;
 
@@ -338,6 +340,7 @@ public class AgentService {
                 .toolkit(toolkit)
                 .toolExecutionContext(context)
                 .hook(new MetricClarificationHook(toolCallContext, metricClarification))
+                .hook(new DangerousOperationHook(toolCallContext, toolRiskService))
                 .hook(eventStream)
                 .skillBox(skillBox)
                 .memory(memory)

@@ -32,6 +32,7 @@ import io.github.malonetalk.exception.BusinessException;
 import io.github.malonetalk.exception.ErrorCode;
 import io.github.malonetalk.model.bo.AuthorizedSqlBo;
 import io.github.malonetalk.model.po.DatasourcePo;
+import io.github.malonetalk.service.SqlJoinValidationService;
 import io.github.malonetalk.service.SqlPermissionService;
 import java.util.Map;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -47,7 +48,10 @@ class SqlExecutorTest {
 
     private final SqlPermissionService permissions = mock(SqlPermissionService.class);
     private final SqlExecutor executor =
-            new SqlExecutor(mock(DynamicDataSourceManager.class), permissions);
+            new SqlExecutor(
+                    mock(DynamicDataSourceManager.class),
+                    permissions,
+                    mock(SqlJoinValidationService.class));
 
     @Test
     void sharedSelectEntryPassesParsedSelectToDataAuthorization() {
