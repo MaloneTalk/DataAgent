@@ -21,4 +21,3 @@ jobs:
           cache: maven
       - name: Build with Maven
         run: mvn verify --file data-agent-backend/pom.xml
-# Fork index trigger: force Actions re-scan on this fork.
