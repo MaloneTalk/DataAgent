@@ -1,0 +1,179 @@
+name: docker publish
+
+# 构建后端 / 前端 / 元数据库初始化镜像并推送到 GitHub Container Registry。
+# 推送 tag：main 分支 -> latest；语义化版本 tag（vX.Y.Z）-> X.Y.Z 与 X.Y；
+# PR 只构建不推送。
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # GHCR 要求镜像命名空间全小写，而 github.repository_owner 保留原始大小写，
+  # 因此统一在一步里算出小写命名空间供各 job 引用。
+  namespace:
+    name: resolve namespace
+    runs-on: ubuntu-latest
+    outputs:
+      namespace: ${{ steps.ns.outputs.namespace }}
+    steps:
+      - id: ns
+        run: echo "namespace=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: backend image
+    needs: namespace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.namespace.outputs.namespace }}/data-agent-backend
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  frontend:
+    name: frontend image
+    needs: namespace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.namespace.outputs.namespace }}/data-agent-frontend
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/frontend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 元数据库初始化镜像：把 sql/data_source.sql 打进镜像，使 docker-compose.images.yaml
+  # 无需依赖仓库内的 SQL 文件即可初始化全新 MySQL 数据卷。
+  db-init:
+    name: db init image
+    needs: namespace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.namespace.outputs.namespace }}/data-agent-db-init
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          # 构建上下文为仓库根目录，Dockerfile 内用 sql/data_source.sql 引用建表脚本。
+          context: .
+          file: docker/db-init/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # GHCR 新建的包默认为私有，不改可见性的话外部 `docker pull` 需要登录。
+  # 推送完成后把本仓库的容器包统一改为 public，让 docker-compose.images.yaml 可以直接拉取。
+  public-packages:
+    name: set packages public
+    needs: [namespace, backend, frontend, db-init]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: make packages public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ needs.namespace.outputs.namespace }}
+        run: |
+          set -uo pipefail
+          # 列出本仓库的容器包后逐个改为 public；已删除或改名时跳过，不阻塞流水线。
+          # GHCR 的包挂在「所有者」（个人账号或组织）下，不是仓库下。
+          gh api --paginate "/users/${OWNER}/packages?package_type=container" \
+            --jq '.[].name' > /tmp/pkgs.txt \
+            || gh api --paginate "/orgs/${OWNER}/packages?package_type=container" \
+               --jq '.[].name' > /tmp/pkgs.txt || true
+          if [ ! -s /tmp/pkgs.txt ]; then
+            echo "no container packages found; skipping visibility change"
+            exit 0
+          fi
+          while read -r pkg; do
+            [ -z "$pkg" ] && continue
+            echo "setting ${pkg} public"
+            gh api --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/users/${OWNER}/packages/container/${pkg}" \
+              -f visibility=public \
+              || gh api --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/orgs/${OWNER}/packages/container/${pkg}" \
+              -f visibility=public \
+              || echo "warn: could not set ${pkg} public (already public or inaccessible)"
+          done < /tmp/pkgs.txt

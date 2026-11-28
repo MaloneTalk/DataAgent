@@ -29,9 +29,11 @@ pnpm-debug.log*
 # Docker files (避免递归，但保留需要的配置文件)
 docker/backend/
 docker/frontend/Dockerfile
+docker/db-init/
 docker/.env
 docker/.env.example
 docker/docker-compose.yml
+docker/docker-compose.images.yaml
 docker/docker-*.sh
 docker/docker-*.bat
 
@@ -51,5 +53,7 @@ docs/
 AGENTS.md
 LICENSE
 
-# SQL files (通过 volume 挂载，不需要复制)
+# SQL files (通过 volume 挂载，不需要复制；db-init 镜像例外，见下)
 sql/
+# db-init 镜像需要 sql/data_source.sql 来初始化元数据库
+!sql/data_source.sql
