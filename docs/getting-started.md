@@ -6,6 +6,15 @@
 
 最快的方式，自动搭建 MySQL、后端、前端。
 
+有两种启动方式：
+
+| 方式 | 适用场景 | 命令 |
+| --- | --- | --- |
+| **拉取镜像**（无需构建） | 只想部署运行，不打算改代码 | `docker compose -f docker/docker-compose.images.yaml up -d` |
+| **本地构建**（改代码时用） | 需要修改源码后调试 | `docker compose -f docker/docker-compose.yml up -d --build` |
+
+两种方式的环境变量配置相同，镜像方式从 GHCR 拉取已发布镜像，本地构建方式在本地编译。
+
 ### 前置要求
 
 - Docker 20.10+ 与 Docker Compose v2.0+
@@ -47,18 +56,35 @@ ADMIN_INIT_PASSWORD=
 
 ### 启动
 
+**方式 A：拉取镜像（推荐，无需本地构建）**
+
+```bash
+docker compose -f docker/docker-compose.images.yaml up -d
+```
+
+该方式直接拉取 GHCR 上已发布的镜像（`ghcr.io/<组织>/data-agent-backend`、`data-agent-frontend`、`data-agent-db-init`），无需仓库源码即可启动。镜像地址可通过环境变量覆盖：
+
+```bash
+# 换用其他镜像仓库或指定版本
+IMAGE_REGISTRY=ghcr.io IMAGE_NAMESPACE=my-org IMAGE_TAG=1.0.0 \
+  docker compose -f docker/docker-compose.images.yaml up -d
+```
+
+**方式 B：本地构建（修改代码时使用）**
+
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 
 首次启动会自动：
 
-- 构建后端/前端镜像
-- 下载 MySQL 镜像
-- 在全新 MySQL 数据卷上执行 `sql/data_source.sql` 初始化数据库；已有数据卷需手动执行 `sql/migration.sql`
+- 拉取 MySQL 镜像并初始化元数据库表结构（镜像方式由 `data-agent-db-init` 镜像内置 `sql/data_source.sql`；本地构建方式通过 volume 挂载仓库内的 SQL 文件）
+- 构建后端/前端镜像（仅方式 B）
 - 启动所有服务
 
-修改 `docker/.env` 后执行 `docker compose -f docker/docker-compose.yml up -d`，重新创建受影响的容器；修改代码或镜像内的 Skill 后增加 `--build`。`restart` 不会更新容器环境变量。
+> **已有数据库升级**：数据卷已存在时不会重复执行初始化脚本，需手动执行 `sql/migration.sql`。
+
+修改 `docker/.env` 后执行对应的 `up -d`，重新创建受影响的容器；本地构建方式在修改代码或镜像内的 Skill 后增加 `--build`。`restart` 不会更新容器环境变量。
 
 ### 访问
 
@@ -76,13 +102,48 @@ docker compose -f docker/docker-compose.yml up -d --build
 docker compose -f docker/observability/docker-compose.yml up -d
 ```
 
-在 `docker/.env` 中把 `TRACING_OTLP_EXPORT_ENABLED`、`METRICS_OTLP_EXPORT_ENABLED`、`LOGS_OTLP_EXPORT_ENABLED` 设为 `true`，然后重建并重启后端：
+在 `docker/.env` 中把 `TRACING_OTLP_EXPORT_ENABLED`、`METRICS_OTLP_EXPORT_ENABLED`、`LOGS_OTLP_EXPORT_ENABLED` 设为 `true`，然后重建并重启后端（镜像方式无需 `--build`）：
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build backend
+# 或镜像方式
+docker compose -f docker/docker-compose.images.yaml up -d backend
 ```
 
 Grafana：http://localhost:3001（`admin` / `admin`），在 Explore 中分别查看 Tempo（trace）、Prometheus（metrics）、Loki（logs）。这只是本地示例——导出走标准 OTLP/HTTP，也可以直接把 endpoint 指向 Jaeger、SigNoz、Langfuse 等任意 OTel 后端。详见 [observability.md](observability.md)。
+
+### 镜像发布流水线
+
+仓库内置 `.github/workflows/docker-publish.yml`，在 `main` 分支推送、推送 `vX.Y.Z` 语义化版本 tag，或手动触发（`workflow_dispatch`）时构建并推送三个镜像到 GitHub Container Registry：
+
+| 镜像 | 说明 |
+| --- | --- |
+| `data-agent-backend` | 后端（Spring Boot + 内置 Skill） |
+| `data-agent-frontend` | 前端（Vue 构建产物 + Nginx） |
+| `data-agent-db-init` | 在官方 `mysql:8.0` 之上叠加 `sql/data_source.sql`，用于自动初始化元数据库 |
+
+镜像地址为 `ghcr.io/<仓库所属组织>/<镜像名>`：
+
+```bash
+# main 分支推送后拉取最新镜像
+docker pull ghcr.io/<组织>/data-agent-backend:latest
+
+# 指定版本
+docker pull ghcr.io/<组织>/data-agent-backend:1.0.0
+```
+
+标签规则：
+
+| 触发条件 | 生成的标签 |
+| --- | --- |
+| 推送 `main` | `latest`、`main`、`<短 SHA>` |
+| 推送 `v1.2.3` tag | `1.2.3`、`1.2`、`latest`、`<短 SHA>` |
+| 推送 PR | 只构建，不推送 |
+
+> **镜像可见性**：GHCR 认新建的包为私有。若要让 `docker pull` 免登录，需在仓库 **Package settings** 中把对应包改为 Public。
+
+> **跨组织使用**：把 `docker-compose.images.yaml` 中的镜像指向自己的命名空间即可，例如
+> `IMAGE_REGISTRY=ghcr.io IMAGE_NAMESPACE=my-org docker compose -f docker/docker-compose.images.yaml up -d`。
 
 ---
 
