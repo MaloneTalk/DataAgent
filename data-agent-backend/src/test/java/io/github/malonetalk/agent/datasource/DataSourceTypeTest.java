@@ -18,6 +18,8 @@
 package io.github.malonetalk.agent.datasource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -37,5 +39,64 @@ class DataSourceTypeTest {
                         .collect(Collectors.toMap(pair -> pair[0], pair -> pair[1]));
         assertEquals(
                 Map.of("connectTimeout", "5", "socketTimeout", "5", "loginTimeout", "10"), query);
+    }
+
+    @Test
+    void maxComputeUrlUsesEndpointAndProject() {
+        String url =
+                DataSourceType.MAXCOMPUTE.buildJdbcUrl(
+                        "http://service.cn-hangzhou.maxcompute.aliyun.com/api", null, "my_project");
+        assertEquals(
+                "jdbc:odps:http://service.cn-hangzhou.maxcompute.aliyun.com/api?project=my_project",
+                url);
+    }
+
+    @Test
+    void maxComputePassesProjectAndCredentialsToDriver() {
+        Map<String, String> properties =
+                DataSourceType.MAXCOMPUTE.driverProperties(
+                        "http://service.cn-hangzhou.maxcompute.aliyun.com/api",
+                        null,
+                        "my_project",
+                        "ak_id",
+                        "ak_secret");
+        assertEquals("my_project", properties.get("project"));
+        assertEquals("ak_id", properties.get("accessId"));
+        assertEquals("ak_secret", properties.get("accessKey"));
+    }
+
+    @Test
+    void maxComputeOmitsBlankDriverProperties() {
+        Map<String, String> properties =
+                DataSourceType.MAXCOMPUTE.driverProperties(
+                        "http://service.cn-hangzhou.maxcompute.aliyun.com/api",
+                        null,
+                        "",
+                        null,
+                        null);
+        assertFalse(properties.containsKey("project"));
+        assertFalse(properties.containsKey("accessId"));
+        assertFalse(properties.containsKey("accessKey"));
+    }
+
+    @Test
+    void nullPortDoesNotBreakOtherTypes() {
+        // 未填端口（仅填连接URL）时不得抛 NullPointerException。
+        assertEquals(
+                Map.of(),
+                DataSourceType.MYSQL.driverProperties("localhost", null, "db", "root", "pw"));
+        assertEquals(
+                "jdbc:odps:http://service.cn-hangzhou.maxcompute.aliyun.com/api?project=my_project",
+                DataSourceType.MAXCOMPUTE.buildJdbcUrl(
+                        "http://service.cn-hangzhou.maxcompute.aliyun.com/api",
+                        null,
+                        "my_project"));
+    }
+
+    @Test
+    void portIsRequiredForHostPortDatabases() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DataSourceType.MYSQL.buildJdbcUrl("localhost", null, "db"));
     }
 }

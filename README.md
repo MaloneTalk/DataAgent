@@ -16,10 +16,10 @@
 - **自然语言查数**：基于 LLM + ReAct 工具调用，把自然语言转为 SQL 并在目标库执行，全程流式输出。
 - **Python 数据分析**：对查询结果自动执行统计分析（相关性、回归、分布检验），补齐 SQL 在复杂统计计算上的短板。
 - **多模型可切换**：内置 OpenAI 兼容接口 / Ollama / 通义 DashScope / Anthropic 等提供商，换底座模型不影响已沉淀的业务知识。
-- **多数据源（JDBC 抽象）**：连接与元数据读取基于 JDBC 标准 API，内置类型覆盖 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite；实际查询还受目标库方言和 SQL 授权支持范围约束。
+- **多数据源（JDBC 抽象）**：连接与元数据读取基于 JDBC 标准 API，内置类型覆盖 MySQL / PostgreSQL / Oracle / ClickHouse / SQL Server / 达梦 / OceanBase / SQLite / MaxCompute；实际查询还受目标库方言和 SQL 授权支持范围约束。
 - **同一会话多数据源**：后端聊天接口支持通过 `datasourceIds` 限定多个数据源，工具按 `datasource_id` 执行；当前聊天页未提供选择控件，默认使用当前用户所有可访问的启用数据源。
 
-  > **默认仅内置 MySQL 驱动**。使用其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应 JDBC 驱动依赖并重新构建后端，否则新增数据源时会提示「未找到数据库驱动」。类型列表与 Maven 坐标见 [docs/configuration.md](docs/configuration.md#4-查询数据源)。
+  > **默认内置 MySQL 与 MaxCompute 驱动**。使用其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应 JDBC 驱动依赖并重新构建后端，否则新增数据源时会提示「未找到数据库驱动」。类型列表与 Maven 坐标见 [docs/configuration.md](docs/configuration.md#4-查询数据源)。
 - **语义层（无向量召回）**：以"域（Domain）"组织表，由 LLM 在工具调用时**推理出业务问题所属域、主动选表**，而非向量相似度召回——更精准、更稳定，也无需维护任何 embedding 索引。维度包括领域描述、逻辑表 / 逻辑列 / 表关系 / 指标口径的业务映射。
 - **普通视图分析**：表与普通视图统一同步和维护语义，展示 `TABLE` / `VIEW` 类型，并按对象及输出列分别授权。
 - **CSV 导入分析**：将 CSV 导入独立 MySQL 托管库，自动同步语义，提供任务进度、失败恢复与删除；需先配置专用读写连接，见 [CSV 导入](docs/csv-import.md)。

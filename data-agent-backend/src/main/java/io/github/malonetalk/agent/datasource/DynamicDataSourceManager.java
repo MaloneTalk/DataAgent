@@ -128,6 +128,15 @@ public class DynamicDataSourceManager {
         config.setPassword(datasource.getPassword());
         config.setDriverClassName(type.getDriverClassName());
 
+        // 部分驱动（如 MaxCompute 的 ODPS 驱动）要求从 Properties 读取 Project、AccessId 等参数。
+        type.driverProperties(
+                        datasource.getHost(),
+                        datasource.getPort(),
+                        datasource.getDatabaseName(),
+                        datasource.getUsername(),
+                        datasource.getPassword())
+                .forEach(config::addDataSourceProperty);
+
         config.setMaximumPoolSize(MAX_POOL_SIZE);
         config.setMinimumIdle(MIN_IDLE);
         config.setIdleTimeout(IDLE_TIMEOUT);

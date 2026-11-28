@@ -76,6 +76,7 @@
         <lombok.version>1.18.42</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <jsqlparser.version>5.2</jsqlparser.version>
+        <odps-jdbc.version>3.9.3</odps-jdbc.version>
         <jsonwebtoken.version>0.12.6</jsonwebtoken.version>
         <opentelemetry-instrumentation.version>2.9.0-alpha</opentelemetry-instrumentation.version>
         <opentelemetry-api-incubator.version>1.55.0-alpha</opentelemetry-api-incubator.version>
@@ -167,6 +168,14 @@
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- MaxCompute (ODPS) 数仓驱动 -->
+        <dependency>
+            <groupId>com.aliyun.odps</groupId>
+            <artifactId>odps-jdbc</artifactId>
+            <version>${odps-jdbc.version}</version>
             <scope>runtime</scope>
         </dependency>
 
