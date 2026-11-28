@@ -27,6 +27,7 @@ import io.github.malonetalk.model.po.DatasourcePo;
 import io.github.malonetalk.service.ChatExecutionService;
 import io.github.malonetalk.service.ChatExecutionService.Execution;
 import io.github.malonetalk.service.ChatExecutionService.QueryTask;
+import io.github.malonetalk.service.SqlJoinValidationService;
 import io.github.malonetalk.service.SqlPermissionService;
 import java.io.IOException;
 import java.sql.Connection;
@@ -65,6 +66,7 @@ public class SqlExecutor {
 
     private final DynamicDataSourceManager dynamicDataSourceManager;
     private final SqlPermissionService sqlPermissions;
+    private final SqlJoinValidationService joinValidation;
 
     public SqlExecution executeDetailed(DatasourcePo datasource, String sql, ToolCallContext ctx) {
         var authorized = authorizeSelect(datasource, sql, ctx.userId());
@@ -98,7 +100,10 @@ public class SqlExecutor {
     }
 
     public AuthorizedSqlBo authorizeSelect(DatasourcePo datasource, String sql, Integer userId) {
-        return sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
+        var authorized = sqlPermissions.authorize(userId, datasource, parseAllowedSelect(sql));
+        // Authorization rewrites the AST; validate the original query only after access is checked.
+        joinValidation.validate(datasource.getId(), parseAllowedSelect(sql));
+        return authorized;
     }
 
     public AuthorizedSqlBo authorizeSelect(
@@ -106,8 +111,11 @@ public class SqlExecutor {
             String sql,
             Integer userId,
             Map<String, Set<String>> previousColumns) {
-        return sqlPermissions.authorize(
-                userId, datasource, parseAllowedSelect(sql), previousColumns);
+        var authorized =
+                sqlPermissions.authorize(
+                        userId, datasource, parseAllowedSelect(sql), previousColumns);
+        joinValidation.validate(datasource.getId(), parseAllowedSelect(sql));
+        return authorized;
     }
 
     public String validateSelectSql(String sql) {
