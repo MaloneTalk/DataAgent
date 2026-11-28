@@ -18,6 +18,7 @@
 package io.github.malonetalk.agent.datasource;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -74,7 +75,31 @@ public enum DataSourceType {
             "org.sqlite.JDBC",
             "jdbc:sqlite:",
             "org.xerial:sqlite-jdbc",
-            Map.of("busy_timeout", "5000"));
+            Map.of("busy_timeout", "5000")),
+    MAXCOMPUTE(
+            "maxcompute",
+            "com.aliyun.odps.jdbc.OdpsDriver",
+            "jdbc:odps:",
+            "com.aliyun.odps:odps-jdbc",
+            Map.of("connect_timeout", "10000", "read_timeout", "60000")) {
+        @Override
+        public Map<String, String> driverProperties(
+                String host, Integer port, String databaseName, String username, String password) {
+            // ODPS 驱动要求 Project 名；账号密码用 accessId / accessKey 传递。
+            // accessKey 形如 "xxx:yyy" 时会被驱动 URLDecode，冒号无需额外转义。
+            Map<String, String> properties = new LinkedHashMap<>();
+            if (databaseName != null && !databaseName.isBlank()) {
+                properties.put("project", databaseName);
+            }
+            if (username != null && !username.isBlank()) {
+                properties.put("accessId", username);
+            }
+            if (password != null && !password.isBlank()) {
+                properties.put("accessKey", password);
+            }
+            return properties;
+        }
+    };
 
     private final String code;
     private final String driverClassName;
@@ -83,6 +108,17 @@ public enum DataSourceType {
 
     /** Driver-specific units: PostgreSQL/login timeouts use seconds, others milliseconds. */
     private final Map<String, String> inspectionTimeouts;
+
+    /**
+     * 驱动在 Properties 中额外要求的连接参数（键为驱动属性名）。默认无需额外参数。
+     *
+     * <p>MaxCompute 的 ODPS 驱动要求显式给出 Project 名，账号密码则通过 {@code accessId} /
+     * {@code accessKey} 传递（驱动同时兼容 {@code user} / {@code password} 别名）。
+     */
+    public Map<String, String> driverProperties(
+            String host, Integer port, String databaseName, String username, String password) {
+        return Map.of();
+    }
 
     public static Optional<DataSourceType> fromCode(String code) {
         if (code == null) {
@@ -109,17 +145,34 @@ public enum DataSourceType {
         return parts[0] + "?" + query;
     }
 
-    public String buildJdbcUrl(String host, int port, String databaseName) {
+    public String buildJdbcUrl(String host, Integer port, String databaseName) {
         return switch (this) {
             case MYSQL, POSTGRESQL, CLICKHOUSE, DAMENG, OCEANBASE ->
-                    String.format("%s%s:%d/%s", urlPrefix, host, port, databaseName);
-            case ORACLE -> String.format("%s%s:%d:%s", urlPrefix, host, port, databaseName);
+                    String.format("%s%s:%d/%s", urlPrefix, host, requirePort(port), databaseName);
+            case ORACLE ->
+                    String.format("%s%s:%d:%s", urlPrefix, host, requirePort(port), databaseName);
             case SQLSERVER ->
-                    String.format("%s%s:%d;databaseName=%s", urlPrefix, host, port, databaseName);
+                    String.format(
+                            "%s%s:%d;databaseName=%s",
+                            urlPrefix, host, requirePort(port), databaseName);
+            case MAXCOMPUTE ->
+                    // MaxCompute 的「主机」是服务 Endpoint（如
+                    // http://service.cn-hangzhou.maxcompute.aliyun.com/api），
+                    // 「数据库名」对应 ODPS Project 名。端口由 Endpoint 自身决定，故不使用 port。
+                    String.format("%s%s?project=%s", urlPrefix, host, databaseName);
             case SQLITE ->
                     throw new IllegalArgumentException(
                             "SQLite datasource does not support host/port-based URLs; please"
                                     + " provide a connectionUrl like jdbc:sqlite:/path/to/db");
         };
+    }
+
+    /** 需要端口的数据库在端口缺失时给出明确错误，而不是触发自动拆箱的 NullPointerException。 */
+    private static int requirePort(Integer port) {
+        if (port == null) {
+            throw new IllegalArgumentException(
+                    "Datasource port is required for this database type.");
+        }
+        return port;
     }
 }

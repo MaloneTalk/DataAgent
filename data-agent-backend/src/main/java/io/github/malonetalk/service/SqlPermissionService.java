@@ -122,7 +122,8 @@ public class SqlPermissionService {
                                                     ErrorCode.UNSUPPORTED_DATASOURCE_TYPE));
             this.identifierQuote =
                     switch (type) {
-                        case MYSQL, OCEANBASE, CLICKHOUSE -> "`";
+                        // MaxCompute 与 MySQL / OceanBase / ClickHouse 一致，使用反引号引用标识符。
+                        case MYSQL, OCEANBASE, CLICKHOUSE, MAXCOMPUTE -> "`";
                         default -> "\"";
                     };
         }
