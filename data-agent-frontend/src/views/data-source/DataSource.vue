@@ -78,15 +78,21 @@
     { value: 'dameng', label: '达梦 DM' },
     { value: 'oceanbase', label: 'OceanBase' },
     { value: 'sqlite', label: 'SQLite' },
+    { value: 'maxcompute', label: 'MaxCompute (ODPS)' },
   ];
 
   const isSqlite = computed(() => form.type === 'sqlite');
+  // MaxCompute 的「主机」是服务 Endpoint，「数据库名」对应 ODPS Project，无需端口。
+  const isMaxCompute = computed(() => form.type === 'maxcompute');
 
   const rules = computed<FormRules>(() => ({
     name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
     type: [{ required: true, message: '请选择数据源类型', trigger: 'change' }],
     host: isSqlite.value ? [] : [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
-    port: isSqlite.value ? [] : [{ required: true, message: '请输入端口', trigger: 'blur' }],
+    port:
+      isSqlite.value || isMaxCompute.value
+        ? []
+        : [{ required: true, message: '请输入端口', trigger: 'blur' }],
     databaseName: isSqlite.value
       ? []
       : [{ required: true, message: '请输入数据库名', trigger: 'blur' }],
@@ -405,24 +411,42 @@
         type="info"
         :closable="false"
         show-icon
-        title="后端默认仅内置 MySQL 驱动"
+        title="后端默认内置 MySQL 与 MaxCompute 驱动"
         description="使用 PostgreSQL / Oracle 等其他数据库前，请先在 data-agent-backend/pom.xml 中添加对应 JDBC 驱动依赖并重新构建后端，否则连接时会提示「未找到数据库驱动」。"
         class="driver-tip"
       />
       <el-form-item label="主机地址" prop="host" :error="fieldErrors.host">
-        <el-input v-model="form.host" placeholder="请输入主机地址" />
+        <el-input
+          v-model="form.host"
+          :placeholder="
+            isMaxCompute
+              ? '请输入服务 Endpoint，如 http://service.cn-hangzhou.maxcompute.aliyun.com/api'
+              : '请输入主机地址'
+          "
+        />
       </el-form-item>
-      <el-form-item label="端口" prop="port" :error="fieldErrors.port">
+      <el-form-item v-if="!isMaxCompute" label="端口" prop="port" :error="fieldErrors.port">
         <el-input-number v-model="form.port" :min="1" :max="65535" placeholder="请输入端口" />
       </el-form-item>
       <el-form-item label="数据库名" prop="databaseName" :error="fieldErrors.databaseName">
-        <el-input v-model="form.databaseName" placeholder="请输入数据库名" />
+        <el-input
+          v-model="form.databaseName"
+          :placeholder="isMaxCompute ? '请输入 ODPS Project 名' : '请输入数据库名'"
+        />
       </el-form-item>
       <el-form-item label="用户名" prop="username" :error="fieldErrors.username">
-        <el-input v-model="form.username" placeholder="请输入用户名" />
+        <el-input
+          v-model="form.username"
+          :placeholder="isMaxCompute ? '请输入 AccessKey ID' : '请输入用户名'"
+        />
       </el-form-item>
       <el-form-item label="密码" prop="password" :error="fieldErrors.password">
-        <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
+        <el-input
+          v-model="form.password"
+          type="password"
+          :placeholder="isMaxCompute ? '请输入 AccessKey Secret' : '请输入密码'"
+          show-password
+        />
       </el-form-item>
       <el-alert
         v-if="isSqlite"
@@ -431,6 +455,15 @@
         show-icon
         title="SQLite 为本地文件数据库"
         description="无需填写主机 / 端口 / 数据库名，请在「连接URL」中直接填写形如 jdbc:sqlite:/path/to/db 的文件路径。"
+        class="driver-tip"
+      />
+      <el-alert
+        v-if="isMaxCompute"
+        type="info"
+        :closable="false"
+        show-icon
+        title="MaxCompute 使用 Endpoint + Project 方式连接"
+        description="「主机地址」填写服务 Endpoint（不含 jdbc:odps: 前缀），「数据库名」填写 ODPS Project 名，无需端口。「用户名 / 密码」填写 AccessKey ID 与 AccessKey Secret。也可以在「连接URL」中直接填写完整的 jdbc:odps: 地址。"
         class="driver-tip"
       />
       <el-form-item label="连接URL" prop="connectionUrl" :error="fieldErrors.connectionUrl">

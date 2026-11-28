@@ -77,8 +77,9 @@ export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 | `dameng` | `dm.jdbc.driver.DmDriver` | `jdbc:dm://` | 5236 | `com.dameng:DmJdbcDriver18`（不在中央仓库，需从达梦官网获取后本地安装） |
 | `oceanbase` | `com.oceanbase.jdbc.Driver` | `jdbc:oceanbase://` | 2881 | `com.oceanbase:oceanbase-client` |
 | `sqlite` | `org.sqlite.JDBC` | `jdbc:sqlite:` | 无（文件路径） | `org.xerial:sqlite-jdbc` |
+| `maxcompute` | `com.aliyun.odps.jdbc.OdpsDriver` | `jdbc:odps:` | 无（Endpoint 自带） | `com.aliyun.odps:odps-jdbc` |
 
-> **⚠️ 驱动依赖**：后端**默认仅内置 MySQL 驱动**。使用上表其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应驱动依赖并重新构建、启动后端，否则新增/连接数据源会报「未找到数据库驱动」。其中**达梦驱动不在 Maven 中央仓库**，需从达梦官网下载 jar 后执行 `mvn install:install-file` 安装到本地仓库。
+> **⚠️ 驱动依赖**：后端**默认内置 MySQL 与 MaxCompute（ODPS）驱动**。使用上表其他数据库前，需先在 `data-agent-backend/pom.xml` 中添加对应驱动依赖并重新构建、启动后端，否则新增/连接数据源会报「未找到数据库驱动」。其中**达梦驱动不在 Maven 中央仓库**，需从达梦官网下载 jar 后执行 `mvn install:install-file` 安装到本地仓库。
 
 以 PostgreSQL 为例，在 `data-agent-backend/pom.xml` 的 `<dependencies>` 中加入：
 
@@ -91,6 +92,15 @@ export IO_GITHUB_MALONETALK_MODEL_THINKING_ENABLED="true"
 ```
 
 > **SQLite 特殊说明**：SQLite 是本地文件数据库，没有主机/端口概念。新增时无需填写主机/端口/数据库名，直接在「连接URL」中填写形如 `jdbc:sqlite:/path/to/db` 的文件路径即可。
+
+> **MaxCompute 特殊说明**：MaxCompute（ODPS）不按「主机 + 端口 + 库名」连接，而是按「服务 Endpoint + Project」连接。
+> - **主机地址**：填服务 Endpoint，例如 `http://service.cn-hangzhou.maxcompute.aliyun.com/api`（区域不同则替换 `cn-hangzhou`；正式环境可使用带 `https` 的 Endpoint）。**不要**带 `jdbc:odps:` 前缀。
+> - **端口**：无需填写。
+> - **数据库名**：填 ODPS **Project 名**（如 `my_project`）。
+> - **用户名 / 密码**：填阿里云 **AccessKey ID / AccessKey Secret**（不是 RAM 用户名密码）。
+>
+> 后端拼装的连接串形如 `jdbc:odps:http://service.cn-hangzhou.maxcompute.aliyun.com/api?project=my_project`，并通过驱动属性传入 `accessId` / `accessKey`。若需要完全自定义，也可在「连接URL」中直接填写完整的 `jdbc:odps:...` 地址（此时以「连接URL」为准）。
+> MaxCompute 标识符引用使用反引号，与 MySQL 一致。
 
 > **表格导出限制**：`export_table` 会把 SELECT 结果导出为 CSV，CSV 内容保存在元数据库中，单次最多 10000 行。当前大批量导出的流式读取按 MySQL 路径处理；PostgreSQL 虽可接入查询，但大批量导出前需在实现中补 cursor/事务设置（例如关闭 auto-commit），否则驱动可能一次性拉取结果集。
 
