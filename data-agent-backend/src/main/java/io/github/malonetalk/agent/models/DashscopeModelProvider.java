@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.agent.models;
 
-import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
+import io.agentscope.extensions.model.dashscope.DashScopeChatModel;
 import org.springframework.stereotype.Component;
 
 @Component

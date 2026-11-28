@@ -17,6 +17,14 @@
         SELECT session_id FROM user_session WHERE user_id = #{userId}
     </select>
 
+    <select id="selectAllSessionIds" resultType="string">
+        SELECT session_id FROM user_session
+    </select>
+
+    <select id="selectUserIdBySessionId" resultType="int">
+        SELECT user_id FROM user_session WHERE session_id = #{sessionId}
+    </select>
+
     <delete id="deleteBySessionId">
         DELETE FROM user_session WHERE session_id = #{sessionId}
     </delete>

@@ -69,7 +69,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <agentscope.version>1.0.11</agentscope.version>
+        <agentscope.version>2.0.5</agentscope.version>
         <spotless.version>3.4.0</spotless.version>
         <google-java-format.version>1.28.0</google-java-format.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
@@ -114,7 +114,7 @@
         </dependency>
 
         <!--
-          agentscope TelemetryTracer 依赖 Reactor 库的 ContextPropagationOperator；
+          Reactor 的 ContextPropagationOperator 用于在异步调用间传播 OTel 上下文；
           Logback appender 用于把应用日志接入 OTel。
           该 instrumentation 系列无正式版（2.x 全部为 -alpha），统一锁定 2.9.0-alpha：
           它基于 OTel API 1.43 编译，可在 Boot 4.0.3 管理的 1.55 上向后兼容运行；
@@ -172,7 +172,38 @@
 
         <dependency>
             <groupId>io.agentscope</groupId>
-            <artifactId>agentscope</artifactId>
+            <artifactId>agentscope-core</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-openai</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-anthropic</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-dashscope</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-ollama</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-mysql</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-skill-git-repository</artifactId>
             <version>${agentscope.version}</version>
         </dependency>
 

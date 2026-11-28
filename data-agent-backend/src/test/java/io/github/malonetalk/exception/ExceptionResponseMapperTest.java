@@ -20,7 +20,7 @@ package io.github.malonetalk.exception;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import io.agentscope.core.model.exception.AuthenticationException;
+import io.agentscope.extensions.model.openai.exception.AuthenticationException;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;

@@ -123,6 +123,8 @@ mysql -u root -p data_agent < sql/data_source.sql
 mysql -u root -p data_agent < sql/migration.sql
 ```
 
+AgentScope 2.0.5 升级前应停止聊天请求并执行上述迁移，再启动新版后端。脚本创建带版本列和区分大小写标识列的 `agentscope_states`，按 `user_session` 中的归属，将原 `agentscope_sessions` 数据复制到 `userId:sessionId` 命名空间。无归属的旧记录不会自动认领；组合键超过 255 字符时脚本会报错，需先处理对应数据。重复执行不会覆盖已有 v2 状态，原表保留为升级前的数据副本；v2 运行后新增的对话不会同步回原表，回退旧版本不能直接恢复这些新增对话。全新环境仅执行 `sql/data_source.sql` 即可。
+
 迁移必须在启动新版后端前完成。该脚本会补齐旧库缺少的字段、索引、回答溯源表、`csv_import` 和 `user_pat`，并增加 `table_info.object_type`；历史对象默认 `TABLE`，重新完整同步后更新实际类型。脚本还将列和逻辑关系中的表名引用转换为
 `table_info.id` 主键引用；脚本会在改表前检查无法匹配的引用、同一数据源内重复的表名，
 以及同一表内重复的列名。脚本还会补齐指标的计算方式、结果类型、单位、倍率及币种，保留旧表达式；新增字段逐列检查是否存在，并创建角色功能权限表和会话归属唯一约束，补齐 `datasource.updater_id` 与 `datasource.is_deleted`。执行前按[权限升级说明](permissions.md#升级现有数据库)检查会话归属冲突。若检查失败，修复数据后重新执行整份脚本即可。

@@ -24,7 +24,7 @@ HTTP POST /api/agent/chat/stream
 ### 具体覆盖范围
 
 - **HTTP**：由 Spring Boot 自动为每个请求创建 server span，写入 MDC 的 `traceId`/`spanId`，响应头回显 `X-Trace-Id`。
-- **Agent / LLM / Tool**：通过 `TracerRegistry.register(TelemetryTracer)` 交给 agentscope，自动产生 `invoke_agent`、`chat`、`execute_tool`、`format` span。
+- **Agent / LLM / Tool**：将 Spring Boot 的 OpenTelemetry 注册到 `GlobalOpenTelemetry`，通过 AgentScope 2.x 的 `OtelTracingMiddleware` 记录 Agent、LLM 和工具调用，并继承请求的 trace 上下文。
 - **JDBC**：主库（MyBatis）与动态数据源（Agent 查询的业务库）均通过 `JdbcTelemetry` 包装，SQL 调用记录为 `db.*` span；SQL 文本默认做字面量清洗。
 - **日志**：Logback 新增 `OTEL` appender，按配置决定是否导出；日志记录携带 `trace_id`/`span_id`。
 - **指标**：Hikari 连接池指标通过 `OpenTelemetryDataSource.unwrap` 仍然可用（`hikaricp.*`），同时也有通用的 `jdbc.connections.*`。

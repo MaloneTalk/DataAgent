@@ -19,10 +19,8 @@ package io.github.malonetalk.config;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import io.agentscope.core.tracing.TracerRegistry;
-import io.agentscope.core.tracing.telemetry.TelemetryTracer;
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender;
 import jakarta.annotation.PostConstruct;
@@ -33,7 +31,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
 /**
- * 将 Spring Boot 管理的 OTel {@link Tracer} 注册进 agentscope，使 Agent/LLM/Tool span 与 HTTP
+ * 将 Spring Boot 管理的 OTel 注册为全局实例，使 Agent/LLM/Tool span 与 HTTP
  * 请求链路共用同一个 traceId；并按配置决定是否把应用日志导出到 OTLP。
  */
 @Configuration
@@ -44,7 +42,6 @@ public class ObservabilityConfig {
     private static final String LOG_EXPORT_ENABLED_PROPERTY =
             "management.logging.export.otlp.enabled";
 
-    private final Tracer otelTracer;
     private final OpenTelemetry openTelemetry;
     private final Environment environment;
 
@@ -55,7 +52,7 @@ public class ObservabilityConfig {
 
     @PostConstruct
     void init() {
-        TracerRegistry.register(TelemetryTracer.builder().tracer(otelTracer).build());
+        GlobalOpenTelemetry.set(openTelemetry);
         configureLogExport();
     }
 

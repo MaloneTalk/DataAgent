@@ -20,7 +20,6 @@ package io.github.malonetalk.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.message.ContentBlock;
 import io.agentscope.core.message.Msg;
-import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.message.ToolResultBlock;
 import io.github.malonetalk.agent.ToolCallContext;
 import io.github.malonetalk.agent.datasource.QueryResult;
@@ -77,7 +76,6 @@ public class ChartService {
 
     private ToolResultBlock findResult(String resultId, List<Msg> messages) {
         for (Msg message : messages) {
-            if (message.getRole() != MsgRole.TOOL) continue;
             for (ContentBlock block : message.getContent()) {
                 if (block instanceof ToolResultBlock result
                         && "execute_sql".equals(result.getName())

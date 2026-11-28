@@ -125,11 +125,12 @@ CREATE TABLE IF NOT EXISTS `table_export` (
     KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='table export';
 
-CREATE TABLE IF NOT EXISTS  `agentscope_sessions` (
-  `session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `state_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+CREATE TABLE IF NOT EXISTS `agentscope_states` (
+  `session_id` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `state_key` varchar(255) COLLATE utf8mb4_bin NOT NULL,
   `item_index` int(11) NOT NULL DEFAULT '0',
   `state_data` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version` bigint NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`session_id`,`state_key`,`item_index`)
@@ -263,7 +264,7 @@ CREATE TABLE IF NOT EXISTS `sys_user` (
 
 CREATE TABLE IF NOT EXISTS `user_session` (
     `user_id`    INT          NOT NULL COMMENT '用户ID，关联 sys_user.id',
-    `session_id` VARCHAR(255) NOT NULL COMMENT '会话ID（对应 agentscope_sessions.session_id）',
+    `session_id` VARCHAR(255) NOT NULL COMMENT '对外会话ID，AgentScope状态按用户ID和会话ID组合存储',
     `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`user_id`, `session_id`),
     UNIQUE KEY `uk_session_id` (`session_id`)

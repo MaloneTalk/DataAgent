@@ -17,12 +17,12 @@
  */
 package io.github.malonetalk.exception;
 
-import io.agentscope.core.model.DashScopeHttpClient.DashScopeHttpException;
 import io.agentscope.core.model.ModelException;
-import io.agentscope.core.model.OllamaHttpClient.OllamaHttpException;
-import io.agentscope.core.model.exception.AuthenticationException;
-import io.agentscope.core.model.exception.OpenAIException;
 import io.agentscope.core.model.transport.HttpTransportException;
+import io.agentscope.extensions.model.dashscope.DashScopeHttpClient.DashScopeHttpException;
+import io.agentscope.extensions.model.ollama.OllamaHttpClient.OllamaHttpException;
+import io.agentscope.extensions.model.openai.exception.AuthenticationException;
+import io.agentscope.extensions.model.openai.exception.OpenAIException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.sql.SQLException;

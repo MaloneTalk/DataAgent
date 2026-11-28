@@ -33,6 +33,10 @@ public interface UserSessionMapper {
     /** 查询用户的所有会话 ID，用于 listSessions 过滤。 */
     List<String> selectSessionIdsByUserId(@Param("userId") int userId);
 
+    List<String> selectAllSessionIds();
+
+    Integer selectUserIdBySessionId(@Param("sessionId") String sessionId);
+
     /** 删除指定会话的归属记录。 */
     int deleteBySessionId(@Param("sessionId") String sessionId);
 }

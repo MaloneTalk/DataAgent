@@ -19,12 +19,8 @@ package io.github.malonetalk.agent;
 
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
-import io.agentscope.core.message.TextBlock;
-import io.agentscope.core.message.ThinkingBlock;
-import io.agentscope.core.session.Session;
-import io.agentscope.core.session.mysql.MysqlSession;
-import io.agentscope.core.state.SessionKey;
-import io.agentscope.core.state.SimpleSessionKey;
+import io.agentscope.core.state.AgentState;
+import io.agentscope.core.state.AgentStateStore;
 import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
 import io.github.malonetalk.dto.SessionDatasourceBinding;
 import io.github.malonetalk.dto.SessionInfo;
@@ -38,17 +34,13 @@ import io.github.malonetalk.service.SessionDatasourceService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,23 +53,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class SessionService {
 
     private final javax.sql.DataSource dataSource;
+    @Getter private final AgentStateStore stateStore;
     private final SessionDatasourceService sessionDatasourceService;
     private final UserSessionMapper userSessionMapper;
     private final MetricClarificationService metricClarification;
     private final AnswerProvenanceService answerProvenanceService;
     private final SessionHistoryConverter sessionHistoryConverter;
-
-    @Getter(lazy = true)
-    private final MysqlSession session =
-            new MysqlSession(dataSource, currentDatabaseName(), "agentscope_sessions", false);
-
-    private String currentDatabaseName() {
-        try (Connection conn = dataSource.getConnection()) {
-            return conn.getCatalog();
-        } catch (SQLException e) {
-            throw new IllegalStateException("无法获取当前数据库名", e);
-        }
-    }
 
     public String createAgentScopeSession(int userId) {
         return createSession(userId, SessionIdFactory.AGENT_SCOPE, null);
@@ -117,11 +98,18 @@ public class SessionService {
     }
 
     private List<Msg> loadMessages(String sessionId) {
-        Session session = getSession();
-        if (!session.exists(SimpleSessionKey.of(sessionId))) {
-            return Collections.emptyList();
-        }
-        return session.getList(SimpleSessionKey.of(sessionId), "memory_messages", Msg.class);
+        String owner = ownerId(sessionId);
+        return stateStore
+                .get(owner, sessionId, "agent_state", AgentState.class)
+                .map(AgentState::getContext)
+                .orElseGet(
+                        () -> stateStore.getList(owner, sessionId, "memory_messages", Msg.class));
+    }
+
+    private String ownerId(String sessionId) {
+        return Optional.ofNullable(userSessionMapper.selectUserIdBySessionId(sessionId))
+                .map(String::valueOf)
+                .orElseThrow(() -> BusinessException.of(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
     public Optional<String> getLatestUserMessageId(String sessionId) {
@@ -141,7 +129,7 @@ public class SessionService {
 
     private void doClearSession(String sessionId) {
         metricClarification.clearSession(sessionId);
-        getSession().delete(SimpleSessionKey.of(sessionId));
+        stateStore.delete(ownerId(sessionId), sessionId);
         answerProvenanceService.deleteSession(sessionId);
         sessionDatasourceService.deleteBySessionId(sessionId);
         userSessionMapper.deleteBySessionId(sessionId);
@@ -150,13 +138,9 @@ public class SessionService {
     /** 清空全部会话；调用入口要求 analysis:session:delete-all。 */
     @Transactional
     public void clearAllSessions() {
-        MysqlSession session = getSession();
-        Set<SessionKey> keys = session.listSessionKeys();
-        if (keys != null) {
-            for (SessionKey key : keys) {
-                doClearSession(key.toIdentifier());
-            }
-        }
+        userSessionMapper.selectAllSessionIds().stream()
+                .filter(id -> SessionIdFactory.isAgent(id, SessionIdFactory.AGENT_SCOPE))
+                .forEach(this::doClearSession);
     }
 
     /**
@@ -165,26 +149,22 @@ public class SessionService {
      * @param userId null 表示 admin（全量），非 null 表示只查该用户的会话
      */
     public List<SessionInfo> listSessions(Integer userId) {
-        MysqlSession session = getSession();
-        Set<SessionKey> keys = session.listSessionKeys();
-
-        if (keys == null || keys.isEmpty()) {
+        List<String> visibleIds =
+                userId == null
+                        ? userSessionMapper.selectAllSessionIds()
+                        : userSessionMapper.selectSessionIdsByUserId(userId);
+        if (visibleIds.isEmpty()) {
             return Collections.emptyList();
-        }
-
-        Set<String> visibleIds;
-        if (userId == null) {
-            visibleIds = keys.stream().map(SessionKey::toIdentifier).collect(Collectors.toSet());
-        } else {
-            visibleIds = new HashSet<>(userSessionMapper.selectSessionIdsByUserId(userId));
         }
 
         Map<String, String[]> timestamps = new HashMap<>();
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps =
                         conn.prepareStatement(
-                                "SELECT session_id, MIN(created_at), MAX(updated_at)"
-                                        + " FROM agentscope_sessions GROUP BY session_id");
+                                "SELECT us.session_id, MIN(s.created_at), MAX(s.updated_at) FROM"
+                                    + " agentscope_states s JOIN user_session us ON s.session_id ="
+                                    + " CONCAT(us.user_id, ':', us.session_id) GROUP BY"
+                                    + " us.session_id");
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 timestamps.put(rs.getString(1), new String[] {rs.getString(2), rs.getString(3)});
@@ -203,65 +183,22 @@ public class SessionService {
         }
 
         List<SessionInfo> result = new ArrayList<>();
-        for (SessionKey key : keys) {
-            String sid = key.toIdentifier();
-            if (!SessionIdFactory.isAgent(sid, SessionIdFactory.AGENT_SCOPE)
-                    || !visibleIds.contains(sid)) {
+        for (String sid : visibleIds) {
+            if (!SessionIdFactory.isAgent(sid, SessionIdFactory.AGENT_SCOPE)) {
                 continue;
             }
-            List<Msg> messages = session.getList(key, "memory_messages", Msg.class);
+            List<Msg> messages = loadMessages(sid);
+            if (messages.isEmpty()) continue;
 
-            String title = "";
-            if (messages != null) {
-                for (Msg msg : messages) {
-                    if (msg.getRole() == MsgRole.USER) {
-                        title = getTextContent(msg);
-                        if (title.length() > 30) {
-                            title = title.substring(0, 30);
-                        }
-                        break;
-                    }
-                }
-            }
-            if (title.isEmpty()) {
-                title = sid.length() > 20 ? sid.substring(0, 20) : sid;
-            }
-
-            String[] times = timestamps.getOrDefault(sid, new String[] {"", ""});
             result.add(
-                    new SessionInfo(
-                            sid, title, times[0], times[1], bindings.getOrDefault(sid, List.of())));
+                    sessionHistoryConverter.toInfo(
+                            sid,
+                            messages,
+                            timestamps.getOrDefault(sid, new String[] {"", ""}),
+                            bindings.getOrDefault(sid, List.of())));
         }
 
         result.sort((a, b) -> b.lastActiveAt().compareTo(a.lastActiveAt()));
         return result;
-    }
-
-    /**
-     * Extract text content from a message. Concatenates text from all
-     * text-containing blocks (TextBlock and ThinkingBlock).
-     */
-    private static String getTextContent(Msg msg) {
-        String thinking =
-                msg.getContent().stream()
-                        .filter(block -> block instanceof ThinkingBlock)
-                        .map(block -> ((ThinkingBlock) block).getThinking())
-                        .collect(Collectors.joining("\n"));
-
-        String text =
-                msg.getContent().stream()
-                        .filter(block -> block instanceof TextBlock)
-                        .map(block -> ((TextBlock) block).getText())
-                        .collect(Collectors.joining("\n"));
-
-        if (!thinking.isEmpty() && !text.isEmpty()) {
-            return thinking + "\n\n" + text;
-        } else if (!thinking.isEmpty()) {
-            return thinking;
-        } else if (!text.isEmpty()) {
-            return text;
-        } else {
-            return "[No response]";
-        }
     }
 }

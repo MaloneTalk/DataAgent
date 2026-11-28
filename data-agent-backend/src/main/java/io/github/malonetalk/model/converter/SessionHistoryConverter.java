@@ -26,6 +26,7 @@ import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
 import io.github.malonetalk.convertor.handler.ToolResultHandler;
 import io.github.malonetalk.dto.ChatStreamEvent;
+import io.github.malonetalk.dto.SessionInfo;
 import io.github.malonetalk.dto.TurnItem;
 import io.github.malonetalk.enums.ChatStreamEventType;
 import java.util.ArrayList;
@@ -35,6 +36,22 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SessionHistoryConverter {
+
+    public SessionInfo toInfo(
+            String sessionId,
+            List<Msg> messages,
+            String[] timestamps,
+            List<SessionInfo.Datasource> datasources) {
+        String title =
+                messages.stream()
+                        .filter(message -> message.getRole() == MsgRole.USER)
+                        .map(Msg::getTextContent)
+                        .filter(text -> !text.isEmpty())
+                        .findFirst()
+                        .map(text -> text.substring(0, Math.min(30, text.length())))
+                        .orElseGet(() -> sessionId.substring(0, Math.min(20, sessionId.length())));
+        return new SessionInfo(sessionId, title, timestamps[0], timestamps[1], datasources);
+    }
 
     public List<TurnItem> convert(List<Msg> messages) {
         List<TurnItem> turns = new ArrayList<>();

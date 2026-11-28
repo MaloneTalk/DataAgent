@@ -18,19 +18,21 @@
 package io.github.malonetalk.agent;
 
 import io.agentscope.core.ReActAgent;
+import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.hook.Hook;
-import io.agentscope.core.memory.InMemoryMemory;
-import io.agentscope.core.memory.Memory;
 import io.agentscope.core.message.ContentBlock;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
-import io.agentscope.core.session.Session;
+import io.agentscope.core.permission.PermissionBehavior;
+import io.agentscope.core.permission.PermissionContextState;
+import io.agentscope.core.permission.PermissionMode;
+import io.agentscope.core.permission.PermissionRule;
 import io.agentscope.core.skill.SkillBox;
-import io.agentscope.core.tool.ToolExecutionContext;
 import io.agentscope.core.tool.Toolkit;
+import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.github.malonetalk.agent.models.ModelFactory;
 import io.github.malonetalk.agent.models.ModelProperties;
 import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
@@ -171,25 +173,16 @@ public class AgentService {
         if (resuming) {
             toolResults =
                     toolResults.stream()
-                            .map(
-                                    result ->
-                                            metricClarification
-                                                    .acceptUserReply(
-                                                            toolContext,
-                                                            result.toolCallId(),
-                                                            result.output())
-                                                    .map(
-                                                            output ->
-                                                                    new ChatRequest.ToolResultInput(
-                                                                            result.toolCallId(),
-                                                                            result.toolName(),
-                                                                            output))
-                                                    .orElse(result))
+                            .map(result -> acceptMetricReply(toolContext, result))
                             .toList();
         }
         ReActAgent agent = createAgent(toolContext, eventStream);
-        Session session = sessionService.getSession();
-        agent.loadIfExists(session, sessionId);
+        RuntimeContext runtimeContext =
+                RuntimeContext.builder()
+                        .userId(String.valueOf(userId))
+                        .sessionId(sessionId)
+                        .put(ToolCallContext.class, toolContext)
+                        .build();
         Msg userMsg = buildUserMessage(userInput, toolResults);
         String answerId =
                 toolResults == null || toolResults.isEmpty()
@@ -198,7 +191,7 @@ public class AgentService {
         List<ChatStreamEvent> provenanceEvents = new ArrayList<>();
 
         // trace context 已在 chatStream 种入 Reactor context，agentscope 会自动沿用同一 traceId。
-        return eventStream.stream(agent, userMsg)
+        return eventStream.stream(agent, userMsg, runtimeContext)
                 .doFinally(
                         signalType ->
                                 log.info(
@@ -217,14 +210,25 @@ public class AgentService {
                 .doFinally(
                         signalType -> {
                             try {
-                                agent.saveTo(session, sessionId);
-                            } finally {
                                 if (signalType != SignalType.ON_COMPLETE) {
                                     saveProvenance(
                                             sessionId, answerId, provenanceEvents, "PARTIAL");
                                 }
+                            } finally {
+                                agent.close();
                             }
                         });
+    }
+
+    private ChatRequest.ToolResultInput acceptMetricReply(
+            ToolCallContext context, ChatRequest.ToolResultInput result) {
+        return metricClarification
+                .acceptUserReply(context, result.toolCallId(), result.output())
+                .map(
+                        output ->
+                                new ChatRequest.ToolResultInput(
+                                        result.toolCallId(), result.toolName(), output))
+                .orElse(result);
     }
 
     private List<Integer> resolveDatasourceIds(
@@ -327,26 +331,37 @@ public class AgentService {
     }
 
     private ReActAgent createAgent(ToolCallContext toolCallContext, Hook eventStream) {
-        var memory = new InMemoryMemory();
-        ToolExecutionContext context =
-                ToolExecutionContext.builder()
-                        .register(toolCallContext)
-                        .register(Memory.class, memory)
-                        .build();
         return ReActAgent.builder()
                 .name("DataAgent")
                 .sysPrompt(systemPrompt())
                 .model(modelFactory.getInstance(modelProperties))
                 .toolkit(toolkit)
-                .toolExecutionContext(context)
+                .stateStore(sessionService.getStateStore())
+                // Registered business tools retain their existing authorization and risk gates.
+                .permissionContext(toolPermissions())
+                .middleware(new OtelTracingMiddleware())
                 .hook(new MetricClarificationHook(toolCallContext, metricClarification))
                 .hook(new DangerousOperationHook(toolCallContext, toolRiskService))
                 .hook(eventStream)
                 .skillBox(skillBox)
-                .memory(memory)
                 .maxIters(10)
                 .enablePendingToolRecovery(true)
                 .build();
+    }
+
+    private PermissionContextState toolPermissions() {
+        var builder = PermissionContextState.builder().mode(PermissionMode.DONT_ASK);
+        toolkit.getToolNames()
+                .forEach(
+                        name ->
+                                builder.addAllowRule(
+                                        name,
+                                        new PermissionRule(
+                                                name,
+                                                null,
+                                                PermissionBehavior.ALLOW,
+                                                "business-authorization")));
+        return builder.build();
     }
 
     private String systemPrompt() {

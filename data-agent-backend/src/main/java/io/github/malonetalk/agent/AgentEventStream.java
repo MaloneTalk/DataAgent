@@ -20,6 +20,9 @@ package io.github.malonetalk.agent;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.Event;
 import io.agentscope.core.agent.EventType;
+import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.event.AgentEvent;
+import io.agentscope.core.event.RequireExternalExecutionEvent;
 import io.agentscope.core.hook.ActingChunkEvent;
 import io.agentscope.core.hook.Hook;
 import io.agentscope.core.hook.HookEvent;
@@ -31,22 +34,54 @@ import io.agentscope.core.hook.SummaryChunkEvent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.message.ToolResultBlock;
+import io.agentscope.core.tool.ToolSuspendException;
+import io.github.malonetalk.agent.tools.ToolCallConstants;
+import java.util.Optional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
 
 /** Keeps the actual Agent call in the event stream's cancellation chain. */
 final class AgentEventStream implements Hook {
     private final Sinks.Many<Event> events = Sinks.many().unicast().onBackpressureBuffer();
 
-    Flux<Event> stream(ReActAgent agent, Msg message) {
-        // AgentScope 1.0.11's stream() independently subscribes to call(), losing cancellation.
+    Flux<Event> stream(ReActAgent agent, Msg message, RuntimeContext context) {
+        // Keep the legacy SSE mapping while v2 owns per-call state and persistence.
         return Flux.merge(
                         events.asFlux(),
-                        agent.call(message)
-                                .doOnSuccess(result -> complete())
+                        agent.streamEvents(message, context)
+                                .doOnNext(this::emitExternalQuestion)
+                                .doOnComplete(this::complete)
                                 .thenMany(Flux.<Event>empty()))
-                .doOnCancel(agent::interrupt);
+                .doOnCancel(() -> agent.interrupt(context))
+                .doFinally(
+                        signal -> {
+                            // v2 saves completed/failed calls, but cancellation before a reply
+                            // needs a snapshot.
+                            if (signal == SignalType.CANCEL) {
+                                Optional.ofNullable(context.getAgentState())
+                                        .ifPresent(
+                                                state ->
+                                                        agent.getStateStore()
+                                                                .save(
+                                                                        context.getUserId(),
+                                                                        context.getSessionId(),
+                                                                        "agent_state",
+                                                                        state));
+                            }
+                        });
+    }
+
+    private void emitExternalQuestion(AgentEvent event) {
+        if (!(event instanceof RequireExternalExecutionEvent external)) return;
+        for (var call : external.getToolCalls()) {
+            if (ToolCallConstants.ASK_USER.equals(call.getName())) {
+                var suspension =
+                        new ToolSuspendException(String.valueOf(call.getInput().get("question")));
+                emitToolResult(ToolResultBlock.suspended(call, suspension), true);
+            }
+        }
     }
 
     @Override

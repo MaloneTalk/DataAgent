@@ -7,7 +7,7 @@
 | 组件 | 技术 | 职责 |
 | --- | --- | --- |
 | 前端 | Vue 3 + TypeScript + Vite + Element Plus + ECharts | 流式聊天与图表、数据源与 CSV 导入、语义管理、资产与数据证据、系统管理、PAT 设置 |
-| 后端 | Spring Boot 4.0.3（Java 17+）、AgentScope 1.0.11、MyBatis-Plus | Agent 推理、工具执行、语义层、CSV 任务、会话、权限、PAT 与外部 REST 工具、MCP 配置管理 |
+| 后端 | Spring Boot 4.0.3（Java 17+）、AgentScope 2.0.5、MyBatis-Plus | Agent 推理、工具执行、语义层、CSV 任务、会话、权限、PAT 与外部 REST 工具、MCP 配置管理 |
 | Skill 系统 | 多源加载（文件系统 / Git / Nacos / classpath） | 加载"已验证查询模式"作为可复用流程 |
 | 元数据库 | MySQL | 存语义层、数据源、会话、CSV 任务、PAT 哈希、MCP 配置、报表、用户、角色与权限等 |
 | 查询数据源 | JDBC 关系型数据库 | 用户真正要查的业务库，由 Agent 动态连接；默认内置 MySQL 驱动，其他类型需添加驱动并验证 SQL 方言 |
@@ -70,6 +70,8 @@
 工具调用采用显式数据源：存在多个可选数据源时，`get_domains`、`get_tables`、`get_table_schema`、`get_metric_caliber`、`execute_sql` 和 `export_table` 必须传 `datasource_id`；只有一个数据源时可以省略。`get_datasources` 用于列出本会话可用的数据源。不同数据源的同名表不能混用。数据源权限在每次工具调用时重新检查，撤权或删除后会拒绝后续操作。多数据源表示按工具调用分别查询，不会自动建立跨数据库 JOIN。
 
 会话列表仅展示 `AGENTSCOPE_` 命名空间且已有会话内容的记录。无此前缀的旧会话不会出现在列表中；创建接口登记归属后，空会话也不会立即出现在历史列表。历史、调试与删除接口使用数据库中的归属记录检查访问，不通过解析 ID 推断权限。
+
+AgentScope 2.0.5 通过每次调用的 `RuntimeContext.userId/sessionId` 隔离状态，使用 `MysqlAgentStateStore` 自动读写 `agentscope_states`。数据库中的会话键为 `userId:sessionId`，对外会话 ID 保持不变；当前状态保存在 `agent_state` 中。迁移复制的 `memory_messages` 在首次 v2 调用时由框架加载并转换，调用前也可查看历史。中途取消时补存当前调用状态，图表从该调用的 `AgentState` 读取查询快照。此次升级保留原有 SSE 协议、业务权限和 SkillBox 兼容接入，尚未启用 Harness 的记忆巩固或上下文压缩。
 
 `ask_user` 的回复通过同一 SSE 接口的 `toolResults` 提交，每项包含 `toolCallId`、`toolName`、`output`；仅接受属于该会话的 `ask_user` 调用。流事件包括 `thinking`、`text`、`tool_call`、`tool_result`、`question`、`report`、`summary` 和 `error`，错误事件包含 `errorCode`。
 
@@ -157,7 +159,7 @@ HTTP server span
        └─ ...
 ```
 
-- **同一 traceId**：入口把 OTel context 种入 Reactor context，agentscope 的 `TelemetryTracer` 在异步线程继续沿用，HTTP、Agent、LLM、工具与 SQL 共享一条 trace。
+- **同一 traceId**：入口把 OTel context 种入 Reactor context，AgentScope 的 `OtelTracingMiddleware` 在异步线程继续沿用，HTTP、Agent、LLM、工具与 SQL 共享一条 trace。
 - **JDBC span**：主库与动态数据源都用 `JdbcTelemetry` 包装，SQL 调用产出 `db.*` span；Hikari 池指标通过解包仍可用。
 - **日志与指标**：Logback `OTEL` appender 让日志携带 trace/span；Micrometer 指标经 OTLP 导出。
 - **默认行为**：只写终端，trace/metrics/logs 导出默认关闭，由环境变量控制。

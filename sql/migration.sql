@@ -919,3 +919,47 @@ CREATE TABLE IF NOT EXISTS `metric_clarification` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_metric_choice_user_session` (`user_id`, `session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Pending metric choices';
+
+-- AgentScope Java 2.0.5: preserve the v1 table, migrate owned sessions into v2 slots.
+-- Run with chat traffic stopped, before deploying the v2 backend. The v2 runtime reads
+-- legacy memory/toolkit keys on first use and writes the consolidated agent_state key.
+CREATE TABLE IF NOT EXISTS `agentscope_states` (
+    `session_id` VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
+    `state_key` VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
+    `item_index` INT NOT NULL DEFAULT 0,
+    `state_data` LONGTEXT COLLATE utf8mb4_unicode_ci NOT NULL,
+    `version` BIGINT NOT NULL DEFAULT 1,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`session_id`, `state_key`, `item_index`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP PROCEDURE IF EXISTS `migrate_agentscope_v2_states`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_agentscope_v2_states`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'agentscope_sessions'
+    ) THEN
+        IF EXISTS (
+            SELECT 1 FROM `agentscope_sessions` s
+            JOIN `user_session` us ON us.`session_id` = s.`session_id`
+            WHERE CHAR_LENGTH(CONCAT(us.`user_id`, ':', s.`session_id`)) > 255
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'AgentScope v2 user/session key exceeds 255 characters';
+        END IF;
+
+        INSERT INTO `agentscope_states`
+            (`session_id`, `state_key`, `item_index`, `state_data`, `version`, `created_at`, `updated_at`)
+        SELECT CONCAT(us.`user_id`, ':', s.`session_id`), s.`state_key`, s.`item_index`,
+               s.`state_data`, 1, s.`created_at`, s.`updated_at`
+        FROM `agentscope_sessions` s
+        JOIN `user_session` us ON us.`session_id` = s.`session_id`
+        ON DUPLICATE KEY UPDATE `version` = `agentscope_states`.`version`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_agentscope_v2_states`();
+DROP PROCEDURE `migrate_agentscope_v2_states`;

@@ -18,7 +18,7 @@
 package io.github.malonetalk.agent.models;
 
 import io.agentscope.core.model.Model;
-import io.agentscope.core.model.OllamaChatModel;
+import io.agentscope.extensions.model.ollama.OllamaChatModel;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 

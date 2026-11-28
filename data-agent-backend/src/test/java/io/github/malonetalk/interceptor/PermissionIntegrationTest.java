@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import io.agentscope.core.state.InMemoryAgentStateStore;
 import io.github.malonetalk.agent.AgentService;
 import io.github.malonetalk.agent.SessionService;
 import io.github.malonetalk.agent.provenance.AnswerProvenanceService;
@@ -110,6 +111,7 @@ class PermissionIntegrationTest {
         var sessions =
                 new SessionService(
                         database,
+                        new InMemoryAgentStateStore(),
                         mock(SessionDatasourceService.class),
                         ownership,
                         mock(MetricClarificationService.class),

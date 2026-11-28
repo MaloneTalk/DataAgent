@@ -17,7 +17,7 @@
  */
 package io.github.malonetalk.agent.tools.impls;
 
-import io.agentscope.core.memory.Memory;
+import io.agentscope.core.state.AgentState;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.github.malonetalk.agent.ToolCallContext;
@@ -47,6 +47,7 @@ public class GenerateChartTool implements DataAgentTool {
 
     @Tool(
             name = "generate_chart",
+            stateInjected = true,
             converter = ToolResultBoConverter.class,
             description =
                     """
@@ -74,7 +75,7 @@ public class GenerateChartTool implements DataAgentTool {
                             description = "Optional query column for grouping",
                             required = false)
                     String seriesField,
-            Memory memory,
+            AgentState state,
             ToolCallContext context) {
         return toolExceptionMapper.runResult(
                 () -> {
@@ -87,8 +88,7 @@ public class GenerateChartTool implements DataAgentTool {
                                     .yFields(yFields)
                                     .seriesField(Optional.ofNullable(seriesField).orElse(""))
                                     .build();
-                    var chart =
-                            chartService.generate(resultId, spec, memory.getMessages(), context);
+                    var chart = chartService.generate(resultId, spec, state.getContext(), context);
                     return new ToolResultBo(
                             "Chart generated: " + title,
                             Map.of(ChartPayloadBo.METADATA_KEY, converter.toMetadata(chart)));

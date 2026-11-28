@@ -17,8 +17,8 @@
  */
 package io.github.malonetalk.agent.models;
 
-import io.agentscope.core.model.AnthropicChatModel;
 import io.agentscope.core.model.Model;
+import io.agentscope.extensions.model.anthropic.AnthropicChatModel;
 import org.springframework.stereotype.Component;
 
 @Component

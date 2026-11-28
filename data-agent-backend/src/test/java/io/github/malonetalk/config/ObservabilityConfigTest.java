@@ -19,9 +19,11 @@ package io.github.malonetalk.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.agentscope.core.tracing.TracerRegistry;
-import io.agentscope.core.tracing.telemetry.TelemetryTracer;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.micrometer.tracing.opentelemetry.autoconfigure.OpenTelemetryTracingAutoConfiguration;
@@ -39,13 +41,20 @@ class ObservabilityConfigTest {
                     .withUserConfiguration(ObservabilityConfig.class)
                     .withPropertyValues("management.tracing.sampling.probability=1.0");
 
+    @BeforeEach
+    @AfterEach
+    void resetGlobalTelemetry() {
+        GlobalOpenTelemetry.resetForTest();
+    }
+
     @Test
     void registersOtelBackedAgentTracer() {
         runner.run(
                 ctx -> {
                     assertThat(ctx).hasSingleBean(Tracer.class);
                     assertThat(ctx.getBean(Tracer.class)).isNotNull();
-                    assertThat(TracerRegistry.get()).isInstanceOf(TelemetryTracer.class);
+                    assertThat(GlobalOpenTelemetry.get().getTracerProvider())
+                            .isSameAs(ctx.getBean(OpenTelemetry.class).getTracerProvider());
                 });
     }
 }
